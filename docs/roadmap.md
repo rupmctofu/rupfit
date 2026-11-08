@@ -1,9 +1,9 @@
 # Rupfit — Roadmap
 
-Status: F0 closed on 2026-11-08 (local gates and CI green, `docs/environment.md`);
-F1 documents are closed at gate G1; next is F2, the design owner gate. Read this
-with `docs/product-requirements.md`; every requirement ID referenced here exists
-there.
+Status: F0 closed (local gates and CI green, `docs/environment.md`); F1 documents
+closed at G1; F2 closed at G2 on 2026-11-08 with Skin B (lime, pill, icons) and
+interface polish deferred to later phases; F3 in progress. Read this with
+`docs/product-requirements.md`; every requirement ID referenced here exists there.
 
 ---
 
@@ -93,16 +93,23 @@ Deliverables (artboards, `design/<slug>/`, opened on the design canvas):
 5. Perfil → Apple Health permission explanation.
 6. States: first time (no data), resumed session, HealthKit empty, error banner.
 
-**Drawn 2026-11-08:** `design/f2-mvp/index.html` — 22 artboards at 393 × 852,
+**Drawn 2026-11-08:** `design/f2-mvp/index.html` — 23 artboards at 393 × 852,
 with `design/README.md` mapping each deliverable and each empty state of
-`design-system.md` §7. Four decisions proposed there are pending this gate.
+`design-system.md` §7.
 
 Exit gate:
 
 - **Owner approval of the training screen** — this is the one design review that
-  must not be skipped, because it is the screen used while out of breath. Not yet
-  given.
+  must not be skipped, because it is the screen used while out of breath. **Given
+  2026-11-08** with Skin B; polish may continue without reopening G2 while the card,
+  decision bar and rest bar keep their structure.
 - Every screen in `design-system.md` §7 has its empty state drawn. Done.
+
+**Closed 2026-11-08.** Decisions taken at the gate: Skin B (lime `#C6F24E`, pill
+controls, 16 pt cards); icons adopted and mapped to SF Symbols; session position in
+the pager only; no photos (illustration stays P1, placeholder rule added to
+`design-system.md` §6.2); confidence as phrasing, not a badge; `Perfil` without
+global training settings. `design-system.md` §3, §5, §6 and §7 carry the amendments.
 
 ### F3 — Domain and engine (the highest-value phase)
 

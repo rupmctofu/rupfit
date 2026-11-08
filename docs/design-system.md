@@ -73,10 +73,10 @@ is a full peer, not an afterthought. Only **one** accent hue exists.
 | `text.primary` | `#F2F4F7` | Headings, weights, numbers |
 | `text.secondary` | `#A2A9B4` | Labels, reasons, metadata |
 | `text.tertiary` | `#7C8899` | Disabled, timestamps |
-| `accent` | `#F26B3A` | Primary action, selection, active state |
-| `onAccent` | `#12100E` | Label on accent fill |
-| `accentText` | `#FF8A5C` | Accent used as text on dark |
-| `success` | `#5BD98A` | Set complete, PR |
+| `accent` | `#C6F24E` | Primary action, selection, active state |
+| `onAccent` | `#101200` | Label on accent fill |
+| `accentText` | `#D9FF7C` | Accent used as text on dark |
+| `success` | `#7BE38F` | Set complete, PR |
 | `warning` | `#F0C24B` | Recovery advisory, missing effort |
 | `danger` | `#FF7B72` | Pain, destructive confirmation |
 
@@ -91,9 +91,11 @@ is a full peer, not an afterthought. Only **one** accent hue exists.
 | `text.primary` | `#111315` | Headings, numbers |
 | `text.secondary` | `#5A6270` | Labels |
 | `text.tertiary` | `#6E7787` | Disabled |
-| `accent` | `#C24A16` | Primary action |
+| `accent` | `#4E6A00` | Primary action |
 | `onAccent` | `#FFFFFF` | Label on accent fill |
-| `accentText` | `#B8430F` | Accent as text |
+| `accentText` | `#405700` | Accent as text |
+| `success` | `#1A6B42` | Set complete, PR |
+| `warning` | `#7A5300` | Recovery advisory, missing effort |
 | `danger` | `#B3261E` | Pain, destructive confirmation |
 
 ### Contrast, measured (not claimed)
@@ -105,20 +107,24 @@ Computed with the WCAG 2.1 relative-luminance formula on 2026-11-08:
 | dark: `text.primary` / `bg.base` | 17.76:1 | 4.5 | pass |
 | dark: `text.secondary` / `bg.surface` | 7.65:1 | 4.5 | pass |
 | dark: `text.tertiary` / `bg.surface` | 5.04:1 | 3.0 | pass |
-| dark: `onAccent` / `accent` | 6.27:1 | 4.5 | pass |
-| dark: `accentText` / `bg.base` | 8.43:1 | 4.5 | pass |
+| dark: `onAccent` / `accent` | 14.62:1 | 4.5 | pass |
+| dark: `accentText` / `bg.base` | 17.28:1 | 4.5 | pass |
 | dark: `danger` / `bg.surface` | 7.18:1 | 4.5 | pass |
-| dark: `success` / `bg.surface` | 10.12:1 | 3.0 | pass |
+| dark: `success` / `bg.surface` | 11.41:1 | 3.0 | pass |
 | light: `text.primary` / `bg.surface` | 18.62:1 | 4.5 | pass |
 | light: `text.secondary` / `bg.surface` | 6.15:1 | 4.5 | pass |
-| light: `onAccent` / `accent` | 4.90:1 | 4.5 | pass |
+| light: `onAccent` / `accent` | 6.20:1 | 4.5 | pass |
 | light: `danger` / `bg.surface` | 6.54:1 | 4.5 | pass |
+| light: `success` / `bg.surface` | 6.51:1 | 3.0 | pass |
+| light: `warning` / `bg.surface` | 6.85:1 | 3.0 | pass |
 
 **Colour is never the only carrier of meaning.** A PR is not "the green number"; it
 carries the word `RÉCORD`. Pain is not a red row; it carries `dolor`.
 
-Chart series (max 4, distinguishable for deuteranopia): `#F26B3A`, `#4C9AFF`,
-`#6FD08C`, `#C08CFF` — always paired with a direct label, never a legend alone.
+Chart series (max 4, distinguishable for deuteranopia): `#C6F24E`, `#4C9AFF`,
+`#B39DFF`, `#6FD08C` — always paired with a direct label, never a legend alone.
+The estimated series is the dashed violet one; green was too close to the lime accent
+to be told apart (`design/README.md`, Skin B).
 
 ---
 
@@ -151,7 +157,7 @@ Rules:
 
 ```swift
 enum Space { static let xxs=4.0, xs=8.0, s=12.0, m=16.0, l=20.0, xl=24.0, xxl=32.0 }
-enum Radius { static let card=12.0, sheet=16.0, control=10.0 }
+enum Radius { static let card=16.0, sheet=16.0, control=12.0, button=999.0 }
 ```
 
 - Elevation: none except sheets and the rest bar, which use `bg.raised` plus a
@@ -171,16 +177,19 @@ empty, error and loading decision is not finished.
 
 ### 6.1 `PrimaryAction`
 
-- 56 pt tall, full width, `accent` fill, `onAccent` label, `Radius.control`.
+- 56 pt tall, full width, `accent` fill, `onAccent` label, `Radius.button` (pill).
+- Optional leading icon (`play.fill` on "Empezar entrenamiento"); the icon never
+  replaces the label.
 - States: enabled, pressed (opacity 0.85), disabled (`text.tertiary` on `bg.raised`),
   loading (never used: no action here waits on the network).
 - One per screen. If two actions compete, one becomes a text button.
 
 ### 6.2 `ExerciseCard`
 
-- Anatomy: session position (`Ejercicio 2 de 6`), name, previous session line,
-  suggested load block, one-line reason, set rows, and a secondary
-  `Cambiar el peso` text button.
+- Anatomy: name, previous session line, equipment and muscle chips, suggested load,
+  one-line reason, a `SessionHistoryStrip` of the last six sessions, set rows, and a
+  secondary `Cambiar el peso` text button. The session position lives in the pager,
+  not here (§10 forbids showing it twice).
 - States: first-time (no history, "elige un peso"), insufficient data, suggested,
   user-overridden, completed, skipped.
 - Paging: horizontal `TabView(.page)` with pinned chevrons. Swipe is a shortcut,
@@ -203,6 +212,13 @@ empty, error and loading decision is not finished.
 - The effort chips are `fácil · correcto · duro · fallo`; discomfort is
   `molestia · dolor` only when the user opens the "más" affordance. Neither is
   required, and an unanswered set must look unanswered, not defaulted.
+
+### 6.3b `SessionHistoryStrip`
+
+- Last six sessions' top set for this exercise: bars, the most recent one in
+  `accent`, direct labels on the first and last only, caption `serie top`.
+- It exists to answer "why this weight" at the point of decision (FR-5.4, FR-11.5).
+  It is not decoration and never replaces the previous-session line.
 
 ### 6.4 `LoadDecisionBar`
 
@@ -255,7 +271,7 @@ empty, error and loading decision is not finished.
 | Historial | session list → read-out | empty |
 | Progreso | per-exercise strength chart, PRs, weekly volume, body weight | no data, single data point |
 | Peso corporal | daily series, 7-day mean, goal, measurement list | fewer than 3 samples (gaps, no line) |
-| Perfil | profile, goals, units, exercises, Apple Health, watch, training settings | health unavailable, not requested |
+| Perfil | profile, goals, units, exercises, Apple Health, watch, data export | health unavailable, not requested |
 
 Navigation: four tabs — `Inicio`, `Entrenar`, `Progreso`, `Perfil`. A session is
 presented modally and must be resumable from `Inicio`, not buried under a tab.
@@ -314,3 +330,8 @@ From the brief §12, restated as review rules:
 - Charts are `Swift Charts`; no third-party chart library (ADR-006).
 - Snapshot baselines for the paged card and the set row are produced in F5; they are
   the reference for later refactors.
+- Icons are **SF Symbols**, not a custom font: `calendar`, `clock`, `heart`,
+  `applewatch`, `square.and.arrow.up`, `figure.strengthtraining.traditional`,
+  `chart.line.uptrend.xyaxis`, `plus`, `moon`, `chevron.left/right`. The artboards
+  draw line equivalents at 20 pt / 1.8 stroke; the implementation uses the system
+  symbol with the same role and label. An icon never carries meaning alone.
