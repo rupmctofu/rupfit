@@ -43,6 +43,3 @@ TestResults/
 *.cer
 *.env
 .env.*
-
-# Generated artboard renders (design/*/index.html is the source)
-design/**/renders/

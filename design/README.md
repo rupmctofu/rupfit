@@ -29,18 +29,35 @@ Empty states of `design-system.md` §7, one per screen: `inicio-first` (no histo
 (empty), `progreso-empty` and `progreso-single` (no data, one point), `peso-gaps`
 (fewer than 3 samples), `perfil-health-unavailable` (health unavailable).
 
-## Render a PNG
+## Rendered captures
+
+`design/f2-mvp/renders/` holds a PNG per artboard, named after its board id, so
+the mockups can be reviewed on GitHub without opening the canvas. They are
+committed on purpose; the HTML is still the source of truth, and regenerating
+them replaces the files.
+
+- `renders/<id>.png` — the 24 artboards in the current skin (B.2).
+- `renders/skin-a/` — the same board ids for the three boards used to compare
+  Skin A against Skin B (`sesion-decision`, `inicio-history`, `resumen`).
+
+Boards not shipped as deliverables are rendered too, because they are evidence
+for decisions: `entrenar`, `historial`, `perfil`, `sesion-photo` (adopted media
+layout) and `inicio-photo` (rejected hero, kept as an experiment).
+
+### Regenerate
 
 ```bash
-mkdir -p design/f2-mvp/renders
-swift tools/screenshot.swift \
-  "file://$PWD/design/f2-mvp/index.html?only=sesion-decision" \
-  design/f2-mvp/renders/sesion-decision.png 393 852
+for id in inicio-history sesion-decision resumen; do
+  swift tools/screenshot.swift \
+    "file://$PWD/design/f2-mvp/index.html?only=$id" \
+    "design/f2-mvp/renders/$id.png" 393 852
+done
 ```
 
-`design/**/renders/` is ignored: the PNGs are build artifacts, the HTML is the
-source. The WebKit renderer is used because Chromium headless does not start on
-this Mac (`CVDisplayLinkCreateWithCGDisplay` fails).
+Snapshots come out at 2× (786 × 1704), what the simulator produces for an
+iPhone 15. The WebKit renderer is used because Chromium headless does not start
+on this Mac (`CVDisplayLinkCreateWithCGDisplay` fails). Pass `&skin=a` for the
+Skin A captures.
 
 ## Decisions proposed in F2 (pending G2)
 
