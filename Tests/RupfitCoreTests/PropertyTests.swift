@@ -152,11 +152,11 @@ final class PropertyTests: XCTestCase {
             let top = ExerciseOutcome(
                 date: now, weightKg: weight, recommendedWeightKg: nil,
                 sets: [SetOutcome(targetReps: 6, actualReps: 10,
-                                  effort: .hard, discomfort: .none)])
+                                  effort: .hard, discomfort: Discomfort.none)])
             let bottom = ExerciseOutcome(
                 date: now, weightKg: weight, recommendedWeightKg: nil,
                 sets: [SetOutcome(targetReps: 6, actualReps: 4,
-                                  effort: .hard, discomfort: .none)])
+                                  effort: .hard, discomfort: Discomfort.none)])
             let topResult = engine.recommend(ProgressionInput(
                 exercise: exercise(increment: 2.5), prescription: prescription,
                 phase: .normal, history: [top]), now: now)
