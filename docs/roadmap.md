@@ -1,6 +1,8 @@
 # Rupfit — Roadmap
 
-Status: plan, no phase started. Read this with `docs/product-requirements.md`; every
+Status: plan. Phases F0–F7 are partly built; no gate is closed. The state of every
+phase is recorded in §3, and the gaps between the plan and the code are listed at the
+end of §3. Read this with `docs/product-requirements.md`; every
 requirement ID referenced here exists there. Every phase runs on Windows: a step
 that needs macOS, Xcode, a paid account or a signed binary is a defect in this plan,
 not a missing tool (`docs/adr/0001-pwa-instead-of-native-ios.md` §6).
@@ -40,7 +42,36 @@ The order is deliberate: the engine needs no UI, and the UI needs no storage. Ea
 phase produces something the owner can judge before the next one adds a layer that
 could hide a mistake in the previous one.
 
+State of the phases, read from the repository on 2026-11-08. "Built" means the
+deliverable exists and its automated tests pass; it does **not** mean the gate is
+green. Only the owner closes an owner gate, and no gate line exists for G1–G5.
+
+| Phase | Built | Evidence | Gate |
+| --- | --- | --- | --- |
+| F0 | toolchain only | `c0ef31c`, `e8002f5` | open — no boundary check, no `docs/environment.md` |
+| F1 | documents and ADR | `5a11c79` | open — G1 waits on the owner |
+| F2 | the 24 artboards, on another branch | `origin/docs/design-renders` | open — G2 waits on the owner |
+| F3 | domain, engine, session table | `c0ef31c`, `ca03c14`, `18af14f` | open — no mutation check, no boundary check |
+| F4 | shell, Sesión, the screens | `e8002f5`, `e02a31b`, `3e61193`, `1d37937`, `86be6ab`, `04f3b09` | open — G3 and the phone checks unrecorded |
+| F5 | storage, backup, recovery | `d2025f2`, `1d37937` | open — device checks unrecorded |
+| F6 | manifest, service worker, workflow | `7acd7a3`, `ad607f7` | open — never deployed, no device evidence |
+| F7 | Progreso, Historial, Peso corporal | `54cb2a7` | open — MVP acceptance needs the installed app |
+| F8 | nothing | — | not started |
+
 ### F0 — Environment and skeleton
+
+**State: partly built; gate open.** The toolchain exists and runs: `c0ef31c` adds
+`package.json` (`dev`, `build`, `preview`, `test`, `typecheck`), the strict
+`tsconfig.json` and `vitest.config.ts`; `e8002f5` adds the app shell, the two project
+references and the Vite config. On 2026-11-08, on Windows, `npm run typecheck`,
+`npm test` (569 tests in 36 files, at `04f3b09`) and `npm run build` are green. Four
+deliverables
+are still missing: `tools/check-boundaries.mjs`, the `check:boundaries` script,
+`docs/environment.md`, and the `check` job of `architecture.md` §13.
+`.github/workflows/pages.yml` runs test, typecheck and build before deploying, which
+is not the same thing: it is not the boundary check and it runs only on `main`. The
+gate fails on the boundary check (no rule-breaking import has ever been rejected by
+the repository) and on the missing `docs/environment.md`.
 
 **Purpose:** turn a documentation-only repository into one that builds and is
 verified by a machine, on Windows.
@@ -74,6 +105,16 @@ start without a Mac; this one cannot fail for that reason.
 
 ### F1 — Documents and science
 
+**State: deliverables done; gate G1 open.** The documents and
+`docs/adr/0001-pwa-instead-of-native-ios.md` are committed (`5a11c79`), on top of the
+earlier document commits `7074071`, `7522d80`, `f46de9b`, `1f0b2ef` and `0f494a7`.
+Two gate items are settled in writing: D-6 and D-7 are retired in
+`product-requirements.md` §8, and the NFR-8 conflict is closed by owner decision
+(`odd/tasks/pwa-app-tier.md` L5). What no line records is the review itself: that the
+requirements and the training rules were read and accepted or corrected. G1 is open
+and waiting on the owner. `tools/check-citations.sh` was not written; the phase marks
+it SHOULD, and every DOI was verified by hand once (`training-science.md`).
+
 **Purpose:** the specification the rest of the work is reviewed against.
 
 Deliverables: the documents in `docs/` (this one included, with
@@ -102,6 +143,15 @@ Exit gate:
 
 ### F2 — Product design (owner gate)
 
+**State: artboards done on another branch; gate G2 open.** The reviewed renders — 24
+screens at 786 × 1704 plus the `skin-a/` variants — are on `origin/docs/design-renders`,
+under `design/f2-mvp/renders/`, and are not on this branch. The implementation is
+measured against them:
+`src/design-system/README.md` lists every disagreement it resolved and says which
+source won. No line records the owner approving the training screen, which is the one
+review this gate exists for, so G2 is open — it waits on the owner's explicit yes for
+the Sesión design, not on more drawing.
+
 **Purpose:** see the training experience before any of it is coded.
 
 Deliverables (artboards, `design/<slug>/`, opened on the design canvas):
@@ -125,6 +175,18 @@ Exit gate:
   absent (haptics, Health, watch, push).
 
 ### F3 — Domain and engine (the highest-value phase)
+
+**State: built; gate open on two items.** `src/core/domain` and `src/core/engine` hold
+the types, `recommend`, rounding, reason codes, readaptation and confidence, with the
+scenario table, the property tests and the four worked examples as executable tests
+(`c0ef31c`). The session transition table came later (`ca03c14`) and was moved into
+the pure group (`18af14f`). `src/core` imports no React, no storage module, no DOM
+global and no clock, which holds by inspection of the imports but is not enforced by
+anything, because `tools/check-boundaries.mjs` does not exist. No record of the
+mutation check exists; the gate is open on that and on the boundary check. Two
+deliverables are missing or elsewhere: `src/core/seed` was never written (there is no
+seeded exercise library), and the statistics live in
+`src/features/progress/aggregates.ts`, not in `src/core/statistics`.
 
 **Purpose:** the logic that must be right, written before any UI can hide a mistake.
 
@@ -156,6 +218,17 @@ only component whose failure would be silent, and it needs no interface to be
 verified.
 
 ### F4 — App shell and training screen (owner gate)
+
+**State: built; gate open.** The shell with the four tabs and hash routing
+(`e8002f5`), the tokens and components (`e02a31b`) with the gallery (`3e61193`), the
+Sesión sheet over the real storage port with its controller and its fake port
+(`1d37937`), and Inicio, Entrenar and Resumen (`86be6ab`), with Inicio handing the
+day's plan to Sesión (`04f3b09`). The automated gate item has a test. None of the
+manual ones does: the flow on a phone over a preview URL, Dynamic
+Type XXL, VoiceOver on the decision bar and the set row, the rest bar against the home
+indicator, and the owner's review in a real gym. The gate also assumed a preview
+published from a preview branch; GitHub Pages is wired for `main` only (`7acd7a3`) and
+nothing is published, so G3 cannot be reached yet.
 
 **Purpose:** the experience the product is judged on, before storage makes it
 durable.
@@ -190,6 +263,16 @@ Exit gate:
   connection to load at all (F6). The gym review judges the flow, not the platform.
 
 ### F5 — Persistence, backup and recovery
+
+**State: built; gate open on the device checks.** `src/storage` carries the schema,
+the repositories, the invariants, the migrations, the versioned backup document and
+the validating import, with its own test suite (`d2025f2`). The session writes each
+confirmed set through the port (`1d37937`), and the crash-recovery state machine is
+pure and lives in `src/core/session` (`ca03c14`, `18af14f`). The automated gate items —
+mapper round trips, kill and restore, invalid import, `merge` run twice, migration, and
+the typed confirmation a `restore` requires — have tests. The two manual ones
+(log two sets and force-quit; export, empty the app, import everything back) have no
+recorded result, because there is no installed app to run them in.
 
 **Purpose:** make the engine's answers durable, the session crash-proof, and the
 data recoverable when the browser container is lost.
@@ -227,6 +310,15 @@ Exit gate:
 
 ### F6 — PWA install, offline cache and deploy (owner gate)
 
+**State: built, never deployed; gate open.** The PNG icon set, the manifest with
+`standalone`, the Apple touch icon and the fail-closed Pages workflow are in
+`7acd7a3`; registration at launch and the prompt-based update banner are in
+`ad607f7`. `npm run build` emits `sw.js` and a precache manifest, so the pieces exist.
+None of the gate is evidenced: the workflow does not switch itself on (the owner
+enables Pages once in Settings), no URL is published, and no install, offline cold
+start, update flow or seven-day survival has been observed on the phone. G4 has
+nothing to judge yet.
+
 **Purpose:** make it installable, permanent and network-free — the three properties
 that replaced the native plan (S1, S2, S3).
 
@@ -262,6 +354,17 @@ Exit gate:
 
 ### F7 — Progress, body weight, measurements
 
+**State: mostly built; gate open.** Progreso, Historial and Peso corporal render from
+weekly aggregates, personal records and the stored body-weight series, with
+hand-written SVG and the e1RM and mean-suppression rules (`54cb2a7`). The automated
+suite covers the three chart states, the gap between two trained weeks, the e1RM
+suppression above twelve effective reps and the 7-day mean below three samples. Two
+things are missing on purpose: the measurement UI, which this phase defers to `P1`,
+and the acceptance run of `product-requirements.md` §6, which the gate places on the
+installed app. Not yet evidenced at gate level: the chart fixtures at 0, 1, 3 and 40
+points as a single named case, and the index-only reads. The body-weight series is
+read-only in the app: nothing writes a measurement except an import.
+
 **Purpose:** the history becomes readable, from the same stored evidence.
 
 Deliverables: per-exercise charts, PR list, weekly volume per muscle, body-weight
@@ -279,6 +382,10 @@ Exit gate:
 is green, on the installed app, not on a desktop browser.
 
 ### F8 — Optional: iOS Shortcuts → Apple Health bridge (P1, droppable)
+
+**State: not started.** No measurement of what a Shortcuts action can read on the
+owner's iOS version exists, no recipe, no fixture document. It stays a later,
+droppable phase, and ADR-0001 §5 stands as the accepted cost until it starts.
 
 **Purpose:** give back part of what ADR-0001 §5 gives up, without an integration and
 without a dependency.
@@ -304,6 +411,36 @@ Exit gate:
   shows the bridge needs a step nobody will perform weekly — F8 is dropped, the
   recipe is not written, and ADR-0001 §5 stands as the accepted cost.
 
+### Open work recorded at this state
+
+These are gaps between the plan above and the code in the repository, not new scope.
+They are written down so the next work unit starts from the code and not from the plan.
+
+1. **Editing the routine.** `Entrenar` reads the plan and nothing in the app writes
+   one: there is no editor screen and nothing saves a plan back. The stores and
+   repositories exist (`d2025f2`), so the plan can only arrive by import today.
+2. **Recording a body measurement from the app.** `#/progreso/peso` renders the stored
+   series, the 7-day mean and the goal (`54cb2a7`); no screen writes a measurement, so
+   the series only grows through an import.
+3. **Three duplicated formatting modules.** `src/features/home/format.ts`,
+   `src/features/progress/format.ts` and `src/features/session/format.ts` each decide
+   how a weight, a volume or a date is written; `formatWeight` and `formatVolume` are
+   duplicated verbatim between progress and session, and the comment in
+   `progress/format.ts` already names `src/core` as their shared home. Until they move,
+   the Spanish decimal and unit rules are pinned by two test files that can drift
+   apart.
+4. **No seeded exercise library.** F3 lists `src/core/seed`, at least 40 exercises with
+   a coverage test. It does not exist: `Entrenar` shows what the store holds, so a fresh
+   install has nothing to suggest. F7 also lists weekly volume *per muscle*; the built
+   aggregates report volume and hard sets per week, without the muscle split.
+5. **Device verification needs a published URL.** Every manual item in F4, F5 and F6,
+   and the §6 acceptance in F7, waits on an app installed from an HTTPS URL. The Pages
+   workflow exists and is not enabled (`7acd7a3`); publishing it and running the
+   checklists is the shortest path to closing three gates at once.
+6. **No `docs/environment.md`.** F0 requires it, and §1 says every manual check produces
+   a dated line in it. It does not exist, so by this document's own rule every manual
+   check listed above is unperformed.
+
 ---
 
 ## 4. Test matrix
@@ -325,6 +462,11 @@ lost or corrupted record, a bad import. Everything that depends on how WebKit
 behaves on one phone is a manual check with a recorded result — it cannot be
 automated from Windows, and pretending a desktop browser is the same engine would be
 worse than not testing.
+
+State of the matrix on 2026-11-08: every unit and storage row through F7 has passing
+tests in this repository (569 tests in 36 files at `04f3b09`). No cell in the last
+column has been performed, because `docs/environment.md` does not exist and no build has
+been published.
 
 ---
 
@@ -367,15 +509,18 @@ step is wrong and the plan is corrected — not worked around.
 
 ## 7. Owner gates and what is being decided
 
-| Gate | Phase | Decision the owner makes |
-| --- | --- | --- |
-| G1 | after F1 | Requirements and training rules accepted or corrected, including the closed dependency list (NFR-8, resolved) |
-| G2 | after F2 | Training screen design approved |
-| G3 | during F4 | The session flow is usable in a real gym |
-| G4 | after F6 | Install, storage and backup behaviour accepted for daily use |
-| G5 | after F8 | The optional Apple Health bridge is worth its manual step |
+| Gate | Phase | Decision the owner makes | State on 2026-11-08 |
+| --- | --- | --- | --- |
+| G1 | after F1 | Requirements and training rules accepted or corrected, including the closed dependency list (NFR-8, resolved) | open — waiting on the owner reading `product-requirements.md` and `training-science.md`. NFR-8 and the retirement of D-6/D-7 are already settled in writing |
+| G2 | after F2 | Training screen design approved | open — waiting on the owner's explicit yes for the Sesión design; the artboards exist on `docs/design-renders` |
+| G3 | during F4 | The session flow is usable in a real gym | open — waiting on a phone session that can happen at all, which needs a published URL |
+| G4 | after F6 | Install, storage and backup behaviour accepted for daily use | open — waiting on an installed app and the seven-day observation |
+| G5 | after F8 | The optional Apple Health bridge is worth its manual step | open — F8 has not started |
 
-Nothing is built on top of an unapproved gate.
+Nothing is built on top of an unapproved gate. That rule has already been broken once:
+the app tier of F4–F7 was built while G1–G4 were open, which is where this repository
+stands today. The rule is not retroactively satisfied by anything below; the gates stay
+open until the owner records a decision, and each one says above what it waits for.
 
 ---
 

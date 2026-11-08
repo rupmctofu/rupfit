@@ -68,13 +68,23 @@ Charts are hand-written SVG. Adding one requires an ADR and an owner gate.
 ## Tasks
 
 - T1 — Scaffold: Vite + React + TypeScript project references, closed dependency list, app shell with the four tabs and hash routing, install manifest. (S1, S2, S8)
+  Done — shell and two project references (`e8002f5`), manifest and icons (`7acd7a3`).
 - T2 — Design tokens and component library from `docs/design-system.md` §4–§7. (S4, S5)
+  Done — `e02a31b`, reviewed in the gallery (`3e61193`).
 - T3 — Storage: IndexedDB schema, repositories, invariants, migrations, backup export/import. (S6)
+  Done — `d2025f2`.
 - T4 — Session state machine and the Sesión screen (the decision screen). (S4, S5)
+  Done — machine (`ca03c14`), moved into `src/core` (`18af14f`), screen (`1d37937`).
 - T5 — Inicio, Entrenar and Resumen. (S5)
+  Done — `86be6ab`.
 - T6 — Historial, Progreso and Peso corporal, with hand-written SVG charts. (S5, S8)
+  Done — `54cb2a7`.
 - T7 — Perfil: settings, storage state, backup, install and update status. (S5, S6)
+  Done — `bdf07a0`.
 - T8 — Service worker, offline shell, install and update prompts, GitHub Pages deployment. (S1, S2, S3)
+  Built, not closed — precache and update prompt (`ad607f7`), icons, manifest and the
+  fail-closed workflow (`7acd7a3`). The workflow does not switch itself on: the owner
+  enables Pages once, and until then nothing is published.
 - T9 — Device verification on the owner's iPhone: install, offline start, screen lock, export/import round trip. (S2, S3, S6)
 
 ## Log
@@ -100,3 +110,10 @@ as the behavioural reference and is not deleted.
 
 L5 — Owner decision, recorded before this change: React stays and NFR-8 is the closed
 runtime list (see `odd/tasks/pwa-platform.md` and `docs/product-requirements.md`).
+
+L6 — 2026-11-08, state of the list. T1–T7 are done and hold a commit each; T8 is built
+but not closed, because the Pages workflow is prepared and not enabled; T9 has not
+started. `npm test` passes 569 tests in 36 files at `04f3b09`, and `npm run typecheck`
+and `npm run build` are green on Windows. Nothing runs on the phone yet: no install, no
+offline cold start, no force-quit resume and no export/import round trip, so no gate of
+`docs/roadmap.md` is approved — the ones that wait on the owner are still waiting.
