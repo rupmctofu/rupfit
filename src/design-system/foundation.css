@@ -1,0 +1,182 @@
+/*
+ * Foundation: the root font size, the type roles of docs/design-system.md §5, the
+ * shared control reset and the focus ring. Nothing here paints a component; the
+ * files next to each component do that.
+ */
+
+/* 1rem = 17 px against the browser default, and it still grows when the user
+   enlarges the text size (§5.1). Never `-webkit-text-size-adjust: none` (§5.3). */
+html {
+  font-size: 106.25%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* ------------------------------------------------------------- type roles §5 */
+.ds-screen-title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-screen);
+  line-height: var(--leading-screen);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-screen);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.ds-card-title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-title);
+  color: var(--color-text);
+  /* User-created names can be one long token (§5.3). */
+  overflow-wrap: anywhere;
+}
+
+.ds-card-title--large {
+  font-size: var(--text-title-lg);
+  line-height: var(--leading-title-lg);
+  letter-spacing: var(--tracking-title-lg);
+}
+
+.ds-section-label {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-sans);
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.ds-body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  font-weight: var(--weight-regular);
+  color: var(--color-text);
+  /* The one-line reason and the previous-session line wrap; they never ellipsize. */
+  overflow-wrap: anywhere;
+}
+
+.ds-body--muted {
+  color: var(--color-muted);
+}
+
+.ds-meta {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  font-weight: var(--weight-regular);
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.ds-caption {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  letter-spacing: var(--tracking-caption);
+  font-weight: var(--weight-regular);
+  /* 12 px is the floor; the artboard drew these in text.tertiary at 3.75:1, which
+     fails the AA small-text floor, so the shipped caption role uses --color-muted. */
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+/* --------------------------------------------------------------- structure */
+.ds-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-stack-gap);
+  min-width: 0;
+}
+
+.ds-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--layout-stack-gap);
+  min-width: 0;
+}
+
+/* 1 px = 3 device px. Sub-pixel hairlines are forbidden (§4, §11). */
+.ds-hairline {
+  flex: none;
+  height: var(--layout-hairline);
+  border: 0;
+  margin: 0;
+  background: var(--color-border);
+}
+
+/* ------------------------------------------------------------- shared reset */
+/*
+ * Every control in the system is a real <button> or <a>. This is the one place the
+ * touch rules of §3 live: no 300 ms double-tap delay, no grey tap rectangle over an
+ * accent fill, no long-press selection bubble over a set row.
+ */
+.ds-action {
+  margin: 0;
+  border: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-meta);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-meta);
+  color: inherit;
+  background: none;
+  text-align: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ds-action:disabled {
+  cursor: default;
+}
+
+/* Interaction is :active, never :hover (§3). Hover exists only where it is free. */
+.ds-action:active:not(:disabled) {
+  opacity: 0.85;
+}
+
+@media (hover: hover) {
+  .ds-action:not(:disabled) {
+    transition: opacity var(--motion-fast) var(--motion-ease);
+  }
+}
+
+/* ------------------------------------------------------------- focus ring §9 */
+.ds-action:focus-visible,
+.ds-focusable:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* --------------------------------------------------------- visually hidden §9 */
+/* Carries the hint or the data table behind a control; never display: none. */
+.ds-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

@@ -1,0 +1,124 @@
+/* Set row: the list never reflows under the thumb — every state keeps the order. */
+
+.ds-set {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 9px 0;
+  min-width: 0;
+}
+
+.ds-set--expanded {
+  align-items: flex-start;
+}
+
+.ds-set__index {
+  flex: none;
+  width: 64px;
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  letter-spacing: var(--tracking-label);
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.ds-set--expanded .ds-set__index {
+  padding-top: var(--space-3);
+}
+
+.ds-set__reps {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.ds-set__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+  min-width: 0;
+}
+
+.ds-set__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+}
+
+.ds-set__line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.ds-set__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+/* The single confirm target of an active row: accent fill, 48 px tall. */
+.ds-set__confirm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-height: var(--target-min);
+  min-width: var(--target-min);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.ds-set__confirm:disabled {
+  background: var(--color-surface-raised);
+  color: var(--color-subtle);
+}
+
+/* A pending row's confirm target: a 48 px button around the 22 px marker. */
+.ds-set__confirm-target {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--target-min);
+  height: var(--target-min);
+  background: none;
+}
+
+.ds-set__mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: var(--layout-hairline) solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-subtle);
+}
+
+.ds-set__mark--done {
+  background: var(--color-surface-raised);
+  border-color: transparent;
+  color: var(--color-success);
+}

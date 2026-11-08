@@ -1,0 +1,120 @@
+/* Data rows: one line of title, subtitle, state, value and chevron. */
+
+.ds-data-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: 14px 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  min-width: 0;
+}
+
+/* A row that navigates needs a target; the row is already > 48 px tall. */
+.ds-data-row--control {
+  min-height: var(--target-min);
+}
+
+.ds-data-row + .ds-data-row {
+  border-top: var(--layout-hairline) solid var(--color-border);
+}
+
+.ds-data-row__grow {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.ds-data-row__title {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.ds-data-row__subtitle {
+  font-family: var(--font-sans);
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+  font-weight: var(--weight-regular);
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.ds-data-row__badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-badge);
+  background: var(--color-surface-raised);
+  color: var(--color-muted);
+}
+
+.ds-data-row__state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: var(--layout-hairline) solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-subtle);
+}
+
+.ds-data-row__state--done {
+  background: var(--color-surface-raised);
+  border-color: transparent;
+  color: var(--color-success);
+}
+
+.ds-data-row__state--today {
+  border-color: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+.ds-data-row__chip {
+  flex: none;
+}
+
+.ds-data-row__status {
+  flex: none;
+  font-family: var(--font-sans);
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.ds-data-row__status--success {
+  color: var(--color-success);
+}
+
+.ds-data-row__status--accent {
+  color: var(--color-accent-text);
+}
+
+.ds-data-row__status--muted {
+  color: var(--color-muted);
+}
+
+.ds-data-row__value {
+  flex: none;
+}
+
+.ds-data-row__chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--space-6);
+  color: var(--color-subtle);
+}

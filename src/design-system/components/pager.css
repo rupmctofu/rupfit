@@ -1,0 +1,49 @@
+/* Pager: chevron, track, count, chevron. The count is decoration for VoiceOver. */
+
+.ds-pager {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  min-height: var(--target-min);
+}
+
+.ds-pager__chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--target-min);
+  height: var(--target-min);
+  background: none;
+  color: var(--color-muted);
+}
+
+.ds-pager__chevron:disabled {
+  color: var(--color-subtle);
+}
+
+.ds-pager__track {
+  flex: 1;
+  height: 3px;
+  border-radius: var(--radius-track-thin);
+  background: var(--color-surface-raised);
+  overflow: hidden;
+}
+
+.ds-pager__fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-track-thin);
+  background: var(--color-accent);
+}
+
+.ds-pager__count {
+  flex: none;
+  min-width: 34px;
+  justify-content: flex-end;
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  font-weight: var(--weight-regular);
+  color: var(--color-muted);
+}

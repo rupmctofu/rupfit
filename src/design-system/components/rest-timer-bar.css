@@ -1,0 +1,100 @@
+/*
+ * Rest bar. Content height stays 60 px; the safe-area inset grows inside the bar
+ * (§2.3). Above the home indicator, never under it, never a 100vh overlay.
+ */
+
+.ds-rest {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  box-sizing: border-box;
+  min-height: var(--rest-bar-content-height);
+  padding: var(--space-2) 14px;
+  /* The 2 px progress line is drawn inside the padding, never over the content. */
+  padding-bottom: calc(var(--space-2) + var(--progress-line-height));
+  margin-bottom: var(--safe-bottom-padding);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-raised);
+  overflow: hidden;
+}
+
+/* Finished: a colour change and two words, never a flash (§4, §6.3). */
+.ds-rest--finished {
+  background: var(--color-accent-muted);
+  box-shadow: inset 0 0 0 var(--layout-hairline) var(--color-success);
+}
+
+.ds-rest__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ds-rest__label {
+  white-space: nowrap;
+}
+
+.ds-rest--finished .ds-rest__label {
+  color: var(--color-success);
+}
+
+.ds-rest__time {
+  font-family: var(--font-numeric);
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-title);
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.ds-rest--finished .ds-rest__time {
+  color: var(--color-success);
+}
+
+.ds-rest__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+  flex: none;
+}
+
+/* 48 px targets inside a 60 px bar: compact look, full-size hit area (§3, S4). */
+.ds-rest__action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--target-min);
+  min-width: var(--target-min);
+  padding: 0 var(--space-3);
+  border: var(--layout-hairline) solid var(--color-border);
+  border-radius: var(--radius-control-square);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.ds-rest__track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--progress-line-height);
+  background: transparent;
+}
+
+.ds-rest__line {
+  display: block;
+  height: 100%;
+  background: var(--color-accent);
+}
+
+.ds-rest--finished .ds-rest__line {
+  background: var(--color-success);
+}

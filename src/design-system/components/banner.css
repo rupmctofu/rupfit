@@ -1,0 +1,101 @@
+/* Inline banners: raised surface, no accent fill, no shadow, never a modal (§7.8). */
+
+.ds-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3) 14px;
+  background: var(--color-surface-raised);
+  border-radius: var(--radius-card);
+}
+
+.ds-banner--phase {
+  align-items: center;
+}
+
+.ds-banner__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ds-banner__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.ds-banner__title--phase {
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  font-weight: var(--weight-semibold);
+}
+
+.ds-banner__title--danger {
+  color: var(--color-danger);
+  font-weight: var(--weight-medium);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+.ds-banner--warning .ds-banner__title {
+  color: var(--color-warning);
+}
+
+.ds-banner--success .ds-banner__title {
+  color: var(--color-success);
+}
+
+.ds-banner__text {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.ds-banner__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-height: var(--target-min);
+  min-width: var(--target-min);
+  padding: 0 var(--space-2);
+  color: var(--color-accent-text);
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+  font-weight: var(--weight-semibold);
+  background: none;
+  white-space: nowrap;
+}
+
+.ds-banner__action--danger {
+  color: var(--color-danger);
+}
+
+.ds-banner__action:disabled {
+  color: var(--color-subtle);
+}
+
+.ds-banner__open {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--target-min);
+  height: var(--target-min);
+  color: var(--color-subtle);
+  background: none;
+}

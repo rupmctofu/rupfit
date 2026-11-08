@@ -1,0 +1,62 @@
+/* Numerals: tabular figures everywhere, no letter-spacing on digits (§5.2). */
+
+.ds-numeral {
+  display: inline-flex;
+  align-items: baseline;
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  white-space: nowrap; /* a weight or a timer wraps nowhere; the label beside it does */
+  color: var(--color-text);
+}
+
+.ds-numeral__unit {
+  font-family: var(--font-sans);
+  font-variant-numeric: normal;
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.ds-numeral--metric {
+  font-family: var(--font-numeric);
+  font-size: var(--text-metric);
+  line-height: var(--leading-metric);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-metric);
+}
+
+.ds-numeral--metric .ds-numeral__unit {
+  font-size: var(--text-metric-sm);
+  line-height: var(--leading-metric-sm);
+}
+
+.ds-numeral--metric-small {
+  font-family: var(--font-numeric);
+  font-size: var(--text-metric-sm);
+  line-height: var(--leading-metric-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-metric-sm);
+}
+
+.ds-numeral--metric-small .ds-numeral__unit {
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+}
+
+.ds-numeral--inline {
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  font-weight: var(--weight-medium);
+}
+
+.ds-numeral--inline .ds-numeral__unit {
+  font-size: var(--text-meta);
+}
+
+.ds-numeral--muted {
+  color: var(--color-muted);
+}
+
+.ds-numeral--accent {
+  color: var(--color-accent-text);
+}

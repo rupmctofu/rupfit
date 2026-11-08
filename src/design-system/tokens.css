@@ -1,43 +1,291 @@
 /*
- * PROVISIONAL tokens: the values below are sampled from design/f2-mvp/renders/ so the
- * shell can render during scaffolding. T2 (docs/design-system.md §4–§6) owns this file
- * and replaces every value here with the measured, contrast-checked token set.
+ * Rupfit design tokens — the single source of every colour, size, radius, duration
+ * and inset the components use.
+ *
+ * Sources, in the order they win when they disagree (docs/design-system.md §4–§7):
+ *   1. docs/design-system.md §4 (colour + the measured contrast table), §5 (typography),
+ *      §6 (spacing, radius, motion, feedback), §9 (accessibility).
+ *   2. design/f2-mvp/index.html — the approved artboard. Its own token block is
+ *      declared "copied verbatim from docs/design-system.md §3", and it does not
+ *      match §4 exactly: where the artboard was rendered and reviewed, the artboard
+ *      value ships and the divergence is recorded in ./README.md.
+ *   3. design/f2-mvp/renders/*.png at 786×1704 (the 24 reviewed screens).
+ *   4. The provisional scaffold this file replaces.
+ *
+ * Two skins, both from the artboard: skin B is the default (the artboard's own
+ * selection and the owner's reference — lime accent, pill controls, 16 px cards);
+ * skin A (orange accent, 12 px cards, 10 px controls) is available as
+ * `<html data-skin="a">` and is what the artboard's skin-a renders show.
+ *
+ * Theme: dark is the default; light is a peer. `prefers-color-scheme` selects it and
+ * `:root[data-theme="dark"|"light"]` overrides it, so components never branch.
  */
 
 :root {
-  --color-bg: #000000;
-  --color-surface: #141414;
-  --color-surface-raised: #1f1f1f;
-  --color-border: #2a2a2a;
-  --color-text: #ffffff;
-  --color-muted: #a1a1a6;
-  --color-accent: #c6f24e;
-  --color-accent-ink: #101010;
-  --color-danger: #ff6b5e;
+  color-scheme: dark;
 
+  /* ------------------------------------------------------------------ colour */
+  /* Dark palette, artboard `.phone.theme-dark` (skin B accent values). */
+  --color-bg: #101214;
+  --color-surface: #171a1d;
+  --color-surface-raised: #22262a;
+  --color-border: #303438;
+  --color-text: #f0f1eb;
+  --color-muted: #92969d;
+  /* Disabled and decorative glyphs only. 3.75:1 on --color-surface: it fails the
+     4.5:1 small-text floor, so no 12 px label may be drawn in it (README §Colour). */
+  --color-subtle: #6f757c;
+  --color-accent: #b8f34a;
+  --color-accent-ink: #101214;
+  --color-accent-text: #b8f34a;
+  --color-accent-muted: #26301b;
+  --color-success: #b8f34a;
+  --color-warning: #e8b85c;
+  --color-danger: #e47777;
+  /* Chart series, max 4, always paired with a direct label (§4). */
+  --color-chart-1: #b8f34a;
+  --color-chart-2: #4c9aff;
+  --color-chart-3: #b39dff;
+  --color-chart-4: #c08cff;
+  --color-focus-ring: #b8f34a;
+
+  /* --------------------------------------------------------- type: families */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  --font-numeric: ui-rounded, -apple-system, 'SF Pro Rounded', system-ui, sans-serif;
+
+  /* ------------------------------------------------------------ type: scale */
+  /* 1rem = 17 px (§5.1): the root is a percentage so the iOS text-size setting and
+     page zoom still scale everything. Values are rem, never px. */
+  --text-screen: 2rem;
+  --leading-screen: 2.3529rem;
+  --tracking-screen: -0.6px;
+
+  --text-title-lg: 1.5294rem;
+  --leading-title-lg: 1.8824rem;
+  --tracking-title-lg: -0.4px;
+
+  --text-title: 1.2941rem;
+  --leading-title: 1.6471rem;
+  --tracking-title: -0.2px;
+
+  --text-metric: 2.5882rem;
+  --leading-metric: 2.8235rem;
+  --tracking-metric: -1px;
+
+  --text-metric-sm: 1.6471rem;
+  --leading-metric-sm: 1.8824rem;
+  --tracking-metric-sm: -0.4px;
+
+  --text-body: 1rem;
+  --leading-body: 1.2941rem;
+
+  --text-meta: 0.8824rem;
+  --leading-meta: 1.1765rem;
+
+  --text-label: 0.7647rem;
+  --leading-label: 1.0588rem;
+  --tracking-label: 0.5px;
+
+  --text-caption: 0.7059rem;
+  --leading-caption: 0.9412rem;
+  --tracking-caption: 0.2px;
+
+  /* 15 px on 21 px: the empty state of §7.8 and the two-line reason of the artboard. */
+  --leading-loose: 1.2353rem;
+
+  /* Tab bar label. The shell currently hard-codes 11 px; this is the token that
+     replaces it when src/app/shell.css is owned by another task. */
+  --text-tab: 0.6471rem;
+  --leading-tab: 0.8235rem;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* ---------------------------------------------------------- space, layout */
+  /* 4 px grid (§3). --space-1..8 keep the names the shell already references. */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 20px;
   --space-6: 24px;
+  --space-7: 28px;
   --space-8: 32px;
 
-  --radius-card: 20px;
+  /* Semantic aliases, so a rule reads its intent instead of a number (§6.1). */
+  --space-xxs: var(--space-1);
+  --space-xs: var(--space-2);
+  --space-s: var(--space-3);
+  --space-m: var(--space-4);
+  --space-l: var(--space-5);
+  --space-xl: var(--space-6);
+  --space-xxl: var(--space-8);
+
+  --layout-screen-padding: var(--space-5);
+  --layout-screen-padding-compact: var(--space-4);
+  --layout-card-padding: var(--space-5);
+  --layout-card-padding-dense: 14px;
+  --layout-stack-gap: 10px;
+  --layout-stack-gap-tight: var(--space-2);
+  --layout-hairline: 1px;
+
+  /* ------------------------------------------------------------ radii */
+  --radius-card: 16px;
+  --radius-sheet: 16px;
+  --radius-control: 999px;
+  --radius-control-square: 12px;
+  --radius-badge: 12px;
   --radius-pill: 999px;
+  --radius-track: 4px;
+  --radius-track-thin: 2px;
+  --radius-photo: 16px;
 
-  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
-  --font-numeric: ui-rounded, -apple-system, 'SF Pro Rounded', system-ui, sans-serif;
+  /* ------------------------------------------------ targets, control heights */
+  --target-min: 48px;
+  --control-height: 56px;
+  --control-height-compact: 44px;
+  --rest-bar-content-height: 60px;
+  --icon-size: 20px;
+  --icon-size-sm: 14px;
+  --icon-stroke: 1.8;
+  --bar-height: 8px;
+  --progress-line-height: 2px;
 
-  --motion-fast: 120ms;
-  --motion-base: 200ms;
+  /* ---------------------------------------------------------- motion (§6.2) */
+  --motion-fast: 180ms;
+  --motion-base: 260ms;
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
 
-  color-scheme: dark;
+  /* ------------------------------------------------------- safe areas (§2.3) */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  /* The inset grows inside the bar: content height stays 60 px. */
+  --safe-bottom-padding: max(var(--space-2), env(safe-area-inset-bottom, 0px));
+
+  /* ------------------------------------------------------------- focus (§9) */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
 }
 
+/* ------------------------------------------------------------------- light */
+/* Emitted twice on purpose: once for the system preference (unless the in-app
+   override says dark) and once for the in-app override. Plain CSS has no mixin. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
+    --color-bg: #f7f7f9;
+    --color-surface: #ffffff;
+    --color-surface-raised: #eef0f3;
+    --color-border: #e3e5ea;
+    --color-text: #111315;
+    --color-muted: #5a6270;
+    --color-subtle: #6e7787;
+    --color-accent: #4e6a00;
+    --color-accent-ink: #ffffff;
+    --color-accent-text: #405700;
+    --color-accent-muted: #edf2db;
+    --color-success: #1a6b42;
+    --color-warning: #7a5300;
+    --color-danger: #b3261e;
+    --color-chart-1: #4e6a00;
+    --color-chart-2: #2f6fbf;
+    --color-chart-3: #2e8b57;
+    --color-chart-4: #7a4fbf;
+    --color-focus-ring: #405700;
+  }
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-bg: #f7f7f9;
+  --color-surface: #ffffff;
+  --color-surface-raised: #eef0f3;
+  --color-border: #e3e5ea;
+  --color-text: #111315;
+  --color-muted: #5a6270;
+  --color-subtle: #6e7787;
+  --color-accent: #4e6a00;
+  --color-accent-ink: #ffffff;
+  --color-accent-text: #405700;
+  --color-accent-muted: #edf2db;
+  --color-success: #1a6b42;
+  --color-warning: #7a5300;
+  --color-danger: #b3261e;
+  --color-chart-1: #4e6a00;
+  --color-chart-2: #2f6fbf;
+  --color-chart-3: #2e8b57;
+  --color-chart-4: #7a4fbf;
+  --color-focus-ring: #405700;
+}
+
+/* ------------------------------------------------------- skin A (artboard `a`) */
+/* Radii and control geometry are theme-independent, so they are set once. */
+:root[data-skin='a'] {
+  --radius-card: 12px;
+  --radius-sheet: 16px;
+  --radius-control: 10px;
+  --radius-control-square: 10px;
+  --radius-badge: 9px;
+  --radius-photo: 16px;
+}
+
+:root[data-skin='a'],
+:root[data-skin='a'][data-theme='dark'] {
+  --color-accent: #f26b3a;
+  --color-accent-ink: #12100e;
+  --color-accent-text: #ff8a5c;
+  --color-accent-muted: #3a2318;
+  --color-success: #5bd98a;
+  --color-chart-1: #f26b3a;
+  --color-chart-3: #6fd08c;
+  --color-chart-4: #c08cff;
+  --color-focus-ring: #ff8a5c;
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-skin='a']:not([data-theme='dark']) {
+    --color-accent: #c24a16;
+    --color-accent-ink: #ffffff;
+    --color-accent-text: #b8430f;
+    --color-accent-muted: #f6e6df;
+    --color-success: #1a6b42;
+    --color-chart-1: #c24a16;
+    --color-chart-3: #2e8b57;
+    --color-chart-4: #7a4fbf;
+    --color-focus-ring: #b8430f;
+  }
+}
+
+:root[data-skin='a'][data-theme='light'] {
+  --color-accent: #c24a16;
+  --color-accent-ink: #ffffff;
+  --color-accent-text: #b8430f;
+  --color-accent-muted: #f6e6df;
+  --color-success: #1a6b42;
+  --color-chart-1: #c24a16;
+  --color-chart-3: #2e8b57;
+  --color-chart-4: #7a4fbf;
+  --color-focus-ring: #b8430f;
+}
+
+/* ------------------------------------------------- prefers-reduced-motion (§6.2) */
+/* Paging and every transition collapse to zero; nothing here is the only signal
+   for a completed action, so removing motion loses no information. */
 @media (prefers-reduced-motion: reduce) {
   :root {
     --motion-fast: 0ms;
     --motion-base: 0ms;
+  }
+}
+
+/* -------------------------------------------------- prefers-contrast: more (§4) */
+/* Promotes secondary text to primary and strengthens the hairline to tertiary. */
+@media (prefers-contrast: more) {
+  :root {
+    --color-muted: var(--color-text);
+    --color-border: var(--color-subtle);
   }
 }

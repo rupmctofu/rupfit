@@ -1,0 +1,129 @@
+/* Charts: strokes and fills from tokens. No gradient, no shadow, no gridlines. */
+
+.ds-chart-frame {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  min-width: 0;
+}
+
+.ds-chart-frame__plot {
+  min-width: 0;
+}
+
+.ds-chart-frame__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  color: var(--color-muted);
+}
+
+.ds-chart-frame__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ds-chart-frame__swatch {
+  display: inline-block;
+  width: 14px;
+  height: var(--progress-line-height);
+  border-radius: 1px;
+  background: var(--color-chart-1);
+}
+
+.ds-chart-frame__swatch--2 {
+  background: var(--color-chart-2);
+}
+
+.ds-chart-frame__swatch--3 {
+  background: var(--color-chart-3);
+}
+
+.ds-chart-frame__swatch--4 {
+  background: var(--color-chart-4);
+}
+
+.ds-chart-frame__swatch--dashed {
+  background: none;
+  border-top: var(--progress-line-height) dashed var(--color-chart-3);
+}
+
+/* ------------------------------------------------------------------ primitives */
+
+.ds-chart__axis {
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.ds-chart__line {
+  fill: none;
+  stroke: var(--color-chart-1);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.ds-chart__line--comparison {
+  stroke: var(--color-chart-3);
+  stroke-width: 1.6;
+  stroke-dasharray: 4 4;
+}
+
+.ds-chart__line--spark {
+  stroke-width: 2;
+}
+
+/* The sparkline is drawn at its exact size, not stretched to the card width. */
+.ds-chart--spark {
+  overflow: visible;
+}
+
+.ds-chart__dot {
+  stroke: none;
+}
+
+.ds-chart__dot--1 {
+  fill: var(--color-chart-1);
+}
+
+.ds-chart__dot--2 {
+  fill: var(--color-chart-2);
+}
+
+.ds-chart__bar {
+  fill: var(--color-surface-raised);
+}
+
+.ds-chart__bar--last {
+  fill: var(--color-chart-1);
+}
+
+.ds-chart__label {
+  fill: var(--color-muted);
+  font-family: var(--font-sans);
+  /* 12 px is the floor of §4; the artboard drew these at 9–10 px. */
+  font-size: var(--text-caption);
+}
+
+.ds-chart__value {
+  fill: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Charts are static images of data: they are never animated on entry (§7.7, §11). */
+.ds-chart,
+.ds-chart * {
+  transition: none;
+  animation: none;
+}

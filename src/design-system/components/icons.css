@@ -1,0 +1,18 @@
+/* Icons: 20 pt line glyphs on a 24 × 24 grid, 1.8 stroke, currentColor. */
+
+.ds-icon {
+  flex: none;
+  display: inline-block;
+  vertical-align: -4px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: var(--icon-stroke);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  overflow: visible;
+}
+
+.ds-icon--filled {
+  fill: currentColor;
+  stroke: none;
+}

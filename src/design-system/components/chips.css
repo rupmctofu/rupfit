@@ -1,0 +1,68 @@
+/* Chips: a word in a pill. Static chips are text; interactive chips are controls. */
+
+.ds-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: var(--layout-hairline) solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  color: var(--color-muted);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  letter-spacing: var(--tracking-caption);
+  font-weight: var(--weight-regular);
+  white-space: nowrap;
+}
+
+.ds-chip__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+  flex: none;
+}
+
+.ds-chip__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ds-chip--success {
+  color: var(--color-success);
+  border-color: transparent;
+}
+
+.ds-chip--warning {
+  color: var(--color-warning);
+  border-color: transparent;
+}
+
+.ds-chip--danger {
+  color: var(--color-danger);
+  border-color: transparent;
+}
+
+.ds-chip--accent {
+  color: var(--color-accent-text);
+  border-color: transparent;
+}
+
+.ds-chip--solid {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  border-color: transparent;
+  font-weight: var(--weight-semibold);
+}
+
+/* The 48 px target around a 26 px pill: no wrapper that shifts the layout (§3). */
+.ds-chip-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--target-min);
+  min-width: var(--target-min);
+  background: none;
+}

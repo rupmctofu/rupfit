@@ -1,0 +1,42 @@
+/* Cards and section labels. Elevation is a surface change, never a shadow (§6.2). */
+
+.ds-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-stack-gap);
+  min-width: 0;
+  background: var(--color-surface);
+  border: var(--layout-hairline) solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.ds-card--default {
+  padding: var(--layout-card-padding);
+}
+
+.ds-card--dense {
+  padding: var(--layout-card-padding-dense);
+}
+
+/* A container of data rows: the rows bring their own vertical padding. */
+.ds-card--list {
+  padding: var(--space-1) var(--layout-card-padding);
+}
+
+/* A card whose content bleeds to its own radius: the optional exercise photo. */
+.ds-card--none {
+  padding: 0;
+  overflow: hidden;
+}
+
+.ds-card__title {
+  margin: 0;
+}
+
+.ds-divider {
+  flex: none;
+  height: var(--layout-hairline);
+  background: var(--color-border);
+  border: 0;
+  margin: 0;
+}

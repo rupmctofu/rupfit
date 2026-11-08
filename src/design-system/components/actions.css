@@ -1,0 +1,59 @@
+/* Actions: the single accent fill of a screen and the quieter text button. */
+
+.ds-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  width: 100%;
+  /* 56 px is the primary height (§3, §7.1); min-height keeps it growing with text. */
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-control);
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  font-weight: var(--weight-semibold);
+  touch-action: manipulation;
+}
+
+.ds-primary:active:not(:disabled) {
+  opacity: 0.85;
+}
+
+.ds-primary:disabled {
+  background: var(--color-surface-raised);
+  /* Disabled text is exempt from the contrast floor (WCAG 1.4.3, inactive controls). */
+  color: var(--color-subtle);
+}
+
+.ds-primary__label {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.ds-text-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: var(--target-min);
+  min-width: var(--target-min);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control-square);
+  background: none;
+  color: var(--color-accent-text);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  font-weight: var(--weight-semibold);
+}
+
+.ds-text-button--start {
+  justify-content: flex-start;
+  padding: 0;
+}
+
+.ds-text-button:disabled {
+  color: var(--color-subtle);
+}

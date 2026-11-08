@@ -1,0 +1,43 @@
+/* Stepper: value between two 48 × 48 keys. Square for the set row, round for weight. */
+
+.ds-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.ds-stepper__key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--target-min);
+  height: var(--target-min);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  border-radius: var(--radius-control-square);
+}
+
+.ds-stepper--round .ds-stepper__key {
+  border-radius: var(--radius-pill);
+}
+
+.ds-stepper__key:disabled {
+  color: var(--color-subtle);
+}
+
+.ds-stepper__value {
+  min-width: 2.2rem;
+  justify-content: center;
+  text-align: center;
+  font-family: var(--font-numeric);
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+
+.ds-stepper__value .ds-numeral__unit {
+  font-size: var(--text-meta);
+}
