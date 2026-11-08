@@ -1,5 +1,6 @@
 import XCTest
 
+@MainActor
 final class SmokeUITests: XCTestCase {
     func testSessionSmokeFromStartToSummary() {
         let app = XCUIApplication()
