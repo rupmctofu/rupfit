@@ -1,12 +1,37 @@
 import SwiftUI
 
-/// F0 entry point: an app that launches to an empty view, so the project, the
-/// simulator and the signing path are proven before any screen exists.
 @main
 struct RupfitApp: App {
+    @State private var container: AppContainer?
+    @State private var bootError: String?
+
     var body: some Scene {
         WindowGroup {
-            EmptyView()
+            Group {
+                if let container {
+                    RootView(container: container)
+                } else if let bootError {
+                    VStack(spacing: Space.m) {
+                        EmptyStateView(text: bootError)
+                        Text("Reinicia la app. Si vuelve a pasar, exporta los datos desde el Mac.")
+                            .font(RupfitFont.caption)
+                            .foregroundStyle(RupfitColor.textSecondary)
+                    }
+                    .padding(Space.l)
+                    .background(RupfitColor.background)
+                } else {
+                    ProgressView()
+                        .task {
+                            do {
+                                container = try AppContainer()
+                            } catch {
+                                bootError = "No se pudo abrir la base de datos local."
+                            }
+                        }
+                }
+            }
+            .environment(\.locale, Locale(identifier: "es_ES"))
+            .preferredColorScheme(.dark)
         }
     }
 }
