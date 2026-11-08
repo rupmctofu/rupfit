@@ -143,6 +143,8 @@ function input(overrides: Partial<TrainInput> = {}): TrainInput {
     now: NOW,
     plan: PLAN,
     sessions: [FRIDAY_SESSION, WEDNESDAY_SESSION, MONDAY_SESSION],
+    // The editor's add list is not this file's subject: `editor.test.ts` pins it.
+    library: [],
     phaseState: { block: 2, passedBlocks: 1 },
     ...overrides,
   };

@@ -70,6 +70,8 @@ import {
 import { HistorialScreen } from './HistorialScreen';
 import { useProgressView } from './navigation';
 import { LastWeighInTile, MeanAndGoalRows, WeightScreen } from './WeightScreen';
+import type { WeightDraft, WeightSaveOutcome } from './weightEntry';
+import { createMeasurementId, saveWeightEntry } from './weightSave';
 import { Segmented } from './parts';
 import './progress.css';
 
@@ -180,6 +182,31 @@ function ProgressTab({
     [state],
   );
 
+  /**
+   * The one write of this screen: validate, read the day, `measurements.save` once, and
+   * hand back the list the store now holds so the tab and the drill-down redraw from it.
+   * Nothing is displayed as saved until the write resolved; a failure keeps the form's
+   * draft on screen with a retry.
+   */
+  const saveWeight = useCallback(
+    async (draft: WeightDraft): Promise<WeightSaveOutcome> => {
+      const outcome = await saveWeightEntry(
+        { storage, now: () => clock.now(), newId: createMeasurementId },
+        draft,
+      );
+
+      if (outcome.kind === 'saved') {
+        const measurements = outcome.measurements;
+        setState((current) =>
+          current.status === 'ready' ? { ...current, measurements, now: clock.now() } : current,
+        );
+      }
+
+      return outcome;
+    },
+    [storage, clock],
+  );
+
   if (state.status === 'error') {
     return (
       <div className="progress">
@@ -209,7 +236,15 @@ function ProgressTab({
   }
 
   if (navigation.view === 'peso') {
-    return <WeightScreen series={weight} goal={goal} onBack={navigation.back} />;
+    return (
+      <WeightScreen
+        series={weight}
+        goal={goal}
+        onBack={navigation.back}
+        now={state.now}
+        onSaveWeight={saveWeight}
+      />
+    );
   }
 
   return (

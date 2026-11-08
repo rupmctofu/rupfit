@@ -5,10 +5,10 @@
  * state word per day, the readaptation block quoted quietly, and one entry to routine
  * management.
  *
- * The management sheet is **read only**, and it says so in one banner instead of
- * offering controls that do nothing: adding, removing, reordering or changing a
- * prescription needs a write path (`plan.save`) that the app tier has not built yet, and
- * a control that silently does nothing is worse than a sentence that explains why.
+ * The management sheet is a real editor (`RoutineEditor.tsx`): it reorders, adds,
+ * removes and re-prescribes through `plan.save`, one day per call. Its rules live in
+ * `editor.ts`; this file boots the screen, reads what the sheet needs, and performs the
+ * one write.
  *
  * Like Inicio: no `Date.now()`, no port construction — both arrive from `AppProvider`,
  * and a demo mounts the same screen with fixtures through the same props.
@@ -16,7 +16,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Banner,
   Card,
   Chip,
   DataRow,
@@ -25,14 +24,15 @@ import {
   SectionLabel,
   TextButton,
 } from '../../design-system';
-import type { StoragePort } from '../../storage';
+import type { PlanDay, StoragePort } from '../../storage';
 import { useAppServices } from '../../app/providers';
 import type { Clock } from '../session/controller';
 import { useStartSession, type StartNotice } from '../session/startSession';
 import { summaryHash } from '../summary/route';
 import { DemoTrain } from './DemoTrain';
 import { demoFlagOf, useLocationKey } from '../home/useHash';
-import { trainViewOf, type TrainDayView, type TrainInput, type TrainView } from './selectors';
+import { RoutineSheet, type EditorSource, type SaveDayResult } from './RoutineEditor';
+import { trainViewOf, type TrainInput, type TrainView } from './selectors';
 import './train.css';
 
 /** `?demo=entrenar` — the review surface, resolved here until the router owns it. */
@@ -53,120 +53,22 @@ async function readTrain(storage: StoragePort, now: number): Promise<TrainInput>
   await storage.open();
   const plan = await storage.plan.all();
   const sessions = await storage.sessions.recent(TRAIN_SESSION_WINDOW);
+  // The library is here for the editor's add list: the screen reads it once, so opening
+  // the editor is instant and the component does no I/O of its own.
+  const library = await storage.exercises.all();
   const phaseState = await storage.meta.readPhaseState();
-  return { now, plan, sessions, phaseState };
-}
-
-interface RoutineSheetProps {
-  readonly view: TrainView;
-  /** The day the sheet opened on; `null` means the whole routine. */
-  readonly dayId: string | null;
-  readonly onClose: () => void;
-  readonly onOpenSession: (sessionId: string) => void;
-  /** Entrenar names the day it starts, instead of letting the rotation decide. */
-  readonly onStartDay: (planDayId: string) => void;
-  readonly starting: boolean;
-  readonly startNotice: StartNotice | null;
-}
-
-function sessionActionLabel(day: TrainDayView): string {
-  if (day.status.word === 'hecha') return 'Ver el resumen';
-  if (day.status.word === 'hoy') return 'Abrir la sesión de hoy';
-  return 'Empezar este día';
-}
-
-/** Routine management: the template, read only, one prescription line per exercise. */
-function RoutineSheet({
-  view,
-  dayId,
-  onClose,
-  onOpenSession,
-  onStartDay,
-  starting,
-  startNotice,
-}: RoutineSheetProps): React.ReactElement {
-  const selected = dayId === null ? null : (view.days.find((day) => day.planDayId === dayId) ?? null);
-  const days = selected === null ? view.days : [selected];
-  const title = selected === null ? 'Tu rutina' : selected.title;
-
-  return (
-    <div className="train-sheet" role="dialog" aria-modal="true" aria-label={title}>
-      <header className="train-sheet__top">
-        <h1 className="ds-screen-title">{title}</h1>
-        <button type="button" className="ds-action train-sheet__close" onClick={onClose}>
-          Cerrar
-        </button>
-      </header>
-
-      <div className="train-sheet__body">
-        <Banner
-          tone="info"
-          title="Sólo lectura"
-          text="La app todavía no puede añadir, quitar, reordenar ni cambiar series. Lo que ves es la plantilla guardada, tal cual se usará en la próxima sesión."
-        />
-
-        {/* Why nothing opened. A failed write offers `Reintentar`; a missing profile sends
-            the owner to the tab that can fix it, because a retry cannot. */}
-        {startNotice === null ? null : startNotice.tone === 'danger' ? (
-          <ErrorBanner message={startNotice.message} />
-        ) : (
-          <Banner tone="warning" title={startNotice.message} />
-        )}
-
-        {days.length === 0 ? (
-          <EmptyState>Todavía no hay ninguna rutina guardada.</EmptyState>
-        ) : (
-          days.map((day) => (
-            <Card key={day.planDayId} label={day.title}>
-              <div className="ds-row">
-                <h2 className="ds-card-title">{day.title}</h2>
-                <Chip>{day.items.length === 1 ? '1 ejercicio' : `${String(day.items.length)} ejercicios`}</Chip>
-              </div>
-              {day.items.length === 0 ? (
-                <p className="ds-meta">Este día todavía no tiene ejercicios.</p>
-              ) : (
-                <ol className="train-sheet__items">
-                  {day.items.map((item, index) => (
-                    <li key={`${day.planDayId}-${String(index)}`} className="train-sheet__item">
-                      <span className="ds-body">{item.name}</span>
-                      <span className="ds-caption">{item.prescription}</span>
-                    </li>
-                  ))}
-                </ol>
-              )}
-              {day.status.word === 'hecha' && day.sessionId !== null ? (
-                <TextButton align="start" onClick={() => onOpenSession(day.sessionId as string)}>
-                  {sessionActionLabel(day)}
-                </TextButton>
-              ) : day.items.length === 0 ? null : (
-                /*
-                 * A day that is not finished is opened by `planStart`, which reuses the
-                 * session already scheduled for today and creates one when there is none:
-                 * the same door Inicio uses, so no day can gain a second row by being
-                 * reached from two screens.
-                 */
-                <TextButton
-                  align="start"
-                  disabled={starting}
-                  onClick={() => onStartDay(day.planDayId)}
-                >
-                  {starting ? 'Empezando…' : sessionActionLabel(day)}
-                </TextButton>
-              )}
-            </Card>
-          ))
-        )}
-      </div>
-    </div>
-  );
+  return { now, plan, sessions, library, phaseState };
 }
 
 export interface TrainBodyProps {
   readonly view: TrainView;
+  /** The stored template, the library and the history: everything the editor touches. */
+  readonly source: EditorSource;
   /** `null` when the sheet is closed; `{ dayId: null }` shows the whole routine. */
   readonly routine: { readonly dayId: string | null } | null;
   readonly onOpenRoutine: (dayId: string | null) => void;
   readonly onCloseRoutine: () => void;
+  readonly onSaveDay: (day: PlanDay) => Promise<SaveDayResult>;
   readonly onOpenSession: (sessionId: string) => void;
   readonly onStartDay: (planDayId: string) => void;
   readonly starting: boolean;
@@ -176,9 +78,11 @@ export interface TrainBodyProps {
 export function TrainBody(props: TrainBodyProps): React.ReactElement {
   const {
     view,
+    source,
     routine,
     onOpenRoutine,
     onCloseRoutine,
+    onSaveDay,
     onOpenSession,
     onStartDay,
     starting,
@@ -254,7 +158,9 @@ export function TrainBody(props: TrainBodyProps): React.ReactElement {
         <RoutineSheet
           view={view}
           dayId={routine.dayId}
+          source={source}
           onClose={onCloseRoutine}
+          onSaveDay={onSaveDay}
           onOpenSession={onOpenSession}
           onStartDay={onStartDay}
           starting={starting}
@@ -323,6 +229,41 @@ export function TrainScreenWithPort({
   }, []);
   const openSession = onOpenSession ?? openSessionRoute;
 
+  /**
+   * The editor's one write: `plan.save` for the day, in one call, which the repository
+   * performs in one transaction (`plan.save` replaces the day's items and deletes the
+   * ones the draft dropped). On success the screen's copy of the plan is replaced by what
+   * was just written, so the sheet and the list show the stored template without a
+   * second read; on failure nothing is patched and the sheet keeps its draft to retry.
+   */
+  const saveDay = useCallback(
+    async (day: PlanDay): Promise<SaveDayResult> => {
+      try {
+        await storage.plan.save(day);
+      } catch {
+        return {
+          ok: false,
+          message:
+            'No se pudo guardar la rutina. Lo que estaba guardado sigue como estaba: puedes reintentar sin volver a editar.',
+        };
+      }
+
+      setBoot((current) =>
+        current.input === null
+          ? current
+          : {
+              ...current,
+              input: {
+                ...current.input,
+                plan: current.input.plan.map((stored) => (stored.id === day.id ? day : stored)),
+              },
+            },
+      );
+      return { ok: true };
+    },
+    [storage],
+  );
+
   if (boot.phase === 'failed') {
     return (
       <div className="train">
@@ -338,9 +279,11 @@ export function TrainScreenWithPort({
   return (
     <TrainBody
       view={trainViewOf(boot.input)}
+      source={{ plan: boot.input.plan, library: boot.input.library, sessions: boot.input.sessions }}
       routine={routine}
       onOpenRoutine={openRoutine}
       onCloseRoutine={closeRoutine}
+      onSaveDay={saveDay}
       onOpenSession={openSession}
       onStartDay={start.start}
       starting={start.busy}

@@ -15,6 +15,12 @@
  * States: no weigh-in, one sample, fewer than three samples, a series with gaps, and a
  * contiguous series that can carry a line.
  *
+ * Since the app tier gained the write path, the screen also carries the one input that
+ * grows the series (`WeightEntryForm`): above the chart when there is something to draw,
+ * and next to the empty state when there is not, so a fresh install is not a dead end.
+ * Companion modules: `weightEntry.ts` for the rules, `weightSave.ts` for the write — the
+ * screen itself owns neither.
+ *
  * `LastWeighInTile` and `MeanAndGoalRows` are exported because the `Peso` segment of
  * the tab shows the same two blocks: one implementation, so the tab and the drill-down
  * cannot disagree about a number.
@@ -25,6 +31,8 @@ import type { WeightSeries } from './aggregates';
 import { MEAN_MIN_SAMPLES, weightLineDecision } from './aggregates';
 import { formatDayMonth, formatProvenance, formatWeight } from './format';
 import { DrilldownHeader } from './parts';
+import { WeightEntryForm } from './WeightEntryForm';
+import type { WeightDraft, WeightSaveOutcome } from './weightEntry';
 import './progress.css';
 
 export interface WeightViewProps {
@@ -112,9 +120,13 @@ function gapNote(series: WeightSeries): string {
 
 export interface WeightScreenProps extends WeightViewProps {
   readonly onBack: () => void;
+  /** The provider's instant: the entry's default day and its future-day rule. */
+  readonly now: number;
+  /** The weigh-in write, built by the tab from the port and the clock. */
+  readonly onSaveWeight: (draft: WeightDraft) => Promise<WeightSaveOutcome>;
 }
 
-export function WeightScreen({ series, goal, onBack }: WeightScreenProps): React.ReactElement {
+export function WeightScreen({ series, goal, onBack, now, onSaveWeight }: WeightScreenProps): React.ReactElement {
   if (series.last === null) {
     return (
       <div className="progress">
@@ -123,6 +135,7 @@ export function WeightScreen({ series, goal, onBack }: WeightScreenProps): React
           Todavía no hay pesajes. Cuando guardes el primero, aquí aparecerán la serie, la media de 7
           días y el objetivo.
         </EmptyState>
+        <WeightEntryForm now={now} series={series} onSave={onSaveWeight} />
       </div>
     );
   }
@@ -135,6 +148,8 @@ export function WeightScreen({ series, goal, onBack }: WeightScreenProps): React
   return (
     <div className="progress">
       <DrilldownHeader title="Peso corporal" backLabel="Progreso" onBack={onBack} />
+
+      <WeightEntryForm now={now} series={series} onSave={onSaveWeight} />
 
       <Card>
         <LastWeighInTile series={series} goal={goal} />

@@ -18,7 +18,7 @@
  * screen, which is why every state of the design's Entrenar row is one fixture away.
  */
 
-import type { PhaseState, PlanDay, WorkoutSession } from '../../storage';
+import type { Exercise, PhaseState, PlanDay, WorkoutSession } from '../../storage';
 import { formatVolume, targetLine } from '../session/format';
 import {
   dayFocus,
@@ -41,6 +41,12 @@ export interface TrainInput {
   readonly plan: readonly PlanDay[];
   /** The stored sessions, in any order: only this week's are drawn. */
   readonly sessions: readonly WorkoutSession[];
+  /**
+   * The exercise library, for the editor's add list. It is read with the plan because the
+   * sheet is one tap away and a screen that fetches while the owner looks at it is the
+   * spinner S3 forbids for local data.
+   */
+  readonly library: readonly Exercise[];
   readonly phaseState: PhaseState | undefined;
 }
 
