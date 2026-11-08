@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+@preconcurrency import SwiftData
 import RupfitCore
 
 /// The user-owned document of `data-model.md` §9. It is the domain structs encoded

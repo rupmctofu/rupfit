@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+@preconcurrency import SwiftData
 import RupfitCore
 
 public enum MappingError: Error, Equatable {

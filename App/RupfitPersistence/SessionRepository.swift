@@ -1,5 +1,5 @@
 import Foundation
-import SwiftData
+@preconcurrency import SwiftData
 import RupfitCore
 
 /// The only writer for sessions. Per-set transactions, one in-progress session,
