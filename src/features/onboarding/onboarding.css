@@ -1,0 +1,80 @@
+/*
+ * The setup's layout: one column of named sections, like Perfil, so the first screen the
+ * owner ever sees is built from the same pieces as the ones they will use daily.
+ *
+ * Tokens only — no colour, radius, type size or duration is written as a literal
+ * (docs/design-system.md §12). The shell owns the screen padding (src/app/shell.css).
+ */
+
+.setup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding-top: var(--space-4);
+  padding-bottom: var(--space-8);
+  min-width: 0;
+}
+
+.setup__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.setup__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.setup__row-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* Flex-wrap so a large text size gives a second line, never a clipped pill (§3, NFR-4). */
+.setup__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.setup__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.setup__input {
+  width: 100%;
+  /* 48 px floor: the field is a target too (§3). The box grows with the text size. */
+  min-height: var(--target-min);
+  padding: var(--space-2) var(--space-3);
+  border: var(--layout-hairline) solid var(--color-border);
+  border-radius: var(--radius-control-square);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  /* Text a control cannot select is text the owner cannot copy out of the app. */
+  -webkit-user-select: text;
+  user-select: text;
+  touch-action: manipulation;
+}
+
+.setup__input::placeholder {
+  color: var(--color-subtle);
+}
+
+.setup__input:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}

@@ -11,12 +11,17 @@ import { useEffect, useState } from 'react';
  * `resumen` is the summary sheet: `#/resumen/<sessionId>` for the session that was just
  * finished and `#/resumen/demo` for the fixture week. It carries a parameter, so the
  * table names the route and the id is read from the hash (`summaryTargetOf`).
+ *
+ * `empezar` is the first-run setup (`src/features/onboarding`). It is not a fifth tab: the
+ * shell shows it in place of a tab while the store cannot train, and it stays reachable by
+ * hash so an existing store can be sent to it deliberately.
  */
 export const ROUTES = [
   'inicio',
   'entrenar',
   'progreso',
   'perfil',
+  'empezar',
   'sesion',
   'sesion/demo',
   'resumen',
@@ -37,7 +42,24 @@ export function tabFor(route: Route): Route {
   // The summary closes the session Inicio started, so Inicio is the tab it belongs to —
   // the same tab its «Hecho» and «Volver a Inicio» land on.
   if (route === 'resumen' || route === 'resumen/demo') return 'inicio';
+  // The setup is what Inicio is until the store can train, so it lights Inicio up.
+  if (route === 'empezar') return 'inicio';
   return route;
+}
+
+/**
+ * The routes drawn inside the tab shell — the ones the first-run setup may replace. The
+ * session, the summary and the gallery own the whole viewport and their own data, so the
+ * gate must not read the store for them.
+ */
+export function isTabShellRoute(route: Route): boolean {
+  return (
+    route !== 'sesion' &&
+    route !== 'sesion/demo' &&
+    route !== 'resumen' &&
+    route !== 'resumen/demo' &&
+    route !== 'galeria'
+  );
 }
 
 function parse(hash: string): Route {

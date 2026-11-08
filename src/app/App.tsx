@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import {
   isSessionRoute,
   isSummaryRoute,
+  isTabShellRoute,
   tabFor,
   useCurrentHash,
   useHashRoute,
@@ -16,6 +17,8 @@ import { SessionScreen } from '../features/session/SessionScreen';
 import { DemoSession } from '../features/session/DemoSession';
 import { SummaryEntry } from '../features/summary/SummaryEntry';
 import { summaryHash, summaryTargetOf, type SummaryTarget } from '../features/summary/route';
+import { SetupScreen } from '../features/onboarding/SetupScreen';
+import { useSetupGate } from '../features/onboarding/useSetupGate';
 import { registerServiceWorker } from '../pwa';
 import { GalleryScreen } from './gallery/GalleryScreen';
 
@@ -32,6 +35,7 @@ type ShellRoute =
   | 'entrenar'
   | 'progreso'
   | 'perfil'
+  | 'empezar'
   | 'galeria'
   | 'resumen'
   | 'resumen/demo'
@@ -56,6 +60,10 @@ function Screen({ route }: { route: ShellRoute }): React.ReactElement {
     case 'resumen':
     case 'resumen/demo':
       return <HomeScreen />;
+    // The setup route is rendered by the shell, which owns the gate; `Screen` only has to
+    // be total. Inicio is the honest fallback if it is ever reached without the gate.
+    case 'empezar':
+      return <HomeScreen />;
     case 'galeria':
       return <GalleryScreen />;
   }
@@ -72,6 +80,12 @@ function Screen({ route }: { route: ShellRoute }): React.ReactElement {
  * sheet (`#/resumen/<id>`, `#/resumen/demo`): it is what the finished session lands on,
  * and `Hecho` closes it to Inicio. Because it carries a session id it is a route with a
  * parameter — the table knows `resumen`, the hash carries the id.
+ *
+ * The first run is decided here, not inside a screen: `useSetupGate` asks the store and
+ * `setupOffer` answers, so a store with no profile (or a profile and no plan) shows the
+ * setup in place of the tab instead of a screen full of refusals. The sheet routes and the
+ * gallery opt out — they own the viewport and their own data, and `#/sesion/demo` must not
+ * touch IndexedDB at all.
  */
 function AppShell(): React.ReactElement {
   const route = useHashRoute();
@@ -95,6 +109,17 @@ function AppShell(): React.ReactElement {
     window.location.hash = summaryHash(sessionId);
   };
 
+  const tabShell = isTabShellRoute(route);
+  const gate = useSetupGate(storage, tabShell);
+
+  // `#/empezar` is explicit: the owner (or a support note) asked for that screen and it
+  // shows even when the store already trains, where it only adds what is missing.
+  const showSetup = route === 'empezar' || gate.offer.kind === 'setup';
+  const leaveSetup = (): void => {
+    gate.reload();
+    window.location.hash = '#/inicio';
+  };
+
   return (
     <div className="shell" data-route={route}>
       <main className="shell__main">
@@ -110,6 +135,13 @@ function AppShell(): React.ReactElement {
           <DemoSession onExit={exitSession} />
         ) : summary !== null ? (
           <SummaryEntry target={summary} storage={storage} clock={clock} />
+        ) : showSetup ? (
+          <SetupScreen gate={gate} onDone={leaveSetup} />
+        ) : gate.phase === 'loading' ? (
+          // One frame of nothing, while the snapshot that decides between the setup and
+          // the screen is read. Not a spinner for local data (S3) and not a flash of
+          // Inicio's empty state under a form that is about to replace it (S4).
+          null
         ) : (
           <Screen route={route} />
         )}
