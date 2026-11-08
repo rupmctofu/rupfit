@@ -318,9 +318,7 @@ describe('§8 decisions', () => {
 
 describe('§7 rule 6: readaptation inside the recommendation', () => {
   it('T-26 a passed block 1 increases exactly one increment and adopts block 2 volume', () => {
-    // §8: exactly one increment between blocks, and only after .pass; §4 declares
-    // readaptationBlockPassed as an increase. (The T-26 "hold" cell contradicts §8
-    // and §4; the resolution is documented in the handoff.)
+    // §8: one increment between blocks, only after .pass; see the corrected T-26 row in §11.1.
     const recommendation = recommend(
       makeInput({
         phase: readaptationPhase(1),
