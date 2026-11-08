@@ -277,7 +277,7 @@ describe('§4 every named reason is reachable and renderable', () => {
 
       // The rendered line is the template with placeholders substituted, never a
       // generated sentence.
-      const head = template.split('{{')[0];
+      const head = template.split('{{')[0] ?? '';
       const tail = template.split('}}').at(-1) ?? '';
       expect(line.startsWith(head)).toBe(true);
       expect(line.endsWith(tail)).toBe(true);
