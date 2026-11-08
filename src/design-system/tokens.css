@@ -1,0 +1,43 @@
+/*
+ * PROVISIONAL tokens: the values below are sampled from design/f2-mvp/renders/ so the
+ * shell can render during scaffolding. T2 (docs/design-system.md §4–§6) owns this file
+ * and replaces every value here with the measured, contrast-checked token set.
+ */
+
+:root {
+  --color-bg: #000000;
+  --color-surface: #141414;
+  --color-surface-raised: #1f1f1f;
+  --color-border: #2a2a2a;
+  --color-text: #ffffff;
+  --color-muted: #a1a1a6;
+  --color-accent: #c6f24e;
+  --color-accent-ink: #101010;
+  --color-danger: #ff6b5e;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --radius-card: 20px;
+  --radius-pill: 999px;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  --font-numeric: ui-rounded, -apple-system, 'SF Pro Rounded', system-ui, sans-serif;
+
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-base: 0ms;
+  }
+}

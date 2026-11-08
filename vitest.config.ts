@@ -1,9 +1,9 @@
 import { defineConfig } from 'vitest/config';
 
-// The engine is pure TypeScript: no DOM, no network, no setup files.
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['tests/**/*.test.ts'],
+    include: ['tests/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}'],
+    // Storage tests opt into fake-indexeddb per file. The pure core never needs a DOM.
   },
 });

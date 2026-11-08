@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Rupfit">
+  <rect width="512" height="512" fill="#000000" />
+  <path
+    d="M150 400 V132 h96 q44 0 68 22 t24 60 q0 30 -16 50 t-44 26 l66 110 h-58 l-58 -104 h-30 v104 z m48 -148 h44 q24 0 36 -10 t12 -28 q0 -19 -12 -28 t-36 -9 h-44 z"
+    fill="#C6F24E"
+  />
+</svg>
