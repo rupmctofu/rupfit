@@ -1,0 +1,49 @@
+/*
+ * Resumen's layout: a full-height sheet over the tab bar, like Sesión (design-system §8)
+ * — the summary is the end of the session, not a tab. Tokens only.
+ */
+
+.summary {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  background: var(--color-bg);
+  color: var(--color-text);
+  padding: var(--safe-top) var(--layout-screen-padding) calc(var(--space-8) + var(--safe-bottom));
+  /* The demo strip is the sheet's first child, so it needs no top padding of its own. */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.summary__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-top: var(--space-2);
+}
+
+.summary__retry {
+  min-height: var(--target-min);
+  color: var(--color-accent-text);
+}
+
+/* The expanded read-out of one exercise: the sets behind the row. */
+.summary__sets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0 0 var(--space-3);
+  list-style: none;
+}
+
+.summary__set {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}

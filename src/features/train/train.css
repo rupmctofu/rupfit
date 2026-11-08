@@ -1,0 +1,80 @@
+/*
+ * Entrenar's layout. Tokens only (design-system §6.1); the shell already provides the
+ * horizontal screen padding.
+ */
+
+.train {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-bottom: var(--space-8);
+}
+
+.train__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-top: var(--space-2);
+}
+
+.train__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The read-only routine sheet: full height, above the tab bar, like Sesión (§8). */
+.train-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  color: var(--color-text);
+  padding-top: var(--safe-top);
+  overscroll-behavior: contain;
+}
+
+.train-sheet__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--layout-screen-padding) 0;
+}
+
+.train-sheet__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 48 px target, kept through padding so the row does not shift (§3). */
+  min-height: var(--target-min);
+  padding: 0 var(--space-3);
+  color: var(--color-accent-text);
+  border-radius: var(--radius-control);
+}
+
+.train-sheet__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--layout-screen-padding) calc(var(--space-8) + var(--safe-bottom));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.train-sheet__items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.train-sheet__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}

@@ -1,0 +1,116 @@
+/*
+ * Inicio's layout. Tokens only: no colour, radius, type size or duration is written as
+ * a literal (design-system §5, §6.1). The shell already provides the horizontal screen
+ * padding, so this file only stacks what Inicio draws.
+ */
+
+.home {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-bottom: var(--space-8);
+}
+
+.home__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-top: var(--space-2);
+}
+
+.home__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* One primary action per screen (design-system §7.1), in the thumb zone. */
+.home__primary {
+  width: 100%;
+}
+
+.home__last {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.home__last-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.home__last-volume {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  flex: none;
+  color: var(--color-text);
+}
+
+/* The week strip: the sessions the week actually has, one cell each. */
+.home__week {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.home__day {
+  flex: 1 1 0;
+  min-width: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: var(--target-min);
+  padding: var(--space-2) var(--space-1);
+  border: var(--layout-hairline) solid transparent;
+  border-radius: var(--radius-control-square);
+  background: var(--color-surface-raised);
+  color: var(--color-muted);
+}
+
+.home__day--done {
+  color: var(--color-text);
+}
+
+.home__day--today {
+  border-color: var(--color-accent);
+  background: var(--color-accent-muted);
+  color: var(--color-accent-text);
+}
+
+.home__day-initial {
+  font-family: var(--font-sans);
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+}
+
+.home__day-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--icon-size-sm);
+  color: var(--color-success);
+}
+
+.home__day--today .home__day-mark {
+  color: var(--color-accent);
+}
+
+.home__day--pending .home__day-mark {
+  color: var(--color-subtle);
+}
+
+.home__day-dot {
+  width: var(--space-1);
+  height: var(--space-1);
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
