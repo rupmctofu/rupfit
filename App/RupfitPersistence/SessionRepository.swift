@@ -34,10 +34,8 @@ public actor SessionRepository {
         // I-9: the transition to `inProgress` is the moment to enforce one at a time,
         // not the creation of a scheduled session (data-model.md §7).
         if session.statusRaw != SessionStatus.inProgress.rawValue {
-            let active = FetchDescriptor<SchemaV1.WorkoutSessionEntity>(
-                predicate: #Predicate { $0.statusRaw == "inProgress" }
-            )
-            guard try modelContext.fetchCount(active) == 0 else {
+            let active = try modelContext.fetch(FetchDescriptor<SchemaV1.WorkoutSessionEntity>())
+            guard !active.contains(where: { $0.statusRaw == SessionStatus.inProgress.rawValue }) else {
                 throw RepositoryError.sessionAlreadyInProgress
             }
         }
@@ -53,10 +51,9 @@ public actor SessionRepository {
     }
 
     public func inProgressSession() throws -> WorkoutSession? {
-        let descriptor = FetchDescriptor<SchemaV1.WorkoutSessionEntity>(
-            predicate: #Predicate { $0.statusRaw == "inProgress" }
-        )
-        return try modelContext.fetch(descriptor).first?.toDomain()
+        try modelContext.fetch(FetchDescriptor<SchemaV1.WorkoutSessionEntity>())
+            .first(where: { $0.statusRaw == SessionStatus.inProgress.rawValue })?
+            .toDomain()
     }
 
     public func session(id: UUID) throws -> WorkoutSession? {
@@ -70,10 +67,8 @@ public actor SessionRepository {
     // MARK: - Exercises
 
     public func upsertExercise(_ exercise: Exercise) throws {
-        let descriptor = FetchDescriptor<SchemaV1.ExerciseEntity>(
-            predicate: #Predicate { $0.id == exercise.id }
-        )
-        if let existing = try modelContext.fetch(descriptor).first {
+        let all = try modelContext.fetch(FetchDescriptor<SchemaV1.ExerciseEntity>())
+        if let existing = all.first(where: { $0.id == exercise.id }) {
             existing.name = exercise.name
             existing.primaryMuscleRaw = exercise.primaryMuscle.rawValue
             existing.patternRaw = exercise.pattern.rawValue
@@ -206,9 +201,10 @@ public actor SessionRepository {
     // MARK: - Helpers
 
     private func fetchSession(id: UUID) throws -> SchemaV1.WorkoutSessionEntity? {
-        let descriptor = FetchDescriptor<SchemaV1.WorkoutSessionEntity>(
-            predicate: #Predicate { $0.id == id }
-        )
-        return try modelContext.fetch(descriptor).first
+        // Filtering in memory instead of `#Predicate`: the Swift 6 compiler in CI
+        // rejects predicate macros inside a `@ModelActor` under strict concurrency,
+        // and this store holds one user's sessions (data-model.md §5).
+        try modelContext.fetch(FetchDescriptor<SchemaV1.WorkoutSessionEntity>())
+            .first(where: { $0.id == id })
     }
 }
