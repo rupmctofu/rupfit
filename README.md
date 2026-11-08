@@ -8,12 +8,14 @@ offline-first, deterministic.
 
 ## Status
 
-**F0, F2, F3 and F4 closed (2026-11-08).** The documentation is closed at gate G1, and F0's gates
+**F0, F2, F3 and F4 closed; F5 in progress (2026-11-08).** The documentation is closed at gate G1, and F0's gates
 are green: `swift test` and `xcodebuild test` on the iOS 17.2 simulator pass locally
 on Xcode 15.2 / Swift 5.9.2, and CI passes on `f0-bootstrap`. `RupfitCore` implements the domain and the progression
 engine (56 tests), and `RupfitPersistence` adds SchemaV1, mappers, the session
 repository and backup export/import (14 tests, including the kill/restore gate).
-There is no UI behaviour yet (F5). Recorded environment: `docs/environment.md`.
+The app shell and the training session screen now run against the real engine and
+repository; the F5 gate (UI smoke, accessibility, gym review) is still open.
+Recorded environment: `docs/environment.md`.
 
 | Area | State |
 | --- | --- |

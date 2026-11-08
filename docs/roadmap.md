@@ -200,6 +200,18 @@ Exit gate:
 - **Owner review in a real gym** — the only gate that cannot be automated.
 - No screen has a missing empty state.
 
+**In progress 2026-11-08.** The shell has the four tabs (`Inicio`, `Entrenar`,
+`Progreso`, `Perfil`), the design tokens and components of `design-system.md` §3–§6,
+Home with the *next* planned session (a rest day is not a dead screen), the plan list,
+and empty states for Progress, Profile and history. The session screen is wired to the
+real engine and `SessionRepository`: the weight decision is persisted **before** the
+first set (a model test caught it missing), every set is saved through the repository,
+rest is derived from `confirmedAt`, paging is a `TabView` plus chevrons, and the
+summary reports sets, duration and volume. Four model tests cover accept/manual,
+two persisted sets, the stepper and partial finish. Pending for the gate: XCUITest
+smoke, accessibility audit at XXL, history/progress wiring, and the owner's gym
+review (G3).
+
 ### F6 — Progress, body weight, measurements
 
 Deliverables: per-exercise charts, PR list, weekly volume per muscle, body-weight
