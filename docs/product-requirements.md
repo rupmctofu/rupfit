@@ -78,8 +78,11 @@ an outcome; it organises training and surfaces progress.
 - **FR-2.2 MUST** allow user-created custom exercises with the same attributes.
 - **FR-2.3 MUST** allow per-exercise configuration of: target sets, target rep
   range, rest duration, load increment, and optional note.
-- **FR-2.4 MUST NOT** ship images as a blocker for v1; exercise illustration is
-  `P1` (see `docs/design-system.md` for the placeholder rule).
+- **FR-2.4 MUST NOT** block on media: every screen works with the exercise name and
+  its equipment glyph when no image exists. When an exercise has media, it is one
+  licensed image of that movement, shown above the text — never behind it, never
+  instead of the name, the weight or the reason. Adopted 2026-11-08; the placeholder
+  rule lives in `docs/design-system.md` §6.2.
 - **FR-2.5 MUST** keep historical sessions intact when an exercise is renamed,
   archived or deleted (see `docs/data-model.md` invariant I-4).
 

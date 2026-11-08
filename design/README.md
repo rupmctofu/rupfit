@@ -145,3 +145,11 @@ confirm reps → done), the primary CTA inside the card (it stays full-width in 
 thumb zone) and 52 pt buttons (we keep 56).
 
 The two PNGs and the markdown are kept here as references, not as assets.
+
+### Exercise media (adopted 2026-11-08)
+
+`FR-2.4` was amended: media is optional per exercise, one licensed image of that
+movement, above the text. `sesion-photo` is the reference board; `assets/sentadilla.jpg`
+is a **crop of the owner's mockup**, used only to test the layout, not a production
+asset. Without media the card keeps the equipment glyph. The Home hero
+(`inicio-photo`) stays rejected: it costs the last session.

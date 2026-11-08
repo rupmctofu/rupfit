@@ -198,10 +198,12 @@ empty, error and loading decision is not finished.
   user-overridden, completed, skipped.
 - Paging: horizontal `TabView(.page)` with pinned chevrons. Swipe is a shortcut,
   never the only route (FR-6.2).
-- **Illustration placeholder rule (F2).** Exercise illustration is P1 (FR-2.4). Until
-  it ships, the card carries the exercise name and its equipment glyph; there is no
-  grey image frame and no stock photograph. When it ships it is line art on
-  `bg.raised`, square, never a photo, and never inside the set rows.
+- **Exercise media rule (F2, amended 2026-11-08).** Media is optional per exercise:
+  one licensed image or line illustration of *that* movement, 3:2 or 16:9, above the
+  name, never behind text and never replacing the name, the weight or the reason.
+  Without media the card shows its equipment glyph — no grey frame. Media is never
+  used as a Home hero or as decoration on Progress: the experiment showed it costs
+  the last session (`design/README.md`).
 
 ### 6.3 `SetRow`
 
