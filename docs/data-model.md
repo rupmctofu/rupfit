@@ -1,8 +1,8 @@
 # Rupfit — Data Model
 
-Status: designed, not implemented. The Swift code below is the target shape of
-`RupfitCore`; no file exists yet. Where the type is a persistence concern, it is
-marked and lives outside the core.
+Status: implemented in `RupfitCore` (F3, 2026-11-08) for §2–§3 values and entities.
+The persistence schema of §5 and its mappers are F4; where a type is a persistence
+concern it lives outside the core.
 
 ---
 

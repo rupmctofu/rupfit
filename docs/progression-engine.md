@@ -7,6 +7,11 @@ It is not an AI. It has no model, no network, no clock of its own, no randomness
 no notion of the user's mood. Same input, same output, always (ADR-007). Every rule
 below is traceable to `docs/training-science.md` §10 or marked as a design decision.
 
+Status: implemented in `Sources/RupfitCore/Engine` (F3, 2026-11-08). The scenario
+table T-01…T-35, the property tests P-1…P-8 and the statistics fixtures are green
+with XCTest; a mutation check that disables the pain and mild-discomfort rules fails
+T-15, T-16 and T-17, so the suite is not decorative.
+
 ---
 
 ## 1. Scope and boundaries
@@ -218,15 +223,20 @@ Notes on the ordering:
 Separate pure function, called by the same engine:
 
 ```swift
-public func evaluateBlock(
-    phase: TrainingPhase,
-    state: PhaseState,
-    history: [ExerciseOutcome]
-) -> BlockDecision
+public func evaluateBlock(_ input: ProgressionInput) -> BlockDecision
 ```
 
 `BlockDecision` is `.pass`, `.repeat`, `.advanceToNormal`, `.capReached`, with the
 list of unmet criteria for the reason line.
+
+Implementation note: the signature above takes the whole `ProgressionInput` because
+criteria 1 and 2 need the prescription's rep floor and the block's allowed effort,
+which the document's `(phase:state:history:)` form did not carry. `PhaseState`
+therefore holds what the engine may not infer without a clock: `passedBlocks`,
+`week`, `performedSessions`, `scheduledSessions`, `consecutiveFailures`, `role` and
+`blockBaselineKg`. The caller advances `blockBaselineKg` only when it applies a
+passed gate; that is the "one increment between blocks" step, and it is why a pass
+holds the weight while showing the next block's sets (T-26).
 
 Block prescriptions (from `training-science.md` §6):
 

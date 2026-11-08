@@ -132,6 +132,14 @@ Exit gate:
   decorative.
 - No `import SwiftUI|SwiftData|HealthKit` in `RupfitCore` (enforced by CI).
 
+**Closed 2026-11-08.** `Sources/RupfitCore` holds the domain values and entities,
+`ProgressionEngine.recommend`, `evaluateBlock`, rounding and statistics; 56 XCTest
+cases pass locally with `-strict-concurrency=complete -warnings-as-errors`
+(T-01…T-35, P-1…P-8, statistics fixtures, invariants). Mutation check: disabling the
+pain and mild-discomfort rules fails T-15, T-16 and T-17. The import boundary is
+enforced by the `lint` CI job. Statistics are pure functions with no stored
+derivatives (I-6).
+
 ### F4 — Persistence, recovery, statistics wiring
 
 **Purpose:** make the engine's answers durable and the session crash-proof.
