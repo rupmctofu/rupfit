@@ -32,6 +32,9 @@ final class AppContainer {
         guard !started else { return }
         started = true
         do {
+            if ProcessInfo.processInfo.arguments.contains("-uiTestReset") {
+                try await store.deleteAll()
+            }
             try await seedIfNeeded()
             planDays = try await store.planDays()
             exercises = Dictionary(uniqueKeysWithValues: try await store.exercises().map { ($0.id, $0) })
@@ -60,6 +63,19 @@ final class AppContainer {
     private func mondayBasedWeekday() -> Int {
         let weekday = Calendar.current.component(.weekday, from: now())
         return weekday == 1 ? 7 : weekday - 1
+    }
+
+    /// Creates the session locally **and** persists it before the screen opens; a
+    /// confirmed set that the store does not know about is not a confirmed set.
+    func beginSession(for day: PlanDay) async -> SessionModel? {
+        guard let session = makeSession(for: day) else { return nil }
+        do {
+            try await store.createSession(session)
+        } catch {
+            loadError = "No se pudo crear la sesión: \(error.localizedDescription)"
+            return nil
+        }
+        return SessionModel(session: session, store: store, exerciseMeta: exercises)
     }
 
     func makeSession(for day: PlanDay) -> WorkoutSession? {

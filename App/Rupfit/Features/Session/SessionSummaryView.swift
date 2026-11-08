@@ -15,6 +15,7 @@ struct SessionSummaryView: View {
             VStack(alignment: .leading, spacing: Space.m) {
                 Text(model.session.status == .partial ? "Sesión parcial" : "Sesión completada")
                     .font(RupfitFont.screenTitle)
+                    .accessibilityIdentifier("sessionSummaryTitle")
                 Text(model.session.dayNameSnapshot)
                     .font(RupfitFont.meta)
                     .foregroundStyle(RupfitColor.textSecondary)
@@ -22,6 +23,7 @@ struct SessionSummaryView: View {
                 SurfaceCard {
                     HStack(alignment: .top, spacing: Space.s) {
                         metric("Series", "\(sets.count)")
+                            .accessibilityIdentifier("summarySets")
                         metric("Duración", "\(Int(model.duration(at: .now) / 60)) min")
                         metric("Volumen", "\(Int(model.volume())) kg")
                     }

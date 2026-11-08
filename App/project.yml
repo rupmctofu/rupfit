@@ -68,6 +68,14 @@ targets:
       - package: RupfitCore
         product: RupfitCore
 
+  RupfitUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: RupfitUITests
+    dependencies:
+      - target: Rupfit
+
 schemes:
   Rupfit:
     build:
@@ -75,6 +83,7 @@ schemes:
         Rupfit: all
         RupfitTests: [test]
         RupfitPersistenceTests: [test]
+        RupfitUITests: [test]
     run:
       config: Debug
     test:
@@ -82,3 +91,4 @@ schemes:
       targets:
         - RupfitTests
         - RupfitPersistenceTests
+        - RupfitUITests

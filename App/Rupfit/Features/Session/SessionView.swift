@@ -32,6 +32,7 @@ struct SessionView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cerrar") { dismiss() }
                         .foregroundStyle(RupfitColor.textSecondary)
+                        .accessibilityIdentifier("closeSession")
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Terminar") {
@@ -40,6 +41,7 @@ struct SessionView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(model.totalSets == 0 ? RupfitColor.textTertiary : RupfitColor.accentText)
                     .disabled(model.totalSets == 0)
+                    .accessibilityIdentifier("finishSession")
                 }
             }
         }
@@ -106,14 +108,13 @@ struct SessionView: View {
                 Divider().overlay(RupfitColor.border)
 
                 VStack(spacing: 0) {
-                    ForEach(1...exercise.prescription.sets, id: \.self) { number in
-                        let state = setState(exercise, number: number, index: index)
-                        SetRowView(index: number,
+                    ForEach(rows(for: exercise, index: index), id: \.number) { row in
+                        SetRowView(index: row.number,
                                    targetReps: exercise.prescription.repRange.lowerBound,
-                                   state: state) { reps, effort, discomfort in
+                                   state: row.state) { reps, effort, discomfort in
                             Task { await model.confirmSet(reps: reps, effort: effort, discomfort: discomfort) }
                         }
-                        if number < exercise.prescription.sets {
+                        if row.number < exercise.prescription.sets {
                             Divider().overlay(RupfitColor.border)
                         }
                     }
@@ -133,15 +134,30 @@ struct SessionView: View {
         exercise.usedWeightKg.map(kg) ?? exercise.recommendation?.suggestedWeightKg.map(kg) ?? "—"
     }
 
-    private func setState(_ exercise: ExerciseSession, number: Int, index: Int) -> SetRowState {
-        if number <= exercise.sets.count {
-            return .done(exercise.sets[number - 1])
+    private struct SetRowDescriptor: Identifiable {
+        let number: Int
+        let state: SetRowState
+        var id: Int { number }
+    }
+
+    /// Confirmed rows, one fresh active row, then pending. Building the active row as
+    /// a new element (instead of changing an existing row's state) keeps its stepper
+    /// state clean and makes the next "Confirmar" reachable by UI tests.
+    private func rows(for exercise: ExerciseSession, index: Int) -> [SetRowDescriptor] {
+        var rows: [SetRowDescriptor] = exercise.sets.map {
+            SetRowDescriptor(number: $0.index, state: .done($0))
         }
         let isCurrent = index == model.currentIndex
-        if isCurrent, number == exercise.sets.count + 1, exercise.decision != nil {
-            return .active
+        if isCurrent, exercise.decision != nil, exercise.sets.count < exercise.prescription.sets {
+            rows.append(SetRowDescriptor(number: exercise.sets.count + 1, state: .active))
         }
-        return .pending
+        let next = exercise.sets.count + (rows.count > exercise.sets.count ? 2 : 1)
+        if next <= exercise.prescription.sets {
+            for number in next...exercise.prescription.sets {
+                rows.append(SetRowDescriptor(number: number, state: .pending))
+            }
+        }
+        return rows
     }
 
     private var pager: some View {
@@ -162,6 +178,7 @@ struct SessionView: View {
 
             Text("\(model.currentIndex + 1) / \(model.session.exercises.count)")
                 .font(RupfitFont.caption.monospacedDigit())
+                .accessibilityIdentifier("sessionPager")
                 .foregroundStyle(RupfitColor.textSecondary)
                 .accessibilityLabel("Ejercicio \(model.currentIndex + 1) de \(model.session.exercises.count)")
 
@@ -237,6 +254,7 @@ struct SessionView: View {
                 TextField("Peso en kg", text: $weightText)
                     .keyboardType(.decimalPad)
                     .font(.title2.monospacedDigit())
+                    .accessibilityIdentifier("weightField")
             }
             .navigationTitle("Elegir peso")
             .navigationBarTitleDisplayMode(.inline)
@@ -253,6 +271,7 @@ struct SessionView: View {
                         showWeightSheet = false
                     }
                     .disabled(Double(weightText.replacingOccurrences(of: ",", with: ".")) == nil)
+                    .accessibilityIdentifier("saveWeight")
                 }
             }
         }

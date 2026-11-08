@@ -255,6 +255,7 @@ struct SetRowView: View {
                     onConfirm(reps, effort, discomfort)
                 }
                 .accessibilityLabel("Confirmar serie \(index)")
+                .accessibilityIdentifier("confirmSet-\(index)")
             }
             .padding(.vertical, Space.xs)
         }
@@ -305,6 +306,7 @@ struct LoadDecisionBar: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Decisión de peso")
+        .accessibilityIdentifier("loadDecisionBar")
     }
 
     private func format(_ kg: Double) -> String {

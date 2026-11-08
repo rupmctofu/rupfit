@@ -153,11 +153,10 @@ struct HomeView: View {
     }
 
     private func start(_ day: PlanDay) {
-        guard let session = container.makeSession(for: day) else { return }
-        active = SessionModel(
-            session: session,
-            store: container.store,
-            exerciseMeta: container.exercises
-        )
+        Task {
+            if let model = await container.beginSession(for: day) {
+                active = model
+            }
+        }
     }
 }
