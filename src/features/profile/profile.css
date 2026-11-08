@@ -1,0 +1,145 @@
+/*
+ * Perfil's layout: a single column of named sections, each one a card with the
+ * screen's own field controls. Tokens only — no colour, radius, size or duration is
+ * written here as a literal (docs/design-system.md §12).
+ *
+ * The shell already owns the horizontal padding (src/app/shell.css), so this file adds
+ * rhythm and the controls' geometry, never a second gutter.
+ */
+
+.profile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding-top: var(--space-4);
+  padding-bottom: var(--space-8);
+}
+
+.profile__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* Toggle chips: flex-wrap so a large text size gives a second line, never a clipped pill. */
+.profile__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.profile__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.profile__row-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* ------------------------------------------------------------------ fields */
+.profile__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.profile__input {
+  width: 100%;
+  /* 48 px floor: the field is a target too (§3). The box grows with the text size. */
+  min-height: var(--target-min);
+  padding: var(--space-2) var(--space-3);
+  border: var(--layout-hairline) solid var(--color-border);
+  border-radius: var(--radius-control-square);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  /* Text a control cannot select is text the owner cannot copy out of the app. */
+  -webkit-user-select: text;
+  user-select: text;
+  touch-action: manipulation;
+}
+
+textarea.profile__input {
+  min-height: calc(var(--target-min) * 2);
+  resize: vertical;
+}
+
+.profile__input::placeholder {
+  color: var(--color-subtle);
+}
+
+.profile__input:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.profile__hint--success {
+  color: var(--color-success);
+}
+
+.profile__hint--danger {
+  color: var(--color-danger);
+}
+
+/* ------------------------------------------------------------------- files */
+/* The native picker sits invisibly over a 48 px label: one real control, one target. */
+.profile__file {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: var(--target-min);
+  border-radius: var(--radius-control-square);
+}
+
+.profile__file > input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.profile__file:focus-within {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* --------------------------------------------------------------- sentences */
+.profile__note {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.profile__note--danger {
+  color: var(--color-danger);
+}
+
+/* Landing spot for the evicted banner's `Importar copia`; never hidden under the edge. */
+.profile__import {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  scroll-margin-top: var(--space-4);
+}
+
+.profile__import:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
