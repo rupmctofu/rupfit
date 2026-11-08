@@ -1,0 +1,158 @@
+/*
+ * Layout of the review page, and nothing else: every colour, type size, radius and
+ * inset is a token of src/design-system. No component rule is re-declared here.
+ *
+ * Selectors that could meet a `.ds-action` or `.ds-*` rule are deliberately scoped
+ * under `.gallery` so the winner does not depend on stylesheet import order.
+ */
+
+.gallery {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+  /* The tab bar is hidden on this route, so the home indicator is padded here. */
+  padding: var(--space-4) 0 var(--safe-bottom);
+}
+
+.gallery__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.gallery code {
+  font-family: var(--font-numeric);
+  font-size: inherit;
+}
+
+/* The skin switch: 48 px targets, the same pill radius as every other control. */
+.gallery__skin {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.gallery .gallery-skin {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: var(--target-min);
+  padding: 0 var(--space-3);
+  border: var(--layout-hairline) solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  font-family: var(--font-sans);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+.gallery .gallery-skin[aria-pressed='true'] {
+  border-color: transparent;
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+
+.gallery .gallery-skin:active {
+  opacity: 0.85;
+}
+
+.gallery .gallery-skin:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* The only way back to the app: this route is not one of the four tabs. */
+.gallery .gallery__back {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: var(--target-min);
+  color: var(--color-accent-text);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+  touch-action: manipulation;
+}
+
+/* One block per component; the hairline is the only separator. */
+.gallery-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding-top: var(--space-4);
+  border-top: var(--layout-hairline) solid var(--color-border);
+}
+
+.gallery-demos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.gallery-demo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.gallery-demo__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.gallery-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.gallery-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.gallery-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.gallery-icons {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.gallery-icons__cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--space-8);
+  color: var(--color-text);
+}
+
+/* A reported limitation of a component API, not an alarm: warning-tinted edge. */
+.gallery .gallery-note {
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--color-warning);
+  color: var(--color-muted);
+}

@@ -3,6 +3,7 @@ import { HomeScreen } from '../features/home/HomeScreen';
 import { TrainScreen } from '../features/train/TrainScreen';
 import { ProgressScreen } from '../features/progress/ProgressScreen';
 import { ProfileScreen } from '../features/profile/ProfileScreen';
+import { GalleryScreen } from './gallery/GalleryScreen';
 
 const TABS: readonly { route: Route; label: string; icon: string }[] = [
   { route: 'inicio', label: 'Inicio', icon: '⌂' },
@@ -21,6 +22,8 @@ function Screen({ route }: { route: Route }): React.ReactElement {
       return <ProgressScreen />;
     case 'perfil':
       return <ProfileScreen />;
+    case 'galeria':
+      return <GalleryScreen />;
     default:
       return <HomeScreen />;
   }
@@ -35,11 +38,14 @@ function Screen({ route }: { route: Route }): React.ReactElement {
 export function App(): React.ReactElement {
   const route = useHashRoute();
   const isSession = route === 'sesion';
+  // The gallery is a full-screen review page: four tabs stay four, and none of them
+  // is «current» there, so the bar is not drawn rather than drawn with no selection.
+  const showTabs = !isSession && route !== 'galeria';
 
   return (
     <div className="shell" data-route={route}>
       <main className="shell__main">{isSession ? <p>La sesión llega en T4.</p> : <Screen route={route} />}</main>
-      {isSession ? null : (
+      {showTabs ? (
         <nav className="tabbar" aria-label="Navegación principal">
           {TABS.map((tab) => (
             <a
@@ -55,7 +61,7 @@ export function App(): React.ReactElement {
             </a>
           ))}
         </nav>
-      )}
+      ) : null}
     </div>
   );
 }

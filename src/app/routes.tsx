@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 
-export const ROUTES = ['inicio', 'entrenar', 'progreso', 'perfil', 'sesion'] as const;
+/**
+ * The four tabs, plus `sesion` and `galeria`. The gallery is a review surface, not a
+ * tab: it is reachable only by `#/galeria` and the tab bar never gains a fifth entry.
+ */
+export const ROUTES = ['inicio', 'entrenar', 'progreso', 'perfil', 'sesion', 'galeria'] as const;
 export type Route = (typeof ROUTES)[number];
 
 const DEFAULT_ROUTE: Route = 'inicio';
