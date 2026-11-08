@@ -51,3 +51,5 @@ coverage/
 dist/
 tools/.tmp/
 .worktrees/
+.edge-tmp/
+.playwright-mcp/

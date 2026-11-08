@@ -3,6 +3,8 @@
 .ds-numeral {
   display: inline-flex;
   align-items: baseline;
+  /* The value and its unit are two elements, so the space between them is a gap. */
+  gap: 0.14em;
   font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;

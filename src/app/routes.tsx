@@ -8,10 +8,27 @@ import { useEffect, useState } from 'react';
  * `sesion/demo` is a path, not a second route table: the session is one screen with two
  * ports behind it, and `#/sesion/demo` is the same sheet fed by fixtures.
  */
-export const ROUTES = ['inicio', 'entrenar', 'progreso', 'perfil', 'sesion', 'sesion/demo', 'galeria'] as const;
+export const ROUTES = [
+  'inicio',
+  'entrenar',
+  'progreso',
+  'perfil',
+  'sesion',
+  'sesion/demo',
+  'galeria',
+  // Drill-downs inside the Progreso tab: paths, not new tabs. A cold load must land on
+  // the view it names, so they belong in the table and the shell renders the parent.
+  'progreso/historial',
+  'progreso/peso',
+] as const;
 export type Route = (typeof ROUTES)[number];
 
 const DEFAULT_ROUTE: Route = 'inicio';
+
+/** The tab a route belongs to: a drill-down lights up its parent tab. */
+export function tabFor(route: Route): Route {
+  return route === 'progreso/historial' || route === 'progreso/peso' ? 'progreso' : route;
+}
 
 function parse(hash: string): Route {
   const path = hash.replace(/^#\/?/, '').replace(/\/+$/, '');

@@ -1,4 +1,4 @@
-import { isSessionRoute, useHashRoute, type Route } from './routes';
+import { isSessionRoute, tabFor, useHashRoute, type Route } from './routes';
 import { AppProvider, useAppServices } from './providers';
 import { HomeScreen } from '../features/home/HomeScreen';
 import { TrainScreen } from '../features/train/TrainScreen';
@@ -16,7 +16,14 @@ const TABS: readonly { route: Route; label: string; icon: string }[] = [
 ];
 
 /** The routes that live inside the tab shell. The session sheet does not. */
-type ShellRoute = 'inicio' | 'entrenar' | 'progreso' | 'perfil' | 'galeria';
+type ShellRoute =
+  | 'inicio'
+  | 'entrenar'
+  | 'progreso'
+  | 'perfil'
+  | 'galeria'
+  | 'progreso/historial'
+  | 'progreso/peso';
 
 function Screen({ route }: { route: ShellRoute }): React.ReactElement {
   switch (route) {
@@ -25,6 +32,9 @@ function Screen({ route }: { route: ShellRoute }): React.ReactElement {
     case 'entrenar':
       return <TrainScreen />;
     case 'progreso':
+      return <ProgressScreen />;
+    case 'progreso/historial':
+    case 'progreso/peso':
       return <ProgressScreen />;
     case 'perfil':
       return <ProfileScreen />;
@@ -44,6 +54,9 @@ function Screen({ route }: { route: ShellRoute }): React.ReactElement {
  */
 function AppShell(): React.ReactElement {
   const route = useHashRoute();
+  // A drill-down renders its parent tab and lights it up; the view itself reads the
+  // extra path segment locally (src/features/progress/navigation.ts).
+
   const { storage, clock, journal } = useAppServices();
 
   // The sheet owns the whole viewport, so the tab bar is not drawn behind it. The
@@ -71,7 +84,7 @@ function AppShell(): React.ReactElement {
               key={tab.route}
               className="tabbar__tab"
               href={`#/${tab.route}`}
-              aria-current={route === tab.route ? 'page' : undefined}
+              aria-current={tabFor(route) === tab.route ? 'page' : undefined}
             >
               <span className="tabbar__icon" aria-hidden="true">
                 {tab.icon}

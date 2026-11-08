@@ -1,0 +1,83 @@
+/*
+ * The Progreso tab's own layout: a stack, the segmented control, the drill-down
+ * header and the month groups of Historial.
+ *
+ * Every value below is a token of src/design-system; the only sizes decided here are
+ * the few the system has no role for (the segmented bar's track, the 48 px floor of
+ * its options, the gap of a group). Nothing here re-declares a colour, a radius, a
+ * font size or a duration.
+ */
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  padding-top: var(--space-4);
+}
+
+/* The screen title and, for a drill-down, the on-screen back control (§8). */
+.progress__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.progress__back {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--space-1);
+  min-height: var(--target-min);
+  padding-right: var(--space-2);
+  color: var(--color-accent-text);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  font-weight: var(--weight-semibold);
+}
+
+/* The artboard's `.seg`: a raised track, one raised option. 48 px per option (§3). */
+.progress__segment {
+  display: flex;
+  gap: 3px;
+  min-width: 0;
+  padding: 3px;
+  border-radius: var(--radius-control-square);
+  background: var(--color-surface-raised);
+}
+
+.progress__segment-option {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: var(--target-min);
+  padding: 0 var(--space-2);
+  border: var(--layout-hairline) solid transparent;
+  border-radius: var(--radius-control-square);
+  color: var(--color-muted);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  font-weight: var(--weight-semibold);
+}
+
+.progress__segment-option[aria-pressed='true'] {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+/* One month of Historial: the label and the card of rows under it. */
+.progress__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* The read-out's details: the sets of one exercise, one row each. */
+.progress__detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
