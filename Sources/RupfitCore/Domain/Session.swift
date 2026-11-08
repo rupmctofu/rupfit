@@ -8,7 +8,7 @@ public enum SessionStatus: String, Sendable, Codable {
     case scheduled, inProgress, completed, partial, abandoned
 }
 
-public struct SetRecord: Identifiable, Hashable, Sendable {
+public struct SetRecord: Identifiable, Hashable, Sendable, Codable {
     public let id: UUID
     public let index: Int              // 1-based, matches "SERIE n"
     public var weightKg: Double        // canonical kg, always (I-3)
@@ -41,7 +41,7 @@ public struct SetRecord: Identifiable, Hashable, Sendable {
     public var metTarget: Bool { actualReps >= targetReps }
 }
 
-public struct ExerciseSession: Identifiable, Hashable, Sendable {
+public struct ExerciseSession: Identifiable, Hashable, Sendable, Codable {
     public let id: UUID
     public let order: Int
     public let exerciseID: UUID?          // nil once deleted (I-4)
@@ -92,7 +92,7 @@ public struct ExerciseSession: Identifiable, Hashable, Sendable {
     }
 }
 
-public struct WorkoutSession: Identifiable, Hashable, Sendable {
+public struct WorkoutSession: Identifiable, Hashable, Sendable, Codable {
     public let id: UUID
     public let planDayID: UUID
     public let dayNameSnapshot: String
@@ -132,7 +132,7 @@ public struct WorkoutSession: Identifiable, Hashable, Sendable {
     }
 }
 
-public struct UserProfile: Identifiable, Hashable, Sendable {
+public struct UserProfile: Identifiable, Hashable, Sendable, Codable {
     public let id: UUID
     public var displayName: String?
     public var massUnit: MassUnit
@@ -160,7 +160,7 @@ public struct UserProfile: Identifiable, Hashable, Sendable {
     }
 }
 
-public struct BodyMeasurement: Identifiable, Hashable, Sendable {
+public struct BodyMeasurement: Identifiable, Hashable, Sendable, Codable {
     public let id: UUID
     public var date: Date
     public var weightKg: Double?
@@ -207,7 +207,7 @@ public enum ActivityKind: String, Sendable, Codable {
     case strength, cardio, other
 }
 
-public struct ActivityRecord: Identifiable, Hashable, Sendable {
+public struct ActivityRecord: Identifiable, Hashable, Sendable, Codable {
     public let id: UUID
     public var date: Date
     public var kind: ActivityKind

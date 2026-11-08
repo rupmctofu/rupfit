@@ -5,6 +5,29 @@ import Foundation
 public enum TrainingPhase: Hashable, Sendable, Codable {
     case readaptation(week: Int)   // 1...8
     case normal
+
+    private enum CodingKeys: String, CodingKey { case kind, week }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        switch try container.decode(String.self, forKey: .kind) {
+        case "readaptation":
+            self = .readaptation(week: try container.decode(Int.self, forKey: .week))
+        default:
+            self = .normal
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .readaptation(let week):
+            try container.encode("readaptation", forKey: .kind)
+            try container.encode(week, forKey: .week)
+        case .normal:
+            try container.encode("normal", forKey: .kind)
+        }
+    }
 }
 
 /// Everything the engine may know about the readaptation block, without a clock.
@@ -144,7 +167,7 @@ public struct Confidence: Hashable, Sendable, Codable {
     public static func high(_ sessions: Int) -> Confidence { .init(level: .high, sessionsConsidered: sessions) }
 }
 
-public struct ProgressionRecommendation: Hashable, Sendable {
+public struct ProgressionRecommendation: Hashable, Sendable, Codable {
     public let suggestedWeightKg: Double?   // nil = "you choose, we have nothing"
     public let suggestedSets: Int
     public let suggestedTargetReps: Int
