@@ -13,8 +13,9 @@ are green: `swift test` and `xcodebuild test` on the iOS 17.2 simulator pass loc
 on Xcode 15.2 / Swift 5.9.2, and CI passes on `f0-bootstrap`. `RupfitCore` implements the domain and the progression
 engine (56 tests), and `RupfitPersistence` adds SchemaV1, mappers, the session
 repository and backup export/import (14 tests, including the kill/restore gate).
-The app shell and the training session screen now run against the real engine and
-repository; the F5 gate (UI smoke, accessibility, gym review) is still open.
+The app shell and the training session screen run against the real engine and
+repository, the XCUITest smoke passes, and the decision bar survives accessibility
+XXXL; the F5 gate is open only for history/progress wiring and the owner's gym review.
 Recorded environment: `docs/environment.md`.
 
 | Area | State |

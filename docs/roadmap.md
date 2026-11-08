@@ -208,9 +208,16 @@ real engine and `SessionRepository`: the weight decision is persisted **before**
 first set (a model test caught it missing), every set is saved through the repository,
 rest is derived from `confirmedAt`, paging is a `TabView` plus chevrons, and the
 summary reports sets, duration and volume. Four model tests cover accept/manual,
-two persisted sets, the stepper and partial finish. Pending for the gate: XCUITest
-smoke, accessibility audit at XXL, history/progress wiring, and the owner's gym
-review (G3).
+two persisted sets, the stepper and partial finish.
+
+**UI smoke and accessibility, 2026-11-08.** Three XCUITests: the full smoke
+(start → choose weight → confirm two sets → finish → summary shows 2 sets), the
+decision bar at `UICTContentSizeCategoryAccessibilityXXXL` (the primary action must
+stay hittable and labelled), and the pager/set-row announcements. The smoke found a
+real defect: the session was opened without being written to the store, so every
+confirmation failed with "No se pudo guardar la serie"; `AppContainer.beginSession`
+now persists before presenting. Pending for the gate: history/progress wiring and
+the owner's gym review (G3).
 
 ### F6 — Progress, body weight, measurements
 
