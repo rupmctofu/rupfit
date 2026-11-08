@@ -1,0 +1,56 @@
+# CI shape from docs/architecture.md §11. Three jobs, no secrets, no network at
+# test time. The iOS job regenerates the project from spec, so a hand-edited
+# xcodeproj cannot pass unnoticed.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    name: RupfitCore (Swift 5.9, strict concurrency)
+    runs-on: ubuntu-latest
+    container: swift:5.9
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test
+        run: swift test -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
+
+  ios:
+    name: App (generated project, simulator)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project from spec
+        run: xcodegen generate --spec App/project.yml
+      - name: Test
+        run: |
+          xcodebuild test \
+            -project App/Rupfit.xcodeproj \
+            -scheme Rupfit \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            CODE_SIGNING_ALLOWED=NO
+
+  lint:
+    name: Format and import boundaries
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install swift-format
+        run: brew install swift-format
+      - name: Format
+        run: swift-format lint --recursive Sources Tests App
+      - name: RupfitCore must stay platform-free
+        run: |
+          if grep -REn '^import (SwiftUI|SwiftData|HealthKit|WatchConnectivity|UIKit)' Sources/RupfitCore; then
+            echo "::error::RupfitCore must not import UI or platform frameworks"
+            exit 1
+          fi
