@@ -192,6 +192,9 @@ empty, error and loading decision is not finished.
   optional discomfort chip, confirm button.
 - Two taps: confirm the rep count, done. Effort and discomfort are optional and
   never block confirmation.
+- In readaptation, an unanswered effort still confirms the set; the session summary
+  asks for it once per set before the block gate is evaluated
+  (`training-science.md` §6). Nothing is filled in by the app.
 - States: pending, active, confirmed (`success` mark + word), corrected, skipped.
 - The effort chips are `fácil · correcto · duro · fallo`; discomfort is
   `molestia · dolor` only when the user opens the "más" affordance. Neither is

@@ -48,7 +48,8 @@ implementation time:
 
 1. **Effort, not rep count, drives adaptation.** Sets near failure stimulate
    adaptation; sets far from failure do not, and sets at failure cost more fatigue
-   than they return (R6, R7, R1). The app therefore records effort on every set.
+   than they return (R6, R7, R1). The app therefore asks for effort on every set
+   and never assumes an answer.
 2. **Volume is the main lever and it has diminishing returns.** Weekly sets per
    muscle group predict hypertrophy better than any other single variable, up to a
    point (R4). Volume is ramped, never jumped.
@@ -87,9 +88,11 @@ implementation time:
   tolerance to volume is the limiting factor before 16 sets is reached.
 - **DD** Readaptation starts at **4–6 sets per muscle group per week** and adds no
   more than ~4 sets per muscle group per week, only when the gate in §6 passes.
-- **EV** Sets are counted as *hard sets*: within 0–3 reps of failure. A set
-  stopped far from failure is recorded but does not count toward the weekly total.
-  This is why effort is a required input to the volume calculation.
+- **DD** A *hard set* is one answered `correcto`, `duro` or `fallo` (≤2 RIR).
+  `fácil` is excluded because the button means ≥3 RIR and cannot prove the set was
+  within 3 of failure; the count therefore undercounts rather than overcounts. An
+  unanswered effort counts toward no hard-set total (FR-7.3); missing is not a
+  value. This is why the volume calculation depends on effort answers.
 
 ---
 
@@ -116,7 +119,9 @@ implementation time:
 - **DD / UP** Effort is captured as four buttons — `fácil` (≥3 RIR), `correcto`
   (2 RIR), `duro` (1 RIR), `fallo` (0 RIR) — because typing or a slider during a
   set violates the gym-use constraint. Four steps is the coarsest scale that still
-  separates "hard but repeatable" from "at failure".
+  separates "hard but repeatable" from "at failure". Answering is optional and
+  never blocks set confirmation; an unanswered set stays unanswered (FR-7.3) and is
+  never read as `fácil`.
 - **EV** Training to failure is not required for hypertrophy (R9). **DD** It is
   prohibited during readaptation and discouraged in the normal phase, where the
   target is 1–3 RIR on the primary lift.
@@ -164,14 +169,31 @@ on, the load increases by one increment only if the previous block's gate passed
 
 ### The gate (FR-4.4)
 
-A block passes only when **all** of the following hold across two consecutive
-weeks:
+A block is one week, repeated across that week's three sessions. It passes only
+when **all** of the following hold **within that week**:
 
 1. Every prescribed set was completed with at least the bottom-of-range reps.
-2. Reported effort is at or below the block's target RIR on every set — that is,
-   the last set did not hit failure.
+2. No set was reported harder than the block's target effort. The four-button
+   scale is compared as buckets, never as RIR numbers:
+
+   | Block | Target RIR | Answers that satisfy criterion 2 |
+   | --- | --- | --- |
+   | 1 | 4–5 | `fácil` |
+   | 2 | 3–4 | `fácil` |
+   | 3 | 2–3 | `fácil`, `correcto` |
+   | 4 | 2 | `fácil`, `correcto` |
+
+   `duro` and `fallo` fail every block. An unanswered effort fails criterion 2
+   until it is answered from the summary (FR-7.4); nothing is guessed.
 3. No `molestia` or `dolor` reported on any set of any session in the block.
 4. At least 2 of the 3 scheduled sessions were performed.
+
+**DD** Why buckets, not RIR: four buttons are the finest scale a mid-set tap can
+support (D-2), and `fácil` means "≥3 RIR", so a 3-RIR set is accepted in blocks
+1–2 even though the target floors are 4 and 3. That tolerance is deliberate: the
+alternative — an unenforceable gate or a fifth button — is worse. Because `duro`
+and `fallo` never pass, the over-reaching risk the criterion exists to catch is
+still caught.
 
 **DD** Rationale: the four conditions map one-to-one onto the four risks of a
 returning trainee — under-dosing, over-reaching, injury, and non-adherence. A
@@ -182,7 +204,8 @@ cuatro semanas").
 **DD** Hard cap: eight weeks. At the cap the app holds the last passed block and
 asks the owner to review, because an unbounded phase would hide a genuine
 problem — a load that is too high, an exercise that hurts, or life getting in the
-way — behind an endlessly repeating week.
+way — behind an endlessly repeating week. The cap forbids a ninth week; it does
+not cancel an exit that block 4 earns in week 8.
 
 **DD** A block that fails twice does not advance; it drops one increment on the
 primary lift and repeats. Repeated failure is data about the load, not about the

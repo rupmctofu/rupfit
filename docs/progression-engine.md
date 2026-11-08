@@ -238,17 +238,33 @@ Block prescriptions (from `training-science.md` §6):
 | 4 | 4 × 8 @ 2 | 3 × 10 @ 2 |
 | Hold | last passed block | last passed block |
 
-Gate (all four must hold across two consecutive weeks):
+Gate (all four must hold within the block's own week; `training-science.md` §6):
 
 1. Every prescribed set completed at ≥ `bottom` reps.
-2. No set at failure (effort ≤ target RIR).
+2. Every answered effort is at or easier than the block's allowed bucket; `hard`
+   and `failure` fail, and an unanswered effort fails until it is answered (the
+   summary asks, FR-7.4):
+
+   | Block | Allowed effort answers |
+   | --- | --- |
+   | 1 | `.easy` (`fácil`) |
+   | 2 | `.easy` |
+   | 3 | `.easy`, `.correct` (`correcto`) |
+   | 4 | `.easy`, `.correct` |
+
 3. No `mild` or `pain` discomfort anywhere in the block.
 4. At least two of the three scheduled sessions performed.
 
+`Effort` raw values are 3, 2, 1, 0, so the gate is membership in an allowed set,
+never a numeric `<=` against a target RIR: `failure.rawValue <= 4` is true and
+would pass a set taken to failure. (Rule 8's `hardestEffort <= .hard` is a
+different comparison and stays: RIR ≤1 means near failure.)
+
 Load inside readaptation: no increase within a block; exactly one increment between
 blocks, and only after `.pass`. Block 5+ is impossible: at the end of block 4 the
-decision is `.advanceToNormal`; if the cap (8 weeks) is reached first, the decision
-is `.capReached` and the prescription freezes.
+decision is `.advanceToNormal`. The cap of 8 weeks forbids a ninth week; it does
+not pre-empt an exit earned in week 8. If the cap is reached without a passing
+block, the decision is `.capReached` and the prescription freezes.
 
 ---
 
@@ -303,9 +319,9 @@ labelled.
 
 ## 11. Test specification
 
-Implemented in `Tests/RupfitCoreTests/ProgressionEngineTests.swift` with Swift
-Testing. Fixtures are literal values; nothing is randomised except the property
-tests in §11.2. Prescription unless stated: 4 sets, 6–10 rep range, increment 2.5 kg.
+Implemented in `Tests/RupfitCoreTests/ProgressionEngineTests.swift` with XCTest
+(Xcode 15.2 has no Swift Testing; decision in `docs/environment.md` §3). Fixtures
+are literal values; nothing is randomised except the property tests in §11.2. Prescription unless stated: 4 sets, 6–10 rep range, increment 2.5 kg.
 
 ### 11.1 Scenario table
 
@@ -343,6 +359,9 @@ tests in §11.2. Prescription unless stated: 4 sets, 6–10 rep range, increment
 | T-30 | Unknown effort everywhere, below range | `5/5/5/5`, effort nil | `.hold` 100, reps 6 (rules 5 fires before effort matters) |
 | T-31 | Dumbbell increment 2 kg | 20 kg all top | `.increase` 22.0 |
 | T-32 | Machine increment 5 kg | 60 kg all top | `.increase` 65.0 |
+| T-33 | Readaptation block 2, set harder than target | block 2 complete, one set `correct` (2 RIR) | `.repeat`, reason `readaptationBlockNotPassed` |
+| T-34 | Readaptation block 1, effort unanswered | block 1 complete, every effort `nil` | `.repeat`, reason `readaptationBlockNotPassed`, criterion 2 listed |
+| T-35 | Readaptation exit in week 8 | week 8, block 4 criteria met | `.advanceToNormal`, never `.capReached` |
 
 ### 11.2 Property tests
 
@@ -374,7 +393,9 @@ would hide a leak in the boundary.
 
 ## 12. Versioning the rules
 
-`engineVersion` is `1.0.0`. Any change to §7 order, §8 gates or §6 rounding bumps it,
+`engineVersion` is `1.1.0`. The `1.1.0` bump covers one change, made at G1 on
+2026-11-08: the §8 gate now compares effort buckets instead of RIR numbers, and
+T-33…T-35 were added with it. Any change to §7 order, §8 gates or §6 rounding bumps it,
 and the change must include: the affected scenario rows updated in §11.1, a note in
 `docs/training-science.md` §10 if the training rule changed, and a changelog entry
 in this file's git history. A rule change without a test change is a defect.

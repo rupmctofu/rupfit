@@ -305,7 +305,7 @@ scheduled ──start──► inProgress ──finish(all done)──► comple
 | Value | Formula | Notes |
 | --- | --- | --- |
 | Session volume | `Σ weightKg × actualReps` over confirmed sets | Bodyweight exercises contribute 0 kg·reps; rep count is still reported. Stated in the UI as "volumen levantado" |
-| Weekly volume per muscle | sum of *hard sets* (effort ≤ 1 RIR) per `primaryMuscle`, 7-day window | Matches `training-science.md` §4 |
+| Weekly volume per muscle | sum of *hard sets* (effort `correct`, `hard` or `failure`, i.e. ≤2 RIR) per `primaryMuscle`, 7-day window | Matches `training-science.md` §4; `easy` and unanswered are excluded |
 | e1RM | `weightKg × (1 + (actualReps + rir)/30)` (Epley, RIR-adjusted), `formulaVersion = 1` | Display only, labelled "estimación"; suppressed when `actualReps + rir > 12` |
 | 7-day body-weight mean | mean of available daily values in the window | Needs ≥ 3 samples in the window, otherwise the chart shows gaps rather than a misleading line |
 | Personal record | max `weightKg` for an exercise at a given target rep count | Ties broken by `confirmedAt` |

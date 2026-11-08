@@ -8,8 +8,11 @@ offline-first, deterministic.
 
 ## Status
 
-**Documentation phase.** No application code exists yet. Every claim below is
-traceable to a document; nothing here is implemented.
+**F0 in progress, local gates green.** The documentation is closed at gate G1. On
+this Mac (Xcode 15.2 / Swift 5.9.2) `swift test` and `xcodebuild test` on the iOS
+17.2 simulator pass; CI on a pushed branch is the last open item. The only Swift is
+the package/app skeleton — no app behaviour exists yet. Recorded environment:
+`docs/environment.md`.
 
 | Area | State |
 | --- | --- |
@@ -20,7 +23,7 @@ traceable to a document; nothing here is implemented.
 | Progression engine specification | Done — `docs/progression-engine.md` |
 | Design system | Done — `docs/design-system.md` |
 | Roadmap and phase gates | Done — `docs/roadmap.md` |
-| Swift sources, Xcode project, tests | Not started (blocked on macOS + Xcode, see roadmap F0) |
+| Swift sources, Xcode project, tests | F0 local gates green on Xcode 15.2 (`swift test` + simulator test); CI pending — `docs/environment.md` |
 
 ## Why it does not build here
 

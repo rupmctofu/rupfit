@@ -117,9 +117,10 @@ an outcome; it organises training and surfaces progress.
 - **FR-4.3 MUST NOT** perform maximal-strength testing (`1RM`, `3RM`, AMRAP) or
   prescribe training to failure during the phase.
 - **FR-4.4 MUST** gate each week's progression on the exit criteria, not on the
-  calendar: complete all target reps, perceived effort at or below the target RIR,
-  no reported discomfort, and at least 2 of 3 sessions attended, sustained across
-  two consecutive weeks.
+  calendar: complete all target reps, no set reported harder than the block's
+  target effort (bucket rule in `docs/training-science.md` §6), no reported
+  discomfort, and at least 2 of 3 sessions attended, observed within that week's
+  block.
 - **FR-4.5 MUST** extend the phase beyond four weeks while criteria are unmet, up
   to a hard cap of eight weeks, then hold the last week's prescription and surface
   a review prompt instead of silently advancing.
@@ -277,7 +278,7 @@ an outcome; it organises training and surfaces progress.
 | NFR-2 | Confirming a set and seeing the next state: under 100 ms perceived, no spinner, no network. |
 | NFR-3 | No crash may lose a confirmed set. Persist-before-confirm. |
 | NFR-4 | Dynamic Type up to XXL, VoiceOver labels on every control, 44×44 pt minimum target, WCAG AA contrast in both modes. |
-| NFR-5 | Swift 6 strict concurrency: no data-race warnings, domain types `Sendable`. |
+| NFR-5 | Swift 5 language mode with `-strict-concurrency=complete`; no data-race warnings (warnings are errors in CI); domain types `Sendable`. Amended 2026-11-08: Swift 6 language mode needs Xcode 16, which needs macOS 14+, which this build Mac cannot run — decision in `docs/environment.md` §3. |
 | NFR-6 | UI copy in Spanish (owner's language); code, tests, comments and these documents in English. |
 | NFR-7 | Metric units canonical in storage; imperial is display-only, configurable. |
 | NFR-8 | Zero third-party runtime dependencies. |
@@ -316,21 +317,50 @@ The MVP is accepted when all of the following hold on a physical iPhone:
 | 5 | "No invented science" vs. required bibliography | Every source resolved by DOI, with access date; unverifiable claims marked as design decisions | `training-science.md` §1, §11 |
 | 6 | Watch as data channel vs. HealthKit as data channel | HealthKit is not inter-app transport; the watch talks to the phone over `WatchConnectivity` | `architecture.md` §8 |
 
-## 8. Open decisions and the default applied
+## 8. Decisions D-1…D-9 (gate G1, closed 2026-11-08)
 
-Unless the owner overrides, these defaults are in force:
+The owner reviewed these against `training-science.md` at the F1 gate. Status is
+recorded here in writing because `roadmap.md` §7 requires it.
 
-| # | Decision | Default | Reversible until |
-| --- | --- | --- | --- |
-| D-1 | HealthKit direction in MVP | read only | end of F7 |
-| D-2 | Effort capture | 4-button RIR proxy, optional | end of F3 |
-| D-3 | Readaptation length | 4 weeks + gate extension, cap 8 | end of F1 |
-| D-4 | Watch app | P1, contract only in MVP | end of F4 |
-| D-5 | Units | metric storage, imperial display optional | end of F4 |
-| D-6 | Deployment target | decided on the Mac against installed Xcode | end of F0 |
-| D-7 | Xcode project generation | `project.yml` via XcodeGen, generated project not committed | end of F0 |
-| D-8 | Difficulty vocabulary | `fácil`/`correcto`/`duro`/`fallo` | end of F5 |
-| D-9 | Document language | English documents, Spanish UI copy | any time |
+| # | Decision | Accepted default | Status | Reversible until |
+| --- | --- | --- | --- | --- |
+| D-1 | HealthKit direction in MVP | read only; no write types requested (FR-14.3) | Accepted | end of F7 |
+| D-2 | Effort capture | 4-button RIR proxy, optional to answer | Accepted with corrections (§8.1) | end of F3 |
+| D-3 | Readaptation length | 4 weeks + gate extension, cap 8; gate evaluated per weekly block | Accepted with corrections (§8.1) | closed at G1 |
+| D-4 | Watch app | P1; only the versioned contract exists in the MVP | Accepted | end of F4 |
+| D-5 | Units | metric storage, imperial display optional | Accepted | end of F4 |
+| D-6 | Deployment target | iOS 17.0 deployment target; SDK and simulator runtime recorded in `docs/environment.md` | Accepted with clarification (§8.1) | closed at F0 |
+| D-7 | Xcode project generation | `project.yml` via XcodeGen, generated project not committed | Accepted | end of F0 |
+| D-8 | Difficulty vocabulary | `fácil`/`correcto`/`duro`/`fallo` | Accepted | end of F5 |
+| D-9 | Document language | English documents, Spanish UI copy | Accepted | any time |
+
+### 8.1 What G1 corrected
+
+Three defaults needed correction because each contradicted another document, and
+one needed a clarification. The changes are applied in place, not left as
+footnotes:
+
+1. **D-2 — hard sets.** `training-science.md` §4 defined a hard set as 0–3 RIR while
+   `data-model.md` counted 0–1 RIR, and the four-button scale cannot tell 3 RIR
+   from 8. A hard set is now **≤2 RIR** (`correcto`, `duro`, `fallo`); `fácil` is
+   excluded, so the count undercounts volume rather than inflating it.
+2. **D-2 — gate effort.** The readaptation gate compared RIR numbers in the wrong
+   direction (`effort ≤ target RIR` admits `fallo`), and an unanswered effort had
+   no defined effect although effort is optional. The gate now compares **buckets**
+   (`training-science.md` §6): blocks 1–2 accept only `fácil`, blocks 3–4 accept
+   `fácil` or `correcto`; unanswered effort fails criterion 2 and the summary asks
+   for it once per set (FR-7.4), never guessing a value.
+3. **D-3 — gate window.** The gate was required "across two consecutive weeks",
+   which makes the minimum phase eight weeks and the cap of eight unreachable as an
+   extension, contradicting FR-4.2/FR-4.5 and the four weekly blocks. The gate is
+   evaluated **within the block's own week**; the phase is 4 weeks minimum and 8
+   maximum, and a block 4 that passes in week 8 still exits to the normal phase.
+4. **D-6 — floor and value.** SwiftData sets the floor at iOS 17.0 and Xcode 15.2
+   supplies the iOS 17 SDK, so the deployment target is **iOS 17.0**; the simulator
+   runtime is recorded in `docs/environment.md` at F0. The owner's iPhone must run
+   iOS 17 or newer.
+
+`engineVersion` moves to `1.1.0` for the gate change (`progression-engine.md` §12).
 
 ## 9. Glossary
 

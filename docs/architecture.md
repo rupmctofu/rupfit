@@ -17,7 +17,9 @@ that a target exists.
    behind a boundary, so it can be replaced and so the engine never imports it.
 5. **No third-party runtime dependencies.** No DI container, no networking layer,
    no charting library (`Swift Charts` is first-party).
-6. **Swift 6 language mode, strict concurrency.** Domain types are `Sendable`.
+6. **Swift 5 language mode, `-strict-concurrency=complete`.** Domain types are
+   `Sendable` and a concurrency warning fails the build. (Decided 2026-11-08: the
+   build Mac cannot run Xcode 16; `docs/environment.md` §3.)
 
 ---
 
@@ -64,7 +66,7 @@ logic that matters most.
 ## 3. Repository layout
 
 ```
-Package.swift                  # RupfitCore target + tests (Swift 6)
+Package.swift                  # RupfitCore target + tests (Swift 5.9)
 Sources/RupfitCore/
   Domain/                      # entities, value types, invariants
   Engine/                      # ProgressionEngine, ReadaptationPolicy, LoadRounding
@@ -149,8 +151,9 @@ Details and invariants: `docs/data-model.md`.
 | HealthKit | `async` adapter methods returning domain values |
 | Watch | `WCSessionDelegate` on its own queue, hop to `@MainActor` for state |
 
-Swift 6 strict concurrency is on from the first commit. A warning is a build
-failure in CI.
+Strict concurrency (`complete`) is on from the first commit. A warning is a build
+failure in CI. The language mode becomes 6 only on a build machine that can run
+Xcode 16.
 
 ---
 
@@ -277,7 +280,7 @@ HealthKit, the watch and statistics are all unavailable.
 
 | Layer | Tool | Runs where | Automated |
 | --- | --- | --- | --- |
-| `RupfitCore` domain + engine | Swift Testing / XCTest | any Swift toolchain (CI Ubuntu) | yes |
+| `RupfitCore` domain + engine | XCTest | any Swift toolchain (CI Ubuntu and this Mac) | yes |
 | Mappers, migration | XCTest + in-memory `ModelContainer` | iOS simulator (CI macOS) | yes |
 | Statistics | XCTest against fixed fixtures | CI Ubuntu (pure) | yes |
 | Watch message codec | XCTest | CI Ubuntu (pure) | yes |

@@ -1,7 +1,9 @@
 # Rupfit — Roadmap
 
-Status: plan, no phase started. Read this with `docs/product-requirements.md`; every
-requirement ID referenced here exists there.
+Status: F0 in progress — scaffolding written, not compiled until Xcode 15.2 is
+installed (`docs/environment.md`); F1 documents are closed at gate G1 and F2–F8 are
+planned. Read this with `docs/product-requirements.md`; every requirement ID
+referenced here exists there.
 
 ---
 
@@ -68,7 +70,8 @@ Exit gate:
 - Owner review of `product-requirements.md` and `training-science.md`: no
   requirement contradicts another, and no training rule is unexplained.
 - Every DOI resolves (manual check or the script).
-- Decisions D-1 … D-9 are either accepted or overridden in writing.
+- Decisions D-1 … D-9 are either accepted or overridden in writing — done
+  2026-11-08, `product-requirements.md` §8.
 
 ### F2 — Product design (owner gate)
 
@@ -98,7 +101,7 @@ Deliverables:
 - `RupfitCore/Domain`: the types of `data-model.md` §2–§3 with their invariants.
 - `RupfitCore/Engine`: `recommend(_:)`, `evaluateBlock(...)`, rounding, reason codes.
 - `RupfitCore/Statistics`: volume, hard sets, e1RM, records, weekly aggregates.
-- Test suites: scenario table T-01…T-32, property tests P-1…P-8, plus statistics
+- Test suites: scenario table T-01…T-35, property tests P-1…P-8, plus statistics
   fixtures.
 
 Exit gate:
@@ -195,7 +198,7 @@ appearing exactly once on the phone.
 | F0 | trivial | app launches | — |
 | F1 | — | — | owner document review |
 | F2 | — | — | owner design review |
-| F3 | T-01…T-32, P-1…P-8, statistics fixtures, mutation check | — | — |
+| F3 | T-01…T-35, P-1…P-8, statistics fixtures, mutation check | — | — |
 | F4 | mapper round-trips, import validation | kill/restore, migration | — |
 | F5 | — | XCUITest smoke, preview matrix | gym review, accessibility |
 | F6 | chart fixtures, mean suppression | rendering at 0/1/3/40 points | — |
@@ -219,19 +222,22 @@ appearing exactly once on the phone.
 ## 6. Environment checklist for the Mac (F0, run in this order)
 
 ```bash
-xcodebuild -version            # Xcode 16+ required for Swift 6 language mode
+xcodebuild -version            # must report 15.2 on this Mac: last Xcode for Ventura
 swift --version
-xcrun simctl list runtimes     # pick the deployment target from what exists
-brew install xcodegen swift-format   # optional but assumed by App/project.yml
+xcrun simctl list runtimes     # iOS 17.2 (21C62) after xcodebuild -downloadPlatform iOS
+# XcodeGen: brew's formula needs Xcode 15.3, which Ventura cannot run. Use the
+# 2.44.1 release zip and run its install.sh so share/xcodegen/SettingPresets exists.
 gh auth login
 git clone <remote> rupfit && cd rupfit
-swift test                     # must pass before anything else starts
+swift test -Xswiftc -strict-concurrency=complete -Xswiftc -warnings-as-errors
 xcodegen generate --spec App/project.yml
 ```
 
-Then paste the real outputs into `docs/environment.md`. If Xcode is older than 16,
-Swift 6 strict concurrency is not available and that is an owner decision, not a
-silent downgrade.
+Then paste the real outputs into `docs/environment.md`. Xcode 15.2 is the newest
+this Mac supports, so on 2026-11-08 the owner chose Swift 5 language mode with
+`-strict-concurrency=complete` and XCTest over CI-only builds
+(`docs/environment.md` §3). Swift 6 language mode returns only with a build machine
+that can run Xcode 16.
 
 ---
 
@@ -239,7 +245,7 @@ silent downgrade.
 
 | Gate | Phase | Decision the owner makes |
 | --- | --- | --- |
-| G1 | after F1 | Requirements and training rules accepted or corrected |
+| G1 | after F1 | Requirements and training rules accepted or corrected — **closed 2026-11-08**, see `product-requirements.md` §8 |
 | G2 | after F2 | Training screen design approved |
 | G3 | during F5 | The session flow is usable in a real gym |
 | G4 | after F7 | HealthKit read scope is what they want |
