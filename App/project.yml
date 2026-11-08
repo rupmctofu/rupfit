@@ -11,6 +11,7 @@ settings:
   base:
     SWIFT_VERSION: "5.0"
     SWIFT_STRICT_CONCURRENCY: complete
+    GENERATE_INFOPLIST_FILE: YES
     SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
     ENABLE_USER_SCRIPT_SANDBOXING: YES
 
@@ -34,6 +35,7 @@ targets:
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
     dependencies:
+      - target: RupfitPersistence
       - package: RupfitCore
         product: RupfitCore
 
@@ -47,15 +49,36 @@ targets:
       - package: RupfitCore
         product: RupfitCore
 
+  RupfitPersistence:
+    type: framework
+    platform: iOS
+    sources:
+      - path: RupfitPersistence
+    dependencies:
+      - package: RupfitCore
+        product: RupfitCore
+
+  RupfitPersistenceTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: RupfitPersistenceTests
+    dependencies:
+      - target: RupfitPersistence
+      - package: RupfitCore
+        product: RupfitCore
+
 schemes:
   Rupfit:
     build:
       targets:
         Rupfit: all
         RupfitTests: [test]
+        RupfitPersistenceTests: [test]
     run:
       config: Debug
     test:
       config: Debug
       targets:
         - RupfitTests
+        - RupfitPersistenceTests
