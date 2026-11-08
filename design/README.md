@@ -55,3 +55,41 @@ this Mac (`CVDisplayLinkCreateWithCGDisplay` fails).
    inventing a screen-level setting.
 4. **Confidence is phrasing, not a badge.** No chip in the card; `engineVersion`
    §10 already says confidence changes phrasing and emphasis.
+
+## Skin B (proposal, 2026-11-08)
+
+The owner shared a Dribbble fitness UI and asked to borrow a little of its finish.
+`index.html` has a **Skin A / Skin B** toggle (or `?skin=b`); the boards, copy and
+decisions are identical, so the comparison is only visual.
+
+| What changes | Skin A (current) | Skin B (proposal) |
+| --- | --- | --- |
+| Accent (dark) | `#F26B3A` | `#C6F24E`, label `#101200`, accent text `#D9FF7C` |
+| Accent (light) | `#C24A16` | `#4E6A00`, label `#FFFFFF`, accent text `#405700` |
+| Controls | 10 pt radius | pill (999) |
+| Cards | 12 pt radius | 16 pt radius |
+| Icons | now also present | same set |
+
+In Skin B the estimated series uses `#B39DFF` instead of the default green: green is
+too close to the lime accent to be told apart, and colour is never the only carrier.
+
+Icons are in **both** skins: SVG line icons (20 pt, 1.8 stroke, currentColor) in the
+pager, the phase banner, the rest timer, list rows and the primary action. They are
+a proposal for §6 component anatomy; no icon carries meaning alone.
+
+Contrast, measured with the same WCAG 2.1 formula as §3:
+
+| Pair (Skin B) | Ratio | Requirement |
+| --- | --- | --- |
+| dark: accent / `bg.base` | 15.11:1 | 3.0 (UI) |
+| dark: `onAccent` / accent | 14.62:1 | 4.5 |
+| dark: accent text / `bg.base` | 17.28:1 | 4.5 |
+| dark: success / `bg.raised` | 10.40:1 | 3.0 |
+| light: accent / `bg.base` | 5.80:1 | 3.0 (UI) |
+| light: `onAccent` / accent | 6.20:1 | 4.5 |
+| light: accent text / `bg.base` | 7.60:1 | 4.5 |
+
+If Skin B is approved: amend §3 (accent, onAccent, accentText, light success/warning),
+§5 (`Radius.control` becomes pill for buttons, cards 16) and §6 (icon set and sizes),
+then re-run the contrast table in §3. If only the icons are approved, Skin A stays and
+§6 gains the icon rules.
