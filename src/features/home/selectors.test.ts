@@ -142,6 +142,27 @@ const PLAN: readonly PlanDay[] = [
   { id: 'day-friday', name: 'PRESS BANCA / EMPUJE', order: 2, items: [] },
 ];
 
+/** Two days that both prescribe work: the rotation has somewhere to go after the first. */
+const STARTER_PLAN: readonly PlanDay[] = [
+  {
+    id: 'day-lower',
+    name: 'SENTADILLA / PIERNA',
+    order: 0,
+    items: [
+      { id: 's1', planDayId: 'day-lower', order: 0, exerciseId: 'lib-1', exerciseNameSnapshot: 'Sentadilla', prescription: { sets: 3, repRange: { lowerBound: 8, upperBound: 10 }, targetRIR: { lowerBound: 2, upperBound: 3 }, restSeconds: 180 } },
+    ],
+  },
+  {
+    id: 'day-pull',
+    name: 'PESO MUERTO / TRACCIÓN',
+    order: 1,
+    items: [
+      { id: 's2', planDayId: 'day-pull', order: 0, exerciseId: 'lib-2', exerciseNameSnapshot: 'Peso muerto', prescription: { sets: 3, repRange: { lowerBound: 6, upperBound: 8 }, targetRIR: { lowerBound: 2, upperBound: 3 }, restSeconds: 180 } },
+      { id: 's3', planDayId: 'day-pull', order: 1, exerciseId: 'lib-3', exerciseNameSnapshot: 'Remo con barra', prescription: { sets: 2, repRange: { lowerBound: 8, upperBound: 10 }, targetRIR: { lowerBound: 2, upperBound: 3 }, restSeconds: 120 } },
+    ],
+  },
+];
+
 function measurement(id: string, at: number, weightKg: number | null): BodyMeasurement {
   return {
     id,
@@ -260,14 +281,19 @@ describe('homeViewOf', () => {
     expect(view.dateLine).toBe('Miércoles, 8 de noviembre');
   });
 
-  it('names today’s session with its exercise count and phase', () => {
+  it('offers to start the session scheduled for today, which re-reads the store', () => {
     const view = homeViewOf(input());
     expect(view.today?.dayName).toBe('PESO MUERTO / TRACCIÓN');
     expect(view.today?.detail).toContain('2 ejercicios');
     expect(view.today?.detail).toContain('aprox.');
     expect(view.today?.phase).toBe('Readaptación · semana 2 de 4');
     expect(view.today?.series).toBe('5 series');
-    expect(view.action).toEqual({ kind: 'start', label: 'Empezar entrenamiento', sessionId: 'sessions-wednesday' });
+    expect(view.today?.state).toBe('pending');
+    expect(view.action).toEqual({
+      kind: 'start',
+      label: 'Empezar entrenamiento',
+      sessionId: null,
+    });
   });
 
   it('offers to continue the session that is already open', () => {
@@ -292,17 +318,47 @@ describe('homeViewOf', () => {
     expect(view.week?.cells.find((cell) => cell.state === 'today')?.initial).toBe('MIÉ');
   });
 
-  it('shows a rest day when the week has a plan but nothing is scheduled today', () => {
+  it('offers the next day of the rotation when nothing is scheduled today', () => {
+    const last = session({
+      id: 'last-lower',
+      planDayId: 'day-lower',
+      dayNameSnapshot: 'SENTADILLA / PIERNA',
+      status: 'completed',
+      scheduledDate: MONDAY,
+    });
+    const view = homeViewOf(input({ recent: [last], plan: STARTER_PLAN }));
+
+    expect(view.today?.dayName).toBe('PESO MUERTO / TRACCIÓN');
+    expect(view.today?.state).toBe('preview');
+    expect(view.today?.sessionId).toBeNull();
+    expect(view.today?.series).toBe('5 series');
+    expect(view.today?.detail).toContain('aprox.');
+    expect(view.nothingToday).toBeNull();
+    expect(view.action).toEqual({
+      kind: 'start',
+      label: 'Empezar entrenamiento',
+      sessionId: null,
+    });
+  });
+
+  it('offers the first day of the rotation on a store that has never trained', () => {
+    const view = homeViewOf(input({ recent: [], plan: STARTER_PLAN }));
+    expect(view.today?.dayName).toBe('SENTADILLA / PIERNA');
+    expect(view.today?.state).toBe('preview');
+    expect(view.action?.kind).toBe('start');
+  });
+
+  it('says the next day has no exercises instead of inventing a session for it', () => {
     const view = homeViewOf(input({ recent: [MONDAY_SESSION] }));
     expect(view.today).toBeNull();
-    expect(view.restDay).toBe(true);
+    expect(view.nothingToday).toBe('emptyDay');
     expect(view.action).toBeNull();
   });
 
   it('does not dress an empty store up as a first session', () => {
     const view = homeViewOf(input({ recent: [], plan: [] }));
     expect(view.today).toBeNull();
-    expect(view.restDay).toBe(false);
+    expect(view.nothingToday).toBe('noPlan');
     expect(view.hasHistory).toBe(false);
     expect(view.last).toBeNull();
     expect(view.week).toBeNull();

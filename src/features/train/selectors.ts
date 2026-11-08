@@ -6,9 +6,10 @@
  * branch:
  *
  * 1. **A weekday is only written when a session proves it.** `PlanDay` stores `order`
- *    and a name, not a day of the week, and no task in the app tier creates a scheduled
- *    session yet. A template day without a session therefore claims no weekday, and the
- *    row says `Pierna · 2 ejercicios` instead of inventing `Lunes`.
+ *    and a name, not a day of the week. A session is now created on demand from Inicio or
+ *    from this screen (`session/start.ts`), but a template day without a session still
+ *    claims no weekday, and the row says `Pierna · 2 ejercicios` instead of inventing
+ *    `Lunes`.
  * 2. **A state word is a fact.** `hecha` needs a closed session, `hoy` a session
  *    scheduled for the injected day, and everything else is `pendiente` — the three
  *    words the artboard draws, each one earned by the record.

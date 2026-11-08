@@ -16,7 +16,9 @@ const SCENARIOS: readonly { readonly id: DemoScenario; readonly label: string }[
   { id: 'week', label: 'Con datos' },
   { id: 'first', label: 'Sin historial' },
   { id: 'done', label: 'Ya hecha' },
-  { id: 'rest', label: 'Descanso' },
+  // Not a rest day any more: nothing is scheduled, and the rotation names the day that
+  // would be trained if the owner tapped `Empezar entrenamiento`.
+  { id: 'rest', label: 'Sin sesión hoy' },
   { id: 'evicted', label: 'Datos perdidos' },
 ];
 
@@ -41,10 +43,18 @@ export function DemoHome(): React.ReactElement {
     [scenario, now],
   );
 
-  // A fixture session id does not exist in the real store, so the summary of the demo
-  // opens the demo summary instead of walking into an honest "no longer there".
+  // Fixture sessions are not in the real store, so neither the summary nor a start may
+  // walk into it: both land on the fixture surfaces instead.
   const navigate = useCallback((href: string) => {
-    window.location.hash = href.startsWith('#/resumen/') ? '#/resumen/demo' : href;
+    if (href.startsWith('#/resumen/')) {
+      window.location.hash = '#/resumen/demo';
+      return;
+    }
+    if (href.startsWith('#/sesion')) {
+      window.location.hash = '#/sesion/demo';
+      return;
+    }
+    window.location.hash = href;
   }, []);
 
   return (

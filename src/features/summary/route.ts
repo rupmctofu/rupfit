@@ -1,10 +1,12 @@
 /**
  * Resumen's address: `#/resumen/<id>`, plus the fixture route `#/resumen/demo`.
  *
- * `src/app/routes.tsx` is outside this task's edit surface, so the sheet parses its own
- * hash exactly the way `#/sesion/demo` is drawn today: the parser is pure, its result is
- * a closed union, and anything that is not a summary is `null` so the caller keeps
- * rendering Inicio.
+ * The route table knows the sheet (`routes.tsx`: `resumen` and `resumen/demo`, with
+ * `isSummaryRoute`), but a table of literal paths collapses the id: `useHashRoute`
+ * reports `resumen` for every `#/resumen/<id>`. The id therefore comes from the hash,
+ * exactly the way Progreso reads its drill-down, and this pure parser is what turns the
+ * hash into a closed union. Anything that is not a summary is `null`, so the caller keeps
+ * the screen it was going to draw.
  */
 
 export type SummaryTarget =

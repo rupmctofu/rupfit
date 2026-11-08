@@ -12,7 +12,9 @@
  * 3. **Never claim a fact the store cannot prove.** The week strip is built from the
  *    sessions that exist, not from the weekday template (`PlanDay` carries no weekday);
  *    the estimate says `aprox.`; a duration is only written when `startedAt` and an end
- *    instant are both stored.
+ *    instant are both stored. With a plan but no session today the screen offers the day
+ *    the rotation names (`nextPlanDay`, session/start.ts) instead of claiming a rest day:
+ *    the app has no calendar, so "nothing is scheduled" means "not started yet".
  */
 
 import type { PhaseState } from '../../core/domain';
@@ -25,6 +27,7 @@ import type {
   WorkoutSession,
 } from '../../storage';
 import { formatVolume, formatWeight } from '../session/format';
+import { nextPlanDay } from '../session/start';
 import {
   formatDuration,
   formatEstimate,
@@ -90,10 +93,15 @@ export interface TodayView {
   readonly phaseNote: string | null;
   /** `12 series` — what the day prescribes in total. */
   readonly series: string | null;
-  readonly state: 'pending' | 'inProgress' | 'done';
+  /**
+   * `preview` is a day the rotation names but no session row exists for yet: the card
+   * shows what would be trained, and the primary action is what creates it.
+   */
+  readonly state: 'preview' | 'pending' | 'inProgress' | 'done';
   /** `Sesión completada hoy · 8 de 9 series.` when the day is already trained. */
   readonly done: string | null;
-  readonly sessionId: string;
+  /** The stored session behind the card; `null` while the day is only a preview. */
+  readonly sessionId: string | null;
 }
 
 export type HomeActionKind = 'start' | 'resume' | 'summary';
@@ -101,8 +109,16 @@ export type HomeActionKind = 'start' | 'resume' | 'summary';
 export interface HomeActionView {
   readonly kind: HomeActionKind;
   readonly label: string;
-  readonly sessionId: string;
+  /**
+   * The session the action names. Only `summary` needs it: a start re-reads the store
+   * (`planStart`) because the day may have been created on another screen, and the sheet
+   * finds its own session by asking for the open or the next scheduled one.
+   */
+  readonly sessionId: string | null;
 }
+
+/** Why there is nothing to show for today. Both are states, never a guess. */
+export type NothingToday = 'noPlan' | 'emptyDay';
 
 export interface LastSessionView {
   /** `Última sesión · lunes` */
@@ -153,8 +169,8 @@ export interface HomeView {
   readonly greeting: string;
   readonly dateLine: string;
   readonly today: TodayView | null;
-  /** The week has a plan but nothing is scheduled for today: a rest day, stated. */
-  readonly restDay: boolean;
+  /** `null` when there is something to show; otherwise what is missing, in words. */
+  readonly nothingToday: NothingToday | null;
   readonly action: HomeActionView | null;
   readonly last: LastSessionView | null;
   readonly week: WeekView | null;
@@ -364,9 +380,48 @@ function actionOf(today: TodayView | null, inProgress: WorkoutSession | undefine
   }
   if (today === null) return null;
   if (today.state === 'done') {
-    return { kind: 'summary', label: 'Ver el resumen', sessionId: today.sessionId };
+    return {
+      kind: 'summary',
+      label: 'Ver el resumen',
+      sessionId: today.sessionId === null ? null : today.sessionId,
+    };
   }
-  return { kind: 'start', label: 'Empezar entrenamiento', sessionId: today.sessionId };
+  // `preview` (nothing written yet) and `pending` (a scheduled row) are the same action:
+  // `planStart` opens the row when it exists and creates it when it does not.
+  return { kind: 'start', label: 'Empezar entrenamiento', sessionId: null };
+}
+
+/**
+ * The day the rotation names, shown before any session row exists.
+ *
+ * It is a preview, not a session: it carries the plan's own numbers and says `preview`,
+ * so nothing downstream can mistake it for something stored. A day with no exercises is
+ * not previewed — there is nothing to start, and the screen says which state it is in.
+ */
+function previewDayOf(day: PlanDay | null, phaseState: PhaseState | undefined): TodayView | null {
+  if (day === null || day.items.length === 0) return null;
+  const phase = phaseLine(phaseState);
+  const prescribed = day.items.reduce((total, item) => total + item.prescription.sets, 0);
+  const estimated = estimateMinutes(
+    day.items.map((item) => ({
+      sets: item.prescription.sets,
+      restSeconds: item.prescription.restSeconds,
+    })),
+  );
+
+  return {
+    dayName: day.name,
+    detail:
+      estimated === 0
+        ? formatExerciseCount(day.items.length)
+        : `${formatExerciseCount(day.items.length)} · ${formatEstimate(estimated)}`,
+    phase: phase.line,
+    phaseNote: phase.note,
+    series: prescribed === 0 ? null : formatSeries(prescribed),
+    state: 'preview',
+    done: null,
+    sessionId: null,
+  };
 }
 
 function lastSessionOf(sessions: readonly WorkoutSession[]): LastSessionView | null {
@@ -450,13 +505,17 @@ function weightViewOf(measurements: readonly BodyMeasurement[], now: EpochMs): W
 export function homeViewOf(input: HomeInput): HomeView {
   const { now, recent, inProgress, plan, profile, phaseState } = input;
   const pool = inProgress === undefined ? recent : [...recent, inProgress];
-  const today = todayViewOf(todaySessionOf(pool, now), phaseState);
+  const today =
+    todayViewOf(todaySessionOf(pool, now), phaseState) ??
+    previewDayOf(nextPlanDay(plan, recent), phaseState);
 
   return {
     greeting: greeting(profile?.displayName ?? null),
     dateLine: formatLongDate(now),
     today,
-    restDay: today === null && plan.length > 0,
+    // Two honest states remain once a session and a preview are both absent: there is no
+    // plan at all, or the day the rotation names has no exercises to start.
+    nothingToday: today !== null ? null : plan.length === 0 ? 'noPlan' : 'emptyDay',
     action: actionOf(today, inProgress),
     last: lastSessionOf(recent),
     week: weekViewOf(recent, now),

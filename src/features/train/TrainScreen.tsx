@@ -28,6 +28,7 @@ import {
 import type { StoragePort } from '../../storage';
 import { useAppServices } from '../../app/providers';
 import type { Clock } from '../session/controller';
+import { useStartSession, type StartNotice } from '../session/startSession';
 import { summaryHash } from '../summary/route';
 import { DemoTrain } from './DemoTrain';
 import { demoFlagOf, useLocationKey } from '../home/useHash';
@@ -62,16 +63,28 @@ interface RoutineSheetProps {
   readonly dayId: string | null;
   readonly onClose: () => void;
   readonly onOpenSession: (sessionId: string) => void;
+  /** Entrenar names the day it starts, instead of letting the rotation decide. */
+  readonly onStartDay: (planDayId: string) => void;
+  readonly starting: boolean;
+  readonly startNotice: StartNotice | null;
 }
 
 function sessionActionLabel(day: TrainDayView): string {
   if (day.status.word === 'hecha') return 'Ver el resumen';
   if (day.status.word === 'hoy') return 'Abrir la sesión de hoy';
-  return 'Abrir la sesión';
+  return 'Empezar este día';
 }
 
 /** Routine management: the template, read only, one prescription line per exercise. */
-function RoutineSheet({ view, dayId, onClose, onOpenSession }: RoutineSheetProps): React.ReactElement {
+function RoutineSheet({
+  view,
+  dayId,
+  onClose,
+  onOpenSession,
+  onStartDay,
+  starting,
+  startNotice,
+}: RoutineSheetProps): React.ReactElement {
   const selected = dayId === null ? null : (view.days.find((day) => day.planDayId === dayId) ?? null);
   const days = selected === null ? view.days : [selected];
   const title = selected === null ? 'Tu rutina' : selected.title;
@@ -91,6 +104,14 @@ function RoutineSheet({ view, dayId, onClose, onOpenSession }: RoutineSheetProps
           title="Sólo lectura"
           text="La app todavía no puede añadir, quitar, reordenar ni cambiar series. Lo que ves es la plantilla guardada, tal cual se usará en la próxima sesión."
         />
+
+        {/* Why nothing opened. A failed write offers `Reintentar`; a missing profile sends
+            the owner to the tab that can fix it, because a retry cannot. */}
+        {startNotice === null ? null : startNotice.tone === 'danger' ? (
+          <ErrorBanner message={startNotice.message} />
+        ) : (
+          <Banner tone="warning" title={startNotice.message} />
+        )}
 
         {days.length === 0 ? (
           <EmptyState>Todavía no hay ninguna rutina guardada.</EmptyState>
@@ -113,9 +134,23 @@ function RoutineSheet({ view, dayId, onClose, onOpenSession }: RoutineSheetProps
                   ))}
                 </ol>
               )}
-              {day.sessionId === null ? null : (
+              {day.status.word === 'hecha' && day.sessionId !== null ? (
                 <TextButton align="start" onClick={() => onOpenSession(day.sessionId as string)}>
                   {sessionActionLabel(day)}
+                </TextButton>
+              ) : day.items.length === 0 ? null : (
+                /*
+                 * A day that is not finished is opened by `planStart`, which reuses the
+                 * session already scheduled for today and creates one when there is none:
+                 * the same door Inicio uses, so no day can gain a second row by being
+                 * reached from two screens.
+                 */
+                <TextButton
+                  align="start"
+                  disabled={starting}
+                  onClick={() => onStartDay(day.planDayId)}
+                >
+                  {starting ? 'Empezando…' : sessionActionLabel(day)}
                 </TextButton>
               )}
             </Card>
@@ -133,10 +168,22 @@ export interface TrainBodyProps {
   readonly onOpenRoutine: (dayId: string | null) => void;
   readonly onCloseRoutine: () => void;
   readonly onOpenSession: (sessionId: string) => void;
+  readonly onStartDay: (planDayId: string) => void;
+  readonly starting: boolean;
+  readonly startNotice: StartNotice | null;
 }
 
 export function TrainBody(props: TrainBodyProps): React.ReactElement {
-  const { view, routine, onOpenRoutine, onCloseRoutine, onOpenSession } = props;
+  const {
+    view,
+    routine,
+    onOpenRoutine,
+    onCloseRoutine,
+    onOpenSession,
+    onStartDay,
+    starting,
+    startNotice,
+  } = props;
 
   return (
     <div className="train">
@@ -157,7 +204,7 @@ export function TrainBody(props: TrainBodyProps): React.ReactElement {
         <section className="train__section">
           <SectionLabel>Hoy</SectionLabel>
           <Card>
-            <h2 className="ds-card-title">Descanso</h2>
+            <h2 className="ds-card-title">Nada programado</h2>
             <p className="ds-body ds-body--muted">
               Hoy no hay ninguna sesión programada. Descansa, o adelanta un día desde la rutina.
             </p>
@@ -209,6 +256,9 @@ export function TrainBody(props: TrainBodyProps): React.ReactElement {
           dayId={routine.dayId}
           onClose={onCloseRoutine}
           onOpenSession={onOpenSession}
+          onStartDay={onStartDay}
+          starting={starting}
+          startNotice={startNotice}
         />
       )}
     </div>
@@ -228,16 +278,20 @@ export interface TrainScreenWithPortProps {
   readonly clock: Clock;
   /** Overridden by the demo, whose fixture sessions are not in the real store. */
   readonly onOpenSession?: ((sessionId: string) => void) | undefined;
+  /** Overridden by the demo, whose created session is not in the real store either. */
+  readonly onNavigate?: ((href: string) => void) | undefined;
 }
 
 export function TrainScreenWithPort({
   storage,
   clock,
   onOpenSession,
+  onNavigate,
 }: TrainScreenWithPortProps): React.ReactElement {
   const [boot, setBoot] = useState<Boot>({ phase: 'loading', input: null });
   const [attempt, setAttempt] = useState(0);
   const [routine, setRoutine] = useState<{ readonly dayId: string | null } | null>(null);
+  const start = useStartSession({ storage, clock, onNavigate });
 
   useEffect(() => {
     let cancelled = false;
@@ -257,7 +311,13 @@ export function TrainScreenWithPort({
 
   const retry = useCallback(() => setAttempt((value) => value + 1), []);
   const openRoutine = useCallback((dayId: string | null) => setRoutine({ dayId }), []);
-  const closeRoutine = useCallback(() => setRoutine(null), []);
+  const { dismiss } = start;
+  const closeRoutine = useCallback(() => {
+    setRoutine(null);
+    // Closing the sheet clears the reason the last start did nothing: it belongs to the
+    // sheet, not to the screen behind it.
+    dismiss();
+  }, [dismiss]);
   const openSessionRoute = useCallback((sessionId: string) => {
     window.location.hash = summaryHash(sessionId);
   }, []);
@@ -282,6 +342,9 @@ export function TrainScreenWithPort({
       onOpenRoutine={openRoutine}
       onCloseRoutine={closeRoutine}
       onOpenSession={openSession}
+      onStartDay={start.start}
+      starting={start.busy}
+      startNotice={start.notice}
     />
   );
 }

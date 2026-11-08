@@ -31,8 +31,8 @@ import {
 import type { StoragePort } from '../../storage';
 import { useAppServices } from '../../app/providers';
 import type { Clock } from '../session/controller';
-import { summaryHash, summaryTargetOf } from '../summary/route';
-import { SummaryEntry } from '../summary/SummaryEntry';
+import { useStartSession, type StartNotice } from '../session/startSession';
+import { summaryHash } from '../summary/route';
 import { DemoHome } from './DemoHome';
 import { demoFlagOf, useLocationKey } from './useHash';
 import { formatDayName } from './format';
@@ -122,25 +122,33 @@ export interface HomeProps {
   readonly view: HomeView;
   /** Routes are the shell's business; a demo keeps them inside the fixture (§9). */
   readonly onNavigate?: ((href: string) => void) | undefined;
+  /** Starts the session the rotation names: create it, then open the sheet. */
+  readonly onStart: () => void;
+  /** True while the write is in flight: the action is disabled and says so (S3). */
+  readonly starting?: boolean | undefined;
+  readonly startNotice?: StartNotice | null | undefined;
 }
 
 function navigateTo(href: string): void {
   window.location.hash = href;
 }
 
-/** Today's block: the session, a stated rest day, or the honest empty card. */
-function TodayBlock({ view }: HomeProps): React.ReactElement {
+/** The blocks below draw the view; only the body owns the actions. */
+interface HomeViewOnly {
+  readonly view: HomeView;
+}
+
+/** Today's block: the session, the day the rotation names, or the honest empty card. */
+function TodayBlock({ view }: HomeViewOnly): React.ReactElement {
   if (view.today === null) {
     return (
       <section className="home__section">
-        <SectionLabel icon={<Icon name="calendar" size={14} />}>
-          {view.restDay ? 'Hoy' : 'Hoy toca'}
-        </SectionLabel>
-        {view.restDay ? (
+        <SectionLabel icon={<Icon name="calendar" size={14} />}>Hoy toca</SectionLabel>
+        {view.nothingToday === 'emptyDay' ? (
           <Card>
-            <h2 className="ds-card-title">Descanso</h2>
+            <h2 className="ds-card-title">Sin ejercicios</h2>
             <p className="ds-body ds-body--muted">
-              Hoy no hay ninguna sesión programada. El plan de la semana está en Entrenar.
+              El siguiente día de tu rutina todavía no tiene ejercicios. Añádelos en Entrenar.
             </p>
           </Card>
         ) : (
@@ -170,12 +178,18 @@ function TodayBlock({ view }: HomeProps): React.ReactElement {
         )}
         {today.phaseNote === null ? null : <p className="ds-caption">{today.phaseNote}</p>}
         {today.done === null ? null : <p className="ds-body">{today.done}</p>}
+        {/* A preview is the rotation's next day, not a stored session: say so, so the
+            card never reads like something that already exists. It is only true while the
+            primary action is the one that creates it. */}
+        {today.state === 'preview' && view.action?.kind === 'start' ? (
+          <p className="ds-caption">Se crea al empezar.</p>
+        ) : null}
       </Card>
     </section>
   );
 }
 
-function LastSessionCard({ view }: HomeProps): React.ReactElement | null {
+function LastSessionCard({ view }: HomeViewOnly): React.ReactElement | null {
   const last = view.last;
   if (last === null) return null;
   return (
@@ -197,7 +211,7 @@ function LastSessionCard({ view }: HomeProps): React.ReactElement | null {
   );
 }
 
-function WeekCard({ view }: HomeProps): React.ReactElement | null {
+function WeekCard({ view }: HomeViewOnly): React.ReactElement | null {
   const week = view.week;
   if (week === null) return null;
   return (
@@ -226,7 +240,7 @@ function WeekCard({ view }: HomeProps): React.ReactElement | null {
   );
 }
 
-function WeightCard({ view }: HomeProps): React.ReactElement | null {
+function WeightCard({ view }: HomeViewOnly): React.ReactElement | null {
   const weight = view.weight;
   if (weight === null) return null;
   const series = weight.series;
@@ -245,7 +259,7 @@ function WeightCard({ view }: HomeProps): React.ReactElement | null {
   );
 }
 
-function ActivityCard({ view }: HomeProps): React.ReactElement | null {
+function ActivityCard({ view }: HomeViewOnly): React.ReactElement | null {
   const activity = view.activity;
   if (activity === null) return null;
   return (
@@ -269,7 +283,13 @@ function ActivityCard({ view }: HomeProps): React.ReactElement | null {
  * The screen's body. It takes the view, never the store, so the demo and the tests of
  * the selectors describe the same screen.
  */
-export function HomeBody({ view, onNavigate = navigateTo }: HomeProps): React.ReactElement {
+export function HomeBody({
+  view,
+  onStart,
+  onNavigate = navigateTo,
+  starting = false,
+  startNotice = null,
+}: HomeProps): React.ReactElement {
   const navigate = onNavigate;
   const action = view.action;
 
@@ -303,19 +323,37 @@ export function HomeBody({ view, onNavigate = navigateTo }: HomeProps): React.Re
 
       <TodayBlock view={view} />
 
+      {/* Why nothing opened. A failed write offers `Reintentar`; a missing profile sends
+          the owner to the tab that can fix it, because a retry cannot. */}
+      {startNotice === null ? null : startNotice.tone === 'danger' ? (
+        <ErrorBanner
+          message={startNotice.message}
+          {...(startNotice.retry ? { onRetry: onStart } : {})}
+        />
+      ) : (
+        <Banner
+          tone="warning"
+          title={startNotice.message}
+          {...(startNotice.profile
+            ? { action: { label: 'Ir a Perfil', onClick: () => navigate('#/perfil') } }
+            : {})}
+        />
+      )}
+
       {action === null ? null : (
         <PrimaryAction
           icon={action.kind === 'start' || action.kind === 'resume' ? 'play' : undefined}
           className="home__primary"
-          onClick={() =>
-            navigate(
-              action.kind === 'summary' && action.sessionId !== null
-                ? summaryHash(action.sessionId)
-                : '#/sesion',
-            )
-          }
+          disabled={starting}
+          onClick={() => {
+            if (action.kind !== 'summary') {
+              onStart();
+              return;
+            }
+            navigate(action.sessionId === null ? '#/sesion' : summaryHash(action.sessionId));
+          }}
         >
-          {action.label}
+          {starting ? 'Empezando…' : action.label}
         </PrimaryAction>
       )}
 
@@ -348,6 +386,7 @@ export function HomeScreenWithPort({
 }: HomeScreenWithPortProps): React.ReactElement {
   const [boot, setBoot] = useState<Boot>({ phase: 'loading', input: null });
   const [attempt, setAttempt] = useState(0);
+  const start = useStartSession({ storage, clock, onNavigate });
 
   useEffect(() => {
     let cancelled = false;
@@ -377,29 +416,32 @@ export function HomeScreenWithPort({
     );
   }
 
-  return <HomeBody view={homeViewOf(boot.input)} {...(onNavigate === undefined ? {} : { onNavigate })} />;
+  return (
+    <HomeBody
+      view={homeViewOf(boot.input)}
+      onStart={start.start}
+      starting={start.busy}
+      startNotice={start.notice}
+      {...(onNavigate === undefined ? {} : { onNavigate })}
+    />
+  );
 }
 
 /**
  * The T5 entry for `#/inicio`.
  *
- * `src/app/routes.tsx` is outside this task's edit surface, so two review surfaces are
- * resolved here, exactly as `#/sesion/demo` already is: the Resumen sheet (reachable by
- * id, `#/resumen/<id>`, and by fixture, `#/resumen/demo`) and Inicio's own demo. Both
- * disappear into the router once it gains the routes.
+ * The shell owns `#/resumen/<id>` (`routes.tsx` `isSummaryRoute` + `summaryTargetOf`), so
+ * the only review surface left here is Inicio's own demo. The summary branch that lived
+ * here until T5's follow-up was unreachable the moment the route table learned `resumen`:
+ * every hash it could match was already intercepted by the shell.
  */
 export function HomeScreen(): React.ReactElement {
   const { storage, clock } = useAppServices();
-  // The shell re-renders on a route change, not on a sub-route change, so the two review
-  // surfaces this screen owns listen to the location themselves.
+  // The shell re-renders on a route change, not on a sub-route change, so the demo
+  // surface this screen owns listens to the location itself.
   const location = useLocationKey();
-  const hash = location.slice(location.indexOf('#'));
-  const summary = summaryTargetOf(hash);
-
-  if (summary !== null) {
-    return <SummaryEntry target={summary} storage={storage} clock={clock} />;
-  }
-  if (demoFlagOf(location.slice(0, location.indexOf('#'))) === DEMO_FLAG) {
+  const search = location.slice(0, Math.max(0, location.indexOf('#')));
+  if (demoFlagOf(search) === DEMO_FLAG) {
     return <DemoHome />;
   }
 

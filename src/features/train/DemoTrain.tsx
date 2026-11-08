@@ -27,9 +27,13 @@ export function DemoTrain(): React.ReactElement {
   );
   const storage = useMemo(() => demoPort(demoWeek(scenario, now)), [scenario, now]);
   const clock = useMemo(() => demoClock(now), [now]);
-  // A fixture session is not in the real store: its summary is the fixture one.
-  const openSession = useCallback(() => {
+  // A fixture session is not in the real store: its summary is the fixture one, and a
+  // start lands on the fixture sheet for the same reason.
+  const openSummary = useCallback(() => {
     window.location.hash = '#/resumen/demo';
+  }, []);
+  const navigate = useCallback((href: string) => {
+    window.location.hash = href.startsWith('#/sesion') ? '#/sesion/demo' : href;
   }, []);
 
   return (
@@ -44,7 +48,8 @@ export function DemoTrain(): React.ReactElement {
         key={scenario}
         storage={storage}
         clock={clock}
-        onOpenSession={openSession}
+        onOpenSession={openSummary}
+        onNavigate={navigate}
       />
     </>
   );
