@@ -93,11 +93,16 @@ Deliverables (artboards, `design/<slug>/`, opened on the design canvas):
 5. Perfil → Apple Health permission explanation.
 6. States: first time (no data), resumed session, HealthKit empty, error banner.
 
+**Drawn 2026-11-08:** `design/f2-mvp/index.html` — 22 artboards at 393 × 852,
+with `design/README.md` mapping each deliverable and each empty state of
+`design-system.md` §7. Four decisions proposed there are pending this gate.
+
 Exit gate:
 
 - **Owner approval of the training screen** — this is the one design review that
-  must not be skipped, because it is the screen used while out of breath.
-- Every screen in `design-system.md` §7 has its empty state drawn.
+  must not be skipped, because it is the screen used while out of breath. Not yet
+  given.
+- Every screen in `design-system.md` §7 has its empty state drawn. Done.
 
 ### F3 — Domain and engine (the highest-value phase)
 

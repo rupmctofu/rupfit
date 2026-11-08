@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rupfit · F2 artboards</title>
+<style>
+  /* Tokens copied verbatim from docs/design-system.md §3. If a token changes,
+     it changes in both places in the same commit. */
+  .phone.theme-dark{
+    --bg-base:#0B0C0E; --bg-surface:#14161A; --bg-raised:#1C1F25;
+    --stroke:#2A2E36; --text1:#F2F4F7; --text2:#A2A9B4; --text3:#7C8899;
+    --accent:#F26B3A; --on-accent:#12100E; --accent-text:#FF8A5C;
+    --success:#5BD98A; --warning:#F0C24B; --danger:#FF7B72;
+    --chart2:#4C9AFF; --chart3:#6FD08C; --chart4:#C08CFF;
+  }
+  .phone.theme-light{
+    --bg-base:#F7F7F9; --bg-surface:#FFFFFF; --bg-raised:#EEF0F3;
+    --stroke:#E3E5EA; --text1:#111315; --text2:#5A6270; --text3:#6E7787;
+    --accent:#C24A16; --on-accent:#FFFFFF; --accent-text:#B8430F;
+    /* success/warning are not defined for light in §3: proposal, pending review. */
+    --success:#1A6B42; --warning:#7A5300; --danger:#B3261E;
+    --chart2:#2F6FBF; --chart3:#2E8B57; --chart4:#7A4FBF;
+  }
+
+  *{box-sizing:border-box; -webkit-font-smoothing:antialiased}
+  html,body{margin:0;background:#08090B;color:#F2F4F7}
+  body{font-family:-apple-system,"SF Pro Text","Helvetica Neue",sans-serif}
+
+  .page{padding:48px 40px 80px;max-width:1580px;margin:0 auto}
+  .page h1{font-size:34px;line-height:40px;margin:0 0 6px;font-weight:600;letter-spacing:-.4px}
+  .page .sub{color:#A2A9B4;font-size:15px;line-height:22px;max-width:760px}
+  .rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin:28px 0 8px}
+  .rule{background:#14161A;border:1px solid #2A2E36;border-radius:12px;padding:14px 16px;font-size:13px;line-height:19px;color:#A2A9B4}
+  .rule b{display:block;color:#F2F4F7;font-size:12px;letter-spacing:.6px;text-transform:uppercase;margin-bottom:6px}
+  .group{margin-top:44px}
+  .group h2{font-size:13px;letter-spacing:1px;text-transform:uppercase;color:#7C8899;font-weight:600;margin:0 0 16px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(393px,1fr));gap:36px 28px}
+  .board{display:flex;flex-direction:column;gap:12px}
+  .board .cap{font-size:13px;line-height:18px;color:#7C8899;max-width:393px}
+  .board .cap b{color:#F2F4F7;font-weight:600;display:block;margin-bottom:2px}
+
+  /* Phone */
+  .phone{position:relative;width:393px;height:852px;border-radius:46px;overflow:hidden;
+    background:var(--bg-base);color:var(--text1);border:1px solid var(--stroke);
+    font-family:-apple-system,"SF Pro Text","Helvetica Neue",sans-serif;flex:none}
+  .screen{position:absolute;inset:0;padding:54px 20px 34px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+  .status{position:absolute;top:0;left:0;right:0;height:54px;display:flex;align-items:center;
+    justify-content:space-between;padding:0 30px;font-size:15px;font-weight:600;letter-spacing:.2px;z-index:3}
+  .status .sys{display:flex;gap:6px;align-items:center}
+  .status svg{fill:currentColor}
+  .island{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:116px;height:33px;
+    border-radius:20px;background:#000;z-index:4}
+  .home{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;
+    border-radius:3px;background:var(--text1);opacity:.8;z-index:5}
+
+  .rowline{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .card{background:var(--bg-surface);border:1px solid var(--stroke);border-radius:12px;padding:18px 20px}
+  .card.tight{padding:14px 16px}
+  .raised{background:var(--bg-raised);border:1px solid transparent}
+  .label{font-size:13px;line-height:18px;font-weight:500;letter-spacing:.6px;text-transform:uppercase;color:var(--text2)}
+  .title{font-size:22px;line-height:28px;font-weight:600;letter-spacing:-.2px}
+  .metric{font-family:ui-rounded,-apple-system,sans-serif;font-size:44px;line-height:48px;font-weight:600;
+    letter-spacing:-1px;font-variant-numeric:tabular-nums}
+  .metric.sm{font-size:28px;line-height:32px;letter-spacing:-.4px}
+  .meta{font-size:15px;line-height:20px;color:var(--text2)}
+  .body{font-size:17px;line-height:22px}
+  .caption{font-size:12px;line-height:16px;color:var(--text3)}
+  .divider{height:1px;background:var(--stroke);margin:12px 0}
+  .grow{flex:1}
+
+  .btn{height:56px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+    font-size:17px;font-weight:600;gap:6px}
+  .btn.primary{background:var(--accent);color:var(--on-accent)}
+  .btn.ghost{background:var(--bg-raised);color:var(--text1)}
+  .btn.text{height:44px;background:none;color:var(--accent-text);font-size:15px;font-weight:600}
+  .btn.small{height:44px;font-size:15px}
+  .btn.disabled{background:var(--bg-raised);color:var(--text3)}
+  .actions{display:flex;gap:8px}
+  .actions .btn{flex:1;min-width:0;padding:0 8px;font-size:15px;white-space:nowrap}
+
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{font-size:12px;line-height:16px;padding:4px 8px;border-radius:999px;background:var(--bg-raised);
+    color:var(--text2);border:1px solid var(--stroke);display:inline-flex;align-items:center;gap:5px}
+  .chip .dot{width:6px;height:6px;border-radius:3px;background:currentColor}
+  .chip.success{color:var(--success);border-color:transparent}
+  .chip.warn{color:var(--warning);border-color:transparent}
+  .chip.danger{color:var(--danger);border-color:transparent}
+  .chip.accent{color:var(--accent-text);border-color:transparent}
+
+  .setrow{display:flex;align-items:center;gap:12px;padding:9px 0}
+  .setrow .n{width:64px;white-space:nowrap;font-size:12px;letter-spacing:.6px;color:var(--text2);text-transform:uppercase}
+  .setrow .reps{font-size:17px;font-variant-numeric:tabular-nums;font-weight:500}
+  .setrow .right{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .stepper{display:flex;align-items:center;gap:10px}
+  .stepper .b{width:44px;height:44px;border-radius:10px;background:var(--bg-raised);display:flex;
+    align-items:center;justify-content:center;font-size:22px;color:var(--text1)}
+  .stepper .v{min-width:34px;text-align:center;font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+  .confirm{height:44px;padding:0 16px;border-radius:10px;background:var(--accent);color:var(--on-accent);
+    display:flex;align-items:center;font-size:15px;font-weight:600;white-space:nowrap}
+
+  .decision{display:flex;gap:8px}
+  .decision .btn{flex:1;min-width:0;padding:0 6px;font-size:14px;white-space:nowrap}
+  .paging{display:flex;align-items:center;justify-content:space-between;height:44px}
+  .paging .chev{width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:20px}
+  .paging .pos{font-size:13px;letter-spacing:.4px;color:var(--text2);text-transform:uppercase}
+
+  .rest{position:relative;height:60px;border-radius:12px;background:var(--bg-raised);
+    display:flex;align-items:center;gap:10px;padding:0 14px;overflow:hidden}
+  .rest .t{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+  .rest .k{font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:var(--text2)}
+  .rest .btns{margin-left:auto;display:flex;gap:8px}
+  .rest .btns .b{height:36px;padding:0 12px;border-radius:9px;background:var(--bg-surface);
+    border:1px solid var(--stroke);display:flex;align-items:center;font-size:13px;font-weight:600}
+  .rest .line{position:absolute;left:0;bottom:0;height:2px;background:var(--accent);width:38%}
+
+  .banner{background:var(--bg-raised);border-radius:12px;padding:12px 14px;display:flex;
+    align-items:center;justify-content:space-between;gap:10px}
+  .banner .t{font-size:13px;font-weight:600}
+  .banner .s{font-size:12px;color:var(--text2);margin-top:2px}
+  .banner .chev{color:var(--text3);font-size:16px}
+
+  .empty{border:1px dashed var(--stroke);border-radius:12px;padding:16px;font-size:15px;
+    line-height:21px;color:var(--text2);display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+  .error{background:var(--bg-raised);border-radius:10px;padding:11px 12px;display:flex;
+    align-items:center;justify-content:space-between;gap:10px;color:var(--danger);font-size:14px;font-weight:500}
+
+  .tabs{display:flex;margin:auto -20px -34px;padding:10px 10px 32px;border-top:1px solid var(--stroke);background:var(--bg-base)}
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--text3)}
+  .tab.on{color:var(--accent-text)}
+  .tab svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+  .seg{display:flex;background:var(--bg-raised);border-radius:10px;padding:3px;gap:3px}
+  .seg .s{flex:1;height:34px;display:flex;align-items:center;justify-content:center;font-size:13px;
+    font-weight:600;color:var(--text2);border-radius:8px}
+  .seg .s.on{background:var(--bg-surface);color:var(--text1);border:1px solid var(--stroke)}
+
+  .listrow{display:flex;align-items:center;gap:12px;padding:14px 0}
+  .listrow + .listrow{border-top:1px solid var(--stroke)}
+  .listrow .grow{min-width:0}
+  .listrow .t{font-size:17px;font-weight:500;line-height:22px}
+  .listrow .s{font-size:13px;color:var(--text2);line-height:18px}
+  .listrow .v{font-size:15px;color:var(--text2);font-variant-numeric:tabular-nums}
+  .checksq{width:22px;height:22px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:700;border:1px solid var(--stroke);color:var(--text3)}
+  .checksq.done{background:var(--bg-raised);color:var(--success);border-color:transparent}
+  .checksq.today{border-color:var(--accent);color:var(--accent-text)}
+
+  .bar{height:8px;border-radius:4px;background:var(--bg-raised);overflow:hidden}
+  .bar > i{display:block;height:100%;background:var(--accent);border-radius:4px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text2)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend i{width:14px;height:2px;border-radius:1px;display:inline-block}
+
+  /* Screenshot mode: one board, exact device size, no chrome around it. */
+  body.solo{background:transparent}
+  body.solo .phone{width:393px;height:852px;border-radius:0;border:0}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Rupfit · F2 — artboards del MVP</h1>
+  <p class="sub">Tokens y componentes de <code>docs/design-system.md</code> §3–§6. Copia de interfaz
+  en español (D-9). Ningún color, tamaño ni radio inventado: si algo no está en el documento,
+  aparece marcado como propuesta. Pantallas a 393 × 852 (iPhone 15).</p>
+  <div class="rules">
+    <div class="rule"><b>Gate G2 · estado</b>Entregables 1–6 dibujados. Estados vacíos de §7 dibujados.
+    Falta la aprobación del dueño de la pantalla de entrenamiento.</div>
+    <div class="rule"><b>Una acción primaria</b>Cada pantalla tiene un solo botón con relleno de acento.
+    Todo lo demás es texto o superficie.</div>
+    <div class="rule"><b>El peso no se duplica</b>La tarjeta muestra el sugerido una vez; el botón de
+    decisión lo repite porque es la acción, no el dato.</div>
+    <div class="rule"><b>Color nunca solo</b>Serie hecha, récord, molestia y aviso llevan palabra además
+    de color. Chips con texto, no puntos.</div>
+  </div>
+</div>
+<div class="page" id="canvas" style="padding-top:0"></div>
+<script>
+const statusBar = () => `
+<div class="status">
+  <span>9:41</span>
+  <span class="sys">
+    <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="6" width="3" height="6" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+    <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 11.6 5.3 8.9a3.8 3.8 0 0 1 5.4 0Z"/><path d="M8 6.2a6.6 6.6 0 0 1 4.7 1.9l1.3-1.4a8.6 8.6 0 0 0-12 0l1.3 1.4A6.6 6.6 0 0 1 8 6.2Z"/></svg>
+    <svg width="25" height="12" viewBox="0 0 25 12"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" fill="none" stroke="currentColor"/><rect x="2.5" y="2.5" width="15" height="7" rx="1.6"/><path d="M23 4.2v3.6a2 2 0 0 0 0-3.6Z"/></svg>
+  </span>
+</div>`;
+
+const icons = {
+  home:'<path d="M3.5 10.5 12 3.5l8.5 7V20h-6v-5.5h-5V20h-6Z"/>',
+  train:'<path d="M3 9v6M6 8v8M18 8v8M21 9v6M6 12h12"/>',
+  chart:'<path d="M4 19V11M10 19V6M16 19v-5M22 19V9"/>',
+  person:'<circle cx="12" cy="8" r="3.6"/><path d="M5 20c.8-3.6 3.6-5.4 7-5.4s6.2 1.8 7 5.4"/>'
+};
+const tabs = (on) => `
+<div class="tabs">
+  ${['Inicio','Entrenar','Progreso','Perfil'].map((n,i)=>{
+    const k=['home','train','chart','person'][i];
+    return `<div class="tab ${on===n?'on':''}"><svg viewBox="0 0 24 24">${icons[k]}</svg>${n}</div>`;
+  }).join('')}
+</div>`;
+
+function frame(inner, {theme='theme-dark', nav=null} = {}) {
+  return `<div class="phone ${theme}">
+    ${statusBar()}
+    <div class="island"></div>
+    <div class="screen">${inner}${nav?tabs(nav):''}</div>
+    <div class="home"></div>
+  </div>`;
+}
+
+/* ---------- reusable pieces ---------- */
+const phaseBanner = (week='2') => `
+<div class="banner">
+  <div class="t">Readaptación · semana ${week} de 4</div>
+  <div class="chev">›</div>
+</div>`;
+
+const setRow = ({n, reps=10, target=10, state='pending', effort=null, discomfort=null}) => {
+  if (state==='active') {
+    return `<div class="setrow" style="align-items:flex-start">
+      <div class="n" style="padding-top:12px">Serie ${n}</div>
+      <div style="flex:1">
+        <div class="rowline">
+          <div class="stepper"><div class="b">−</div><div class="v">${reps}</div><div class="b">+</div></div>
+          <div class="confirm">Confirmar</div>
+        </div>
+        <div class="chips" style="margin-top:10px">
+          ${['fácil','correcto','duro','fallo'].map(e=>`<span class="chip">${e}</span>`).join('')}
+          <span class="chip">＋ molestia</span>
+        </div>
+      </div>
+    </div>`;
+  }
+  const done = state==='done';
+  return `<div class="setrow">
+    <div class="n">Serie ${n}</div>
+    <div class="reps">${done?`${reps} / ${target}`:`${target} reps`}</div>
+    <div class="right">
+      ${done?(discomfort?`<span class="chip danger"><span class="dot"></span>${discomfort}</span>`:''):''}
+      ${done?(effort?`<span class="chip success"><span class="dot"></span>${effort}</span>`:`<span class="chip">sin esfuerzo</span>`):''}
+      <span class="checksq ${done?'done':''}">${done?'✓':''}</span>
+    </div>
+  </div>`;
+};
+
+const decisionBar = ({suggested='92,5', previous='90'}) => `
+<div class="decision">
+  <div class="btn primary">Aceptar ${suggested} kg</div>
+  <div class="btn ghost">Repetir ${previous}</div>
+  <div class="btn ghost">Otro peso</div>
+</div>`;
+
+const collapsedDecision = ({kg='92,5', how='Aceptado'}) => `
+<div class="rowline" style="padding:2px 0 6px">
+  <div><span class="caption">PESO DE HOY</span>
+    <div style="font-size:17px;font-weight:600">${kg} kg</div></div>
+  <div class="btn text" style="height:36px">Cambiar</div>
+</div>
+<div class="caption">Objetivo · 3 × 10 a 3–4 RIR · descanso 180 s</div>`;
+
+const paging = (pos='2') => `
+<div class="paging">
+  <div class="chev">‹</div>
+  <div class="pos">Ejercicio ${pos} de 6</div>
+  <div class="chev">›</div>
+</div>`;
+
+const restBar = (t='1:45', pct=38) => `
+<div class="rest">
+  <div><div class="k">Descanso</div><div class="t">${t}</div></div>
+  <div class="btns"><div class="b">+15 s</div><div class="b">Saltar</div></div>
+  <div class="line" style="width:${pct}%"></div>
+</div>`;
+
+const emptyState = (text, action='') => `
+<div class="empty">${text}${action?`<div class="btn text" style="height:auto;padding:0">${action}</div>`:''}</div>`;
+
+const listRow = ({title, sub, value='', state=''}) => `
+<div class="listrow">
+  ${state?`<div class="checksq ${state}">${state==='done'?'✓':''}</div>`:''}
+  <div class="grow"><div class="t">${title}</div><div class="s">${sub}</div></div>
+  ${value?`<div class="v">${value}</div>`:''}
+  <div style="color:var(--text3);font-size:18px">›</div>
+</div>`;
+
+/* ---------- charts (hand-drawn, no library) ---------- */
+const chartStrength = () => `
+<svg viewBox="0 0 330 150" width="100%" height="150" role="img" aria-label="Sentadilla, fuerza estimada, 12 semanas">
+  <g stroke="var(--stroke)" stroke-width="1">
+    <line x1="8" y1="126" x2="322" y2="126"/>
+  </g>
+  <polyline fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round"
+    points="14,104 42,101 70,96 98,98 126,90 154,86 182,82 210,84 238,74 266,70 294,66 318,60"/>
+  <polyline fill="none" stroke="var(--chart3)" stroke-width="1.6" stroke-dasharray="4 4"
+    points="14,110 42,107 70,102 98,104 126,96 154,93 182,88 210,90 238,80 266,77 294,72 318,67"/>
+  <circle cx="318" cy="60" r="4" fill="var(--accent)"/>
+  <text x="318" y="50" text-anchor="end" font-size="12" fill="var(--text1)" font-weight="600">100 kg</text>
+  <text x="14" y="142" font-size="10" fill="var(--text3)">sep</text>
+  <text x="160" y="142" font-size="10" fill="var(--text3)">oct</text>
+  <text x="300" y="142" font-size="10" fill="var(--text3)">nov</text>
+</svg>`;
+
+const chartBars = () => {
+  const hs=[26,34,30,42,48,44,52,58,54,64,60,68];
+  return `<svg viewBox="0 0 330 110" width="100%" height="110" role="img" aria-label="Volumen semanal, 12 semanas">
+    <line x1="8" y1="96" x2="322" y2="96" stroke="var(--stroke)"/>
+    ${hs.map((h,i)=>`<rect x="${12+i*26}" y="${96-h}" width="14" height="${h}" rx="3" fill="${i===11?'var(--accent)':'var(--bg-raised)'}"/>`).join('')}
+    <text x="318" y="18" text-anchor="end" font-size="12" fill="var(--text1)" font-weight="600">9.120 kg</text>
+    <text x="12" y="108" font-size="10" fill="var(--text3)">hace 12 sem</text>
+    <text x="318" y="108" text-anchor="end" font-size="10" fill="var(--text3)">esta sem</text>
+  </svg>`;
+};
+
+const chartBodyWeightGaps = () => `
+<svg viewBox="0 0 330 130" width="100%" height="130" role="img" aria-label="Peso corporal con huecos">
+  <line x1="8" y1="108" x2="322" y2="108" stroke="var(--stroke)"/>
+  <circle cx="44" cy="58" r="4" fill="var(--chart2)"/>
+  <circle cx="150" cy="66" r="4" fill="var(--chart2)"/>
+  <circle cx="256" cy="62" r="4" fill="var(--chart2)"/>
+  <text x="44" y="48" text-anchor="middle" font-size="11" fill="var(--text2)">78,9</text>
+  <text x="256" y="52" text-anchor="middle" font-size="11" fill="var(--text2)">78,4</text>
+  <text x="44" y="124" text-anchor="middle" font-size="10" fill="var(--text3)">30 oct</text>
+  <text x="256" y="124" text-anchor="middle" font-size="10" fill="var(--text3)">6 nov</text>
+</svg>`;
+
+/* ---------- boards ---------- */
+const B = [];
+const add = (group, id, title, note, inner, opts={}) => B.push({group, id, title, note, html: frame(inner, opts)});
+
+/* ===== Inicio ===== */
+add('Inicio','inicio-history','Inicio · con historial',
+ 'Una acción primaria. La sesión de hoy y la última sesión, nada más. La semana se resume en adherencia y series duras, no en puntos.',
+ `<div class="rowline" style="margin-top:2px">
+   <div><div style="font-size:34px;line-height:40px;font-weight:600;letter-spacing:-.6px">Hola, Rup</div>
+   <div class="caption" style="margin-top:2px">Miércoles, 8 de noviembre</div></div>
+ </div>
+ <div class="label" style="margin-top:8px">Hoy toca</div>
+ <div class="card">
+   <div class="title">Peso muerto / Tracción</div>
+   <div class="meta" style="margin-top:4px">6 ejercicios · 55 min aprox.</div>
+   <div class="divider"></div>
+   <div class="rowline"><span class="meta">Readaptación · semana 2 de 4</span><span class="chip">6–9 series</span></div>
+ </div>
+ <div class="btn primary">Empezar entrenamiento</div>
+ <div class="card">
+   <div class="label">Última sesión · lunes</div>
+   <div class="rowline" style="margin-top:8px">
+     <div><div style="font-size:17px;font-weight:600">Sentadilla / Pierna</div>
+     <div class="meta">52 min · 14 de 15 series</div></div>
+     <div class="metric sm">8.280<span style="font-size:13px;color:var(--text2);font-weight:500"> kg</span></div>
+   </div>
+ </div>
+ <div class="card">
+   <div class="label">Esta semana</div>
+   <div class="rowline" style="margin-top:8px"><span class="meta">2 de 3 sesiones</span><span class="meta">14 series duras</span></div>
+   <div class="bar" style="margin-top:10px"><i style="width:66%"></i></div>
+ </div>
+ <div class="card tight">
+   <div class="rowline"><span class="meta">Actividad de Salud</span><span class="chip">sin conectar</span></div>
+ </div>`, {nav:'Inicio'});
+
+add('Inicio','inicio-first','Inicio · primera vez, sin historial',
+ 'El estado vacío no regaña ni bloquea: dice qué falta y cuál es la única acción.',
+ `<div class="rowline" style="margin-top:2px">
+   <div><div style="font-size:34px;line-height:40px;font-weight:600;letter-spacing:-.6px">Hola, Rup</div>
+   <div class="caption" style="margin-top:2px">Miércoles, 8 de noviembre</div></div>
+ </div>
+ <div class="label" style="margin-top:8px">Hoy toca</div>
+ <div class="card">
+   <div class="title">Peso muerto / Tracción</div>
+   <div class="meta" style="margin-top:4px">6 ejercicios · 55 min aprox.</div>
+   <div class="divider"></div>
+   <div class="body">Semana 1 de readaptación: menos series y margen de sobra. El peso se propone, tú decides.</div>
+ </div>
+ <div class="btn primary">Empezar entrenamiento</div>
+ ${emptyState('Todavía no hay sesiones. La primera aparecerá aquí cuando la termines.')}
+ <div class="card tight">
+   <div class="rowline"><span class="meta">Actividad de Salud</span><span class="chip">no conectado</span></div>
+ </div>`, {nav:'Inicio'});
+
+add('Inicio','inicio-health-empty','Inicio · HealthKit vacío',
+ 'Apple Health sin datos no es un error: es una tarjeta que dice qué falta y no impide entrenar (FR-14.4).',
+ `<div class="rowline" style="margin-top:2px">
+   <div><div style="font-size:34px;line-height:40px;font-weight:600;letter-spacing:-.6px">Hola, Rup</div>
+   <div class="caption" style="margin-top:2px">Miércoles, 8 de noviembre</div></div>
+ </div>
+ <div class="label" style="margin-top:8px">Hoy toca</div>
+ <div class="card">
+   <div class="title">Peso muerto / Tracción</div>
+   <div class="meta" style="margin-top:4px">6 ejercicios · 55 min aprox.</div>
+ </div>
+ <div class="btn primary">Empezar entrenamiento</div>
+ <div class="label">Actividad</div>
+ ${emptyState('Todavía no hay datos de Salud. Esto no impide entrenar.','Revisar permisos')}
+ <div class="card tight">
+   <div class="rowline"><span class="meta">Series duras esta semana</span><span class="meta">14</span></div>
+ </div>`, {nav:'Inicio'});
+
+/* ===== Entrenar ===== */
+add('Entrenar','entrenar','Entrenar · plantilla semanal',
+ 'La rutina es editable pero no ruidosa: la gestión vive al final, en texto, no en un botón de acento.',
+ `<div style="font-size:34px;line-height:40px;font-weight:600;letter-spacing:-.6px;margin-top:2px">Entrenar</div>
+ <div class="caption">Semana del 6 de noviembre</div>
+ <div class="card" style="padding:6px 20px;margin-top:6px">
+   ${listRow({title:'Lunes · Sentadilla / Pierna', sub:'3 de 3 series · completada', value:'8.280 kg', state:'done'})}
+   ${listRow({title:'Miércoles · Peso muerto / Tracción', sub:'Hoy · 6 ejercicios', value:'', state:'today'})}
+   ${listRow({title:'Viernes · Press banca / Empuje', sub:'Pendiente', value:''})}
+ </div>
+ <div class="card tight">
+   <div class="rowline"><span class="meta">Bloque de readaptación</span><span class="chip">semana 2 de 4</span></div>
+   <div class="divider"></div>
+   <div class="caption">Se avanza al siguiente bloque cuando se cumplen los cuatro criterios de la semana.</div>
+ </div>
+ <div class="btn text">Editar rutina</div>`, {nav:'Entrenar'});
+
+add('Entrenar','entrenar-empty','Entrenar · día sin plan',
+ 'Día de descanso: no hay tarjeta vacía con un botón inútil. Se ofrece adelantar la sesión, que es la decisión real.',
+ `<div style="font-size:34px;line-height:40px;font-weight:600;letter-spacing:-.6px;margin-top:2px">Entrenar</div>
+ <div class="caption">Jueves, 9 de noviembre</div>
+ <div class="card" style="margin-top:6px">
+   <div class="label">Hoy</div>
+   <div class="title" style="margin-top:6px">Descanso</div>
+   <div class="body" style="margin-top:6px">Hoy no hay plan. Descansa o adelanta la sesión del viernes.</div>
+   <div class="btn ghost small" style="margin-top:14px">Adelantar press banca</div>
+ </div>
+ <div class="card tight">
+   <div class="rowline"><span class="meta">Viernes · Press banca / Empuje</span><span class="chip">pendiente</span></div>
+   <div class="divider"></div>
+   <div class="rowline"><span class="meta">Cardio intenso de ayer</span><span class="chip warn"><span class="dot"></span>aviso</span></div>
+   <div class="caption" style="margin-top:6px">Pulso en reposo 8 lpm sobre tu media. Puedes entrenar; si la primera serie se siente dura, mantén el peso.</div>
+ </div>`, {nav:'Entrenar'});
+
+/* ===== Sesión ===== */
+const exerciseCard = ({name='Peso muerto convencional', previous='90 kg × 10 · correcto', suggested='92,5',
+  reason='Completaste 3 series de 10 con 90 kg. Subimos 2,5 kg.', collapsed=false, sets=''}) => `
+<div class="card">
+  <div class="title">${name}</div>
+  <div class="meta" style="margin-top:2px">Sesión anterior · ${previous}</div>
+  <div class="divider"></div>
+  ${collapsed?collapsedDecision({kg:suggested}):`
+    <div class="label">Sugerido</div>
+    <div class="metric">${suggested}<span style="font-size:20px;font-weight:600"> kg</span></div>
+    <div class="body" style="margin-top:4px;color:var(--text2)">${reason}</div>
+    <div class="divider"></div>`}
+  ${sets}
+</div>`;
+
+add('Sesión','sesion-decision','Sesión · decisión de peso',
+ 'La pantalla que se usa sin aliento: el peso sugerido una vez, tres acciones de un toque y la razón en una línea. El descanso aún no existe porque no hay serie confirmada.',
+ `<div class="rowline"><div style="color:var(--text2);font-size:22px">⌄</div>
+   <div class="caption">Miércoles · 18:42</div>
+   <div style="width:22px"></div></div>
+ ${phaseBanner('2')}
+ <div class="card" style="flex:1;min-height:0">
+   <div class="title">Peso muerto convencional</div>
+   <div class="meta" style="margin-top:2px">Sesión anterior · 90 kg × 10 · correcto</div>
+   <div class="divider"></div>
+   <div class="rowline" style="align-items:flex-end">
+     <div class="metric">92,5<span style="font-size:20px;font-weight:600"> kg</span></div>
+   </div>
+   <div class="body" style="margin-top:6px;color:var(--text2)">Completaste 3 series de 10 con 90 kg. Subimos 2,5 kg.</div>
+   <div class="divider"></div>
+   ${setRow({n:1,target:10,state:'pending'})}
+   ${setRow({n:2,target:10,state:'pending'})}
+   ${setRow({n:3,target:10,state:'pending'})}
+ </div>
+ <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px">
+   ${paging('2')}
+   ${decisionBar({suggested:'92,5',previous:'90'})}
+ </div>`, {nav:null});
+
+add('Sesión','sesion-progress','Sesión · en curso, con descanso',
+ 'En curso: la barra de decisión se colapsa a una línea editable, la serie activa pide dos toques y el descanso queda visible al pie. El esfuerzo es opcional y se ve sin responder.',
+ `<div class="rowline"><div style="color:var(--text2);font-size:22px">⌄</div>
+   <div class="caption">Miércoles · 18:47</div>
+   <div style="width:22px"></div></div>
+ ${phaseBanner('2')}
+ <div class="card" style="flex:1;min-height:0">
+   <div class="title">Peso muerto convencional</div>
+   <div class="meta" style="margin-top:2px">Sesión anterior · 90 kg × 10 · correcto</div>
+   <div class="divider"></div>
+   ${collapsedDecision({kg:'92,5'})}
+   <div class="divider"></div>
+   ${setRow({n:1,target:10,state:'done',effort:'correcto'})}
+   ${setRow({n:2,target:10,state:'done',effort:'duro'})}
+   ${setRow({n:3,target:10,state:'active',reps:10})}
+ </div>
+ <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px">
+   ${paging('2')}
+   ${restBar('1:45',38)}
+ </div>`, {nav:null});
+
+add('Sesión','sesion-first','Sesión · primera vez en el ejercicio',
+ 'Sin historial no se inventa un peso: se pide una referencia honesta (15 repeticiones) y la acción primaria es elegir peso, no aceptar (FR-5.5).',
+ `<div class="rowline"><div style="color:var(--text2);font-size:22px">⌄</div>
+   <div class="caption">Miércoles · 18:40</div>
+   <div style="width:22px"></div></div>
+ ${phaseBanner('1')}
+ <div class="card" style="flex:1;min-height:0">
+   <div class="title">Remo con barra</div>
+   <div class="meta" style="margin-top:2px">Sin historial en este ejercicio</div>
+   <div class="divider"></div>
+   <div class="body">Elige un peso con el que puedas hacer unas 15 repeticiones. La primera recomendación real llegará en la próxima sesión.</div>
+   <div class="caption" style="margin-top:6px">Objetivo · 2 × 12 a 4 RIR · descanso 120 s</div>
+   <div class="divider"></div>
+   ${setRow({n:1,target:12,state:'pending'})}
+   ${setRow({n:2,target:12,state:'pending'})}
+ </div>
+ <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px">
+   ${paging('4')}
+   <div class="btn primary">Elegir peso</div>
+ </div>`, {nav:null});
+
+add('Sesión','sesion-resumed','Sesión · reanudada tras cierre',
+ 'Reanudar es la acción segura; descartar es explícito y guarda la parte hecha como sesión parcial (FR-6.6, FR-9.3).',
+ `<div class="rowline"><div style="color:var(--text2);font-size:22px">⌄</div>
+   <div class="caption">Miércoles · 18:51</div>
+   <div style="width:22px"></div></div>
+ <div class="banner" style="border:1px solid var(--stroke)">
+   <div><div class="t">Sesión reanudada · serie 3 de 4</div>
+   <div class="s">Sigue donde lo dejaste. No se perdió ninguna serie.</div></div>
+ </div>
+ <div class="card" style="flex:1;min-height:0">
+   <div class="title">Peso muerto convencional</div>
+   <div class="divider"></div>
+   ${collapsedDecision({kg:'92,5'})}
+   <div class="divider"></div>
+   ${setRow({n:1,target:10,state:'done',effort:'correcto'})}
+   ${setRow({n:2,target:10,state:'done',effort:'duro'})}
+   ${setRow({n:3,target:10,state:'active',reps:10})}
+ </div>
+ <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px">
+   ${paging('2')}
+   <div class="actions">
+     <div class="btn ghost">Descartar y guardar parcial</div>
+     <div class="btn primary">Seguir</div>
+   </div>
+ </div>`, {nav:null});
+
+add('Sesión','sesion-error','Sesión · error de guardado, no bloqueante',
+ 'Si el guardado falla, la serie queda sin confirmar y el aviso es una línea con Reintentar. Nunca un alert que tape el entrenamiento (FR-6.5).',
+ `<div class="rowline"><div style="color:var(--text2);font-size:22px">⌄</div>
+   <div class="caption">Miércoles · 18:49</div>
+   <div style="width:22px"></div></div>
+ ${phaseBanner('2')}
+ <div class="error"><span>No se pudo guardar la serie 2. Sigue en la pantalla.</span><b>Reintentar</b></div>
+ <div class="card" style="flex:1;min-height:0">
+   <div class="title">Peso muerto convencional</div>
+   <div class="divider"></div>
+   ${collapsedDecision({kg:'92,5'})}
+   <div class="divider"></div>
+   ${setRow({n:1,target:10,state:'done',effort:'correcto'})}
+   ${setRow({n:2,target:10,state:'active',reps:10})}
+ </div>
+ <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px">
+   ${paging('2')}
+   ${restBar('0:58',62)}
+ </div>`, {nav:null});
+
+add('Sesión','sesion-light','Sesión · tema claro (peer, no ocurrencia)',
+ 'Mismo contenido y jerarquía en claro. Aviso: los tokens success/warning de modo claro no están en §3; aquí van como propuesta y hay que decidirlos en G2.',
+ `<div class="rowline"><div style="color:var(--text2);font-size:22px">⌄</div>
+   <div class="caption">Miércoles · 18:47</div>
+   <div style="width:22px"></div></div>
+ ${phaseBanner('2')}
+ <div class="card" style="flex:1;min-height:0">
+   <div class="title">Peso muerto convencional</div>
+   <div class="meta" style="margin-top:2px">Sesión anterior · 90 kg × 10 · correcto</div>
+   <div class="divider"></div>
+   ${collapsedDecision({kg:'92,5'})}
+   <div class="divider"></div>
+   ${setRow({n:1,target:10,state:'done',effort:'correcto'})}
+   ${setRow({n:2,target:10,state:'done',effort:'duro'})}
+   ${setRow({n:3,target:10,state:'active',reps:10})}
+ </div>
+ <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px">
+   ${paging('2')}
+   ${restBar('1:45',38)}
+ </div>`, {theme:'theme-light'});
+
+/* ===== Resumen ===== */
+add('Resumen','resumen','Resumen · con récord',
+ 'Duración, series contra prescritas, volumen y el récord con palabra, no solo color. Cada número sale de las series guardadas (FR-9.1).',
+ `<div class="rowline" style="margin-top:2px">
+   <div><div class="caption">MIÉRCOLES, 8 NOV</div>
+   <div style="font-size:34px;line-height:40px;font-weight:600;letter-spacing:-.6px;margin-top:2px">Sesión<br>completada</div></div>
+ </div>
+ <div class="card" style="margin-top:6px">
+   <div class="label">Peso muerto / Tracción</div>
+   <div style="display:flex;margin-top:12px">
+     <div style="flex:1"><div class="label" style="font-size:11px">Series</div><div class="metric sm">8/9</div></div>
+     <div style="width:1px;background:var(--stroke);margin:0 10px"></div>
+     <div style="flex:1"><div class="label" style="font-size:11px">Duración · min</div><div class="metric sm">52</div></div>
+     <div style="width:1px;background:var(--stroke);margin:0 10px"></div>
+     <div style="flex:1"><div class="label" style="font-size:11px">Volumen · kg</div><div class="metric sm">8.280</div></div>
+   </div>
+ </div>
+ <div class="card tight" style="border-color:var(--stroke)">
+   <div class="rowline"><span class="chip success"><span class="dot"></span>RÉCORD</span><span class="caption">hoy</span></div>
+   <div style="font-size:17px;font-weight:600;margin-top:6px">Peso muerto · 92,5 kg × 10</div>
+   <div class="caption">Mejor marca en 10 repeticiones. Antes: 90 kg.</div>
+ </div>
+ <div class="card tight">
+   ${listRow({title:'Peso muerto', sub:'3 series · 92,5 kg', value:'2.775 kg'})}
+   ${listRow({title:'Remo con barra', sub:'3 series · 60 kg', value:'1.800 kg'})}
+   ${listRow({title:'Face pull', sub:'2 de 3 series', value:'900 kg'})}
+ </div>
+ <div class="btn primary">Hecho</div>`, {nav:null});
+
+add('Resumen','resumen-partial','Resumen · parcial, sin récord',
+ 'Terminar antes es una decisión, no un fracaso. La sesión se guarda como parcial y el hueco de récord se dice con palabras.',
+ `<div class="rowline" style="margin-top:2px">
+   <div><div class="caption">MIÉRCOLES, 8 NOV</div>
+   <div style="font-size:34px;line-height:40px;font-weight:600;letter-spacing:-.6px;margin-top:2px">Sesión parcial</div></div>
+ </div>
+ <div class="card" style="margin-top:6px">
+   <div class="label">Peso muerto / Tracción</div>
+   <div style="display:flex;margin-top:12px">
+     <div style="flex:1"><div class="label" style="font-size:11px">Series</div><div class="metric sm">5/9</div></div>
+     <div style="width:1px;background:var(--stroke);margin:0 10px"></div>
+     <div style="flex:1"><div class="label" style="font-size:11px">Duración · min</div><div class="metric sm">23</div></div>
+     <div style="width:1px;background:var(--stroke);margin:0 10px"></div>
+     <div style="flex:1"><div class="label" style="font-size:11px">Volumen · kg</div><div class="metric sm">3.050</div></div>
+   </div>
+   <div class="divider"></div>
+   <div class="caption">Guardada como parcial. Puedes repetir el día cuando quieras; no cuenta como fallo.</div>
+ </div>
+ ${emptyState('Sin récords hoy. No hace falta que cada sesión los tenga.')}
+ <div class="card tight">
+   ${listRow({title:'Peso muerto', sub:'2 series · 92,5 kg', value:'1.850 kg'})}
+   ${listRow({title:'Remo con barra', sub:'2 series · 60 kg', value:'1.200 kg'})}
+ </div>
+ <div class="btn primary">Hecho</div>`, {nav:null});
+
+/* ===== Historial ===== */
+add('Historial','historial','Historial · lista',
+ 'Una fila por sesión con lo que se busca al recordar: día, duración y volumen. La recomendación mostrada se ve al abrir, no se recalcula (FR-10.2).',
+ `<div style="font-size:34px;line-height:40px;font-weight:600;letter-spacing:-.6px;margin-top:2px">Historial</div>
+ <div class="caption">Noviembre</div>
+ <div class="card" style="padding:4px 20px;margin-top:4px">
+   ${listRow({title:'Lunes 6 · Sentadilla / Pierna', sub:'52 min · 14 de 15 series', value:'8.280 kg'})}
+   ${listRow({title:'Viernes 3 · Press banca / Empuje', sub:'48 min · 15 de 15 series', value:'5.120 kg'})}
+   ${listRow({title:'Miércoles 1 · Peso muerto / Tracción', sub:'51 min · 15 de 15 series', value:'7.940 kg'})}
+ </div>
+ <div class="caption">Octubre</div>
+ <div class="card" style="padding:4px 20px">
+   ${listRow({title:'Lunes 30 · Sentadilla / Pierna', sub:'49 min · 12 de 15 series', value:'7.610 kg'})}
+ </div>`, {nav:'Entrenar'});
+
+add('Historial','historial-empty','Historial · vacío',
+ 'Cero sesiones: se dice qué falta y se enlaza a la acción que lo resuelve, sin gráficos vacíos.',
+ `<div style="font-size:34px;line-height:40px;font-weight:600;letter-spacing:-.6px;margin-top:2px">Historial</div>
+ ${emptyState('Todavía no hay sesiones. Cuando termines la primera, aparecerá aquí con su recomendación y sus series.','Empezar entrenamiento')}
+ <div class="card tight">
+   <div class="rowline"><span class="meta">Resumen semanal</span><span class="chip">sin datos</span></div>
+   <div class="divider"></div>
+   <div class="caption">Sin sesiones no hay volumen ni adherencia que mostrar. No se dibuja una línea plana.</div>
+ </div>`, {nav:'Entrenar'});
+
+/* ===== Progreso ===== */
+add('Progreso','progreso-12w','Progreso · doce semanas',
+ 'Cada tarjeta responde a una decisión: ¿subo el peso?, ¿voy bien de volumen?, ¿el peso corporal acompaña? La serie estimada va discontinua y etiquetada.',
+ `<div style="font-size:34px;line-height:40px;font-weight:600;letter-spacing:-.6px;margin-top:2px">Progreso</div>
+ <div class="seg" style="margin-top:6px"><div class="s on">Fuerza</div><div class="s">Volumen</div><div class="s">Peso</div></div>
+ <div class="card" style="margin-top:4px">
+   <div class="rowline"><div class="label">Sentadilla · fuerza</div><span class="caption">últimas 12 sem</span></div>
+   <div class="rowline" style="margin-top:6px">
+     <div class="metric sm">100<span style="font-size:13px;color:var(--text2);font-weight:500"> kg</span></div>
+     <span class="chip accent">+7,5 kg</span>
+   </div>
+   ${chartStrength()}
+   <div class="legend" style="margin-top:2px">
+     <span><i style="background:var(--accent)"></i>peso de la serie top</span>
+     <span><i style="background:var(--chart3)"></i>e1RM · estimación</span>
+   </div>
+   <div class="caption" style="margin-top:6px">e1RM con fórmula v1. No es una prueba de 1RM.</div>
+ </div>
+ <div class="card tight">
+   <div class="rowline"><div class="label">Volumen semanal</div><span class="caption">últimas 12 sem</span></div>
+   ${chartBars()}
+   <div class="caption">Series duras por semana, sumando los grupos. Objetivo por grupo: 10–16.</div>
+ </div>
+ <div class="card tight">
+   ${listRow({title:'Récords', sub:'Sentadilla 100 kg × 6 · 12 oct', value:'3'})}
+ </div>`, {nav:'Progreso'});
+
+add('Progreso','progreso-single','Progreso · un solo dato',
+ 'Con un dato no se dibuja una tendencia: un punto, una frase y la fecha. Nada de línea inventada entre dos puntos que no existen.',
+ `<div style="font-size:34px;line-height:40px;font-weight:600;letter-spacing:-.6px;margin-top:2px">Progreso</div>
+ <div class="seg" style="margin-top:6px"><div class="s on">Fuerza</div><div class="s">Volumen</div><div class="s">Peso</div></div>
+ <div class="card" style="margin-top:4px">
+   <div class="rowline"><div class="label">Sentadilla · fuerza</div><span class="caption">1 sesión</span></div>
+   <svg viewBox="0 0 330 130" width="100%" height="130" role="img" aria-label="Un solo dato de sentadilla">
+     <line x1="8" y1="108" x2="322" y2="108" stroke="var(--stroke)"/>
+     <circle cx="300" cy="52" r="5" fill="var(--accent)"/>
+     <text x="300" y="40" text-anchor="end" font-size="12" fill="var(--text1)" font-weight="600">92,5 kg</text>
+     <text x="300" y="124" text-anchor="end" font-size="10" fill="var(--text3)">6 nov</text>
+   </svg>
+   <div class="body" style="color:var(--text2)">Un solo dato: todavía no hay tendencia. Con la próxima sesión empieza la línea.</div>
+ </div>
+ <div class="card tight">
+   <div class="rowline"><span class="meta">Volumen semanal</span><span class="chip">sin datos suficientes</span></div>
+   <div class="caption" style="margin-top:6px">Necesita al menos dos semanas para comparar.</div>
+ </div>`, {nav:'Progreso'});
+
+add('Progreso','progreso-empty','Progreso · sin datos',
+ 'El vacío de Progreso no muestra ejes vacíos: dice qué falta y qué acción lo llena.',
+ `<div style="font-size:34px;line-height:40px;font-weight:600;letter-spacing:-.6px;margin-top:2px">Progreso</div>
+ ${emptyState('Sin datos todavía. Registra una sesión y aquí aparecerán la fuerza por ejercicio, los récords y el volumen semanal.','Empezar entrenamiento')}
+ <div class="card tight">
+   <div class="rowline"><span class="meta">Récords</span><span class="chip">sin datos</span></div>
+   <div class="divider"></div>
+   <div class="rowline"><span class="meta">Peso corporal</span><span class="chip">no conectado</span></div>
+ </div>`, {nav:'Progreso'});
+
+/* ===== Peso corporal ===== */
+add('Progreso','peso-gaps','Peso corporal · menos de 3 muestras',
+ 'Con menos de 3 pesajes en la ventana no hay media: hay huecos. Se muestran los puntos y se pide lo que falta, sin línea que finja continuidad.',
+ `<div class="rowline" style="margin-top:2px">
+   <div style="font-size:34px;line-height:40px;font-weight:600;letter-spacing:-.6px">Peso corporal</div>
+   <div class="btn text" style="height:36px">Añadir</div>
+ </div>
+ <div class="card" style="margin-top:4px">
+   <div class="rowline"><div class="label">Último pesaje</div><span class="chip warn"><span class="dot"></span>media incompleta</span></div>
+   <div class="metric" style="margin-top:6px">78,4<span style="font-size:18px;font-weight:600"> kg</span></div>
+   <div class="caption" style="margin-top:2px">6 nov · la media de 7 días necesita 3 pesajes</div>
+   <div class="divider"></div>
+   ${chartBodyWeightGaps()}
+   <div class="caption">Necesitamos 3 pesajes en 7 días para dibujar la media. Faltan 1.</div>
+ </div>
+ <div class="card tight">
+   ${listRow({title:'6 nov', sub:'manual', value:'78,4 kg'})}
+   ${listRow({title:'2 nov', sub:'Apple Health', value:'78,9 kg'})}
+   ${listRow({title:'30 oct', sub:'Apple Health', value:'78,9 kg'})}
+ </div>`, {nav:'Progreso'});
+
+/* ===== Perfil ===== */
+add('Perfil','perfil','Perfil · ajustes',
+ 'Los ajustes no compiten con el entrenamiento: filas, no tarjetas, y Apple Health con su estado explícito.',
+ `<div style="font-size:34px;line-height:40px;font-weight:600;letter-spacing:-.6px;margin-top:2px">Perfil</div>
+ <div class="card" style="margin-top:6px">
+   ${listRow({title:'Rup', sub:'Plan de 3 días · gimnasio', value:''})}
+   ${listRow({title:'Objetivos', sub:'Mantener peso · fuerza general', value:''})}
+   ${listRow({title:'Unidades', sub:'Kilogramos', value:''})}
+ </div>
+ <div class="label" style="margin-top:4px">Datos</div>
+ <div class="card">
+   ${listRow({title:'Apple Health', sub:'Solo lectura · 4 tipos', value:''})}
+   ${listRow({title:'Apple Watch', sub:'Contrato listo · app en P1', value:''})}
+   ${listRow({title:'Ejercicios', sub:'46 en la biblioteca · 2 propios', value:''})}
+   ${listRow({title:'Exportar datos', sub:'JSON completo', value:''})}
+ </div>
+ <div class="caption" style="padding:0 2px">Descanso y temporizador viven dentro de cada ejercicio; no se configuran aquí.</div>`, {nav:'Perfil'});
+
+add('Perfil','perfil-health','Perfil · Apple Health, explicación',
+ 'Cada tipo de dato lleva su para qué en una frase. Se pide lectura, nunca escritura, y se dice que negar todo no rompe nada (FR-14.1, FR-14.4).',
+ `<div class="rowline" style="margin-top:2px">
+   <div style="color:var(--text2);font-size:20px">‹</div>
+   <div style="font-size:17px;font-weight:600">Apple Health</div>
+   <div style="width:20px"></div>
+ </div>
+ <div class="card" style="margin-top:4px">
+   <div class="body">Rupfit lee estos datos para dar contexto. No escribe nada en Salud y nada sale del teléfono.</div>
+ </div>
+ <div class="card">
+   ${listRow({title:'Peso corporal', sub:'Para tu tendencia y la media de 7 días', value:''})}
+   ${listRow({title:'Entrenamientos', sub:'Para actividad semanal y cardio intenso', value:''})}
+   ${listRow({title:'Pulso en reposo', sub:'Solo como aviso; nunca cambia el peso', value:''})}
+   ${listRow({title:'Sueño', sub:'Solo como aviso; nunca cambia el peso', value:''})}
+ </div>
+ <div class="caption" style="padding:0 2px">Puedes entrenar sin conceder ningún permiso. La app dirá «sin datos», nunca «denegado».</div>
+ <div class="btn primary">Permitir lectura</div>
+ <div class="btn text">Ahora no</div>`, {nav:null});
+
+add('Perfil','perfil-health-unavailable','Perfil · Salud no disponible',
+ 'Dispositivo sin Salud o permiso no solicitado son estados distintos y se nombran distinto (FR-14.2).',
+ `<div class="rowline" style="margin-top:2px">
+   <div style="color:var(--text2);font-size:20px">‹</div>
+   <div style="font-size:17px;font-weight:600">Apple Health</div>
+   <div style="width:20px"></div>
+ </div>
+ ${emptyState('Salud no está disponible en este dispositivo. Esto no impide entrenar.')}
+ <div class="card">
+   ${listRow({title:'Peso corporal', sub:'No solicitado', value:''})}
+   ${listRow({title:'Entrenamientos', sub:'No solicitado', value:''})}
+   ${listRow({title:'Pulso en reposo', sub:'No disponible en este dispositivo', value:''})}
+ </div>
+ <div class="caption">Nunca se muestra «denegado»: iOS no informa del estado de un permiso de lectura.</div>`, {nav:null});
+
+/* ---------- render ---------- */
+function render() {
+  const params = new URLSearchParams(location.search);
+  const only = params.get('only');
+  if (only) {
+    const b = B.find(x => x.id === only);
+    document.body.classList.add('solo');
+    document.querySelectorAll('.page').forEach(el => el.remove());
+    const holder = document.createElement('div');
+    holder.innerHTML = b ? b.html : '<p>unknown board</p>';
+    document.body.appendChild(holder);
+    document.body.style.background = 'transparent';
+    return;
+  }
+  const groups = [...new Set(B.map(b => b.group))];
+  const canvas = document.getElementById('canvas');
+  canvas.innerHTML = groups.map(g => `
+    <section class="group">
+      <h2>${g}</h2>
+      <div class="grid">
+        ${B.filter(b => b.group === g).map(b => `
+          <figure class="board" style="margin:0">
+            ${b.html}
+            <figcaption class="cap"><b>${b.title}</b>${b.note}</figcaption>
+          </figure>`).join('')}
+      </div>
+    </section>`).join('');
+}
+render();
+</script>
+</body>
+</html>

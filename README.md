@@ -11,8 +11,8 @@ offline-first, deterministic.
 **F0 closed (2026-11-08).** The documentation is closed at gate G1, and F0's gates
 are green: `swift test` and `xcodebuild test` on the iOS 17.2 simulator pass locally
 on Xcode 15.2 / Swift 5.9.2, and CI passes on `f0-bootstrap`. The only Swift is the
-package/app skeleton — no app behaviour exists yet. Next: F2, the design owner gate.
-Recorded environment: `docs/environment.md`.
+package/app skeleton — no app behaviour exists yet. Next: F2, the design owner gate — 22 artboards are drawn and waiting for approval
+(`design/f2-mvp/index.html`). Recorded environment: `docs/environment.md`.
 
 | Area | State |
 | --- | --- |
@@ -23,6 +23,7 @@ Recorded environment: `docs/environment.md`.
 | Progression engine specification | Done — `docs/progression-engine.md` |
 | Design system | Done — `docs/design-system.md` |
 | Roadmap and phase gates | Done — `docs/roadmap.md` |
+| F2 artboards | Drawn, awaiting owner approval — `design/f2-mvp/index.html` |
 | Swift sources, Xcode project, tests | F0 closed — package + app skeleton, local and CI green (`docs/environment.md`) |
 
 ## How it builds
