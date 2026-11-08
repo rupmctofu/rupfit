@@ -1,7 +1,7 @@
 # Rupfit — Environment
 
-Status: **F0 local gates green** on the Mac (2026-11-08). CI is the last open item.
-Every value below is pasted output, not a claim.
+Status: **F0 closed** on 2026-11-08 — local gates and CI green. Every value below
+is pasted output, not a claim.
 
 ---
 
@@ -96,11 +96,25 @@ Test Suite 'CoreLinkTests' passed
 The `SecTaskLoadEntitlements` lines printed by the simulator host are expected with
 `CODE_SIGNING_ALLOWED=NO` and do not affect the result.
 
-## 5. Remaining F0 item: CI on a pushed branch
+## 5. CI, verified
 
-The workflow (`.github/workflows/ci.yml`) is written but has not run yet. The three
-jobs follow `architecture.md` §11: core on Swift 5.9 (Linux), the generated project
-on a macOS runner, and formatting plus the `RupfitCore` import boundary.
+```
+$ gh run view 42477138093 --json conclusion,jobs
+{"conclusion":"success","jobs":[
+  {"name":"RupfitCore (Swift 5.9, strict concurrency)","conclusion":"success"},
+  {"name":"Format and import boundaries","conclusion":"success"},
+  {"name":"App (generated project, simulator)","conclusion":"success"}]}
+```
+
+Run: <https://github.com/rupmctofu/rupfit/actions/runs/42477138093>, branch
+`f0-bootstrap`, 3 min 9 s. The three jobs follow `architecture.md` §11.
+
+Difference to know about: the macOS job runs on a `macos-15` runner with Xcode 16,
+not 15.2, because GitHub no longer offers Ventura images. The project builds in
+**Swift 5 language mode** (`SWIFT_VERSION = 5.0`) with strict concurrency, so both
+toolchains compile the same source; the iOS simulator there is an iPhone 16 with
+iOS 18, while this Mac uses iPhone 15 / iOS 17.2. The tests are the contract, not
+the runner.
 
 ## 6. Appendix: first install, step by step
 

@@ -8,11 +8,11 @@ offline-first, deterministic.
 
 ## Status
 
-**F0 in progress, local gates green.** The documentation is closed at gate G1. On
-this Mac (Xcode 15.2 / Swift 5.9.2) `swift test` and `xcodebuild test` on the iOS
-17.2 simulator pass; CI on a pushed branch is the last open item. The only Swift is
-the package/app skeleton — no app behaviour exists yet. Recorded environment:
-`docs/environment.md`.
+**F0 closed (2026-11-08).** The documentation is closed at gate G1, and F0's gates
+are green: `swift test` and `xcodebuild test` on the iOS 17.2 simulator pass locally
+on Xcode 15.2 / Swift 5.9.2, and CI passes on `f0-bootstrap`. The only Swift is the
+package/app skeleton — no app behaviour exists yet. Next: F2, the design owner gate.
+Recorded environment: `docs/environment.md`.
 
 | Area | State |
 | --- | --- |
@@ -23,19 +23,19 @@ the package/app skeleton — no app behaviour exists yet. Recorded environment:
 | Progression engine specification | Done — `docs/progression-engine.md` |
 | Design system | Done — `docs/design-system.md` |
 | Roadmap and phase gates | Done — `docs/roadmap.md` |
-| Swift sources, Xcode project, tests | F0 local gates green on Xcode 15.2 (`swift test` + simulator test); CI pending — `docs/environment.md` |
+| Swift sources, Xcode project, tests | F0 closed — package + app skeleton, local and CI green (`docs/environment.md`) |
 
-## Why it does not build here
+## How it builds
 
-The requirements are iOS-only: SwiftUI, SwiftData, HealthKit, WatchConnectivity.
-Those need macOS with Xcode. This repository was initialised on Windows, so the
-first phase (F0) happens on a Mac: verify the toolchain, generate the Xcode
-project, and get CI green on a trivial test.
+The app is iOS-only: SwiftUI, SwiftData, HealthKit, WatchConnectivity. It builds on
+the Mac with Xcode 15.2 / Swift 5.9.2, because that is the newest Xcode the machine
+supports and the documents were amended accordingly (NFR-5, D-6;
+`docs/environment.md` §3). The simulator is iOS 17.2.
 
-The one component that does not need the Mac is `RupfitCore`: a pure-Swift
-package with no UI, no SwiftData and no HealthKit imports. It holds the domain
-model and the progression engine, so it can be compiled and tested anywhere a
-Swift toolchain exists.
+`RupfitCore` is the one component that does not need the Mac: a pure-Swift package
+with no UI, no SwiftData and no HealthKit imports. It holds the domain model and
+the progression engine, so it compiles and tests on any Swift 5.9 toolchain — the
+CI `core` job runs it on Linux.
 
 ## Read in this order
 

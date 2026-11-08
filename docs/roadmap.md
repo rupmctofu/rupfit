@@ -1,9 +1,9 @@
 # Rupfit — Roadmap
 
-Status: F0 in progress — scaffolding written, not compiled until Xcode 15.2 is
-installed (`docs/environment.md`); F1 documents are closed at gate G1 and F2–F8 are
-planned. Read this with `docs/product-requirements.md`; every requirement ID
-referenced here exists there.
+Status: F0 closed on 2026-11-08 (local gates and CI green, `docs/environment.md`);
+F1 documents are closed at gate G1; next is F2, the design owner gate. Read this
+with `docs/product-requirements.md`; every requirement ID referenced here exists
+there.
 
 ---
 
@@ -52,6 +52,13 @@ Exit gate:
   (or the actual installed device name) green locally.
 - Both green in CI on a pushed branch.
 - `docs/environment.md` exists with real version output pasted in.
+
+**Closed 2026-11-08.** Xcode 15.2 / Swift 5.9.2, iOS 17.2 simulator, XcodeGen
+2.44.1; `swift test` and the simulator test green locally, and CI run 42477138093
+green on branch `f0-bootstrap`. Deviations from the text above, recorded rather
+than smoothed over: the simulator is an iPhone 15 (iOS 17.2), not an iPhone 16, and
+the CI macOS job uses Xcode 16 in Swift 5 language mode because GitHub no longer
+offers Ventura images.
 
 **Blocker note:** this is the phase that cannot happen on Windows. Everything after
 F1 is written against a toolchain that can reject it.
