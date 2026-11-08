@@ -1,8 +1,8 @@
 # Rupfit — Roadmap
 
-Status: F0 closed (local gates and CI green, `docs/environment.md`); F1 documents
-closed at G1; F2 closed at G2 on 2026-11-08 with Skin B (lime, pill, icons) and
-interface polish deferred to later phases; F3 in progress. Read this with
+Status: F0 closed; F1 closed at G1; F2 closed at G2 (Skin B, polish deferred); F3
+closed; F4 closed on 2026-11-08. Next: F5, the SwiftUI shell and the training
+screen (owner gate G3). Read this with
 `docs/product-requirements.md`; every requirement ID referenced here exists there.
 
 ---
@@ -166,6 +166,18 @@ Exit gate:
 - Import of an invalid document changes nothing (assert the store is byte-identical
   where comparable, and row-count-identical regardless).
 - Migration test proving an empty stage list still opens a store written by v1.
+
+**Closed 2026-11-08.** `App/RupfitPersistence` holds `SchemaV1`,
+`RupfitMigrationPlan` (zero stages, registered from day one), bidirectional mappers
+and `SessionRepository` (`@ModelActor`) with per-set saves, one in-progress session
+enforced at the transition, resume/partial/abandon, rest derived from `confirmedAt`
+and backup export/import that validates the whole document before touching the
+store. 14 Xcode tests: 7 mapper round-trips, 4 repository (including the kill/restore
+gate), 3 backup. One platform lesson recorded: SwiftData traps when a relationship
+is assigned before both ends are inserted, so mappers expose `insert(_:into:)`. The
+embedded `RupfitPersistence` framework also means the test command must sign; CI and
+`docs/environment.md` were updated. Bulk statistics queries for the Progress UI stay
+in F6; the pure functions shipped in F3.
 
 ### F5 — SwiftUI shell and the training screen (owner gate)
 

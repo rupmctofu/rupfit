@@ -36,8 +36,7 @@ jobs:
           xcodebuild test \
             -project App/Rupfit.xcodeproj \
             -scheme Rupfit \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
-            CODE_SIGNING_ALLOWED=NO
+            -destination 'platform=iOS Simulator,name=iPhone 16' 
 
   lint:
     name: Format and import boundaries

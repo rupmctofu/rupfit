@@ -87,14 +87,16 @@ $ xcodegen generate --spec App/project.yml
 Created project at /Users/rupmctofu/rupfit/App/Rupfit.xcodeproj
 
 $ xcodebuild test -project App/Rupfit.xcodeproj -scheme Rupfit \
-    -destination 'platform=iOS Simulator,name=iPhone 15' CODE_SIGNING_ALLOWED=NO
+    -destination 'platform=iOS Simulator,name=iPhone 15' 
 Test Suite 'CoreLinkTests' passed
 	 Executed 1 test, with 0 failures (0 unexpected) in 0.005 (0.009) seconds
 ** TEST SUCCEEDED **
 ```
 
 The `SecTaskLoadEntitlements` lines printed by the simulator host are expected with
-`CODE_SIGNING_ALLOWED=NO` and do not affect the result.
+ad-hoc signing and do not affect the result. F4 added an embedded framework
+(`RupfitPersistence`); from then on the test command must sign, so
+`CODE_SIGNING_ALLOWED=NO` is gone from the command and from CI.
 
 ## 5. CI, verified
 

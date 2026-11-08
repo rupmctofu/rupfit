@@ -1,8 +1,8 @@
 # Rupfit — Data Model
 
-Status: implemented in `RupfitCore` (F3, 2026-11-08) for §2–§3 values and entities.
-The persistence schema of §5 and its mappers are F4; where a type is a persistence
-concern it lives outside the core.
+Status: implemented. §2–§3 values and entities live in `RupfitCore` (F3); the
+persistence schema of §5, its mappers and the backup document of §9 live in
+`App/RupfitPersistence` (F4, 2026-11-08).
 
 ---
 

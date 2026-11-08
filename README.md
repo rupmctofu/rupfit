@@ -8,12 +8,12 @@ offline-first, deterministic.
 
 ## Status
 
-**F0 and F3 closed (2026-11-08).** The documentation is closed at gate G1, and F0's gates
+**F0, F2, F3 and F4 closed (2026-11-08).** The documentation is closed at gate G1, and F0's gates
 are green: `swift test` and `xcodebuild test` on the iOS 17.2 simulator pass locally
-on Xcode 15.2 / Swift 5.9.2, and CI passes on `f0-bootstrap`. `RupfitCore` now implements the domain and the
-progression engine: 56 tests cover the scenario table, the property tests and the
-statistics. There is no UI behaviour yet (F5). Recorded environment:
-`docs/environment.md`.
+on Xcode 15.2 / Swift 5.9.2, and CI passes on `f0-bootstrap`. `RupfitCore` implements the domain and the progression
+engine (56 tests), and `RupfitPersistence` adds SchemaV1, mappers, the session
+repository and backup export/import (14 tests, including the kill/restore gate).
+There is no UI behaviour yet (F5). Recorded environment: `docs/environment.md`.
 
 | Area | State |
 | --- | --- |
@@ -25,7 +25,7 @@ statistics. There is no UI behaviour yet (F5). Recorded environment:
 | Design system | Done — `docs/design-system.md` |
 | Roadmap and phase gates | Done — `docs/roadmap.md` |
 | F2 artboards | Drawn, awaiting owner approval — `design/f2-mvp/index.html` |
-| Swift sources, Xcode project, tests | F0 closed; `RupfitCore` domain + engine + statistics implemented with 56 tests (F3) |
+| Swift sources, Xcode project, tests | F0 closed; `RupfitCore` domain + engine + statistics (56 tests, F3); `RupfitPersistence` schema, mappers, repository, backup (14 tests, F4) |
 | Design | F2 closed at G2 — `design/f2-mvp/index.html` (Skin B) |
 
 ## How it builds
