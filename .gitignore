@@ -1,0 +1,45 @@
+# macOS
+.DS_Store
+
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Generated Xcode project (see docs/architecture.md, ADR-004)
+*.xcodeproj/
+*.xcworkspace/
+!*.xcworkspace/contents.xcworkspacedata
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+
+# Test and coverage artifacts
+*.xctestplan.out
+*.xcresult/
+.coverage/
+*.profraw
+*.profdata
+TestResults/
+
+# Editors
+.vscode/
+.idea/
+
+# Secrets and local config (never commit credentials or signing data)
+*.mobileprovision
+*.p12
+*.cer
+*.env
+.env.*
