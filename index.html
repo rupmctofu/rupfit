@@ -7,9 +7,12 @@
     <meta name="description" content="Entrenamiento de fuerza con decisiones, no con hojas de cálculo." />
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#000000" />
-    <link rel="manifest" href="/rupfit/manifest.webmanifest" />
-    <link rel="icon" href="/rupfit/icon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/rupfit/apple-touch-icon.png" />
+    <!-- The manifest link is injected by vite-plugin-pwa with the configured base; a second
+         hand-written one would be duplicated in dist and mis-prefixed in dev. Paths below
+         stay base-free so Vite applies `/rupfit/` in dev and in the build alike. -->
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icon-192.png" sizes="192x192" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Rupfit" />

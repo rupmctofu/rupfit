@@ -48,3 +48,6 @@ TestResults/
 node_modules/
 coverage/
 *.tsbuildinfo
+dist/
+tools/.tmp/
+.worktrees/

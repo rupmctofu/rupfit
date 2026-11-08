@@ -1,0 +1,84 @@
+# Publish the PWA to GitHub Pages (S1: free, HTTPS, no macOS, no secrets).
+#
+# The pipeline is prepared here but does not switch itself on: the owner enables
+# Pages once in Settings → Pages with "GitHub Actions" as the source, and the first
+# push to `main` (or a manual dispatch) publishes `dist`.
+#
+# Failure policy: `npm test`, `npm run typecheck` and `npm run build` run before any
+# Pages step, and the deploy job only starts when the build job succeeded, so a red
+# build is never published. No `--force`, no force-push, no history rewriting.
+
+name: pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Least privilege: read-only by default. `pages: read` lets configure-pages resolve the
+# Pages site; `pages: write` and `id-token: write` are granted to the deploy job alone,
+# which is what the official Pages actions need (OIDC, no personal token, no secret).
+permissions:
+  contents: read
+
+# One deployment at a time. `cancel-in-progress: false` lets a running deploy finish
+# instead of leaving Pages half-published.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: test, typecheck, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # `npm run build` repeats the typecheck and then runs `vite build`, emitting `dist`
+      # with the `/rupfit/` base, the manifest and the precached icons.
+      - name: Build
+        run: npm run build
+
+      # No `enablement: true`: enabling Pages stays an owner decision in repository settings.
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    name: deploy
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
