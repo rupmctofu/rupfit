@@ -93,3 +93,31 @@ If Skin B is approved: amend §3 (accent, onAccent, accentText, light success/wa
 §5 (`Radius.control` becomes pill for buttons, cards 16) and §6 (icon set and sizes),
 then re-run the contrast table in §3. If only the icons are approved, Skin A stays and
 §6 gains the icon rules.
+
+## Visual density (Skin B.1, 2026-11-08)
+
+The owner asked for more icons and more visual finish. Added, all of it carrying
+information rather than decoration:
+
+- **Equipment and muscle chips** in the exercise card (`Barra`, `Cadena posterior`)
+  from the exercise record, not invented.
+- **Last six sessions** mini-bars inside the card: the data that justifies the
+  suggested weight, at the point of decision.
+- **Week strip** on Inicio: three strength days with `hecha` / `hoy` / pendiente,
+  replacing a bare progress bar.
+- **State words** instead of state chips in the routine list (`hecha`, `hoy`,
+  `pendiente`), so a row never wraps a name to make room for a badge.
+- **Icons in section labels** (calendar for phase and week, barbell for the last
+  session) and per-row badges in Perfil, Historial and Resumen.
+
+### Images
+
+`inicio-photo` is an **experiment, not a deliverable**: it shows what a 150 pt hero
+costs — the last session disappears from the first screen and `Empezar entrenamiento`
+drops to mid-screen. `FR-2.4` puts exercise illustration in P1, and §1 rejects photos
+as decoration, so adopting imagery needs a PRD change.
+
+`design-system.md` §6.2 now carries the placeholder rule that FR-2.4 referenced but
+did not exist: while illustration is missing, the card shows the exercise name and
+its equipment glyph — no grey frame, no stock photo. When P1 illustration ships it is
+line art on `bg.raised`, square, never inside the set rows.

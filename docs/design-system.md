@@ -185,6 +185,10 @@ empty, error and loading decision is not finished.
   user-overridden, completed, skipped.
 - Paging: horizontal `TabView(.page)` with pinned chevrons. Swipe is a shortcut,
   never the only route (FR-6.2).
+- **Illustration placeholder rule (F2).** Exercise illustration is P1 (FR-2.4). Until
+  it ships, the card carries the exercise name and its equipment glyph; there is no
+  grey image frame and no stock photograph. When it ships it is line art on
+  `bg.raised`, square, never a photo, and never inside the set rows.
 
 ### 6.3 `SetRow`
 

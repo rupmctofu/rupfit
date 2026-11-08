@@ -59,6 +59,7 @@
   .card.tight{padding:14px 16px}
   .raised{background:var(--bg-raised);border:1px solid transparent}
   .label{font-size:13px;line-height:18px;font-weight:500;letter-spacing:.6px;text-transform:uppercase;color:var(--text2)}
+  .label .ico{width:14px;height:14px;stroke-width:2;vertical-align:-2px;margin-right:2px}
   .title{font-size:22px;line-height:28px;font-weight:600;letter-spacing:-.2px}
   .metric{font-family:ui-rounded,-apple-system,sans-serif;font-size:44px;line-height:48px;font-weight:600;
     letter-spacing:-1px;font-variant-numeric:tabular-nums}
@@ -180,6 +181,23 @@
   html[data-skin="b"] .banner{border-radius:14px}
   html[data-skin="b"] .ibadge{border-radius:12px}
 
+  .st{font-size:13px;font-weight:600;white-space:nowrap}
+  .st.success{color:var(--success)} .st.accent{color:var(--accent-text)} .st.muted{color:var(--text3)}
+
+  .weekstrip{display:flex;gap:8px;margin-top:12px}
+  .day{flex:1;height:56px;border-radius:12px;background:var(--bg-raised);display:flex;
+    flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    font-size:12px;font-weight:600;color:var(--text2)}
+  .day .m{font-size:11px;letter-spacing:.6px;color:var(--text3)}
+  .day .s{font-size:14px;line-height:16px}
+  .day.done{color:var(--success)}
+  .day.now{background:transparent;border:1px solid var(--accent);color:var(--accent-text)}
+  .day.rest{opacity:.55}
+
+  .photo{height:150px;border-radius:16px;border:1px dashed var(--stroke);
+    background:var(--bg-surface);display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:6px;color:var(--text3);font-size:12px;letter-spacing:.6px}
+
   .skins{display:flex;gap:8px;margin:18px 0 0}
   .skins button{height:40px;padding:0 16px;border-radius:999px;border:1px solid #2A2E36;
     background:#14161A;color:#A2A9B4;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
@@ -242,6 +260,11 @@ const icons = {
   dumbbell:'<path d="M3 9v6M6 8v8M18 8v8M21 9v6M6 12h12"/>',
   plus:'<path d="M12 5v14M5 12h14"/>',
   moon:'<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/>',
+  barbell:'<path d="M3 10v4M6 8v8M18 8v8M21 10v4M6 12h12"/>',
+  machine:'<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 15v-3a4 4 0 0 1 8 0v3"/>',
+  cable:'<path d="M6 4v9a6 6 0 0 0 12 0V4"/><path d="M12 19v-3"/>',
+  band:'<path d="M4 8c4 0 4 8 8 8s4-8 8-8"/><path d="M4 16c4 0 4-8 8-8s4 8 8 8"/>',
+  calendar:'<rect x="4" y="6" width="16" height="14" rx="3"/><path d="M4 10h16M9 4v4M15 4v4"/>',
   scale:'<path d="M4 19V11M10 19V6M16 19v-5M22 19V9"/>'
 };
 const ico = (name, cls='ico') => `<svg class="${cls}" viewBox="0 0 24 24">${icons[name]}</svg>`;
@@ -265,7 +288,7 @@ function frame(inner, {theme='theme-dark', nav=null} = {}) {
 /* ---------- reusable pieces ---------- */
 const phaseBanner = (week='2') => `
 <div class="banner">
-  <div class="t">Readaptación · semana ${week} de 4</div>
+  <div class="t">${ico('calendar')}Readaptación · semana ${week} de 4</div>
   ${ico('chevronR')}
 </div>`;
 
@@ -312,6 +335,18 @@ const collapsedDecision = ({kg='92,5', how='Aceptado'}) => `
 </div>
 <div class="caption">Objetivo · 3 × 10 a 3–4 RIR · descanso 180 s</div>`;
 
+const sessionHistory = () => `
+<div class="rowline"><div class="label">Últimas 6 sesiones</div><div class="caption">serie top</div></div>
+<svg viewBox="0 0 320 54" width="100%" height="54" role="img" aria-label="Ultimas seis sesiones de peso muerto: de 87,5 a 92,5 kg">
+  ${[87.5,87.5,90,90,90,92.5].map((v,i)=>{
+    const h=16+((v-87.5)/5)*28; const x=14+i*50;
+    return `<rect x="${x}" y="${44-h}" width="26" height="${h}" rx="6"
+      fill="${i===5?'var(--accent)':'var(--stroke)'}"/>`;
+  }).join('')}
+  <text x="27" y="52" font-size="9" fill="var(--text3)" text-anchor="middle">87,5</text>
+  <text x="277" y="52" font-size="9" fill="var(--text3)" text-anchor="middle">hoy</text>
+</svg>`;
+
 const paging = (pos='2') => `
 <div class="paging">
   <div class="chev">${ico('chevronL')}</div>
@@ -329,11 +364,13 @@ const restBar = (t='1:45', pct=38) => `
 const emptyState = (text, action='') => `
 <div class="empty">${text}${action?`<div class="btn text" style="height:auto;padding:0">${action}</div>`:''}</div>`;
 
-const listRow = ({title, sub, value='', state='', icon=null}) => `
+const listRow = ({title, sub, value='', state='', icon=null, chip='', chipClass='', stateText='', stateClass='muted'}) => `
 <div class="listrow">
   ${state?`<div class="checksq ${state}">${state==='done'?'✓':''}</div>`:''}
   ${icon?`<div class="ibadge">${ico(icon)}</div>`:''}
   <div class="grow"><div class="t">${title}</div><div class="s">${sub}</div></div>
+  ${chip?`<div class="chip ${chipClass}">${chip}</div>`:''}
+  ${stateText?`<div class="st ${stateClass}">${stateText}</div>`:''}
   ${value?`<div class="v">${value}</div>`:''}
   <div style="color:var(--text3);display:flex">${ico('chevronR')}</div>
 </div>`;
@@ -389,7 +426,7 @@ add('Inicio','inicio-history','Inicio · con historial',
    <div><div style="font-size:34px;line-height:40px;font-weight:600;letter-spacing:-.6px">Hola, Rup</div>
    <div class="caption" style="margin-top:2px">Miércoles, 8 de noviembre</div></div>
  </div>
- <div class="label" style="margin-top:8px">Hoy toca</div>
+ <div class="label" style="margin-top:8px">${ico('calendar')}Hoy toca</div>
  <div class="card">
    <div class="title">Peso muerto / Tracción</div>
    <div class="meta" style="margin-top:4px">6 ejercicios · 55 min aprox.</div>
@@ -398,7 +435,7 @@ add('Inicio','inicio-history','Inicio · con historial',
  </div>
  <div class="btn primary">${ico('play','ico fill')}Empezar entrenamiento</div>
  <div class="card">
-   <div class="label">Última sesión · lunes</div>
+   <div class="label">${ico('barbell')}Última sesión · lunes</div>
    <div class="rowline" style="margin-top:8px">
      <div><div style="font-size:17px;font-weight:600">Sentadilla / Pierna</div>
      <div class="meta">52 min · 14 de 15 series</div></div>
@@ -406,9 +443,13 @@ add('Inicio','inicio-history','Inicio · con historial',
    </div>
  </div>
  <div class="card">
-   <div class="label">Esta semana</div>
-   <div class="rowline" style="margin-top:8px"><span class="meta">2 de 3 sesiones</span><span class="meta">14 series duras</span></div>
-   <div class="bar" style="margin-top:10px"><i style="width:66%"></i></div>
+   <div class="label">${ico('calendar')}Esta semana</div>
+   <div class="weekstrip">
+     <div class="day done"><span class="m">LUN</span><span class="s">✓</span></div>
+     <div class="day now"><span class="m">MIÉ</span><span class="s">●</span></div>
+     <div class="day"><span class="m">VIE</span><span class="s">·</span></div>
+   </div>
+   <div class="rowline" style="margin-top:12px"><span class="meta">2 de 3 sesiones</span><span class="meta">14 series duras</span></div>
  </div>
  <div class="card tight">
    <div class="rowline"><span class="meta">Actividad de Salud</span><span class="chip">sin conectar</span></div>
@@ -457,9 +498,9 @@ add('Entrenar','entrenar','Entrenar · plantilla semanal',
  `<div style="font-size:34px;line-height:40px;font-weight:600;letter-spacing:-.6px;margin-top:2px">Entrenar</div>
  <div class="caption">Semana del 6 de noviembre</div>
  <div class="card" style="padding:6px 20px;margin-top:6px">
-   ${listRow({title:'Lunes · Sentadilla / Pierna', sub:'3 de 3 series · completada', value:'8.280 kg', state:'done'})}
-   ${listRow({title:'Miércoles · Peso muerto / Tracción', sub:'Hoy · 6 ejercicios', value:'', state:'today'})}
-   ${listRow({title:'Viernes · Press banca / Empuje', sub:'Pendiente', value:''})}
+   ${listRow({title:'Sentadilla', sub:'Lunes · Pierna · 8.280 kg · 52 min', icon:'barbell', stateText:'hecha', stateClass:'success'})}
+   ${listRow({title:'Peso muerto', sub:'Miércoles · Tracción · 6 ejercicios', icon:'barbell', stateText:'hoy', stateClass:'accent'})}
+   ${listRow({title:'Press banca', sub:'Viernes · Empuje · 6 ejercicios', icon:'barbell', stateText:'pendiente'})}
  </div>
  <div class="card tight">
    <div class="rowline"><span class="meta">Bloque de readaptación</span><span class="chip">semana 2 de 4</span></div>
@@ -509,11 +550,14 @@ add('Sesión','sesion-decision','Sesión · decisión de peso',
  <div class="card" style="flex:1;min-height:0">
    <div class="title">Peso muerto convencional</div>
    <div class="meta" style="margin-top:2px">Sesión anterior · 90 kg × 10 · correcto</div>
+   <div class="chips" style="margin-top:8px"><span class="chip">${ico('barbell')}Barra</span><span class="chip">Cadena posterior</span></div>
    <div class="divider"></div>
    <div class="rowline" style="align-items:flex-end">
      <div class="metric">92,5<span style="font-size:20px;font-weight:600"> kg</span></div>
    </div>
    <div class="body" style="margin-top:6px;color:var(--text2)">Completaste 3 series de 10 con 90 kg. Subimos 2,5 kg.</div>
+   <div class="divider"></div>
+   ${sessionHistory()}
    <div class="divider"></div>
    ${setRow({n:1,target:10,state:'pending'})}
    ${setRow({n:2,target:10,state:'pending'})}
@@ -535,6 +579,8 @@ add('Sesión','sesion-progress','Sesión · en curso, con descanso',
    <div class="meta" style="margin-top:2px">Sesión anterior · 90 kg × 10 · correcto</div>
    <div class="divider"></div>
    ${collapsedDecision({kg:'92,5'})}
+   <div class="divider"></div>
+   ${sessionHistory()}
    <div class="divider"></div>
    ${setRow({n:1,target:10,state:'done',effort:'correcto'})}
    ${setRow({n:2,target:10,state:'done',effort:'duro'})}
@@ -580,6 +626,8 @@ add('Sesión','sesion-resumed','Sesión · reanudada tras cierre',
    <div class="divider"></div>
    ${collapsedDecision({kg:'92,5'})}
    <div class="divider"></div>
+   ${sessionHistory()}
+   <div class="divider"></div>
    ${setRow({n:1,target:10,state:'done',effort:'correcto'})}
    ${setRow({n:2,target:10,state:'done',effort:'duro'})}
    ${setRow({n:3,target:10,state:'active',reps:10})}
@@ -604,6 +652,8 @@ add('Sesión','sesion-error','Sesión · error de guardado, no bloqueante',
    <div class="divider"></div>
    ${collapsedDecision({kg:'92,5'})}
    <div class="divider"></div>
+   ${sessionHistory()}
+   <div class="divider"></div>
    ${setRow({n:1,target:10,state:'done',effort:'correcto'})}
    ${setRow({n:2,target:10,state:'active',reps:10})}
  </div>
@@ -623,6 +673,8 @@ add('Sesión','sesion-light','Sesión · tema claro (peer, no ocurrencia)',
    <div class="meta" style="margin-top:2px">Sesión anterior · 90 kg × 10 · correcto</div>
    <div class="divider"></div>
    ${collapsedDecision({kg:'92,5'})}
+   <div class="divider"></div>
+   ${sessionHistory()}
    <div class="divider"></div>
    ${setRow({n:1,target:10,state:'done',effort:'correcto'})}
    ${setRow({n:2,target:10,state:'done',effort:'duro'})}
@@ -656,9 +708,9 @@ add('Resumen','resumen','Resumen · con récord',
    <div class="caption">Mejor marca en 10 repeticiones. Antes: 90 kg.</div>
  </div>
  <div class="card tight">
-   ${listRow({title:'Peso muerto', sub:'3 series · 92,5 kg', value:'2.775 kg'})}
-   ${listRow({title:'Remo con barra', sub:'3 series · 60 kg', value:'1.800 kg'})}
-   ${listRow({title:'Face pull', sub:'2 de 3 series', value:'900 kg'})}
+   ${listRow({title:'Peso muerto', sub:'3 series · 92,5 kg', value:'2.775 kg', icon:'barbell'})}
+   ${listRow({title:'Remo con barra', sub:'3 series · 60 kg', value:'1.800 kg', icon:'barbell'})}
+   ${listRow({title:'Face pull', sub:'2 de 3 series', value:'900 kg', icon:'cable'})}
  </div>
  <div class="btn primary">Hecho</div>`, {nav:null});
 
@@ -682,8 +734,8 @@ add('Resumen','resumen-partial','Resumen · parcial, sin récord',
  </div>
  ${emptyState('Sin récords hoy. No hace falta que cada sesión los tenga.')}
  <div class="card tight">
-   ${listRow({title:'Peso muerto', sub:'2 series · 92,5 kg', value:'1.850 kg'})}
-   ${listRow({title:'Remo con barra', sub:'2 series · 60 kg', value:'1.200 kg'})}
+   ${listRow({title:'Peso muerto', sub:'2 series · 92,5 kg', value:'1.850 kg', icon:'barbell'})}
+   ${listRow({title:'Remo con barra', sub:'2 series · 60 kg', value:'1.200 kg', icon:'barbell'})}
  </div>
  <div class="btn primary">Hecho</div>`, {nav:null});
 
@@ -693,13 +745,13 @@ add('Historial','historial','Historial · lista',
  `<div style="font-size:34px;line-height:40px;font-weight:600;letter-spacing:-.6px;margin-top:2px">Historial</div>
  <div class="caption">Noviembre</div>
  <div class="card" style="padding:4px 20px;margin-top:4px">
-   ${listRow({title:'Lunes 6 · Sentadilla / Pierna', sub:'52 min · 14 de 15 series', value:'8.280 kg'})}
-   ${listRow({title:'Viernes 3 · Press banca / Empuje', sub:'48 min · 15 de 15 series', value:'5.120 kg'})}
-   ${listRow({title:'Miércoles 1 · Peso muerto / Tracción', sub:'51 min · 15 de 15 series', value:'7.940 kg'})}
+   ${listRow({title:'Lunes 6 · Sentadilla / Pierna', sub:'52 min · 14 de 15 series', value:'8.280 kg', icon:'barbell'})}
+   ${listRow({title:'Viernes 3 · Press banca / Empuje', sub:'48 min · 15 de 15 series', value:'5.120 kg', icon:'barbell'})}
+   ${listRow({title:'Miércoles 1 · Peso muerto / Tracción', sub:'51 min · 15 de 15 series', value:'7.940 kg', icon:'barbell'})}
  </div>
  <div class="caption">Octubre</div>
  <div class="card" style="padding:4px 20px">
-   ${listRow({title:'Lunes 30 · Sentadilla / Pierna', sub:'49 min · 12 de 15 series', value:'7.610 kg'})}
+   ${listRow({title:'Lunes 30 · Sentadilla / Pierna', sub:'49 min · 12 de 15 series', value:'7.610 kg', icon:'barbell'})}
  </div>`, {nav:'Entrenar'});
 
 add('Historial','historial-empty','Historial · vacío',
@@ -841,6 +893,23 @@ add('Perfil','perfil-health-unavailable','Perfil · Salud no disponible',
    ${listRow({title:'Pulso en reposo', sub:'No disponible en este dispositivo', value:''})}
  </div>
  <div class="caption">Nunca se muestra «denegado»: iOS no informa del estado de un permiso de lectura.</div>`, {nav:null});
+
+/* ===== Experimento (no forma parte del MVP) ===== */
+add('Experimento','inicio-photo','Inicio · con foto de portada (experimento)',
+ 'Esto es lo que cuesta una portada: 150 pt que salen de la última sesión, y la acción de empezar queda a media pantalla. FR-2.4 deja la ilustración en P1 y §1 rechaza la foto decorativa; no se adopta sin enmendar el PRD. El hueco es un marcador, no una imagen.',
+ `<div class="rowline" style="margin-top:2px">
+   <div><div style="font-size:34px;line-height:40px;font-weight:600;letter-spacing:-.6px">Hola, Rup</div>
+   <div class="caption" style="margin-top:2px">Miércoles, 8 de noviembre</div></div>
+ </div>
+ <div class="photo">${ico('barbell')}FOTO DE PORTADA · P1</div>
+ <div class="label" style="margin-top:2px">Hoy toca</div>
+ <div class="card">
+   <div class="title">Peso muerto / Tracción</div>
+   <div class="meta" style="margin-top:4px">6 ejercicios · 55 min aprox.</div>
+   <div class="divider"></div>
+   <div class="rowline"><span class="meta">Readaptación · semana 2 de 4</span><span class="chip">6–9 series</span></div>
+ </div>
+ <div class="btn primary">${ico('play','ico fill')}Empezar entrenamiento</div>`, {nav:'Inicio'});
 
 /* ---------- render ---------- */
 let currentSkin = new URLSearchParams(location.search).get('skin') || 'a';
