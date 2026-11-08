@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
 
 /**
- * The four tabs, plus the session sheet and its demo, plus `galeria`. The gallery and
- * the demo are review surfaces, not tabs: they are reachable only by their hash and the
- * tab bar never gains a fifth entry.
+ * The four tabs, plus the session sheet and its demo, plus `resumen` and its demo, plus
+ * `galeria`. The gallery and the demos are review surfaces, not tabs: they are reachable
+ * only by their hash and the tab bar never gains a fifth entry.
  *
  * `sesion/demo` is a path, not a second route table: the session is one screen with two
  * ports behind it, and `#/sesion/demo` is the same sheet fed by fixtures.
+ *
+ * `resumen` is the summary sheet: `#/resumen/<sessionId>` for the session that was just
+ * finished and `#/resumen/demo` for the fixture week. It carries a parameter, so the
+ * table names the route and the id is read from the hash (`summaryTargetOf`).
  */
 export const ROUTES = [
   'inicio',
@@ -15,6 +19,8 @@ export const ROUTES = [
   'perfil',
   'sesion',
   'sesion/demo',
+  'resumen',
+  'resumen/demo',
   'galeria',
   // Drill-downs inside the Progreso tab: paths, not new tabs. A cold load must land on
   // the view it names, so they belong in the table and the shell renders the parent.
@@ -27,11 +33,18 @@ const DEFAULT_ROUTE: Route = 'inicio';
 
 /** The tab a route belongs to: a drill-down lights up its parent tab. */
 export function tabFor(route: Route): Route {
-  return route === 'progreso/historial' || route === 'progreso/peso' ? 'progreso' : route;
+  if (route === 'progreso/historial' || route === 'progreso/peso') return 'progreso';
+  // The summary closes the session Inicio started, so Inicio is the tab it belongs to —
+  // the same tab its «Hecho» and «Volver a Inicio» land on.
+  if (route === 'resumen' || route === 'resumen/demo') return 'inicio';
+  return route;
 }
 
 function parse(hash: string): Route {
   const path = hash.replace(/^#\/?/, '').replace(/\/+$/, '');
+  // `#/resumen/<sessionId>` is one route with a parameter, not one entry per session:
+  // the summary reads its id from the hash, the way Progreso reads its drill-down.
+  if (path.startsWith('resumen/')) return path === 'resumen/demo' ? 'resumen/demo' : 'resumen';
   return (ROUTES as readonly string[]).includes(path) ? (path as Route) : DEFAULT_ROUTE;
 }
 
@@ -54,4 +67,37 @@ export function useHashRoute(): Route {
 /** `#/sesion` and `#/sesion/demo` are one screen over two ports. */
 export function isSessionRoute(route: Route): boolean {
   return route === 'sesion' || route === 'sesion/demo';
+}
+
+/**
+ * `#/resumen/<id>` and `#/resumen/demo` are one screen over two ports too: the summary of
+ * a stored session and the summary of the fixture week.
+ */
+export function isSummaryRoute(route: Route): boolean {
+  return route === 'resumen' || route === 'resumen/demo';
+}
+
+/**
+ * The hash as state, for the routes that carry a parameter.
+ *
+ * `useHashRoute` collapses every `#/resumen/<sessionId>` to `resumen`, so the id cannot
+ * come from the route: it is read from the hash this hook keeps current. `popstate` as
+ * well as `hashchange`, because in standalone mode there is no browser back button and a
+ * returning gesture must still land where a fresh load would (`src/features/home/useHash.ts`
+ * listens for both for the same reason).
+ */
+export function useCurrentHash(): string {
+  const [hash, setHash] = useState(() => window.location.hash);
+
+  useEffect(() => {
+    const onChange = (): void => setHash(window.location.hash);
+    window.addEventListener('hashchange', onChange);
+    window.addEventListener('popstate', onChange);
+    return () => {
+      window.removeEventListener('hashchange', onChange);
+      window.removeEventListener('popstate', onChange);
+    };
+  }, []);
+
+  return hash;
 }

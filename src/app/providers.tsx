@@ -15,6 +15,12 @@ import { createContext, useContext, useState, type ReactNode } from 'react';
 import { createStorage, type StoragePort } from '../storage';
 import type { Clock, SessionJournal } from '../features/session/controller';
 import { createSessionStorageJournal } from '../features/session/journal';
+import {
+  appUpdateWatch,
+  serviceWorkerUrl,
+  type UpdateWatch,
+  type UpdateWatchOptions,
+} from '../pwa';
 
 export interface AppServices {
   readonly storage: StoragePort;
@@ -51,4 +57,30 @@ export function useAppServices(): AppServices {
   const services = useContext(AppServicesContext);
   if (services === null) throw new Error('useAppServices must be used inside AppProvider');
   return services;
+}
+
+/*
+ * The service worker, across the feature boundary.
+ *
+ * `src/pwa/` owns registration and the waiting-worker watch and the app root drives it
+ * on launch (architecture §8). A feature may not import `src/pwa` (§4), and Perfil's one
+ * reader — `src/features/profile/useProfileData.ts` — asks for a watch from its own
+ * folder, so the composition root hands the app's single instance over here.
+ */
+
+export { serviceWorkerUrl } from '../pwa';
+export type { UpdateRuntime, UpdateWatch } from '../pwa';
+
+/**
+ * The app's watch, under the signature Perfil already calls. The first caller wins the
+ * environment (it is the same container, script and reload either way); every later one
+ * joins the same instance, so there is exactly one registration per launch.
+ */
+export function createServiceWorkerWatch(options?: UpdateWatchOptions): UpdateWatch {
+  return appUpdateWatch({
+    production: import.meta.env.PROD,
+    container: options?.container ?? null,
+    scriptUrl: options?.scriptUrl ?? serviceWorkerUrl(import.meta.env.BASE_URL),
+    reload: options?.reload ?? (() => window.location.reload()),
+  });
 }

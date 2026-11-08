@@ -4,7 +4,9 @@
  * A full-height sheet over the tab bar (design-system §8): the exit control and the day
  * on top, the phase banner, the paged exercise cards, the pager, and one bottom bar that
  * changes with what the owner has to decide next — the load decision, the rest, or the
- * end of the session.
+ * end of the session. The end of the session is not a dead end: it offers the summary of
+ * the session that was just written (`#/resumen/<id>`) and, second, the way back to
+ * Inicio.
  *
  * Three rules hold the file together:
  *
@@ -72,6 +74,7 @@ import {
   type EffortChip,
 } from './format';
 import { useSessionController } from './useSession';
+import { summaryHash } from '../summary/route';
 import './session.css';
 
 /** Readaptation is a four-block programme (docs/progression-engine.md §8). */
@@ -85,6 +88,12 @@ export interface SessionScreenProps {
   readonly journal?: SessionJournal | undefined;
   /** `Salir de la sesión`: back to Inicio, with the session left resumable. */
   readonly onExit: () => void;
+  /**
+   * `Ver el resumen`, once the session is terminal: the summary of the session that was
+   * just written. Optional because the demo host (`DemoSession`) does not pass it and
+   * the sheet knows where its own summary lives.
+   */
+  readonly onOpenSummary?: ((sessionId: string) => void) | undefined;
   /** The demo strip, when the screen is being reviewed with fixtures. */
   readonly topSlot?: React.ReactNode;
   /** Called once, after the boot, with the machine: the demo primes a scenario here. */
@@ -118,7 +127,7 @@ function prefersReducedMotion(): boolean {
 }
 
 export function SessionScreen(props: SessionScreenProps): React.ReactElement {
-  const { storage, clock, journal, onExit, topSlot, onReady } = props;
+  const { storage, clock, journal, onExit, onOpenSummary, topSlot, onReady } = props;
   const controller = useSessionController({
     storage,
     clock,
@@ -259,6 +268,23 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
     [draftFor, patchDraft, runtime.exercises],
   );
 
+  // `Ver el resumen`, once the session is terminal. The id is the one the reducer just
+  // wrote — `finish` settles the status only after the write resolved — so nothing is
+  // read here and no effect is invented. The host decides the address when it has one.
+  const openSummary = useCallback(
+    (sessionId: string) => {
+      if (onOpenSummary !== undefined) {
+        onOpenSummary(sessionId);
+        return;
+      }
+      // The demo runs on an in-memory port, so its fixture session never reaches
+      // IndexedDB: the only summary that can read it back is the fixture one.
+      const demo = window.location.hash.startsWith('#/sesion/demo');
+      window.location.hash = summaryHash(demo ? 'demo' : sessionId);
+    },
+    [onOpenSummary],
+  );
+
   const topBar = (
     <header className="session__top">
       <button type="button" className="ds-action session__exit" onClick={onExit} aria-label="Salir de la sesión">
@@ -357,8 +383,9 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
   const bottomBar = ((): React.ReactElement => {
     if (terminal) {
       return (
-        <div className="session__actions">
-          <PrimaryAction onClick={onExit}>Volver a Inicio</PrimaryAction>
+        <div className="session__actions session__actions--split">
+          <TextButton onClick={onExit}>Volver a Inicio</TextButton>
+          <PrimaryAction onClick={() => openSummary(session.id)}>Ver el resumen</PrimaryAction>
         </div>
       );
     }
