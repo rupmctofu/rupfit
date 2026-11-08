@@ -1,8 +1,11 @@
-import { useHashRoute, type Route } from './routes';
+import { isSessionRoute, useHashRoute, type Route } from './routes';
+import { AppProvider, useAppServices } from './providers';
 import { HomeScreen } from '../features/home/HomeScreen';
 import { TrainScreen } from '../features/train/TrainScreen';
 import { ProgressScreen } from '../features/progress/ProgressScreen';
 import { ProfileScreen } from '../features/profile/ProfileScreen';
+import { SessionScreen } from '../features/session/SessionScreen';
+import { DemoSession } from '../features/session/DemoSession';
 import { GalleryScreen } from './gallery/GalleryScreen';
 
 const TABS: readonly { route: Route; label: string; icon: string }[] = [
@@ -12,7 +15,10 @@ const TABS: readonly { route: Route; label: string; icon: string }[] = [
   { route: 'perfil', label: 'Perfil', icon: '☺' },
 ];
 
-function Screen({ route }: { route: Route }): React.ReactElement {
+/** The routes that live inside the tab shell. The session sheet does not. */
+type ShellRoute = 'inicio' | 'entrenar' | 'progreso' | 'perfil' | 'galeria';
+
+function Screen({ route }: { route: ShellRoute }): React.ReactElement {
   switch (route) {
     case 'inicio':
       return <HomeScreen />;
@@ -24,8 +30,6 @@ function Screen({ route }: { route: Route }): React.ReactElement {
       return <ProfileScreen />;
     case 'galeria':
       return <GalleryScreen />;
-    default:
-      return <HomeScreen />;
   }
 }
 
@@ -34,17 +38,32 @@ function Screen({ route }: { route: Route }): React.ReactElement {
  * indicator. In standalone mode there is no browser back button, so navigation is
  * always on screen and the active route lives in the hash, which survives a relaunch
  * after the page was discarded (design-system §8).
+ *
+ * The session is a full-height sheet over the tab bar: `#/sesion` runs on the real port,
+ * `#/sesion/demo` on fixtures, and both are the same screen.
  */
-export function App(): React.ReactElement {
+function AppShell(): React.ReactElement {
   const route = useHashRoute();
-  const isSession = route === 'sesion';
-  // The gallery is a full-screen review page: four tabs stay four, and none of them
-  // is «current» there, so the bar is not drawn rather than drawn with no selection.
-  const showTabs = !isSession && route !== 'galeria';
+  const { storage, clock, journal } = useAppServices();
+
+  // The sheet owns the whole viewport, so the tab bar is not drawn behind it. The
+  // gallery is a full-screen review page too: four tabs stay four, none «current».
+  const showTabs = !isSessionRoute(route) && route !== 'galeria';
+  const exitSession = (): void => {
+    window.location.hash = '#/inicio';
+  };
 
   return (
     <div className="shell" data-route={route}>
-      <main className="shell__main">{isSession ? <p>La sesión llega en T4.</p> : <Screen route={route} />}</main>
+      <main className="shell__main">
+        {route === 'sesion' ? (
+          <SessionScreen storage={storage} clock={clock} journal={journal} onExit={exitSession} />
+        ) : route === 'sesion/demo' ? (
+          <DemoSession onExit={exitSession} />
+        ) : (
+          <Screen route={route} />
+        )}
+      </main>
       {showTabs ? (
         <nav className="tabbar" aria-label="Navegación principal">
           {TABS.map((tab) => (
@@ -63,5 +82,17 @@ export function App(): React.ReactElement {
         </nav>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * The composition root: one storage instance and one clock, created once and handed
+ * down through context (`providers.tsx`). `main.tsx` keeps rendering `<App />`.
+ */
+export function App(): React.ReactElement {
+  return (
+    <AppProvider>
+      <AppShell />
+    </AppProvider>
   );
 }

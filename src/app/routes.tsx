@@ -1,17 +1,21 @@
 import { useEffect, useState } from 'react';
 
 /**
- * The four tabs, plus `sesion` and `galeria`. The gallery is a review surface, not a
- * tab: it is reachable only by `#/galeria` and the tab bar never gains a fifth entry.
+ * The four tabs, plus the session sheet and its demo, plus `galeria`. The gallery and
+ * the demo are review surfaces, not tabs: they are reachable only by their hash and the
+ * tab bar never gains a fifth entry.
+ *
+ * `sesion/demo` is a path, not a second route table: the session is one screen with two
+ * ports behind it, and `#/sesion/demo` is the same sheet fed by fixtures.
  */
-export const ROUTES = ['inicio', 'entrenar', 'progreso', 'perfil', 'sesion', 'galeria'] as const;
+export const ROUTES = ['inicio', 'entrenar', 'progreso', 'perfil', 'sesion', 'sesion/demo', 'galeria'] as const;
 export type Route = (typeof ROUTES)[number];
 
 const DEFAULT_ROUTE: Route = 'inicio';
 
 function parse(hash: string): Route {
-  const name = hash.replace(/^#\/?/, '').split('/')[0] ?? '';
-  return (ROUTES as readonly string[]).includes(name) ? (name as Route) : DEFAULT_ROUTE;
+  const path = hash.replace(/^#\/?/, '').replace(/\/+$/, '');
+  return (ROUTES as readonly string[]).includes(path) ? (path as Route) : DEFAULT_ROUTE;
 }
 
 /**
@@ -28,4 +32,9 @@ export function useHashRoute(): Route {
   }, []);
 
   return route;
+}
+
+/** `#/sesion` and `#/sesion/demo` are one screen over two ports. */
+export function isSessionRoute(route: Route): boolean {
+  return route === 'sesion' || route === 'sesion/demo';
 }

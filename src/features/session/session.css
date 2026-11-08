@@ -1,0 +1,301 @@
+/*
+ * The session sheet's layout: a full-height sheet over the tab bar (design-system §8),
+ * a horizontal scroll-snap track of cards, and one pinned bottom bar.
+ *
+ * Only tokens and structure here — no colour, radius, type size or duration is written
+ * as a literal. The two inline numbers the screen produces (the strip's bar heights and
+ * the pager's fill) are data, not design.
+ */
+
+.session {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-stack-gap);
+  background: var(--color-bg);
+  color: var(--color-text);
+  /* The status bar is styled, never assumed away (§2.3): the sheet starts below it. */
+  padding-top: var(--safe-top);
+  overscroll-behavior: contain;
+}
+
+.session__top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--layout-screen-padding) 0;
+  flex: none;
+}
+
+.session__exit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* §3 / S4: a 48 px target, even though the glyph is 22 px. */
+  width: var(--target-min);
+  height: var(--target-min);
+  color: var(--color-muted);
+  border-radius: var(--radius-control);
+}
+
+.session__when {
+  flex: 1;
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  color: var(--color-muted);
+}
+
+.session__top-spacer {
+  width: var(--target-min);
+  flex: none;
+}
+
+.session__notice,
+.session__body {
+  padding: 0 var(--layout-screen-padding);
+  flex: none;
+  min-height: 0;
+}
+
+.session__body {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-stack-gap);
+  padding-bottom: var(--space-2);
+}
+
+/* The paged cards: the platform's own scrolling physics, no scripted paging (§7.2). */
+.session__track {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  /* A swipe on the first or last card must not trigger Safari's back gesture. */
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.session__track::-webkit-scrollbar {
+  display: none;
+}
+
+.session__slide {
+  flex: 0 0 100%;
+  max-width: 100%;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  display: flex;
+  align-items: stretch;
+  padding: 0 var(--layout-screen-padding);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  min-height: 0;
+}
+
+.session-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-stack-gap);
+  width: 100%;
+  min-width: 0;
+}
+
+.session-card__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.session-card__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding-top: var(--space-1);
+}
+
+.session-card__compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.session-card__sets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* -------------------------------------------------- the last-six-sessions strip */
+
+.session-strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.session-strip__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.session-strip__bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-2);
+  height: 64px;
+}
+
+.session-strip__column {
+  flex: 1 1 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.session-strip__bar {
+  width: 100%;
+  max-width: 34px;
+  border-radius: var(--radius-track);
+  background: var(--color-surface-raised);
+}
+
+.session-strip__bar--today {
+  background: var(--color-accent);
+}
+
+.session-strip__label {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  color: var(--color-muted);
+  min-height: var(--leading-caption);
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------- the bottom bar */
+
+.session__bar {
+  flex: none;
+  padding: var(--space-2) var(--layout-screen-padding) var(--safe-bottom-padding);
+}
+
+.session__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.session__actions > * {
+  min-width: 0;
+}
+
+.session__actions--split > :last-child {
+  flex: 1 1 auto;
+}
+
+/* The quieter of two competing actions (§7.1): a pill, never a second accent fill. */
+.session__ghost {
+  flex: 0 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-height);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session__keypad {
+  flex: none;
+  padding: 0 var(--layout-screen-padding) var(--space-2);
+  max-height: 60dvh;
+  overflow-y: auto;
+}
+
+/* ---------------------------------------------------------------- the demo strip */
+
+.session__demo {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--layout-screen-padding);
+  background: var(--color-surface-raised);
+}
+
+.session__demo-title {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  letter-spacing: var(--tracking-caption);
+  color: var(--color-warning);
+  margin: 0;
+}
+
+.session__demo-scenarios {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: var(--space-1);
+}
+
+.session__demo-scenarios::-webkit-scrollbar {
+  display: none;
+}
+
+.session__demo-chip {
+  flex: none;
+  min-height: var(--target-min);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.session__demo-chip[aria-pressed='true'] {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+
+@media (max-width: 374px) {
+  .session__top,
+  .session__notice,
+  .session__body,
+  .session__slide,
+  .session__bar,
+  .session__keypad,
+  .session__demo {
+    padding-left: var(--layout-screen-padding-compact);
+    padding-right: var(--layout-screen-padding-compact);
+  }
+}
