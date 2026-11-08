@@ -43,3 +43,8 @@ TestResults/
 *.cer
 *.env
 .env.*
+
+# Node / TypeScript toolchain
+node_modules/
+coverage/
+*.tsbuildinfo
