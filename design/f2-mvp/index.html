@@ -216,8 +216,8 @@
   en español (D-9). Ningún color, tamaño ni radio inventado: si algo no está en el documento,
   aparece marcado como propuesta. Pantallas a 393 × 852 (iPhone 15).</p>
   <div class="skins">
-    <button data-s="a" class="on">Skin A · naranja</button>
-    <button data-s="b">Skin B · lima e iconos</button>
+    <button data-s="a">Skin A · naranja</button>
+    <button data-s="b" class="on">Skin B · lima e iconos</button>
   </div>
   <div class="rules">
     <div class="rule"><b>Gate G2 · estado</b>Entregables 1–6 dibujados. Estados vacíos de §7 dibujados.
@@ -912,7 +912,7 @@ add('Experimento','inicio-photo','Inicio · con foto de portada (experimento)',
  <div class="btn primary">${ico('play','ico fill')}Empezar entrenamiento</div>`, {nav:'Inicio'});
 
 /* ---------- render ---------- */
-let currentSkin = new URLSearchParams(location.search).get('skin') || 'a';
+let currentSkin = new URLSearchParams(location.search).get('skin') || 'b';
 function applySkin(skin) {
   currentSkin = skin;
   document.documentElement.dataset.skin = skin;
