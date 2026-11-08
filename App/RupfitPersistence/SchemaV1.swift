@@ -5,7 +5,7 @@ import RupfitCore
 /// SchemaV1 is registered from the first release with an empty migration plan, so
 /// adding a version later is a stage, not a data-loss incident (architecture.md §5).
 public enum SchemaV1: VersionedSchema {
-    public static var versionIdentifier = Schema.Version(1, 0, 0)
+    public static let versionIdentifier = Schema.Version(1, 0, 0)
 
     public static var models: [any PersistentModel.Type] {
         [
