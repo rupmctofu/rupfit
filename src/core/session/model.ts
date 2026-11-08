@@ -36,7 +36,7 @@ import type {
   ExercisePrescription,
   ProgressionRecommendation,
   TrainingPhase,
-} from '../../core/domain';
+} from '../domain';
 
 /* --------------------------------------------------------------- value types */
 

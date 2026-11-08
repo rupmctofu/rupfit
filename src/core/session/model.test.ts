@@ -16,7 +16,7 @@ import {
   type Discomfort,
   type Effort,
   type ExercisePrescription,
-} from '../../core/domain';
+} from '../domain';
 import {
   activeExercise,
   activeSet,
