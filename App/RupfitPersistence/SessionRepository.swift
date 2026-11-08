@@ -82,6 +82,29 @@ public actor SessionRepository {
         try modelContext.save()
     }
 
+    // MARK: - Plans and exercises
+
+    public func planDays() throws -> [PlanDay] {
+        try modelContext.fetch(FetchDescriptor<SchemaV1.PlanDayEntity>())
+            .sorted { $0.order < $1.order }
+            .map { try $0.toDomain() }
+    }
+
+    public func exercises() throws -> [Exercise] {
+        try modelContext.fetch(FetchDescriptor<SchemaV1.ExerciseEntity>())
+            .map { try $0.toDomain() }
+    }
+
+    public func upsertPlanDay(_ day: PlanDay) throws {
+        for existing in try modelContext.fetch(FetchDescriptor<SchemaV1.PlanDayEntity>())
+        where existing.id == day.id {
+            modelContext.delete(existing)
+        }
+        try modelContext.save()
+        SchemaV1.PlanDayEntity.insert(day, into: modelContext)
+        try modelContext.save()
+    }
+
     // MARK: - Rest (derived, never stored as a countdown)
 
     /// Remaining rest for the exercise of the last confirmed set, derived from
@@ -98,6 +121,38 @@ public actor SessionRepository {
         guard let latest else { return nil }
         let elapsed = now.timeIntervalSince(latest.confirmedAt)
         return max(0, TimeInterval(latest.restSeconds) - elapsed)
+    }
+
+    /// The user's decision is evidence too (I-8): it is written before the first
+    /// set is confirmed, not inferred later.
+    public func recordDecision(
+        sessionID: UUID,
+        exerciseID: UUID,
+        decision: LoadDecision,
+        recommendedKg: Double?,
+        usedKg: Double
+    ) throws {
+        guard let session = try fetchSession(id: sessionID) else {
+            throw RepositoryError.sessionNotFound
+        }
+        guard let exercise = session.exercises.first(where: { $0.id == exerciseID }) else {
+            throw RepositoryError.exerciseNotFound
+        }
+        switch decision {
+        case .accepted:
+            exercise.decisionRaw = "accepted"
+            exercise.decisionManualKg = nil
+        case .repeated:
+            exercise.decisionRaw = "repeated"
+            exercise.decisionManualKg = nil
+        case .manual(let kg):
+            exercise.decisionRaw = "manual"
+            exercise.decisionManualKg = kg
+        }
+        exercise.recommendedWeightKg = recommendedKg
+        exercise.usedWeightKg = usedKg
+        exercise.loadDeltaKg = recommendedKg.map { usedKg - $0 }
+        try modelContext.save()
     }
 
     // MARK: - Transitions
