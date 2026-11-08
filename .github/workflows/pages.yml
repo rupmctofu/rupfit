@@ -12,7 +12,10 @@ name: pages
 
 on:
   push:
-    branches: [main]
+    # `main` is the long-term target. `feature/pwa-platform` is listed so the app can be
+    # installed and tested on the phone before the branch is merged into the native-era
+    # `main`, whose documents conflict with the pivot and need a deliberate merge.
+    branches: [main, feature/pwa-platform]
   workflow_dispatch:
 
 # Least privilege: read-only by default. `pages: read` lets configure-pages resolve the
