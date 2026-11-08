@@ -66,19 +66,20 @@ is a full peer, not an afterthought. Only **one** accent hue exists.
 
 | Token | Hex | Use |
 | --- | --- | --- |
-| `bg.base` | `#0B0C0E` | App background |
-| `bg.surface` | `#14161A` | Cards |
-| `bg.raised` | `#1C1F25` | Sheets, timer bar, pressed states |
-| `stroke.hairline` | `#2A2E36` | 1 pt separators, card borders |
-| `text.primary` | `#F2F4F7` | Headings, weights, numbers |
-| `text.secondary` | `#A2A9B4` | Labels, reasons, metadata |
-| `text.tertiary` | `#7C8899` | Disabled, timestamps |
-| `accent` | `#C6F24E` | Primary action, selection, active state |
-| `onAccent` | `#101200` | Label on accent fill |
-| `accentText` | `#D9FF7C` | Accent used as text on dark |
-| `success` | `#7BE38F` | Set complete, PR |
-| `warning` | `#F0C24B` | Recovery advisory, missing effort |
-| `danger` | `#FF7B72` | Pain, destructive confirmation |
+| `bg.base` | `#101214` | App background (charcoal, not absolute black) |
+| `bg.surface` | `#171A1D` | Cards |
+| `bg.raised` | `#22262A` | Sheets, controls, pressed states |
+| `stroke.hairline` | `#303438` | 1 pt separators, card borders |
+| `text.primary` | `#F0F1EB` | Headings, weights, numbers |
+| `text.secondary` | `#92969D` | Labels, reasons, metadata |
+| `text.tertiary` | `#6F757C` | Disabled, timestamps |
+| `accent` | `#B8F34A` | Primary action, selection, active state, progress |
+| `onAccent` | `#101214` | Label on accent fill |
+| `accentText` | `#B8F34A` | Accent used as text on dark |
+| `accentMuted` | `#26301B` | Recommended weight, today cell, selected surfaces |
+| `success` | `#B8F34A` | Set complete, PR — **one green only** |
+| `warning` | `#E8B85C` | Recovery advisory, missing effort |
+| `danger` | `#E47777` | Pain, destructive confirmation |
 
 ### Light
 
@@ -94,6 +95,7 @@ is a full peer, not an afterthought. Only **one** accent hue exists.
 | `accent` | `#4E6A00` | Primary action |
 | `onAccent` | `#FFFFFF` | Label on accent fill |
 | `accentText` | `#405700` | Accent as text |
+| `accentMuted` | `#EDF2DB` | Recommended weight, today cell |
 | `success` | `#1A6B42` | Set complete, PR |
 | `warning` | `#7A5300` | Recovery advisory, missing effort |
 | `danger` | `#B3261E` | Pain, destructive confirmation |
@@ -104,13 +106,14 @@ Computed with the WCAG 2.1 relative-luminance formula on 2026-11-08:
 
 | Pair | Ratio | Requirement | Result |
 | --- | --- | --- | --- |
-| dark: `text.primary` / `bg.base` | 17.76:1 | 4.5 | pass |
-| dark: `text.secondary` / `bg.surface` | 7.65:1 | 4.5 | pass |
-| dark: `text.tertiary` / `bg.surface` | 5.04:1 | 3.0 | pass |
-| dark: `onAccent` / `accent` | 14.62:1 | 4.5 | pass |
-| dark: `accentText` / `bg.base` | 17.28:1 | 4.5 | pass |
-| dark: `danger` / `bg.surface` | 7.18:1 | 4.5 | pass |
-| dark: `success` / `bg.surface` | 11.41:1 | 3.0 | pass |
+| dark: `text.primary` / `bg.base` | 16.53:1 | 4.5 | pass |
+| dark: `text.secondary` / `bg.surface` | 5.88:1 | 4.5 | pass |
+| dark: `text.tertiary` / `bg.surface` | 3.75:1 | 3.0 | pass |
+| dark: `onAccent` / `accent` | 14.26:1 | 4.5 | pass |
+| dark: `accentText` / `bg.base` | 14.26:1 | 4.5 | pass |
+| dark: `accent` / `accentMuted` | 10.49:1 | 3.0 | pass |
+| dark: `danger` / `bg.surface` | 5.99:1 | 4.5 | pass |
+| dark: `success` / `bg.surface` | 13.28:1 | 3.0 | pass |
 | light: `text.primary` / `bg.surface` | 18.62:1 | 4.5 | pass |
 | light: `text.secondary` / `bg.surface` | 6.15:1 | 4.5 | pass |
 | light: `onAccent` / `accent` | 6.20:1 | 4.5 | pass |
@@ -121,7 +124,7 @@ Computed with the WCAG 2.1 relative-luminance formula on 2026-11-08:
 **Colour is never the only carrier of meaning.** A PR is not "the green number"; it
 carries the word `RÉCORD`. Pain is not a red row; it carries `dolor`.
 
-Chart series (max 4, distinguishable for deuteranopia): `#C6F24E`, `#4C9AFF`,
+Chart series (max 4, distinguishable for deuteranopia): `#B8F34A`, `#4C9AFF`,
 `#B39DFF`, `#6FD08C` — always paired with a direct label, never a legend alone.
 The estimated series is the dashed violet one; green was too close to the lime accent
 to be told apart (`design/README.md`, Skin B).
@@ -186,10 +189,11 @@ empty, error and loading decision is not finished.
 
 ### 6.2 `ExerciseCard`
 
-- Anatomy: name, previous session line, equipment and muscle chips, suggested load,
-  one-line reason, a `SessionHistoryStrip` of the last six sessions, set rows, and a
-  secondary `Cambiar el peso` text button. The session position lives in the pager,
-  not here (§10 forbids showing it twice).
+- Anatomy: name, a solid `accent` muscle chip plus a neutral equipment chip, two
+  comparison tiles (`Última vez` / `Peso de hoy`, the second on `accentMuted` with an
+  `accent` border), one-line reason, a `SessionHistoryStrip` of the last six
+  sessions, set rows, and a secondary `Cambiar el peso` text button. The session
+  position lives in the pager, not here (§10 forbids showing it twice).
 - States: first-time (no history, "elige un peso"), insufficient data, suggested,
   user-overridden, completed, skipped.
 - Paging: horizontal `TabView(.page)` with pinned chevrons. Swipe is a shortcut,
@@ -225,8 +229,15 @@ empty, error and loading decision is not finished.
 - Three equal actions: `Aceptar {{kg}}`, `Repetir {{kgPrevio}}`, `Otro peso`.
 - The first two are one tap. `Otro peso` opens a numeric keypad with the suggested
   weight pre-filled.
-- After a decision the bar collapses to a one-line summary with an edit affordance:
-  the weight remains changeable between sets (FR-5.7).
+- After a decision the bar collapses to the current weight with round `−` / `+`
+  steppers (44 pt) and a `Cambiar` text button for the keypad: the weight remains
+  changeable between sets (FR-5.7).
+
+### 6.4b `SessionPager`
+
+- Chevron (44 pt) · thin progress line · `2 / 6` · chevron. The line is the position,
+  so the pager does not repeat the card's text.
+- The count uses tabular digits; the label is announced as "Ejercicio 2 de 6".
 
 ### 6.5 `RestTimerBar`
 

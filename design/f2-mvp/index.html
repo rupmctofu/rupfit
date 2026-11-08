@@ -8,16 +8,18 @@
   /* Tokens copied verbatim from docs/design-system.md §3. If a token changes,
      it changes in both places in the same commit. */
   .phone.theme-dark{
-    --bg-base:#0B0C0E; --bg-surface:#14161A; --bg-raised:#1C1F25;
-    --stroke:#2A2E36; --text1:#F2F4F7; --text2:#A2A9B4; --text3:#7C8899;
+    --bg-base:#101214; --bg-surface:#171A1D; --bg-raised:#22262A;
+    --stroke:#303438; --text1:#F0F1EB; --text2:#92969D; --text3:#6F757C;
     --accent:#F26B3A; --on-accent:#12100E; --accent-text:#FF8A5C;
-    --success:#5BD98A; --warning:#F0C24B; --danger:#FF7B72;
+    --accent-muted:#3A2318;
+    --success:#5BD98A; --warning:#E8B85C; --danger:#E47777;
     --chart2:#4C9AFF; --chart3:#6FD08C; --chart4:#C08CFF;
   }
   .phone.theme-light{
     --bg-base:#F7F7F9; --bg-surface:#FFFFFF; --bg-raised:#EEF0F3;
     --stroke:#E3E5EA; --text1:#111315; --text2:#5A6270; --text3:#6E7787;
     --accent:#C24A16; --on-accent:#FFFFFF; --accent-text:#B8430F;
+    --accent-muted:#F6E6DF;
     /* success/warning are not defined for light in §3: proposal, pending review. */
     --success:#1A6B42; --warning:#7A5300; --danger:#B3261E;
     --chart2:#2F6FBF; --chart3:#2E8B57; --chart4:#7A4FBF;
@@ -61,6 +63,7 @@
   .label{font-size:13px;line-height:18px;font-weight:500;letter-spacing:.6px;text-transform:uppercase;color:var(--text2)}
   .label .ico{width:14px;height:14px;stroke-width:2;vertical-align:-2px;margin-right:2px}
   .title{font-size:22px;line-height:28px;font-weight:600;letter-spacing:-.2px}
+  .title.big{font-size:26px;line-height:32px;letter-spacing:-.4px}
   .metric{font-family:ui-rounded,-apple-system,sans-serif;font-size:44px;line-height:48px;font-weight:600;
     letter-spacing:-1px;font-variant-numeric:tabular-nums}
   .metric.sm{font-size:28px;line-height:32px;letter-spacing:-.4px}
@@ -164,13 +167,15 @@
   /* Skin B — the owner's reference: lime accent, pill controls, larger cards.
      Same structure, same copy; only tokens and radii change. */
   html[data-skin="b"] .phone.theme-dark{
-    --accent:#C6F24E; --on-accent:#101200; --accent-text:#D9FF7C;
-    --success:#7BE38F;
+    --accent:#B8F34A; --on-accent:#101214; --accent-text:#B8F34A;
+    --accent-muted:#26301B;
+    --success:#B8F34A;   /* their rule: one green, no second success hue */
     /* chart3 must not collide with the lime accent under deuteranopia */
     --chart3:#B39DFF; --chart4:#4C9AFF;
   }
   html[data-skin="b"] .phone.theme-light{
     --accent:#4E6A00; --on-accent:#FFFFFF; --accent-text:#405700;
+    --accent-muted:#EDF2DB;
     --success:#1A6B42;
   }
   html[data-skin="b"] .card{border-radius:16px}
@@ -180,6 +185,23 @@
   html[data-skin="b"] .rest{border-radius:16px}
   html[data-skin="b"] .banner{border-radius:14px}
   html[data-skin="b"] .ibadge{border-radius:12px}
+
+  .compare{flex:1;min-width:0;background:var(--bg-surface);border:1px solid var(--stroke);
+    border-radius:16px;padding:12px 14px}
+  .compare.today{background:var(--accent-muted);border-color:var(--accent)}
+  .compare.today .label{color:var(--accent-text)}
+  .compare.today .metric.sm{color:var(--accent-text)}
+  .compare .metric.sm{font-size:28px;line-height:32px}
+
+  .wstep{display:flex;gap:8px}
+  .wstep .b{width:44px;height:44px;border-radius:999px;background:var(--bg-raised);
+    display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--text1)}
+
+  .chip.solid{background:var(--accent);color:var(--on-accent);border-color:transparent;font-weight:600}
+
+  .paging .track{flex:1;height:3px;border-radius:2px;background:var(--bg-raised);overflow:hidden;margin:0 12px}
+  .paging .track > i{display:block;height:100%;background:var(--accent);border-radius:2px}
+  .paging .count{font-size:12px;color:var(--text2);font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
 
   .st{font-size:13px;font-weight:600;white-space:nowrap}
   .st.success{color:var(--success)} .st.accent{color:var(--accent-text)} .st.muted{color:var(--text3)}
@@ -191,7 +213,7 @@
   .day .m{font-size:11px;letter-spacing:.6px;color:var(--text3)}
   .day .s{font-size:14px;line-height:16px}
   .day.done{color:var(--success)}
-  .day.now{background:transparent;border:1px solid var(--accent);color:var(--accent-text)}
+  .day.now{background:var(--accent-muted);border:1px solid var(--accent);color:var(--accent-text)}
   .day.rest{opacity:.55}
 
   .photo{height:150px;border-radius:16px;border:1px dashed var(--stroke);
@@ -330,10 +352,13 @@ const decisionBar = ({suggested='92,5', previous='90'}) => `
 const collapsedDecision = ({kg='92,5', how='Aceptado'}) => `
 <div class="rowline" style="padding:2px 0 6px">
   <div><span class="caption">PESO DE HOY</span>
-    <div style="font-size:17px;font-weight:600">${kg} kg</div></div>
-  <div class="btn text" style="height:36px">Cambiar</div>
+    <div style="font-size:20px;font-weight:600">${kg} kg</div></div>
+  <div class="wstep"><div class="b">−</div><div class="b">+</div></div>
 </div>
-<div class="caption">Objetivo · 3 × 10 a 3–4 RIR · descanso 180 s</div>`;
+<div class="rowline">
+  <div class="caption">Objetivo · 3 × 10 a 3–4 RIR · descanso 180 s</div>
+  <div class="btn text" style="height:auto;padding:0;font-size:12px">Cambiar</div>
+</div>`;
 
 const sessionHistory = () => `
 <div class="rowline"><div class="label">Últimas 6 sesiones</div><div class="caption">serie top</div></div>
@@ -347,12 +372,16 @@ const sessionHistory = () => `
   <text x="277" y="52" font-size="9" fill="var(--text3)" text-anchor="middle">hoy</text>
 </svg>`;
 
-const paging = (pos='2') => `
-<div class="paging">
+const paging = (pos='2', total=6) => {
+  const n = Number(pos);
+  const pct = Math.round((n / total) * 100);
+  return `<div class="paging">
   <div class="chev">${ico('chevronL')}</div>
-  <div class="pos">Ejercicio ${pos} de 6</div>
+  <div class="track"><i style="width:${pct}%"></i></div>
+  <div class="count">${pos} / ${total}</div>
   <div class="chev">${ico('chevronR')}</div>
 </div>`;
+};
 
 const restBar = (t='1:45', pct=38) => `
 <div class="rest">
@@ -452,7 +481,16 @@ add('Inicio','inicio-history','Inicio · con historial',
    <div class="rowline" style="margin-top:12px"><span class="meta">2 de 3 sesiones</span><span class="meta">14 series duras</span></div>
  </div>
  <div class="card tight">
-   <div class="rowline"><span class="meta">Actividad de Salud</span><span class="chip">sin conectar</span></div>
+   <div class="rowline">
+     <div><div class="label">${ico('scale')}Peso corporal</div>
+       <div class="metric sm" style="margin-top:2px">79,8<span style="font-size:12px;font-weight:500;color:var(--text2)"> kg</span></div>
+       <div class="caption">media 7 días · 5 pesajes</div></div>
+     <svg viewBox="0 0 110 44" width="110" height="44" aria-label="Tendencia de peso de 7 días">
+       <polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"
+         points="4,26 22,22 40,24 58,18 76,20 94,14 106,15"/>
+       <circle cx="106" cy="15" r="3" fill="var(--accent)"/>
+     </svg>
+   </div>
  </div>`, {nav:'Inicio'});
 
 add('Inicio','inicio-first','Inicio · primera vez, sin historial',
@@ -548,14 +586,13 @@ add('Sesión','sesion-decision','Sesión · decisión de peso',
    <div style="width:22px"></div></div>
  ${phaseBanner('2')}
  <div class="card" style="flex:1;min-height:0">
-   <div class="title">Peso muerto convencional</div>
-   <div class="meta" style="margin-top:2px">Sesión anterior · 90 kg × 10 · correcto</div>
-   <div class="chips" style="margin-top:8px"><span class="chip">${ico('barbell')}Barra</span><span class="chip">Cadena posterior</span></div>
-   <div class="divider"></div>
-   <div class="rowline" style="align-items:flex-end">
-     <div class="metric">92,5<span style="font-size:20px;font-weight:600"> kg</span></div>
+   <div class="title big">Peso muerto convencional</div>
+   <div class="chips" style="margin-top:8px"><span class="chip solid">${ico('barbell')}Barra</span><span class="chip">Cadena posterior</span></div>
+   <div style="display:flex;gap:8px;margin-top:12px">
+     <div class="compare"><div class="label">Última vez</div><div class="metric sm">90 kg</div><div class="caption">3 × 10 · correcto</div></div>
+     <div class="compare today"><div class="label">Peso de hoy</div><div class="metric sm">92,5 kg</div><div class="caption">3 × 10</div></div>
    </div>
-   <div class="body" style="margin-top:6px;color:var(--text2)">Completaste 3 series de 10 con 90 kg. Subimos 2,5 kg.</div>
+   <div class="body" style="margin-top:10px;color:var(--text2)">Completaste 3 series de 10 con 90 kg. Subimos 2,5 kg.</div>
    <div class="divider"></div>
    ${sessionHistory()}
    <div class="divider"></div>
@@ -575,8 +612,9 @@ add('Sesión','sesion-progress','Sesión · en curso, con descanso',
    <div style="width:22px"></div></div>
  ${phaseBanner('2')}
  <div class="card" style="flex:1;min-height:0">
-   <div class="title">Peso muerto convencional</div>
+   <div class="title big">Peso muerto convencional</div>
    <div class="meta" style="margin-top:2px">Sesión anterior · 90 kg × 10 · correcto</div>
+   <div class="chips" style="margin-top:8px"><span class="chip solid">${ico('barbell')}Barra</span><span class="chip">Cadena posterior</span></div>
    <div class="divider"></div>
    ${collapsedDecision({kg:'92,5'})}
    <div class="divider"></div>
@@ -598,8 +636,9 @@ add('Sesión','sesion-first','Sesión · primera vez en el ejercicio',
    <div style="width:22px"></div></div>
  ${phaseBanner('1')}
  <div class="card" style="flex:1;min-height:0">
-   <div class="title">Remo con barra</div>
+   <div class="title big">Remo con barra</div>
    <div class="meta" style="margin-top:2px">Sin historial en este ejercicio</div>
+   <div class="chips" style="margin-top:8px"><span class="chip solid">${ico('barbell')}Barra</span><span class="chip">Espalda alta</span></div>
    <div class="divider"></div>
    <div class="body">Elige un peso con el que puedas hacer unas 15 repeticiones. La primera recomendación real llegará en la próxima sesión.</div>
    <div class="caption" style="margin-top:6px">Objetivo · 2 × 12 a 4 RIR · descanso 120 s</div>
@@ -669,8 +708,9 @@ add('Sesión','sesion-light','Sesión · tema claro (peer, no ocurrencia)',
    <div style="width:22px"></div></div>
  ${phaseBanner('2')}
  <div class="card" style="flex:1;min-height:0">
-   <div class="title">Peso muerto convencional</div>
+   <div class="title big">Peso muerto convencional</div>
    <div class="meta" style="margin-top:2px">Sesión anterior · 90 kg × 10 · correcto</div>
+   <div class="chips" style="margin-top:8px"><span class="chip solid">${ico('barbell')}Barra</span><span class="chip">Cadena posterior</span></div>
    <div class="divider"></div>
    ${collapsedDecision({kg:'92,5'})}
    <div class="divider"></div>

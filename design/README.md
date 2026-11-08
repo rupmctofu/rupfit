@@ -121,3 +121,27 @@ as decoration, so adopting imagery needs a PRD change.
 did not exist: while illustration is missing, the card shows the exercise name and
 its equipment glyph — no grey frame, no stock photo. When P1 illustration ships it is
 line art on `bg.raised`, square, never inside the set rows.
+
+## Skin B.2 — the owner's design system (2026-11-08)
+
+The owner left `design/rupfit-design-system.md` and two mockups. Adopted:
+
+- **Warm palette**: `#101214` background, `#171A1D` surface, `#22262A` raised,
+  `#303438` border, `#F0F1EB` text, lime `#B8F34A`, and `accentMuted` `#26301B` for
+  the recommended weight and today's cell. All pairs re-measured (see the table in
+  `docs/design-system.md` §3).
+- **One green**: success is the accent, per their rule; no second success hue.
+- **Comparison tiles** (`Última vez` / `Peso de hoy`) instead of a bare previous-set
+  line, the second one on `accentMuted` with a lime border.
+- **Weight steppers**: round `−` / `+` on the collapsed decision, plus `Cambiar` for
+  the keypad.
+- **Session pager** as chevrons + thin progress line + `2 / 6`: one position
+  indicator, not a bar plus a repeated label.
+- **Body-weight tile** with a sparkline on Inicio (real data, no invented delta).
+
+Not adopted, with the reason: exercise **photos** (FR-2.4 leaves illustration in P1
+and a hero costs the last session), `Registrar` per set (we keep two taps:
+confirm reps → done), the primary CTA inside the card (it stays full-width in the
+thumb zone) and 52 pt buttons (we keep 56).
+
+The two PNGs and the markdown are kept here as references, not as assets.

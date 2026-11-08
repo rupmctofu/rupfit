@@ -105,11 +105,17 @@ Exit gate:
   decision bar and rest bar keep their structure.
 - Every screen in `design-system.md` §7 has its empty state drawn. Done.
 
-**Closed 2026-11-08.** Decisions taken at the gate: Skin B (lime `#C6F24E`, pill
-controls, 16 pt cards); icons adopted and mapped to SF Symbols; session position in
+**Closed 2026-11-08.** Decisions taken at the gate: Skin B (lime, pill controls,
+16 pt cards); icons adopted and mapped to SF Symbols; session position in
 the pager only; no photos (illustration stays P1, placeholder rule added to
 `design-system.md` §6.2); confidence as phrasing, not a badge; `Perfil` without
 global training settings. `design-system.md` §3, §5, §6 and §7 carry the amendments.
+
+**Post-gate polish, 2026-11-08:** the owner supplied a design-system draft and two
+mockups; the warm palette (`#101214`/`#171A1D`, lime `#B8F34A`, `accentMuted`
+`#26301B`), the comparison tiles, the weight steppers, the pager progress line and
+the body-weight sparkline were adopted. Photos were not: `FR-2.4` keeps illustration
+in P1 and the hero costs the last session. Details in `design/README.md`.
 
 ### F3 — Domain and engine (the highest-value phase)
 
