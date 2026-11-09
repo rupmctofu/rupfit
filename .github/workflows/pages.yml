@@ -59,8 +59,18 @@ jobs:
 
       # `npm run build` repeats the typecheck and then runs `vite build`, emitting `dist`
       # with the `/rupfit/` base, the manifest and the precached icons.
+      #
+      # The two cloud values are inlined into the bundle by Vite at build time, so the
+      # workflow has to see them or the deployed app ships without an account. Both are
+      # public by design (RLS is the boundary, not the key's secrecy); they live in
+      # repository secrets only so the URL and key are not scattered through the tree.
+      # A missing secret is not a failure: the app builds and runs local-only, which is
+      # exactly what an account-less install should do.
       - name: Build
         run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       # No `enablement: true`: enabling Pages stays an owner decision in repository settings.
       - name: Configure Pages
