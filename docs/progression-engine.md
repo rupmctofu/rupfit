@@ -129,7 +129,7 @@ template. No sentence is generated; the template is fixed and reviewable.
 
 | `ReasonCode` | Action | Spanish line shown to the user |
 | --- | --- | --- |
-| `insufficientData` | `insufficientData` | `Sin historial en este ejercicio. Elige un peso con el que puedas hacer 15 repeticiones.` |
+| `insufficientData` | `insufficientData` | `Sin historial en este ejercicio. Elige un peso con el que puedas completar las repeticiones del objetivo.` |
 | `coldStartFromCalibration` | `startFirstTime` | `Sin historial. Partimos de tu referencia de {{reps}} repeticiones con {{kg}} kg, rebajada un 30 %.` |
 | `topOfRangeReached` | `increase` | `Completaste {{sets}} series de {{reps}} repeticiones con {{kg}} kg. Subimos a {{next}} kg.` |
 | `topOfRangeReachedEffortUnknown` | `increase` | `Completaste todas las series al tope de {{reps}} repeticiones. Subimos a {{next}} kg, pero no registraste el esfuerzo.` |

@@ -6,8 +6,10 @@
 import type { BlockCriterion, ProgressionAction, ReasonCode, ReasonContext } from '../domain';
 
 export const REASON_TEMPLATES: Record<ReasonCode, string> = {
+  // The number is not written here: with four profiles the prescribed reps differ per
+  // exercise, and a template that says 15 would contradict the objective line.
   insufficientData:
-    'Sin historial en este ejercicio. Elige un peso con el que puedas hacer 15 repeticiones.',
+    'Sin historial en este ejercicio. Elige un peso con el que puedas completar las repeticiones del objetivo.',
   coldStartFromCalibration:
     'Sin historial. Partimos de tu referencia de {{reps}} repeticiones con {{kg}} kg, rebajada un 30 %.',
   topOfRangeReached:

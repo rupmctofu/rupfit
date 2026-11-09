@@ -53,7 +53,7 @@ describe('§4 the reason catalogue', () => {
 
   it('§4 the templates are the lines written in the document', () => {
     expect(REASON_TEMPLATES.insufficientData).toBe(
-      'Sin historial en este ejercicio. Elige un peso con el que puedas hacer 15 repeticiones.',
+      'Sin historial en este ejercicio. Elige un peso con el que puedas completar las repeticiones del objetivo.',
     );
     expect(REASON_TEMPLATES.coldStartFromCalibration).toBe(
       'Sin historial. Partimos de tu referencia de {{reps}} repeticiones con {{kg}} kg, rebajada un 30 %.',
@@ -144,7 +144,7 @@ describe('§4 template rendering', () => {
 
   it('§4 a reason without placeholders renders unchanged', () => {
     expect(formatReason('insufficientData', {})).toBe(
-      'Sin historial en este ejercicio. Elige un peso con el que puedas hacer 15 repeticiones.',
+      'Sin historial en este ejercicio. Elige un peso con el que puedas completar las repeticiones del objetivo.',
     );
   });
 
