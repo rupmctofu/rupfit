@@ -1,9 +1,16 @@
 /*
- * Entrenar — the week's routine and what happened in it (design-system §8).
+ * Ejercicios — the routine the owner can train from, and the real session for today
+ * (design-system §8).
  *
- * The title and the week, today when nothing is scheduled, the ordered template with one
- * state word per day — written only when the day has something to say — the readaptation
- * block quoted quietly, and one entry to routine management.
+ * The tab is called `Ejercicios`, so the screen opens the way the reference's chosen
+ * direction does: the session that really exists today (or no session at all), then the
+ * routine days as the surface's body, then the readaptation block quoted quietly. A rest
+ * day is one sentence under the routine, never the hero of the screen; a day that says
+ * nothing keeps saying nothing (`pendiente` is not repeated down the list).
+ *
+ * One filled violet action at most: `Abrir la sesión de hoy`, and only when a session for
+ * today exists. Every other action of the screen — including opening a day to reorder,
+ * edit or start it — lives in the routine sheet, where it already did.
  *
  * The management sheet is a real editor (`RoutineEditor.tsx`): it reorders, adds,
  * removes and re-prescribes through `plan.save`, one day per call. Its rules live in
@@ -16,11 +23,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
+  Banner,
   Card,
   Chip,
   DataRow,
   EmptyState,
   ErrorBanner,
+  Icon,
+  PrimaryAction,
   SectionLabel,
   TextButton,
 } from '../../design-system';
@@ -30,6 +40,7 @@ import type { Clock } from '../session/controller';
 import { useStartSession, type StartNotice } from '../session/startSession';
 import { summaryHash } from '../summary/route';
 import { DemoTrain } from './DemoTrain';
+import { formatExerciseCount } from '../home/format';
 import { demoFlagOf, useLocationKey } from '../home/useHash';
 import { RoutineSheet, type EditorSource, type SaveDayResult } from './RoutineEditor';
 import { trainViewOf, type TrainInput, type TrainView } from './selectors';
@@ -89,10 +100,21 @@ export function TrainBody(props: TrainBodyProps): React.ReactElement {
     startNotice,
   } = props;
 
+  // Today's session is opened through the template day it belongs to: `planStart` opens
+  // the session already scheduled for today instead of writing a second one. A session
+  // whose day has since left the template keeps its title on screen and offers no
+  // action, because there is no day left to name.
+  const todaySession = view.today !== null && view.today.kind === 'session' ? view.today : null;
+  const todayDay =
+    todaySession === null
+      ? null
+      : (view.days.find((day) => day.sessionId === todaySession.sessionId) ?? null);
+  const todayClosed = todayDay !== null && todayDay.status.word === 'hecha';
+
   return (
     <div className="train">
       <header className="train__head">
-        <h1 className="ds-screen-title">Entrenar</h1>
+        <h1 className="ds-screen-title">Ejercicios</h1>
         <p className="ds-meta">{view.weekLabel}</p>
       </header>
 
@@ -104,19 +126,49 @@ export function TrainBody(props: TrainBodyProps): React.ReactElement {
         </section>
       ) : null}
 
-      {view.today !== null && view.today.kind === 'rest' ? (
+      {/* The real session for today, carried by the session and not by the template: when
+          the two disagree, the session wins and no day is claimed that has not been
+          scheduled. It is the one place the screen spends the violet fill. */}
+      {todaySession === null ? null : (
         <section className="train__section">
-          <SectionLabel>Hoy</SectionLabel>
-          {/* A rest day is not the headline of the screen: the three routine days are.
-              It used to be a card with a 22 px `Nada programado` title above them. */}
-          <p className="ds-body ds-body--muted">
-            Hoy no hay ninguna sesión programada. Descansa, o adelanta un día desde la rutina.
-          </p>
+          <SectionLabel icon={<Icon name="calendar" size={14} />}>Hoy</SectionLabel>
+          <Card padding="dense" className="train__today">
+            <h2 className="ds-card-title">{todaySession.title}</h2>
+            {todayDay === null || todayClosed ? null : (
+              <p className="ds-meta">{formatExerciseCount(todayDay.items.length)}</p>
+            )}
+          </Card>
+
+          {todayDay === null ? null : todayClosed ? (
+            <TextButton onClick={() => onOpenSession(todaySession.sessionId)}>Ver el resumen</TextButton>
+          ) : (
+            <PrimaryAction
+              icon="play"
+              disabled={starting}
+              onClick={() => onStartDay(todayDay.planDayId)}
+            >
+              {starting ? 'Abriendo…' : 'Abrir la sesión de hoy'}
+            </PrimaryAction>
+          )}
+
+          {/* Why nothing opened. The sheet repeats the same sentence when it is open, so
+              this one only belongs to the screen behind it. */}
+          {routine !== null || startNotice === null ? null : startNotice.tone === 'danger' ? (
+            <ErrorBanner
+              message={startNotice.message}
+              {...(todayDay === null
+                ? {}
+                : { onRetry: () => onStartDay(todayDay.planDayId) })}
+            />
+          ) : (
+            <Banner tone="warning" title={startNotice.message} />
+          )}
         </section>
-      ) : null}
+      )}
 
       {view.days.length === 0 ? null : (
         <section className="train__section">
+          <SectionLabel>Tu rutina</SectionLabel>
           <Card padding="list" label="Días de la rutina">
             {view.days.map((day) => {
               // S3: `pendiente` is the ordinary state of a fresh week, so three identical
@@ -141,8 +193,17 @@ export function TrainBody(props: TrainBodyProps): React.ReactElement {
               );
             })}
           </Card>
+          <TextButton onClick={() => onOpenRoutine(null)}>Ver y editar la rutina</TextButton>
         </section>
       )}
+
+      {/* A rest day is not the headline of the screen: the routine days above are. One
+          quiet sentence, after them, and no card to announce it. */}
+      {view.today !== null && view.today.kind === 'rest' ? (
+        <p className="ds-meta">
+          Hoy no hay ninguna sesión programada. Descansa, o adelanta un día desde tu rutina.
+        </p>
+      ) : null}
 
       {view.phase === null ? null : (
         <section className="train__section">
@@ -155,10 +216,6 @@ export function TrainBody(props: TrainBodyProps): React.ReactElement {
             <p className="ds-caption">{view.phase.note}</p>
           </Card>
         </section>
-      )}
-
-      {view.days.length === 0 ? null : (
-        <TextButton onClick={() => onOpenRoutine(null)}>Ver la rutina</TextButton>
       )}
 
       {routine === null ? null : (

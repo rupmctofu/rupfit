@@ -1,9 +1,12 @@
 /*
  * Inicio — the screen that answers "what do I do now?" (design-system §8).
  *
- * Greeting and date, today's session with its exercise count and its estimate, one
- * primary action, the last session, the week, the body weight when there is a weight to
- * show, and the three platform notices of §7.8 when they apply.
+ * The reference direction (design/rupfit-inspiration/01-reference-flow.html) fixes the
+ * order and this file follows it: the title «¡Vamos a entrenar!», the next session card,
+ * and one primary action next to that card. The personalised name and the date stay on
+ * screen under the title, smaller than the action; the week, the last session, the body
+ * weight, the imported activity and the empty states move below it. The platform notices
+ * of §7.8 keep their tone and sit under the action, never above the day.
  *
  * The file holds no decision worth testing: `homeViewOf` decides, this renders. Two
  * rules it does keep:
@@ -133,17 +136,27 @@ function navigateTo(href: string): void {
   window.location.hash = href;
 }
 
+/** The screen's own title: the reference direction's first line, not the greeting. */
+export const HOME_TITLE = '¡Vamos a entrenar!';
+
 /** The blocks below draw the view; only the body owns the actions. */
 interface HomeViewOnly {
   readonly view: HomeView;
 }
 
-/** Today's block: the session, the day the rotation names, or the honest empty card. */
-function TodayBlock({ view }: HomeViewOnly): React.ReactElement {
+/**
+ * The next session: the first card of the screen, and the only one above the action.
+ *
+ * It is `Hoy toca` renamed to what the direction calls it — `Tu próxima sesión` — and it
+ * carries the same facts as before (day, exercise count, estimate, phase, prescribed
+ * sets, the completed line, the created-on-start note). Nothing is added and nothing is
+ * estimated twice: when the store answers nothing, this is the honest empty card.
+ */
+function NextSessionBlock({ view }: HomeViewOnly): React.ReactElement {
   if (view.today === null) {
     return (
       <section className="home__section">
-        <SectionLabel icon={<Icon name="calendar" size={14} />}>Hoy toca</SectionLabel>
+        <SectionLabel icon={<Icon name="calendar" size={14} />}>Tu próxima sesión</SectionLabel>
         {view.nothingToday === 'emptyDay' ? (
           <Card>
             <h2 className="ds-card-title">Sin ejercicios</h2>
@@ -163,15 +176,22 @@ function TodayBlock({ view }: HomeViewOnly): React.ReactElement {
   const today = view.today;
   return (
     <section className="home__section">
-      <SectionLabel icon={<Icon name="calendar" size={14} />}>Hoy toca</SectionLabel>
-      <Card label={today.dayName}>
-        <h2 className="ds-card-title">{formatDayName(today.dayName)}</h2>
-        <p className="ds-meta">{today.detail}</p>
+      <SectionLabel icon={<Icon name="calendar" size={14} />}>Tu próxima sesión</SectionLabel>
+      <Card label={formatDayName(today.dayName)}>
+        <div className="home__next-row">
+          <span className="home__next-badge" aria-hidden="true">
+            <Icon name="calendar" size={18} />
+          </span>
+          <span className="home__next-main">
+            <span className="ds-card-title">{formatDayName(today.dayName)}</span>
+            <span className="ds-meta">{today.detail}</span>
+          </span>
+        </div>
         {today.phase === null && today.series === null ? null : (
           <>
             <hr className="ds-hairline" />
-            <div className="ds-row">
-              <span className="ds-body ds-body--muted">{today.phase ?? ''}</span>
+            <div className="ds-row home__next-meta">
+              {today.phase === null ? null : <span className="ds-meta">{today.phase}</span>}
               {today.series === null ? null : <Chip>{today.series}</Chip>}
             </div>
           </>
@@ -211,13 +231,20 @@ function LastSessionCard({ view }: HomeViewOnly): React.ReactElement | null {
   );
 }
 
+/**
+ * The week, now a secondary block: the days the week actually has, and how many of them
+ * are done as `x de y sesiones` — a count, never a percentage.
+ */
 function WeekCard({ view }: HomeViewOnly): React.ReactElement | null {
   const week = view.week;
   if (week === null) return null;
   return (
     <section className="home__section">
-      <SectionLabel icon={<Icon name="calendar" size={14} />}>Esta semana</SectionLabel>
-      <Card label="Esta semana">
+      <div className="home__section-head">
+        <SectionLabel icon={<Icon name="calendar" size={14} />}>Esta semana</SectionLabel>
+        <Chip>{week.done}</Chip>
+      </div>
+      <Card label="Esta semana" padding="dense">
         <div className="home__week" role="list">
           {week.cells.map((cell) => (
             <span key={cell.key} role="listitem" className={`home__day home__day--${cell.state}`}>
@@ -231,10 +258,7 @@ function WeekCard({ view }: HomeViewOnly): React.ReactElement | null {
             </span>
           ))}
         </div>
-        <div className="ds-row">
-          <span className="ds-body ds-body--muted">{week.done}</span>
-          <span className="ds-body ds-body--muted">{week.hard}</span>
-        </div>
+        <p className="ds-caption">{week.hard}</p>
       </Card>
     </section>
   );
@@ -297,41 +321,14 @@ export function HomeBody({
 
   return (
     <div className="home">
+      {/* The reference hierarchy: the title is the screen's, not a person's, and the name
+          and the date stay one quiet line under it. */}
       <header className="home__head">
-        <h1 className="ds-screen-title">{view.greeting}</h1>
-        <p className="ds-meta">{view.dateLine}</p>
+        <h1 className="ds-screen-title">{HOME_TITLE}</h1>
+        <p className="ds-meta">{`${view.greeting} · ${view.dateLine}`}</p>
       </header>
 
-      {/* §7.8: the evicted state is the only one that is not dismissible. */}
-      {view.notice.evicted ? (
-        <Banner
-          tone="danger"
-          title="Los datos guardados ya no están. Importa tu copia si la tienes."
-          {...(view.notice.lastExport === null
-            ? {}
-            : { text: `La última copia que se exportó es del ${view.notice.lastExport}.` })}
-          action={{ label: 'Importar copia', onClick: () => navigate('#/perfil') }}
-        />
-      ) : null}
-
-      <TodayBlock view={view} />
-
-      {/* Why nothing opened. A failed write offers `Reintentar`; a missing profile sends
-          the owner to the tab that can fix it, because a retry cannot. */}
-      {startNotice === null ? null : startNotice.tone === 'danger' ? (
-        <ErrorBanner
-          message={startNotice.message}
-          {...(startNotice.retry ? { onRetry: onStart } : {})}
-        />
-      ) : (
-        <Banner
-          tone="warning"
-          title={startNotice.message}
-          {...(startNotice.profile
-            ? { action: { label: 'Ir a Perfil', onClick: () => navigate('#/perfil') } }
-            : {})}
-        />
-      )}
+      <NextSessionBlock view={view} />
 
       {action === null ? null : (
         <PrimaryAction
@@ -350,10 +347,41 @@ export function HomeBody({
         </PrimaryAction>
       )}
 
-      {/* §7.8: advisory, stated once, and only when there is something to lose. It used
-          to sit above `Hoy toca` in warning orange, so the first thing the screen said was
-          a platform chore. It moves under the session action: the day first, the advice
-          afterwards. */}
+      {/* Everything below is secondary to the day above: why nothing opened (§7.8), the
+          store's own bad news, and the platform advisory. A failed write offers
+          `Reintentar`; a missing profile sends the owner to the tab that can fix it,
+          because a retry cannot. */}
+      {startNotice === null ? null : startNotice.tone === 'danger' ? (
+        <ErrorBanner
+          message={startNotice.message}
+          {...(startNotice.retry ? { onRetry: onStart } : {})}
+        />
+      ) : (
+        <Banner
+          tone="warning"
+          title={startNotice.message}
+          {...(startNotice.profile
+            ? { action: { label: 'Ir a Perfil', onClick: () => navigate('#/perfil') } }
+            : {})}
+        />
+      )}
+
+      {/* §7.8: the evicted state is the only one that is not dismissible. It keeps the
+          danger tone and its import action; it sits under the action so the day still
+          comes first. */}
+      {view.notice.evicted ? (
+        <Banner
+          tone="danger"
+          title="Los datos guardados ya no están. Importa tu copia si la tienes."
+          {...(view.notice.lastExport === null
+            ? {}
+            : { text: `La última copia que se exportó es del ${view.notice.lastExport}.` })}
+          action={{ label: 'Importar copia', onClick: () => navigate('#/perfil') }}
+        />
+      ) : null}
+
+      {/* §7.8: advisory, stated once, and only when there is something to lose. Its
+          warning tone is unchanged; it sits under the day, never above it. */}
       {view.notice.notInstalled ? (
         <Banner
           tone="warning"
@@ -368,8 +396,10 @@ export function HomeBody({
         </EmptyState>
       )}
 
-      <LastSessionCard view={view} />
+      {/* The week first, then the last session it already contains: both are history, and
+          both are read-only context under the action. */}
       <WeekCard view={view} />
+      <LastSessionCard view={view} />
       <WeightCard view={view} />
       <ActivityCard view={view} />
     </div>

@@ -24,6 +24,51 @@
   gap: var(--space-2);
 }
 
+/* A section label and the count that belongs to it: `ESTA SEMANA` + `2 de 3 sesiones`. */
+.home__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* The next session: the badge, the day and its numbers. Nothing in it may push the card
+   wider than the screen, so the text column is the only part that can shrink. */
+.home__next-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.home__next-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-badge);
+  height: var(--size-badge);
+  border-radius: var(--radius-badge);
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+}
+
+.home__next-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* Phase and prescribed sets on one line when they fit, two when they do not: the row
+   wraps instead of pushing the card past the screen. */
+.home__next-meta {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: var(--space-2);
+}
+
 /* One primary action per screen (design-system §7.1), in the thumb zone. */
 .home__primary {
   width: 100%;

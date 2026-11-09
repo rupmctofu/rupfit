@@ -318,11 +318,11 @@ export function buildSession(input: BuildSessionInput): BuiltSession {
 export type StartRefusal = 'noPlan' | 'noProfile' | 'emptyDay' | 'unknownDay';
 
 export const START_COPY = {
-  noPlan: 'Todavía no hay ninguna rutina guardada. Prepara los días de la semana en Entrenar.',
+  noPlan: 'Todavía no hay ninguna rutina guardada. Prepara los días de la semana en Ejercicios.',
   noProfile:
     'Antes de empezar necesitamos tu perfil: sin él la app no sabe cuántos días entrenas ni si debe iniciar el descanso. Se completa en Perfil.',
-  emptyDay: 'Ese día todavía no tiene ejercicios. Añade alguno en Entrenar antes de empezar.',
-  unknownDay: 'Ese día ya no está en tu rutina. Vuelve a la rutina de Entrenar.',
+  emptyDay: 'Ese día todavía no tiene ejercicios. Añade alguno en Ejercicios antes de empezar.',
+  unknownDay: 'Ese día ya no está en tu rutina. Vuelve a la rutina de Ejercicios.',
   resume: 'Tienes un entrenamiento abierto. Se abre donde lo dejaste; no se ha creado otro.',
   readFailed: 'No se pudieron abrir tus datos. No se ha creado nada; inténtalo otra vez.',
   createFailed: 'No se pudo guardar la sesión. No se ha abierto nada; inténtalo otra vez.',
@@ -347,7 +347,7 @@ export interface StartInput {
   readonly profile: UserProfile | undefined;
   readonly phaseState: PhaseState | undefined;
   readonly newId: IdFactory;
-  /** Entrenar names a day; Inicio leaves it out and lets the rotation decide. */
+  /** Ejercicios names a day; Inicio leaves it out and lets the rotation decide. */
   readonly planDayId?: string | null;
 }
 
@@ -363,7 +363,7 @@ function sameDayOf(left: EpochMs, right: EpochMs): boolean {
  * 1. **A session in progress wins over everything** (I-9). Two open sessions are a
  *    corruption of the journal the owner relies on, so nothing else is even considered.
  * 2. **No plan, no start**: there is no day to build.
- * 3. **The day must exist and have exercises.** Entrenar can name a day that was
+ * 3. **The day must exist and have exercises.** Ejercicios can name a day that was
  *    deleted while the list was on screen, so an unknown id is refused, not ignored.
  * 4. **Today's session for that day, if it already exists, is opened.** Tapping Inicio
  *    twice, or reopening Inicio after the sheet was closed, must never write a second
