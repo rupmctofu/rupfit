@@ -1,6 +1,6 @@
 /**
- * The starter plan — the three-day rotation of FR-3.1, with FR-3.2's accessories and the
- * prescriptions of the readaptation block table (training-science §6).
+ * The starter plan — the owner's three gym days (`odd/tasks/training-program.md` S1), with
+ * one prescription profile per exercise and the block table of training-science §6.
  *
  * Three decisions shape this file, and each one is a document's, not a preference:
  *

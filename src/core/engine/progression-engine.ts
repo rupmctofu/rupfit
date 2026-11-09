@@ -25,8 +25,13 @@ import { assessConfidence } from './confidence';
 import { evaluateBlock, MAX_READAPTATION_WEEK } from './readaptation';
 import { roundDownToIncrement, stepDown, stepUp } from './rounding';
 
-/** §12: any change to §7 order, §8 gates or §6 rounding bumps this. */
-export const ENGINE_VERSION = '1.0.0';
+/**
+ * §12: any change to §7 order, §8 gates or §6 rounding bumps this.
+ * 1.1.0 — §8's block table gained four prescription profiles and rule 6 reads the
+ * exercise's own profile instead of the phase-wide role. No gate changed, no order
+ * changed, but the numbers a recommendation returns did.
+ */
+export const ENGINE_VERSION = '1.1.0';
 
 /** Products of an acceptable weight grid; a real weight is never "corrected". */
 const LOWERED_EPSILON = 1e-6;

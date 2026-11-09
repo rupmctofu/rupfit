@@ -112,7 +112,8 @@ export interface Exercise {
   readonly isCustom: boolean;
   readonly isArchived: boolean;
   /** Additive 2026-11-09 (`odd/tasks/training-program.md` S4). All optional: rows and
-   *  backups written before them keep loading, and the mappers default them. */
+   *  backups written before them keep loading, and the mappers omit the key when the
+   *  stored row has it — absent is absent, never an empty value pretending to be data. */
   readonly secondaryMuscles?: readonly MuscleGroup[];
   /** How to execute it, naming the machine or implement. */
   readonly description?: string;

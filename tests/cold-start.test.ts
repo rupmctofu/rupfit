@@ -132,6 +132,6 @@ describe('§5 cold start: no usable history', () => {
   });
 
   it('§12 the engine reports its rules version', () => {
-    expect(ENGINE_VERSION).toBe('1.0.0');
+    expect(ENGINE_VERSION).toBe('1.1.0');
   });
 });

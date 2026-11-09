@@ -274,21 +274,30 @@ export function evaluateBlock(
 ): BlockDecision
 ```
 
+`evaluateBlock(phase, state, history, now, profile?)` also takes the exercise's profile
+when the caller knows it (rule 6 does); without it the phase state's role applies.
+
 `BlockDecision` is a plain object: `kind` is `'pass'`, `'repeat'`, `'advanceToNormal'`
 or `'capReached'`; `prescriptionBlock` and `prescription` name the block that
 applies next (`null` when normal rules resume), and `failedCriteria` lists the
 unmet criteria for the reason line. `now` is injected so the two weekly windows are
 deterministic — the engine still owns no clock.
 
-Block prescriptions (from `training-science.md` §6):
+Block prescriptions (from `training-science.md` §6), **four profiles since 1.1.0**:
 
-| Block | Primary sets × reps @ RIR | Accessory sets × reps @ RIR |
-| --- | --- | --- |
-| 1 | 2 × 10 @ 4–5 | 2 × 12 @ 4 |
-| 2 | 3 × 10 @ 3–4 | 2 × 12 @ 3 |
-| 3 | 3 × 8–10 @ 2–3 | 3 × 10–12 @ 2–3 |
-| 4 | 4 × 8 @ 2 | 3 × 10 @ 2 |
-| Hold | last passed block | last passed block |
+| Block | `strength` | `hypertrophy` | `accessory` | `preventive` |
+| --- | --- | --- | --- | --- |
+| 1 | 3 × 6–8 @ 4–5 | 3 × 8–10 @ 4–5 | 2 × 10–12 @ 4 | 2 × 6–8 @ 5–6 |
+| 2 | 3 × 6–8 @ 3–4 | 3 × 8–10 @ 3–4 | 3 × 10–12 @ 3 | 2 × 6–8 @ 5 |
+| 3 | 4 × 5–8 @ 2–3 | 4 × 8–12 @ 2–3 | 3 × 10–15 @ 2–3 | 3 × 6–10 @ 4–5 |
+| 4 | 4 × 5–6 @ 2 | 4 × 8–10 @ 2 | 3 × 10–12 @ 2 | 3 × 8–10 @ 3–4 |
+| Hold | last passed block | last passed block | last passed block | last passed block |
+
+The profile of an exercise travels inside its `ExercisePrescription.role`
+(`data-model.md §3`), so rule 6 reads the column the plan declared for *that* exercise;
+`PhaseState.role` is the older phase-wide fallback and `hypertrophy` the default. The
+gate is unchanged, but it now compares an exercise's sets with its own prescription —
+which is why a strength lift doing 3 × 6 passes and a hypertrophy one needs 3 × 8–10.
 
 Gate (all four must hold across two consecutive weeks):
 

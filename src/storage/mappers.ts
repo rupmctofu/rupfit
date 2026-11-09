@@ -381,6 +381,9 @@ function copyPrescription(prescription: PlanItemRow['prescription']): PlanItemRo
       upperBound: prescription.targetRIR.upperBound,
     },
     restSeconds: prescription.restSeconds,
+    // The prescription profile must survive the store: without it every exercise is read
+    // back as hypertrophy and the four-column block table collapses into one.
+    ...(prescription.role === undefined ? {} : { role: prescription.role }),
   };
 }
 
