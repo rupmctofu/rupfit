@@ -356,7 +356,7 @@ export function HomeBody({
           afterwards. */}
       {view.notice.notInstalled ? (
         <Banner
-          tone="info"
+          tone="warning"
           title="Guarda Rupfit en la pantalla de inicio para que Safari no borre tus datos."
           text="Compartir → Añadir a pantalla de inicio."
         />

@@ -135,7 +135,7 @@ export function ProfileScreen(): React.ReactElement {
 
       {installed.advisory === null ? null : (
         <Banner
-          tone="info"
+          tone="warning"
           title={installed.advisory.title}
           action={{ label: 'Exportar copia', onClick: () => exportControl.start() }}
         />

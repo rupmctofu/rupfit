@@ -112,7 +112,7 @@ export function SummaryScreen({
       {view.records.map((record) => (
         <Card key={record.line} label={`Récord · ${record.exerciseName}`}>
           <div className="ds-row">
-            <Chip tone="success" dot>
+            <Chip dot>
               RÉCORD
             </Chip>
             <span className="ds-meta">{record.when}</span>
