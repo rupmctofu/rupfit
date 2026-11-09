@@ -22,6 +22,20 @@ export interface Exercise {
   readonly loadIncrementKg: number;
   readonly isCustom: boolean;
   readonly isArchived: boolean;
+  /**
+   * Library detail (odd/tasks/training-program.md S4–S5, T3). The four members below are
+   * optional and purely additive: a row written before they existed omits them, so an old
+   * database, an old backup and a custom exercise keep working with no migration and no
+   * required field (ADR-011, data-model §9).
+   */
+  /** Muscles the movement also works, besides `primaryMuscle` (S4). */
+  readonly secondaryMuscles?: readonly MuscleGroup[];
+  /** How to execute it, in Spanish, naming the machine or the implement (S4). */
+  readonly description?: string;
+  /** The generic movement this row is a variant of, by `Exercise.id` (S4, S5). */
+  readonly variantOf?: string;
+  /** Ids that can replace this row when its machine is busy (S5). */
+  readonly alternatives?: readonly string[];
 }
 
 export interface ExercisePrescription {

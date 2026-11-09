@@ -146,19 +146,355 @@ const ROWS: readonly SeedExerciseRow[] = [
 ];
 
 /**
+ * The optional library detail of T3: what the movement also works, how to execute it,
+ * which generic movement it is a variant of, and what can replace it when a machine is
+ * busy (odd/tasks/training-program.md S4–S5).
+ *
+ * It is a second table and not four more columns of `ROWS` for one reason: the table above
+ * is the vocabulary the pickers read (id, name, muscle, pattern, equipment) and stays
+ * scannable, while this one is prose about the owner's exercises. A row that is not here
+ * is a complete exercise row: the four fields are optional everywhere, so an entry is
+ * added when there is something truthful to say, never to fill a column.
+ *
+ * The rule for `alternatives` is the one S5 asks for: same movement pattern and same
+ * primary muscle, so the swap keeps what the slot trains and only the implement changes —
+ * a machine for a dumbbell, a barbell for a plate stack. No exercise is its own
+ * alternative, every id below exists in `ROWS`, and a family with a single sibling (the
+ * two Copenhagen planks, the two lateral raises, the two triceps extensions) honestly
+ * offers one alternative instead of padding the list with a different movement.
+ */
+interface SeedExerciseDetail {
+  readonly secondaryMuscles?: readonly MuscleGroup[];
+  /** How to execute it, naming the machine or the implement (S4). */
+  readonly description: string;
+  /** The generic movement this row is a variant of, by `ROWS` id. */
+  readonly variantOf?: string;
+  /** Same pattern, same primary muscle, different implement (S5). */
+  readonly alternatives?: readonly string[];
+}
+
+const DETAIL: Readonly<Record<string, SeedExerciseDetail>> = {
+  // ------------------------------------------------------------------- squat
+  'seed-ex-sentadilla-trasera': {
+    secondaryMuscles: ['glutes', 'hamstrings', 'core'],
+    description:
+      'Con la barra en la jaula apoyada sobre los trapecios y los pies a la anchura de los hombros, baja flexionando caderas y rodillas hasta que el muslo pase la paralela y sube empujando el suelo con los pies.',
+    alternatives: ['seed-ex-sentadilla-frontal', 'seed-ex-hack-squat', 'seed-ex-prensa'],
+  },
+  'seed-ex-sentadilla-frontal': {
+    secondaryMuscles: ['glutes', 'upperBack', 'core'],
+    description:
+      'Con la barra en la jaula apoyada en la parte delantera de los hombros y los codos altos, baja manteniendo el tronco vertical y sube sin que la barra se vaya hacia delante.',
+    alternatives: ['seed-ex-sentadilla-trasera', 'seed-ex-hack-squat', 'seed-ex-sentadilla-goblet'],
+  },
+  'seed-ex-prensa': {
+    secondaryMuscles: ['glutes', 'hamstrings'],
+    description:
+      'Sentado en la prensa de placas con los pies en la plataforma, baja hasta que las rodillas se acerquen al pecho y empuja con los talones sin bloquear las rodillas de golpe.',
+    alternatives: ['seed-ex-hack-squat', 'seed-ex-sentadilla-goblet', 'seed-ex-sentadilla-peso-corporal'],
+  },
+  'seed-ex-hack-squat': {
+    secondaryMuscles: ['glutes', 'hamstrings'],
+    description:
+      'En la máquina de hack squat, con la espalda y la cadera apoyadas en el respaldo y los pies en la plataforma, baja con control hasta donde llegues sin despegar la espalda y empuja con los talones.',
+    alternatives: ['seed-ex-prensa', 'seed-ex-sentadilla-trasera', 'seed-ex-sentadilla-goblet'],
+  },
+  'seed-ex-sentadilla-goblet': {
+    secondaryMuscles: ['glutes', 'core', 'upperBack'],
+    description:
+      'Sujeta una mancuerna con las dos manos a la altura del pecho, baja sentando las caderas entre los pies hasta donde la espalda se mantenga neutra y sube empujando con los talones.',
+    alternatives: ['seed-ex-sentadilla-peso-corporal', 'seed-ex-prensa', 'seed-ex-sentadilla-trasera'],
+  },
+  'seed-ex-sentadilla-peso-corporal': {
+    secondaryMuscles: ['glutes', 'core'],
+    description:
+      'Sin material, con los pies a la anchura de los hombros, baja llevando las caderas atrás y las rodillas hacia fuera hasta donde controles y sube sin perder la curva lumbar.',
+    alternatives: ['seed-ex-sentadilla-goblet', 'seed-ex-prensa'],
+  },
+
+  // ------------------------------------------------------------------- hinge
+  'seed-ex-peso-muerto': {
+    secondaryMuscles: ['glutes', 'lowerBack', 'upperBack', 'forearms'],
+    description:
+      'Con la barra en el suelo pegada a las espinillas y el peso del cuerpo sobre el mediopié, empuja el suelo con las piernas y sube hasta ponerte de pie con la barra rozando los muslos.',
+    alternatives: ['seed-ex-peso-muerto-rumano', 'seed-ex-peso-muerto-una-pierna'],
+  },
+  'seed-ex-peso-muerto-rumano': {
+    secondaryMuscles: ['glutes', 'lowerBack', 'upperBack', 'forearms'],
+    description:
+      'De pie con la barra en las manos delante de los muslos, lleva las caderas atrás y baja la barra pegada a las piernas hasta donde la espalda siga recta; vuelve estirando la cadera.',
+    alternatives: ['seed-ex-peso-muerto', 'seed-ex-peso-muerto-una-pierna'],
+  },
+  'seed-ex-peso-muerto-una-pierna': {
+    secondaryMuscles: ['glutes', 'core'],
+    description:
+      'Con una mancuerna en la mano contraria a la pierna de apoyo, inclina el tronco llevando la pierna libre atrás y baja el peso por delante de la pierna de apoyo; sube apretando el glúteo.',
+    alternatives: ['seed-ex-peso-muerto-rumano', 'seed-ex-peso-muerto'],
+  },
+  'seed-ex-nordic-asistido': {
+    secondaryMuscles: ['glutes', 'core'],
+    description:
+      'De rodillas sobre una colchoneta y con los tobillos sujetos por una barra o por un compañero, baja el tronco hacia delante tan lento como puedas y apoya las manos para volver con ayuda de los brazos.',
+    alternatives: ['seed-ex-peso-muerto-rumano', 'seed-ex-peso-muerto-una-pierna'],
+  },
+
+  // ------------------------------------------------------ preventive: groin
+  'seed-ex-copenhagen-adaptado': {
+    secondaryMuscles: ['core', 'glutes'],
+    description:
+      'Tumbado de lado con la rodilla de arriba apoyada en un banco y el codo en el suelo bajo el hombro, levanta la cadera y mantén la línea del cuerpo; la versión con la rodilla apoyada es la que se empieza.',
+    variantOf: 'seed-ex-copenhagen',
+    alternatives: ['seed-ex-copenhagen'],
+  },
+  'seed-ex-copenhagen': {
+    secondaryMuscles: ['core', 'glutes'],
+    description:
+      'Tumbado de lado con el tobillo de arriba apoyado en un banco y el codo en el suelo bajo el hombro, levanta la cadera hasta alinear el cuerpo y mantenla sin que la pelvis caiga.',
+    alternatives: ['seed-ex-copenhagen-adaptado'],
+  },
+
+  // ------------------------------------------------- isolation: herringbone
+  'seed-ex-curl-femoral': {
+    secondaryMuscles: ['calves'],
+    description:
+      'Tumbado boca abajo en la máquina de curl femoral con el rodillo sobre los tobillos, flexiona las rodillas hasta acercar los talones a los glúteos y baja el peso con control.',
+    alternatives: ['seed-ex-curl-femoral-sentado', 'seed-ex-curl-femoral-mancuerna'],
+  },
+  'seed-ex-curl-femoral-sentado': {
+    secondaryMuscles: ['calves'],
+    description:
+      'Sentado en la máquina de curl femoral con el rodillo sobre el empeine y los muslos sujetos por la almohadilla, flexiona las rodillas hasta donde llegues y sube el peso sin despegar la espalda del respaldo.',
+    variantOf: 'seed-ex-curl-femoral',
+    alternatives: ['seed-ex-curl-femoral', 'seed-ex-curl-femoral-mancuerna'],
+  },
+  'seed-ex-curl-femoral-mancuerna': {
+    secondaryMuscles: ['calves'],
+    description:
+      'Tumbado boca abajo en un banco plano con una mancuerna sujeta entre los dos pies, flexiona las rodillas hasta acercarla a los glúteos y baja el peso despacio.',
+    variantOf: 'seed-ex-curl-femoral',
+    alternatives: ['seed-ex-curl-femoral', 'seed-ex-curl-femoral-sentado'],
+  },
+
+  // ---------------------------------------------------- isolation: calves
+  'seed-ex-gemelos': {
+    description:
+      'De pie en la máquina de gemelos con los hombros bajo las almohadillas y la punta de los pies en el borde del reposapiés, sube los talones hasta ponerte de puntillas y baja el talón hasta notar el estiramiento.',
+    alternatives: ['seed-ex-gemelos-prensa', 'seed-ex-gemelos-mancuerna'],
+  },
+  'seed-ex-gemelos-prensa': {
+    description:
+      'Sentado en la prensa con la punta de los pies en el borde de la plataforma, empuja con los dedos hasta extender los tobillos y baja el talón con control sin mover las rodillas.',
+    alternatives: ['seed-ex-gemelos', 'seed-ex-gemelos-mancuerna'],
+  },
+  'seed-ex-gemelos-mancuerna': {
+    description:
+      'De pie sobre la punta de los pies con una mancuerna en la mano libre y la otra mano apoyada en la máquina para el equilibrio, sube los talones y baja el talón despacio.',
+    variantOf: 'seed-ex-gemelos',
+    alternatives: ['seed-ex-gemelos', 'seed-ex-gemelos-prensa'],
+  },
+  'seed-ex-soleo-sentado': {
+    description:
+      'Sentado en la máquina de sóleo con las almohadillas sobre los muslos y la punta de los pies en el reposapiés, sube los talones y baja hasta el final del recorrido con las rodillas flexionadas.',
+    alternatives: ['seed-ex-gemelos', 'seed-ex-gemelos-prensa'],
+  },
+
+  // -------------------------------------------------------- horizontal push
+  'seed-ex-press-banca': {
+    secondaryMuscles: ['triceps', 'shoulders'],
+    description:
+      'Tumbado en el banco plano con los pies apoyados y la barra sobre el pecho, baja la barra al esternón con los codos algo cerrados y empuja hasta extender los brazos sin rebotar.',
+    alternatives: ['seed-ex-press-pecho-maquina', 'seed-ex-press-inclinado-mancuernas', 'seed-ex-flexiones'],
+  },
+  'seed-ex-press-banca-inclinado': {
+    secondaryMuscles: ['shoulders', 'triceps'],
+    description:
+      'Con el banco inclinado dentro de la jaula y la barra sobre la parte alta del pecho, baja la barra con los omóplatos apoyados y empuja hasta estirar los brazos.',
+    alternatives: ['seed-ex-press-inclinado-mancuernas', 'seed-ex-press-banca', 'seed-ex-press-pecho-maquina'],
+  },
+  'seed-ex-press-inclinado-mancuernas': {
+    secondaryMuscles: ['shoulders', 'triceps'],
+    description:
+      'En un banco inclinado con una mancuerna en cada mano a la altura del pecho, empuja hacia arriba sin juntar las mancuernas y baja hasta donde el hombro aguante.',
+    alternatives: ['seed-ex-press-banca', 'seed-ex-press-pecho-maquina', 'seed-ex-flexiones'],
+  },
+  'seed-ex-press-pecho-maquina': {
+    secondaryMuscles: ['triceps', 'shoulders'],
+    description:
+      'Sentado en la máquina de press de pecho con los agarres a la altura del esternón, empuja hacia delante hasta estirar los codos y vuelve despacio sin dejar que el peso choque.',
+    alternatives: ['seed-ex-press-banca', 'seed-ex-press-inclinado-mancuernas', 'seed-ex-flexiones'],
+  },
+  'seed-ex-flexiones': {
+    secondaryMuscles: ['triceps', 'shoulders', 'core'],
+    description:
+      'Con las manos en el suelo algo más anchas que los hombros y el cuerpo en línea, baja el pecho hasta rozar el suelo y empuja sin que la cadera se hunda.',
+    alternatives: ['seed-ex-press-pecho-maquina', 'seed-ex-press-banca'],
+  },
+  'seed-ex-fondos': {
+    secondaryMuscles: ['chest', 'shoulders'],
+    description:
+      'En las paralelas, con los brazos extendidos y el tronco ligeramente inclinado, baja flexionando los codos hasta que los hombros queden por debajo de ellos y sube sin balancearte.',
+  },
+
+  // ---------------------------------------------------------- vertical push
+  'seed-ex-press-militar': {
+    secondaryMuscles: ['triceps', 'upperBack', 'core'],
+    description:
+      'De pie con la barra saliendo de la jaula a la altura de los hombros y el abdomen apretado, empuja la barra por encima de la cabeza y bájala con control hasta la barbilla.',
+    alternatives: ['seed-ex-press-hombro', 'seed-ex-press-hombro-maquina'],
+  },
+  'seed-ex-press-hombro': {
+    secondaryMuscles: ['triceps', 'upperBack'],
+    description:
+      'Sentado en un banco con respaldo y una mancuerna en cada mano a la altura de los hombros, empuja hacia arriba y baja hasta la altura de las orejas sin arquear la espalda.',
+    alternatives: ['seed-ex-press-militar', 'seed-ex-press-hombro-maquina'],
+  },
+  'seed-ex-press-hombro-maquina': {
+    secondaryMuscles: ['triceps'],
+    description:
+      'Sentado en la máquina de press de hombro con la espalda apoyada, empuja los agarres por encima de la cabeza y vuelve con control hasta la altura de los hombros.',
+    alternatives: ['seed-ex-press-hombro', 'seed-ex-press-militar'],
+  },
+
+  // -------------------------------------------------------- horizontal pull
+  'seed-ex-remo-barra': {
+    secondaryMuscles: ['lats', 'biceps', 'lowerBack'],
+    description:
+      'Con la barra saliendo de la jaula a la altura de las rodillas, inclina el tronco con la espalda recta, tira de la barra hacia el abdomen y bájala controlando el recorrido.',
+    alternatives: ['seed-ex-remo-maquina', 'seed-ex-remo-polea', 'seed-ex-remo-banda'],
+  },
+  'seed-ex-remo-polea': {
+    secondaryMuscles: ['lats', 'biceps'],
+    description:
+      'Sentado en la polea baja con los pies en la plataforma y las rodillas algo flexionadas, tira del agarre hacia el abdomen llevando los codos atrás y vuelve estirando los brazos.',
+    alternatives: ['seed-ex-remo-maquina', 'seed-ex-remo-banda', 'seed-ex-remo-barra'],
+  },
+  'seed-ex-remo-maquina': {
+    secondaryMuscles: ['lats', 'biceps'],
+    description:
+      'Sentado en la máquina de remo con el pecho apoyado en el respaldo, tira de los agarres hacia el torso y vuelve despacio hasta estirar los brazos sin separar el pecho.',
+    alternatives: ['seed-ex-remo-polea', 'seed-ex-remo-barra', 'seed-ex-remo-banda'],
+  },
+  'seed-ex-remo-banda': {
+    secondaryMuscles: ['lats', 'biceps'],
+    description:
+      'Con una banda elástica anclada a la altura del pecho, tira de los extremos hacia el torso llevando los codos atrás y vuelve controlando la banda hasta estirar los brazos.',
+    alternatives: ['seed-ex-remo-polea', 'seed-ex-remo-maquina'],
+  },
+  'seed-ex-espalda-alta': {
+    secondaryMuscles: ['lats', 'biceps'],
+    description:
+      'Sentado en la máquina con el pecho apoyado y los brazos extendidos hacia delante, tira llevando los codos atrás y abajo sin flexionarlos y vuelve con control.',
+    alternatives: ['seed-ex-remo-maquina', 'seed-ex-remo-polea'],
+  },
+  'seed-ex-face-pull': {
+    secondaryMuscles: ['upperBack'],
+    description:
+      'De pie frente a la polea alta con la cuerda, tira hacia la cara separando las manos a la altura de los ojos y mantén los codos altos durante todo el recorrido.',
+  },
+
+  // ---------------------------------------------------------- vertical pull
+  'seed-ex-jalon-pecho': {
+    secondaryMuscles: ['upperBack', 'biceps'],
+    description:
+      'Sentado en la máquina de jalón con los muslos bajo las almohadillas, tira de la barra al pecho llevando los codos abajo y deja subir los brazos sin soltar la barra de golpe.',
+    alternatives: ['seed-ex-dominadas-asistidas', 'seed-ex-dominadas'],
+  },
+  'seed-ex-dominadas-asistidas': {
+    secondaryMuscles: ['upperBack', 'biceps'],
+    description:
+      'En la máquina de dominadas asistidas, elige la ayuda en el selector, tira hasta pasar la barbilla por el agarre y baja controlando la subida del cuerpo.',
+    variantOf: 'seed-ex-dominadas',
+    alternatives: ['seed-ex-jalon-pecho', 'seed-ex-dominadas'],
+  },
+  'seed-ex-dominadas': {
+    secondaryMuscles: ['upperBack', 'biceps', 'core'],
+    description:
+      'Colgado de la barra de dominadas con las palmas hacia delante, tira hasta pasar la barbilla por encima de la barra y baja hasta estirar los brazos.',
+    alternatives: ['seed-ex-dominadas-asistidas', 'seed-ex-jalon-pecho'],
+  },
+
+  // ------------------------------------------- isolation: shoulders and arms
+  'seed-ex-elevaciones-laterales': {
+    secondaryMuscles: ['upperBack'],
+    description:
+      'De pie con una mancuerna en cada mano y los codos algo flexionados, sube los brazos por los lados hasta la altura de los hombros y bájalos con control sin balancear el tronco.',
+    alternatives: ['seed-ex-elevaciones-laterales-polea'],
+  },
+  'seed-ex-elevaciones-laterales-polea': {
+    secondaryMuscles: ['upperBack'],
+    description:
+      'De pie de lado a la polea baja con el asa en la mano más lejana, sube el brazo por el lateral hasta la altura del hombro y bájalo controlando el peso.',
+    alternatives: ['seed-ex-elevaciones-laterales'],
+  },
+  'seed-ex-extensiones-triceps': {
+    description:
+      'De pie frente a la polea alta con la cuerda, mantén los codos pegados al torso y extiende los brazos hasta abajo del todo; vuelve sin separar los codos.',
+    alternatives: ['seed-ex-extension-triceps-mancuerna'],
+  },
+  'seed-ex-extension-triceps-mancuerna': {
+    description:
+      'Sentado en un banco con una mancuerna sujeta con las dos manos por encima de la cabeza, baja el peso por detrás de la nuca y extiende los codos sin mover los brazos.',
+    alternatives: ['seed-ex-extensiones-triceps'],
+  },
+  'seed-ex-curl-biceps': {
+    secondaryMuscles: ['forearms'],
+    description:
+      'De pie con una mancuerna en cada mano y los brazos estirados, flexiona los codos girando la palma hacia arriba y baja despacio hasta estirar el brazo.',
+    alternatives: ['seed-ex-curl-barra', 'seed-ex-curl-polea'],
+  },
+  'seed-ex-curl-barra': {
+    secondaryMuscles: ['forearms'],
+    description:
+      'De pie con la barra en las manos y los codos junto al torso, flexiona los codos hasta la altura del pecho y baja la barra sin balancear la espalda.',
+    alternatives: ['seed-ex-curl-biceps', 'seed-ex-curl-polea'],
+  },
+  'seed-ex-curl-polea': {
+    secondaryMuscles: ['forearms'],
+    description:
+      'De pie frente a la polea baja con la barra recta, flexiona los codos sin separarlos del torso y deja subir el peso con control.',
+    alternatives: ['seed-ex-curl-biceps', 'seed-ex-curl-barra'],
+  },
+};
+
+/**
  * The library as `exercises.save` receives it. Built once at module load; every row is
  * `readonly`, so a caller can copy a row but cannot write through it.
+ *
+ * The detail is added field by field instead of by spreading a memo, because
+ * `exactOptionalPropertyTypes` forbids an explicit `undefined`: a row without detail must
+ * come out exactly as it did before T3, with the four keys absent.
  */
-export const SEED_EXERCISES: readonly Exercise[] = ROWS.map((row) => ({
-  id: row.id,
-  name: row.name,
-  primaryMuscle: row.primaryMuscle,
-  pattern: row.pattern,
-  equipment: row.equipment,
-  loadIncrementKg: row.loadIncrementKg ?? EQUIPMENT_INCREMENT_KG[row.equipment],
-  isCustom: false,
-  isArchived: false,
-}));
+function seedExercise(row: SeedExerciseRow, detail: SeedExerciseDetail | undefined): Exercise {
+  const base: Exercise = {
+    id: row.id,
+    name: row.name,
+    primaryMuscle: row.primaryMuscle,
+    pattern: row.pattern,
+    equipment: row.equipment,
+    loadIncrementKg: row.loadIncrementKg ?? EQUIPMENT_INCREMENT_KG[row.equipment],
+    isCustom: false,
+    isArchived: false,
+  };
+  if (detail === undefined) return base;
+
+  const withMuscles: Exercise =
+    detail.secondaryMuscles === undefined
+      ? base
+      : { ...base, secondaryMuscles: detail.secondaryMuscles };
+  const withVariant: Exercise =
+    detail.variantOf === undefined
+      ? withMuscles
+      : { ...withMuscles, variantOf: detail.variantOf };
+  const withAlternatives: Exercise =
+    detail.alternatives === undefined
+      ? withVariant
+      : { ...withVariant, alternatives: detail.alternatives };
+  return { ...withAlternatives, description: detail.description };
+}
+
+export const SEED_EXERCISES: readonly Exercise[] = ROWS.map((row) =>
+  seedExercise(row, DETAIL[row.id]),
+);
 
 /** The library indexed by id, so the plan can refuse an exercise that does not exist. */
 export function seedExerciseById(id: string): Exercise | undefined {

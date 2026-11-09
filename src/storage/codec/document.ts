@@ -186,7 +186,7 @@ function copyPhaseState(state: PhaseState): PhaseState {
 }
 
 function copyExercise(exercise: Exercise): Exercise {
-  return {
+  const copy: Exercise = {
     id: exercise.id,
     name: exercise.name,
     primaryMuscle: exercise.primaryMuscle,
@@ -196,6 +196,23 @@ function copyExercise(exercise: Exercise): Exercise {
     isCustom: exercise.isCustom,
     isArchived: exercise.isArchived,
   };
+  // T3: the four detail fields are optional and additive, so an exercise without them
+  // encodes exactly as it did before they existed and an old backup still imports.
+  const withMuscles: Exercise =
+    exercise.secondaryMuscles === undefined
+      ? copy
+      : { ...copy, secondaryMuscles: [...exercise.secondaryMuscles] };
+  const withDescription: Exercise =
+    exercise.description === undefined
+      ? withMuscles
+      : { ...withMuscles, description: exercise.description };
+  const withVariant: Exercise =
+    exercise.variantOf === undefined
+      ? withDescription
+      : { ...withDescription, variantOf: exercise.variantOf };
+  return exercise.alternatives === undefined
+    ? withVariant
+    : { ...withVariant, alternatives: [...exercise.alternatives] };
 }
 
 function copyPlanDay(day: PlanDay): PlanDay {

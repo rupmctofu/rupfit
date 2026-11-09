@@ -20,6 +20,7 @@ import { SummaryEntry } from '../features/summary/SummaryEntry';
 import { summaryHash, summaryTargetOf, type SummaryTarget } from '../features/summary/route';
 import { SetupScreen } from '../features/onboarding/SetupScreen';
 import { useSetupGate } from '../features/onboarding/useSetupGate';
+import { refreshSeededLibrary } from '../features/onboarding/library-refresh';
 import { registerServiceWorker } from '../pwa';
 import { GalleryScreen } from './gallery/GalleryScreen';
 
@@ -101,6 +102,19 @@ function AppShell(): React.ReactElement {
   // extra path segment locally (src/features/progress/navigation.ts).
 
   const { storage, clock, journal } = useAppServices();
+
+  // The library the app ships is data, and a release can add detail to it. The first-run
+  // flow writes it once and never overwrites, which is right for the owner's rows and
+  // wrong for the seed's: an install seeded before descriptions and alternatives existed
+  // would show bare names until the database was wiped. This refresh is narrow (seeded
+  // rows only, never custom, archived kept, ids unchanged) and idempotent, so running it
+  // once per launch costs one read and writes nothing when the store is current.
+  useEffect(() => {
+    void refreshSeededLibrary(storage).catch(() => {
+      // A library refresh is not the session and not the profile: if it fails, the app
+      // still opens with the rows it has, and the screen that reads them says what it can.
+    });
+  }, [storage]);
 
   const summary: SummaryTarget | null = isSummaryRoute(route) ? summaryTargetOf(hash) : null;
 

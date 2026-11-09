@@ -164,6 +164,14 @@ const exerciseSchema = z.object({
   loadIncrementKg: z.number().min(0),
   isCustom: z.boolean(),
   isArchived: z.boolean(),
+  /**
+   * T3: additive library detail. Optional on purpose — a backup written before the fields
+   * existed must still validate, and a document that carries them must not be rejected.
+   */
+  secondaryMuscles: z.array(z.enum(MUSCLE_GROUPS)).optional(),
+  description: z.string().min(1).optional(),
+  variantOf: idSchema.optional(),
+  alternatives: z.array(idSchema).optional(),
 });
 
 const planItemSchema = z.object({

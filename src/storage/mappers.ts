@@ -47,7 +47,7 @@ import type {
 /* ------------------------------------------------------------------ exercise */
 
 export function exerciseToRow(exercise: Exercise): ExerciseRow {
-  return {
+  const row: ExerciseRow = {
     id: exercise.id,
     name: exercise.name,
     primaryMuscle: exercise.primaryMuscle,
@@ -57,10 +57,11 @@ export function exerciseToRow(exercise: Exercise): ExerciseRow {
     isCustom: exercise.isCustom,
     isArchived: exercise.isArchived ? 1 : 0,
   };
+  return writeDetail(row, exercise);
 }
 
 export function exerciseFromRow(row: ExerciseRow): Exercise {
-  return {
+  const exercise: Exercise = {
     id: row.id,
     name: row.name,
     primaryMuscle: row.primaryMuscle,
@@ -70,6 +71,49 @@ export function exerciseFromRow(row: ExerciseRow): Exercise {
     isCustom: row.isCustom,
     isArchived: row.isArchived === 1,
   };
+  return readDetail(exercise, row);
+}
+
+/**
+ * The four optional library columns, added to the row only when the domain has them.
+ * `exactOptionalPropertyTypes` forbids writing an explicit `undefined`, and an absent
+ * key is also the honest encoding of "this row was written before the column existed".
+ */
+function writeDetail(row: ExerciseRow, exercise: Exercise): ExerciseRow {
+  const withMuscles: ExerciseRow =
+    exercise.secondaryMuscles === undefined
+      ? row
+      : { ...row, secondaryMuscles: [...exercise.secondaryMuscles] };
+  const withDescription: ExerciseRow =
+    exercise.description === undefined
+      ? withMuscles
+      : { ...withMuscles, description: exercise.description };
+  const withVariant: ExerciseRow =
+    exercise.variantOf === undefined
+      ? withDescription
+      : { ...withDescription, variantOf: exercise.variantOf };
+  return exercise.alternatives === undefined
+    ? withVariant
+    : { ...withVariant, alternatives: [...exercise.alternatives] };
+}
+
+/** The inverse: a row that does not carry a column leaves the domain field absent. */
+function readDetail(exercise: Exercise, row: ExerciseRow): Exercise {
+  const withMuscles: Exercise =
+    row.secondaryMuscles === undefined
+      ? exercise
+      : { ...exercise, secondaryMuscles: [...row.secondaryMuscles] };
+  const withDescription: Exercise =
+    row.description === undefined
+      ? withMuscles
+      : { ...withMuscles, description: row.description };
+  const withVariant: Exercise =
+    row.variantOf === undefined
+      ? withDescription
+      : { ...withDescription, variantOf: row.variantOf };
+  return row.alternatives === undefined
+    ? withVariant
+    : { ...withVariant, alternatives: [...row.alternatives] };
 }
 
 /* ---------------------------------------------------------------------- plan */

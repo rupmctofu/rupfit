@@ -148,6 +148,10 @@ Consequences the requirements below depend on:
   engine adds.
 - **FR-3.3 MUST** allow: add exercise, remove exercise, reorder, change sets and
   reps, substitute an exercise for an alternative, and set weights and increments.
+  **Alternatives shipped 2026-11-09** (`odd/tasks/training-program.md` S5) as library
+  data: each exercise names 1–3 substitutes with the same movement pattern and primary
+  muscle, the detail screen lists them with their equipment, and each keeps its own
+  progression — substituting never transfers a load.
 - **FR-3.4 MUST** support scheduling by calendar date with the weekday template as
   a default, not as a hard-coded day name.
 - **FR-3.5 MUST** track progression history and recommendations for accessory
@@ -311,6 +315,11 @@ session works identically without them.
   the bridge document described in FR-14.
 - **FR-13.5 SHOULD** allow manual entry of an unsynced activity. This is the only
   route to activity data without an import, so it is `P1` rather than polish.
+  **Implemented 2026-11-09** for the owner's Thursday football: `Inicio` records one
+  manual `ActivityRecord` (`kind: 'other'`, 50 min, `provenance: 'manual'`, no kcal, no
+  `externalSampleId`), the activity section labels it as recorded rather than imported,
+  and the strength rotation is untouched — a match is never a session and never a reason
+  to reorder the three gym days.
 
 ### FR-14 Apple Health — OUT (explicitly rejected for the MVP)
 

@@ -22,6 +22,7 @@
  */
 
 import type { Exercise, ExerciseSession, WorkoutSession } from '../../storage';
+import type { MuscleGroup } from '../../core/domain';
 import { exerciseKey, isRecordedSession } from './aggregates';
 
 /** One recorded session of one exercise, as the detail reads it. */
@@ -225,4 +226,38 @@ export function exerciseFor(
 export function isSquatExercise(name: string, detail: Exercise | undefined): boolean {
   if (detail !== undefined && detail.pattern === 'squat') return true;
   return /sentadilla|squat/i.test(name);
+}
+
+/**
+ * The muscles the movement also works (odd/tasks/training-program.md S4, T3).
+ *
+ * Empty for a library row written before the field existed — a custom exercise or an old
+ * row — and the primary muscle is filtered out, so the detail never draws the same muscle
+ * twice: one chip is the target, the rest are company.
+ */
+export function secondaryMusclesOf(detail: Exercise | undefined): readonly MuscleGroup[] {
+  if (detail === undefined || detail.secondaryMuscles === undefined) return [];
+  return detail.secondaryMuscles.filter((muscle) => muscle !== detail.primaryMuscle);
+}
+
+/**
+ * The rows that can replace this one when its machine is busy (S5, T3).
+ *
+ * Resolved against the library, so an id that no longer exists — a deleted custom row, an
+ * import from a build that knew one more exercise than this one — simply disappears
+ * instead of rendering a broken name. A row without `alternatives` returns an empty list,
+ * which is what a custom or an old exercise has.
+ */
+export function alternativesOf(
+  detail: Exercise | undefined,
+  exercises: readonly Exercise[],
+): readonly Exercise[] {
+  if (detail === undefined || detail.alternatives === undefined) return [];
+  const found: Exercise[] = [];
+  for (const id of detail.alternatives) {
+    if (id === detail.id) continue;
+    const row = exercises.find((exercise) => exercise.id === id);
+    if (row !== undefined) found.push(row);
+  }
+  return found;
 }

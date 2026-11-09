@@ -573,3 +573,93 @@ describe('§9 merge brings in measurements and activities only', () => {
     expect(await snapshot()).toBe(before);
   });
 });
+
+/**
+ * T3 (odd/tasks/training-program.md S4–S5): `secondaryMuscles`, `description`,
+ * `variantOf` and `alternatives` are optional, additive members of `Exercise`. Two
+ * behaviours decide whether they really are additive, and both are asserted here because
+ * this is the file that covers the record ⇄ domain ⇄ document path.
+ */
+describe('§9 the additive library detail of T3', () => {
+  /** A row as an older build wrote it: flat, no detail columns, nothing to migrate. */
+  const legacyRow = {
+    id: 'exercise-legacy',
+    name: 'Curl femoral tumbado en máquina',
+    primaryMuscle: 'hamstrings',
+    pattern: 'isolation',
+    equipment: 'machine',
+    loadIncrementKg: 2.5,
+    isCustom: false,
+    isArchived: 0,
+  } as const;
+
+  it('reads an old row without the fields and round-trips a row that has them', async () => {
+    const reader = await openReader();
+    await reader.put('exercises', legacyRow);
+
+    // 1. An old row loads. The four keys are absent, not `undefined` values: nothing had
+    // to be written back for this row to keep working.
+    const legacy = await storage.exercises.byId(legacyRow.id);
+    expect(legacy?.name).toBe('Curl femoral tumbado en máquina');
+    expect(legacy === undefined ? true : 'description' in legacy).toBe(false);
+    expect(legacy === undefined ? true : 'secondaryMuscles' in legacy).toBe(false);
+    expect(legacy === undefined ? true : 'variantOf' in legacy).toBe(false);
+    expect(legacy === undefined ? true : 'alternatives' in legacy).toBe(false);
+
+    const detailed = exercise({
+      id: 'exercise-detailed',
+      name: 'Curl femoral sentado en máquina',
+      primaryMuscle: 'hamstrings',
+      pattern: 'isolation',
+      equipment: 'machine',
+      secondaryMuscles: ['calves'],
+      description:
+        'Sentado en la máquina de curl femoral con el rodillo sobre el empeine, flexiona las rodillas y sube el peso sin despegar la espalda del respaldo.',
+      variantOf: legacyRow.id,
+      alternatives: [legacyRow.id],
+    });
+    await storage.exercises.save(detailed);
+
+    const stored = await storage.exercises.byId(detailed.id);
+    expect(stored?.secondaryMuscles).toEqual(['calves']);
+    expect(stored?.variantOf).toBe(legacyRow.id);
+    expect(stored?.alternatives).toEqual([legacyRow.id]);
+
+    // 2. The document carries them, validates them, and gives them back after a wipe.
+    reader.close();
+    raw = null;
+    const before = await snapshot();
+    const document = JSON.parse(before) as { exercises: Record<string, unknown>[] };
+    const exported = document.exercises.find((row) => row['id'] === detailed.id);
+    expect(exported?.['secondaryMuscles']).toEqual(['calves']);
+    expect(exported?.['description']).toBe(detailed.description);
+    expect(exported?.['variantOf']).toBe(legacyRow.id);
+    expect(exported?.['alternatives']).toEqual([legacyRow.id]);
+    // The old row exports exactly as it was stored: no invented detail on the way out.
+    const exportedLegacy = document.exercises.find((row) => row['id'] === legacyRow.id);
+    expect(Object.keys(exportedLegacy ?? {}).sort()).toEqual([
+      'equipment',
+      'id',
+      'isArchived',
+      'isCustom',
+      'loadIncrementKg',
+      'name',
+      'pattern',
+      'primaryMuscle',
+    ]);
+    expect(storage.backup.validate(before).ok).toBe(true);
+
+    await storage.deleteAll({ confirmation: DELETE_ALL_CONFIRMATION });
+    const report = await storage.backup.import({
+      json: before,
+      mode: 'restore',
+      confirmation: RESTORE_CONFIRMATION,
+    });
+    expect(report.written.exercises).toBe(2);
+
+    const restored = await storage.exercises.byId(detailed.id);
+    expect(restored).toEqual(detailed);
+    expect(await storage.exercises.byId(legacyRow.id)).toEqual(legacy);
+    expect(await snapshot()).toBe(before);
+  });
+});

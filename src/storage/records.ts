@@ -13,7 +13,7 @@
 
 import type { DBSchema } from 'idb';
 import type { BlockRole } from '../core/domain/progression';
-import type { ProgressionRecommendation } from '../core/domain';
+import type { MuscleGroup, ProgressionRecommendation } from '../core/domain';
 import type {
   ActivityKind,
   EpochMs,
@@ -140,6 +140,15 @@ export interface ExerciseRow {
   loadIncrementKg: number;
   isCustom: boolean;
   isArchived: ArchivedFlag;
+  /**
+   * Additive library detail (T3). Every member is optional and none is indexed: a row
+   * written before these columns existed simply does not have them, `mappers.ts` reads
+   * that as "no detail", and nothing has to be rewritten on upgrade.
+   */
+  secondaryMuscles?: readonly MuscleGroup[];
+  description?: string;
+  variantOf?: string;
+  alternatives?: readonly string[];
 }
 
 export interface PlanDayRow {

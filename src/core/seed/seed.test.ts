@@ -79,6 +79,33 @@ describe('the seeded library', () => {
     }
   });
 
+  it('points every alternative at a real row that shares its pattern and primary muscle', () => {
+    // S5: a substitute keeps the job of the exercise it replaces. Padding the list with a
+    // similar name would break exactly that, so the rule is asserted, not assumed.
+    const byId = new Map(SEED_EXERCISES.map((exercise) => [exercise.id, exercise]));
+
+    for (const exercise of SEED_EXERCISES) {
+      for (const id of exercise.alternatives ?? []) {
+        expect(id, `${exercise.id} names itself`).not.toBe(exercise.id);
+        const alternative = byId.get(id);
+        expect(alternative, `${exercise.id} → ${id}`).toBeDefined();
+        expect(alternative?.pattern, `${exercise.id} → ${id} pattern`).toBe(exercise.pattern);
+        expect(alternative?.primaryMuscle, `${exercise.id} → ${id} muscle`).toBe(
+          exercise.primaryMuscle,
+        );
+      }
+    }
+  });
+
+  it('describes how the prescribed exercises are executed, naming the implement', () => {
+    // S4: no exercise may be recommended without saying how it is done.
+    for (const item of planItems) {
+      const exercise = SEED_EXERCISES.find((row) => row.id === item.exerciseId);
+      expect(exercise?.description, item.exerciseNameSnapshot).toBeDefined();
+      expect((exercise?.description ?? '').length, item.exerciseNameSnapshot).toBeGreaterThan(20);
+    }
+  });
+
   it('keys every row by a stable seed id, with no duplicate', () => {
     const ids = SEED_EXERCISES.map((exercise) => exercise.id);
     expect(new Set(ids).size).toBe(ids.length);

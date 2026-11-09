@@ -19,6 +19,10 @@
  * - **Records** — the marks of `personalRecords` for this key.
  * - **Muscle group and equipment** — only when the library row still exists. A deleted
  *   exercise keeps its history by snapshot name (I-4) and shows neither.
+ * - **Library detail** — the execution description, the secondary muscles and the
+ *   alternatives of that row (S4–S5, T3). All three are optional fields of `Exercise`, so
+ *   a custom exercise, a row seeded before they existed or a row whose alternative has
+ *   since been deleted renders without them instead of rendering a hole.
  *
  * There are no calories, no level or rank, no percentage and no invented trend: those
  * values do not exist in Rupfit (`design/system.md`, product-data guardrails).
@@ -40,10 +44,12 @@ import type { Equipment, Exercise, WorkoutSession } from '../../storage';
 import type { MuscleGroup } from '../../core/domain';
 import { personalRecords, type PersonalRecord } from './aggregates';
 import {
+  alternativesOf,
   exerciseFor,
   exerciseHistory,
   isSquatExercise,
   openSessionOf,
+  secondaryMusclesOf,
   type ExerciseHistory,
   type ExerciseSessionPoint,
 } from './exerciseDetail';
@@ -151,6 +157,70 @@ function SquatIllustration(): React.ReactElement {
 
 function setsWord(count: number): string {
   return `${String(count)} ${count === 1 ? 'serie' : 'series'}`;
+}
+
+interface LibraryCardProps {
+  readonly detail: Exercise | undefined;
+  readonly exercises: readonly Exercise[];
+}
+
+/**
+ * What the library knows about the movement besides its name (S4–S5, T3): how to execute
+ * it, which muscles it also works, and what can replace it when the machine is busy.
+ *
+ * Nothing is drawn when the row has none of the three, so the screen of a custom exercise
+ * is exactly the screen it was before the fields existed. The alternatives keep their own
+ * history — they are other `Exercise.id`s — and the note says so, because replacing an
+ * exercise must not read as moving its progression across.
+ */
+function LibraryCard({ detail, exercises }: LibraryCardProps): React.ReactElement | null {
+  const secondary = secondaryMusclesOf(detail);
+  const alternatives = alternativesOf(detail, exercises);
+  const description = detail?.description;
+  const hasDescription = description !== undefined;
+
+  if (!hasDescription && secondary.length === 0 && alternatives.length === 0) return null;
+
+  return (
+    <Card>
+      {hasDescription ? (
+        <div className="progress__detail">
+          <SectionLabel>Ejecución</SectionLabel>
+          <p className="ds-body">{description}</p>
+        </div>
+      ) : null}
+
+      {secondary.length === 0 ? null : (
+        <div className="progress__detail">
+          <span className="ds-meta">También trabaja</span>
+          <div className="progress__chips">
+            {secondary.map((muscle) => (
+              <Chip key={muscle} tone="neutral">
+                {MUSCLE_LABEL[muscle]}
+              </Chip>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {alternatives.length === 0 ? null : (
+        <div className="progress__detail">
+          <SectionLabel>Alternativas</SectionLabel>
+          {alternatives.map((alternative) => (
+            <DataRow
+              key={alternative.id}
+              title={alternative.name}
+              subtitle={EQUIPMENT_LABEL[alternative.equipment]}
+            />
+          ))}
+          <p className="ds-caption">
+            Para cuando la máquina está ocupada. Cada alternativa es un ejercicio con su
+            propio historial: lo que progreses en una no cambia el peso de otra.
+          </p>
+        </div>
+      )}
+    </Card>
+  );
 }
 
 /** `3 series · 8 reps` — the session's confirmed sets and the reps of its top set. */
@@ -381,6 +451,8 @@ export function ExerciseDetailScreen({
           <Chip tone="neutral">{EQUIPMENT_LABEL[known.equipment]}</Chip>
         </div>
       )}
+
+      <LibraryCard detail={known} exercises={exercises} />
 
       {history === null ? (
         <>
