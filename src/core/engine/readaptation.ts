@@ -17,6 +17,7 @@ import {
   type BlockPrescription,
   type BlockRole,
   type ExerciseOutcome,
+  DEFAULT_BLOCK_ROLE,
   type PhaseState,
   type TrainingPhase,
 } from '../domain';
@@ -41,17 +42,36 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
  * which the decision resolves.
  */
 const BLOCK_TABLE: Record<BlockRole, readonly BlockPrescription[]> = {
-  primary: [
-    { sets: 2, repRange: repRange(10, 10), targetRIR: repRange(4, 5) },
-    { sets: 3, repRange: repRange(10, 10), targetRIR: repRange(3, 4) },
-    { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(2, 3) },
-    { sets: 4, repRange: repRange(8, 8), targetRIR: repRange(2, 2) },
+  // The main lift of the day. Lower reps than the rest, and still conservative: block 1
+  // starts at 6–8 rather than the 5 the normal phase allows, because readaptation is the
+  // phase where a tendon meets the load again.
+  strength: [
+    { sets: 3, repRange: repRange(6, 8), targetRIR: repRange(4, 5) },
+    { sets: 3, repRange: repRange(6, 8), targetRIR: repRange(3, 4) },
+    { sets: 4, repRange: repRange(5, 8), targetRIR: repRange(2, 3) },
+    { sets: 4, repRange: repRange(5, 6), targetRIR: repRange(2, 2) },
   ],
+  // Compound volume: the column every undeclared exercise gets.
+  hypertrophy: [
+    { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(4, 5) },
+    { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(3, 4) },
+    { sets: 4, repRange: repRange(8, 12), targetRIR: repRange(2, 3) },
+    { sets: 4, repRange: repRange(8, 10), targetRIR: repRange(2, 2) },
+  ],
+  // Isolation: calves, arms, femoral curls.
   accessory: [
-    { sets: 2, repRange: repRange(12, 12), targetRIR: repRange(4, 4) },
-    { sets: 2, repRange: repRange(12, 12), targetRIR: repRange(3, 3) },
-    { sets: 3, repRange: repRange(10, 12), targetRIR: repRange(2, 3) },
-    { sets: 3, repRange: repRange(10, 10), targetRIR: repRange(2, 2) },
+    { sets: 2, repRange: repRange(10, 12), targetRIR: repRange(4, 4) },
+    { sets: 3, repRange: repRange(10, 12), targetRIR: repRange(3, 3) },
+    { sets: 3, repRange: repRange(10, 15), targetRIR: repRange(2, 3) },
+    { sets: 3, repRange: repRange(10, 12), targetRIR: repRange(2, 2) },
+  ],
+  // Hamstrings and adductors worked for tissue tolerance: two sets, far from failure, and
+  // deliberately without a rep target that invites load chasing (Nordic, Copenhagen).
+  preventive: [
+    { sets: 2, repRange: repRange(6, 8), targetRIR: repRange(5, 6) },
+    { sets: 2, repRange: repRange(6, 8), targetRIR: repRange(5, 5) },
+    { sets: 3, repRange: repRange(6, 10), targetRIR: repRange(4, 5) },
+    { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(3, 4) },
   ],
 };
 
@@ -68,7 +88,10 @@ function clampBlock(block: number): number {
   return Math.min(Math.max(Math.trunc(block), 1), LAST_BLOCK);
 }
 
-export function blockPrescription(block: number, role: BlockRole = 'primary'): BlockPrescription {
+export function blockPrescription(
+  block: number,
+  role: BlockRole = DEFAULT_BLOCK_ROLE,
+): BlockPrescription {
   return BLOCK_TABLE[role][clampBlock(block) - 1] as BlockPrescription;
 }
 
@@ -149,13 +172,16 @@ export function evaluateBlock(
   state: PhaseState,
   history: readonly ExerciseOutcome[],
   now: Date,
+  profile?: BlockRole,
 ): BlockDecision {
   if (!isReadaptation(phase)) {
     throw new Error('evaluateBlock requires a readaptation phase');
   }
 
   const block = clampBlock(state.block);
-  const role: BlockRole = state.role ?? 'primary';
+  // The exercise's own profile wins over the phase-wide one: the gate compares this
+  // exercise's sets against the prescription this exercise actually has.
+  const role: BlockRole = profile ?? state.role ?? DEFAULT_BLOCK_ROLE;
   const scheduledSessions = state.scheduledSessionsPerWeek ?? SCHEDULED_SESSIONS_PER_WEEK;
   const currentWeek = phase.week;
   const failed = new Set<BlockCriterion>();

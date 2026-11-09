@@ -98,6 +98,7 @@ const MUSCLE_LABEL: Record<Exercise['primaryMuscle'], string> = {
   quadriceps: 'Cuádriceps',
   hamstrings: 'Cadena posterior',
   glutes: 'Glúteos',
+  adductors: 'Aductores',
   calves: 'Gemelos',
   lowerBack: 'Lumbar',
   chest: 'Pecho',

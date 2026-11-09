@@ -155,11 +155,18 @@ describe('§4 template rendering', () => {
 
 /** One input per reason, so the catalogue is proven to be reachable. */
 function scenarios(): Record<ReasonCode, ProgressionInput> {
+  // Three sets of ten: block 1 of the profile these scenarios exercise
+  // (hypertrophy, 3 × 8–10). Two sets would report `incompleteSets` and the gate would
+  // never pass, which is what the fixture asserted before profiles existed.
   const twoWeeksPassing = [2, 5, 8, 11].map((daysAgo) =>
     makeOutcome({
       weightKg: 100,
       date: daysBefore(daysAgo),
-      sets: [makeSet(10, { effort: EFFORT.easy }), makeSet(10, { effort: EFFORT.easy })],
+      sets: [
+        makeSet(10, { effort: EFFORT.easy }),
+        makeSet(10, { effort: EFFORT.easy }),
+        makeSet(10, { effort: EFFORT.easy }),
+      ],
     }),
   );
   const twoWeeksIncomplete = [2, 5, 8, 11].map((daysAgo) =>

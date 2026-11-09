@@ -18,10 +18,16 @@ import {
   seedRows,
 } from './index';
 
-const PRIMARY_REPS: RepRange = { lowerBound: 10, upperBound: 10 };
-const PRIMARY_RIR: RepRange = { lowerBound: 4, upperBound: 5 };
-const ACCESSORY_REPS: RepRange = { lowerBound: 12, upperBound: 12 };
+// Block 1 of each profile of the block table (src/core/engine/readaptation.ts), copied as
+// literals on purpose: a test that reads the table would agree with any change to it.
+const STRENGTH_REPS: RepRange = { lowerBound: 6, upperBound: 8 };
+const STRENGTH_RIR: RepRange = { lowerBound: 4, upperBound: 5 };
+const HYPERTROPHY_REPS: RepRange = { lowerBound: 8, upperBound: 10 };
+const HYPERTROPHY_RIR: RepRange = { lowerBound: 4, upperBound: 5 };
+const ACCESSORY_REPS: RepRange = { lowerBound: 10, upperBound: 12 };
 const ACCESSORY_RIR: RepRange = { lowerBound: 4, upperBound: 4 };
+const PREVENTIVE_REPS: RepRange = { lowerBound: 6, upperBound: 8 };
+const PREVENTIVE_RIR: RepRange = { lowerBound: 5, upperBound: 6 };
 
 const plan = seedPlanDays();
 const planItems = plan.flatMap((day) => day.items);
@@ -86,53 +92,66 @@ describe('the seeded library', () => {
 });
 
 describe('the starter plan', () => {
-  it('is the three days of FR-3.1, in order and with the names verbatim', () => {
-    expect(plan.map((day) => day.name)).toEqual([
-      'SENTADILLA / PIERNA',
-      'PESO MUERTO / TRACCIÓN',
-      'PRESS BANCA / EMPUJE',
-    ]);
+  it('is the three gym days of the owner, in rotation order', () => {
+    // odd/tasks/training-program.md S1: leg, upper A, upper B. Rupfit stores no weekday,
+    // so the rotation is the three days and the calendar lives with the owner.
+    expect(plan.map((day) => day.name)).toEqual(['PIERNA', 'TORSO A', 'TORSO B']);
     expect(plan.map((day) => day.order)).toEqual([0, 1, 2]);
   });
 
-  it('carries six exercises per day, the primary lift of FR-3.1 first', () => {
+  it('starts every day with its strength lift and keeps a readable number of exercises', () => {
+    // Leg day is the longest on purpose: it carries the calves pair and the two
+    // preventive movements the football adaptation is built around.
+    const lengths = plan.map((day) => day.items.length);
+    expect(lengths).toEqual([8, 7, 7]);
     for (const day of plan) {
-      expect(day.items).toHaveLength(6);
-      expect(day.items.map((item) => item.order)).toEqual([0, 1, 2, 3, 4, 5]);
+      expect(day.items.map((item) => item.order)).toEqual(day.items.map((_, index) => index));
+      expect(day.items[0]?.prescription.role).toBe('strength');
     }
     expect(plan[0]?.items[0]?.exerciseNameSnapshot).toBe('Sentadilla trasera');
-    expect(plan[1]?.items[0]?.exerciseNameSnapshot).toBe('Peso muerto convencional');
-    expect(plan[2]?.items[0]?.exerciseNameSnapshot).toBe('Press banca');
+    expect(plan[1]?.items[0]?.exerciseNameSnapshot).toBe('Press banca');
+    expect(plan[2]?.items[0]?.exerciseNameSnapshot).toBe('Press banca inclinado');
   });
 
-  it('prescribes FR-3.2 accessories and never the same exercise twice', () => {
-    const lower = plan[0]?.items.map((item) => item.exerciseNameSnapshot) ?? [];
-    const pull = plan[1]?.items.map((item) => item.exerciseNameSnapshot) ?? [];
-    const push = plan[2]?.items.map((item) => item.exerciseNameSnapshot) ?? [];
+  it('prescribes the session muscle by muscle and never the same exercise twice', () => {
+    const leg = plan[0]?.items.map((item) => item.exerciseNameSnapshot) ?? [];
+    const upperA = plan[1]?.items.map((item) => item.exerciseNameSnapshot) ?? [];
+    const upperB = plan[2]?.items.map((item) => item.exerciseNameSnapshot) ?? [];
 
-    expect(lower).toEqual([
+    // Leg: quads and glutes through the squat and the press, hamstrings through a hinge, a
+    // seated curl and the assisted Nordic, adductors through the adapted Copenhagen, and
+    // both calves — the standing one for the gastrocnemius and the seated one for the
+    // soleus, which is the pair that actually trains the lower leg.
+    expect(leg).toEqual([
       'Sentadilla trasera',
+      'Peso muerto rumano con barra',
       'Prensa',
-      'Zancadas',
-      'Curl femoral',
-      'Gemelos',
-      'Crunch en polea',
+      'Curl femoral sentado en máquina',
+      'Nordic curl asistido',
+      'Copenhagen plank adaptado',
+      'Elevación de gemelos de pie en máquina',
+      'Elevación de sóleo sentado',
     ]);
-    expect(pull).toEqual([
-      'Peso muerto convencional',
+
+    // Upper A: a horizontal strength lift, then volume for back, lats and shoulders, then
+    // arms. Upper B mirrors it with different angles and different implements.
+    expect(upperA).toEqual([
+      'Press banca',
       'Remo con barra',
       'Jalón al pecho',
-      'Face pull',
-      'Curl de bíceps',
-      'Hiperextensión',
-    ]);
-    expect(push).toEqual([
-      'Press banca',
-      'Press inclinado con mancuernas',
       'Press de hombro',
       'Elevaciones laterales',
+      'Curl de bíceps con barra',
       'Extensiones de tríceps',
-      'Espalda alta',
+    ]);
+    expect(upperB).toEqual([
+      'Press banca inclinado',
+      'Remo en máquina',
+      'Dominadas asistidas',
+      'Press de hombro en máquina',
+      'Face pull',
+      'Curl en polea',
+      'Extensión de tríceps sobre la cabeza',
     ]);
 
     const exerciseIds = planItems.map((item) => item.exerciseId);
@@ -152,42 +171,64 @@ describe('the starter plan', () => {
     for (const day of plan) expect(day.id.startsWith('seed-day-')).toBe(true);
   });
 
-  it('writes the readaptation block-1 prescription of training-science §6 and the rest of §7', () => {
-    const primary = itemByName('Sentadilla trasera');
-    expect(primary.prescription).toEqual({
-      sets: 2,
-      repRange: PRIMARY_REPS,
-      targetRIR: PRIMARY_RIR,
+  it('writes the block-1 prescription of each profile, with the rest of §7', () => {
+    // Four profiles, four different answers at the same block: this is the whole point of
+    // odd/tasks/training-program.md S2 — a strength lift and a Copenhagen plank can no
+    // longer share one row of numbers.
+    expect(itemByName('Sentadilla trasera').prescription).toEqual({
+      sets: 3,
+      repRange: STRENGTH_REPS,
+      targetRIR: STRENGTH_RIR,
       restSeconds: 180,
+      role: 'strength',
     });
 
-    const compoundAccessory = itemByName('Prensa');
-    expect(compoundAccessory.prescription).toEqual({
-      sets: 2,
-      repRange: ACCESSORY_REPS,
-      targetRIR: ACCESSORY_RIR,
+    expect(itemByName('Prensa').prescription).toEqual({
+      sets: 3,
+      repRange: HYPERTROPHY_REPS,
+      targetRIR: HYPERTROPHY_RIR,
       restSeconds: 120,
+      role: 'hypertrophy',
     });
 
-    const isolation = itemByName('Curl femoral');
-    expect(isolation.prescription).toEqual({
+    expect(itemByName('Elevación de sóleo sentado').prescription).toEqual({
       sets: 2,
       repRange: ACCESSORY_REPS,
       targetRIR: ACCESSORY_RIR,
       restSeconds: 90,
+      role: 'accessory',
     });
 
-    // §7: only the three documented intervals exist, and only the primary lift of each
-    // day takes the 180 s one.
+    // The two movements that need the most patience: two sets, five to six reps in
+    // reserve, and never a load target of their own.
+    expect(itemByName('Nordic curl asistido').prescription).toEqual({
+      sets: 2,
+      repRange: PREVENTIVE_REPS,
+      targetRIR: PREVENTIVE_RIR,
+      restSeconds: 90,
+      role: 'preventive',
+    });
+    expect(itemByName('Copenhagen plank adaptado').prescription.role).toBe('preventive');
+
+    // §7: only the three documented intervals exist, and only the day's strength lifs
+    // take the 180 s one.
     for (const item of planItems) {
       expect([90, 120, 180]).toContain(item.prescription.restSeconds);
     }
     for (const day of plan) {
       const long = day.items.filter((item) => item.prescription.restSeconds === 180);
-      expect(long.map((item) => item.exerciseNameSnapshot)).toEqual([
-        day.items[0]?.exerciseNameSnapshot,
-      ]);
+      expect(long.length).toBeGreaterThan(0);
+      expect(long.length).toBe(day.items.filter((item) => item.prescription.role === 'strength').length);
     }
+  });
+
+  it('never puts the full Nordic curl before the assisted one', () => {
+    // S3: the harder variant is a later change of exercise, not the starting prescription.
+    const names = planItems.map((item) => item.exerciseNameSnapshot);
+    expect(names).toContain('Nordic curl asistido');
+    expect(names).not.toContain('Nordic curl');
+    expect(names).toContain('Copenhagen plank adaptado');
+    expect(names).not.toContain('Copenhagen plank');
   });
 
   it('starts the owner in readaptation block 1, because a missing state would read as the normal phase', () => {

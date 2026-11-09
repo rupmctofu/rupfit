@@ -216,8 +216,10 @@ describe('writeStartingPoint', () => {
   });
 
   it('does not overwrite a day the owner already has', async () => {
+    // One of the seeded days, renamed by the owner: the starting point must leave it
+    // alone and write only the days that are missing.
     const edited: PlanDay = {
-      id: 'seed-day-lower',
+      id: 'seed-day-leg',
       name: 'MI RUTINA DE PIERNA',
       order: 0,
       items: [],
@@ -226,7 +228,7 @@ describe('writeStartingPoint', () => {
 
     await writeStartingPoint(store, PROFILE);
 
-    expect(store.rows.planDays.get('seed-day-lower')).toEqual(edited);
+    expect(store.rows.planDays.get('seed-day-leg')).toEqual(edited);
     expect(store.rows.planDays.size).toBe(3);
   });
 

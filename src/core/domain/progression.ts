@@ -41,6 +41,8 @@ export interface ColdStartInput {
 export interface ProgressionInput {
   readonly exercise: Exercise;
   readonly prescription: ExercisePrescription;
+  /** The prescription profile of this exercise; falls back to the phase and default. */
+  readonly role?: BlockRole;
   readonly phase: TrainingPhase;
   readonly phaseState: PhaseState;
   /** Newest first, same exercise (docs/progression-engine.md §2). */
@@ -125,8 +127,24 @@ export function isReadaptation(phase: TrainingPhase): phase is { readonly kind: 
   return phase.kind === 'readaptation';
 }
 
-/** Role of an exercise inside the block table (docs/progression-engine.md §8). */
-export type BlockRole = 'primary' | 'accessory';
+/**
+ * The prescription profile of an exercise (docs/progression-engine.md §8).
+ *
+ * The plan this app ships for its owner mixes heavy strength work, hypertrophy volume and
+ * preventive work for football, and one table row for all of it produced the same numbers
+ * everywhere. A profile decides *which column* of the block table applies; it changes no
+ * maths — the increment, the gate and the double progression are the same for all four.
+ *
+ * - `strength` — the main lift of the day: fewer reps, more load, RIR kept honest.
+ * - `hypertrophy` — compound volume: the default when nothing else is declared.
+ * - `accessory` — isolation, calves, arms: more reps, less load.
+ * - `preventive` — hamstring and adductor work done for tissue tolerance, not for load:
+ *   low volume, high RIR, never a target for the increment.
+ */
+export type BlockRole = 'strength' | 'hypertrophy' | 'accessory' | 'preventive';
+
+/** The profile an undeclared exercise gets. */
+export const DEFAULT_BLOCK_ROLE: BlockRole = 'hypertrophy';
 
 /**
  * Readaptation state carried by the app: the block being trained, the blocks
@@ -138,7 +156,10 @@ export interface PhaseState {
   readonly block: number;
   /** Blocks already passed inside readaptation: 0..4. */
   readonly passedBlocks: number;
-  /** Defaults to `'primary'` when omitted. */
+  /**
+   * Legacy per-phase fallback. The plan item's own `prescription.role` wins; this stays so
+   * a stored phase state that carries a role keeps working, and so old backups load.
+   */
   readonly role?: BlockRole;
   /** Defaults to three scheduled sessions per week (training-science §6). */
   readonly scheduledSessionsPerWeek?: number;

@@ -78,11 +78,16 @@ const ROWS: readonly SeedExerciseRow[] = [
 
   // ---------------------------------------------------------------- hinge
   { id: 'seed-ex-peso-muerto', name: 'Peso muerto convencional', primaryMuscle: 'hamstrings', pattern: 'hinge', equipment: 'barbell' },
-  { id: 'seed-ex-peso-muerto-rumano', name: 'Peso muerto rumano', primaryMuscle: 'hamstrings', pattern: 'hinge', equipment: 'barbell' },
+  { id: 'seed-ex-peso-muerto-rumano', name: 'Peso muerto rumano con barra', primaryMuscle: 'hamstrings', pattern: 'hinge', equipment: 'barbell' },
   { id: 'seed-ex-peso-muerto-sumo', name: 'Peso muerto sumo', primaryMuscle: 'glutes', pattern: 'hinge', equipment: 'barbell' },
   { id: 'seed-ex-hip-thrust', name: 'Hip thrust', primaryMuscle: 'glutes', pattern: 'hinge', equipment: 'barbell' },
   { id: 'seed-ex-peso-muerto-una-pierna', name: 'Peso muerto a una pierna', primaryMuscle: 'hamstrings', pattern: 'hinge', equipment: 'dumbbell' },
   { id: 'seed-ex-puente-gluteos', name: 'Puente de glúteos', primaryMuscle: 'glutes', pattern: 'hinge', equipment: 'bodyweight' },
+
+  // ------------------------- preventive: hamstrings and adductors (owner's programme)
+  { id: 'seed-ex-nordic-asistido', name: 'Nordic curl asistido', primaryMuscle: 'hamstrings', pattern: 'hinge', equipment: 'bodyweight' },
+  { id: 'seed-ex-copenhagen-adaptado', name: 'Copenhagen plank adaptado', primaryMuscle: 'adductors', pattern: 'core', equipment: 'bodyweight' },
+  { id: 'seed-ex-copenhagen', name: 'Copenhagen plank', primaryMuscle: 'adductors', pattern: 'core', equipment: 'bodyweight' },
 
   // ------------------------------------------------------- horizontal push
   { id: 'seed-ex-press-banca', name: 'Press banca', primaryMuscle: 'chest', pattern: 'horizontalPush', equipment: 'barbell' },
@@ -113,11 +118,14 @@ const ROWS: readonly SeedExerciseRow[] = [
 
   // ------------------------------------------- isolation: legs and lower back
   { id: 'seed-ex-extension-cuadriceps', name: 'Extensión de cuádriceps', primaryMuscle: 'quadriceps', pattern: 'isolation', equipment: 'machine' },
-  { id: 'seed-ex-curl-femoral', name: 'Curl femoral', primaryMuscle: 'hamstrings', pattern: 'isolation', equipment: 'machine' },
+  { id: 'seed-ex-curl-femoral', name: 'Curl femoral tumbado en máquina', primaryMuscle: 'hamstrings', pattern: 'isolation', equipment: 'machine' },
+  { id: 'seed-ex-curl-femoral-sentado', name: 'Curl femoral sentado en máquina', primaryMuscle: 'hamstrings', pattern: 'isolation', equipment: 'machine' },
+  { id: 'seed-ex-gemelos-prensa', name: 'Elevación de gemelos en prensa', primaryMuscle: 'calves', pattern: 'isolation', equipment: 'machine' },
+  { id: 'seed-ex-soleo-sentado', name: 'Elevación de sóleo sentado', primaryMuscle: 'calves', pattern: 'isolation', equipment: 'machine' },
   { id: 'seed-ex-curl-femoral-mancuerna', name: 'Curl femoral con mancuerna', primaryMuscle: 'hamstrings', pattern: 'isolation', equipment: 'dumbbell' },
-  { id: 'seed-ex-gemelos', name: 'Gemelos', primaryMuscle: 'calves', pattern: 'isolation', equipment: 'machine' },
-  { id: 'seed-ex-gemelos-mancuerna', name: 'Gemelos con mancuerna', primaryMuscle: 'calves', pattern: 'isolation', equipment: 'dumbbell' },
-  { id: 'seed-ex-hiperextension', name: 'Hiperextensión', primaryMuscle: 'lowerBack', pattern: 'isolation', equipment: 'machine' },
+  { id: 'seed-ex-gemelos', name: 'Elevación de gemelos de pie en máquina', primaryMuscle: 'calves', pattern: 'isolation', equipment: 'machine' },
+  { id: 'seed-ex-gemelos-mancuerna', name: 'Elevación de gemelos de pie con mancuerna', primaryMuscle: 'calves', pattern: 'isolation', equipment: 'dumbbell' },
+  { id: 'seed-ex-hiperextension', name: 'Hiperextensión en banco', primaryMuscle: 'lowerBack', pattern: 'isolation', equipment: 'machine' },
 
   // ------------------------------------------- isolation: shoulders and arms
   { id: 'seed-ex-elevaciones-laterales', name: 'Elevaciones laterales', primaryMuscle: 'shoulders', pattern: 'isolation', equipment: 'dumbbell' },

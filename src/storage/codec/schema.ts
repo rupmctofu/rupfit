@@ -54,11 +54,17 @@ const repRangeSchema = z.object({
   upperBound: z.number().int(),
 });
 
+const blockRoleSchema = z
+  .enum(['strength', 'hypertrophy', 'accessory', 'preventive', 'primary'])
+  .transform((value) => (value === 'primary' ? ('hypertrophy' as const) : value));
+
 const prescriptionSchema = z.object({
   sets: z.number().int().min(0),
   repRange: repRangeSchema,
   targetRIR: repRangeSchema,
   restSeconds: z.number().int().min(0),
+  /** Additive: prescriptions written before profiles existed simply omit it. */
+  role: blockRoleSchema.optional(),
 });
 
 const confidenceSchema = z.object({
@@ -227,7 +233,8 @@ const profileSchema = z.object({
 const phaseStateSchema = z.object({
   block: z.number().int().min(1).max(4),
   passedBlocks: z.number().int().min(0).max(4),
-  role: z.enum(['primary', 'accessory']).optional(),
+  // `primary` is the pre-profile name of hypertrophy work: old backups keep loading.
+  role: blockRoleSchema.optional(),
   scheduledSessionsPerWeek: z.number().int().min(0).optional(),
 });
 

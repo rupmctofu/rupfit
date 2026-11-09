@@ -8,6 +8,7 @@
  */
 
 import {
+  DEFAULT_BLOCK_ROLE,
   DISCOMFORT,
   EFFORT,
   type Confidence,
@@ -89,6 +90,9 @@ function hardestEffort(sets: readonly SetOutcome[]): Effort | null {
  */
 export function recommend(input: ProgressionInput, computedAt: Date): ProgressionRecommendation {
   const { exercise, prescription, phase, phaseState } = input;
+  // The profile travels with the prescription. The phase state's role is the older,
+  // phase-wide fallback; when neither says anything the exercise is hypertrophy volume.
+  const role = input.role ?? prescription.role ?? phaseState.role ?? DEFAULT_BLOCK_ROLE;
   const increment = exercise.loadIncrementKg;
   const bottom = prescription.repRange.lowerBound;
   const top = prescription.repRange.upperBound;
@@ -225,7 +229,7 @@ export function recommend(input: ProgressionInput, computedAt: Date): Progressio
 
   // Rule 6: the readaptation block table governs load and volume.
   if (phase.kind === 'readaptation') {
-    const decision = evaluateBlock(phase, phaseState, usable, computedAt);
+    const decision = evaluateBlock(phase, phaseState, usable, computedAt, role);
     const prescriptionForRepeat = decision.prescription;
     const week = Math.min(Math.max(Math.trunc(phase.week), 1), MAX_READAPTATION_WEEK);
 

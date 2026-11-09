@@ -6,6 +6,7 @@
  */
 
 import type { Equipment, MovementPattern, MuscleGroup, RepRange } from './values';
+import type { BlockRole } from './progression';
 
 export interface Exercise {
   readonly id: string;
@@ -29,4 +30,11 @@ export interface ExercisePrescription {
   /** Target reps in reserve for the prescription (docs/data-model.md §3). */
   readonly targetRIR: RepRange;
   readonly restSeconds: number;
+  /**
+   * Which column of the readaptation block table prescribes this exercise
+   * (`docs/progression-engine.md §8`). Optional and additive: a prescription written
+   * before profiles existed falls back to the phase role and then to hypertrophy, so old
+   * stored sessions and old backups keep working untouched.
+   */
+  readonly role?: BlockRole;
 }

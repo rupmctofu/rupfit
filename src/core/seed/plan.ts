@@ -98,12 +98,38 @@ interface SeedDaySpec {
   readonly slots: readonly SeedSlot[];
 }
 
-function primary(exerciseId: string): SeedSlot {
-  return { exerciseId, role: 'primary', restSeconds: REST_PRIMARY_S };
+function slot(role: BlockRole, exerciseId: string, restSeconds: number): SeedSlot {
+  return { exerciseId, role, restSeconds };
 }
 
-function accessory(exerciseId: string, restSeconds: number = REST_COMPOUND_S): SeedSlot {
-  return { exerciseId, role: 'accessory', restSeconds };
+/** The day's main lift: few reps, more load, RIR kept honest. */
+function strength(exerciseId: string): SeedSlot {
+  return slot('strength', exerciseId, REST_PRIMARY_S);
+}
+
+/** Compound volume for muscle: the default shape of the programme. */
+function hypertrophy(exerciseId: string): SeedSlot {
+  return slot('hypertrophy', exerciseId, REST_COMPOUND_S);
+}
+
+/** Isolation: calves, arms, femoral curls. */
+function accessory(exerciseId: string, restSeconds: number = REST_ISOLATION_S): SeedSlot {
+  return slot('accessory', exerciseId, restSeconds);
+}
+
+/**
+ * Preventive work, and the reason it has its own profile.
+ *
+ * Nordic curl and Copenhagen plank are the two exercises that make this programme about
+ * football and not only about the gym, and they are also the two that punish an eager
+ * start: both are heavily eccentric or isometric at long muscle length. The `preventive`
+ * column keeps them at two sets far from failure for the whole first block, and the plan
+ * names the *adaptable* variants first (`Nordic curl asistido`, `Copenhagen plank
+ * adaptado`) so the progression to the full version is a change of exercise the owner can
+ * make, not a load the engine adds on its own.
+ */
+function preventive(exerciseId: string): SeedSlot {
+  return slot('preventive', exerciseId, REST_ISOLATION_S);
 }
 
 /**
@@ -111,46 +137,59 @@ function accessory(exerciseId: string, restSeconds: number = REST_COMPOUND_S): S
  * weekday (data-model §3), and `src/features/session/start` reads the rotation from the
  * sessions that were actually trained.
  */
+/**
+ * The owner's week, as three gym days in rotation order.
+ *
+ * Rupfit stores no weekday (`PlanDay` has no date), so the calendar is not data: the
+ * rotation is Leg → Upper A → Upper B and the owner trains Monday, Tuesday and Friday.
+ * Thursday is football, which is an activity and never a session, so no strength day can
+ * land on it. Wednesday, Saturday and Sunday are rest because only three days exist.
+ *
+ * The order inside each day is deliberate: the strength lift while fresh, then compound
+ * volume, then the preventive pair, then isolation. On leg day that puts Nordic curl after
+ * the heavy work — the quality is better and the soreness arrives where it can still be
+ * absorbed before Thursday — and it never puts a second eccentric hamstring movement next
+ * to the Romanian deadlift.
+ */
 const DAYS: readonly SeedDaySpec[] = [
   {
-    key: 'lower',
-    name: 'SENTADILLA / PIERNA',
-    // FR-3.2 Pierna: prensa, zancadas o unilateral, curl femoral, gemelos, core.
+    key: 'leg',
+    name: 'PIERNA',
     slots: [
-      primary('seed-ex-sentadilla-trasera'),
-      accessory('seed-ex-prensa'),
-      accessory('seed-ex-zancadas'),
-      accessory('seed-ex-curl-femoral', REST_ISOLATION_S),
-      accessory('seed-ex-gemelos', REST_ISOLATION_S),
-      accessory('seed-ex-crunch-polea', REST_ISOLATION_S),
+      strength('seed-ex-sentadilla-trasera'),
+      strength('seed-ex-peso-muerto-rumano'),
+      hypertrophy('seed-ex-prensa'),
+      accessory('seed-ex-curl-femoral-sentado'),
+      preventive('seed-ex-nordic-asistido'),
+      preventive('seed-ex-copenhagen-adaptado'),
+      accessory('seed-ex-gemelos'),
+      accessory('seed-ex-soleo-sentado'),
     ],
   },
   {
-    key: 'pull',
-    name: 'PESO MUERTO / TRACCIÓN',
-    // FR-3.2 Tracción: remo, jalón al pecho o dominadas asistidas, face pulls, curl de
-    // bíceps, cadena posterior (the lower-back row FR-3.2 asks for last).
+    key: 'torso-a',
+    name: 'TORSO A',
     slots: [
-      primary('seed-ex-peso-muerto'),
-      accessory('seed-ex-remo-barra'),
-      accessory('seed-ex-jalon-pecho'),
-      accessory('seed-ex-face-pull', REST_ISOLATION_S),
-      accessory('seed-ex-curl-biceps', REST_ISOLATION_S),
-      accessory('seed-ex-hiperextension', REST_ISOLATION_S),
+      strength('seed-ex-press-banca'),
+      hypertrophy('seed-ex-remo-barra'),
+      hypertrophy('seed-ex-jalon-pecho'),
+      hypertrophy('seed-ex-press-hombro'),
+      accessory('seed-ex-elevaciones-laterales'),
+      accessory('seed-ex-curl-barra'),
+      accessory('seed-ex-extensiones-triceps'),
     ],
   },
   {
-    key: 'push',
-    name: 'PRESS BANCA / EMPUJE',
-    // FR-3.2 Empuje: press inclinado con mancuernas, press de hombro, elevaciones
-    // laterales, extensiones de tríceps, espalda alta.
+    key: 'torso-b',
+    name: 'TORSO B',
     slots: [
-      primary('seed-ex-press-banca'),
-      accessory('seed-ex-press-inclinado-mancuernas'),
-      accessory('seed-ex-press-hombro'),
-      accessory('seed-ex-elevaciones-laterales', REST_ISOLATION_S),
-      accessory('seed-ex-extensiones-triceps', REST_ISOLATION_S),
-      accessory('seed-ex-espalda-alta'),
+      strength('seed-ex-press-banca-inclinado'),
+      hypertrophy('seed-ex-remo-maquina'),
+      hypertrophy('seed-ex-dominadas-asistidas'),
+      hypertrophy('seed-ex-press-hombro-maquina'),
+      accessory('seed-ex-face-pull'),
+      accessory('seed-ex-curl-polea'),
+      accessory('seed-ex-extension-triceps-mancuerna'),
     ],
   },
 ];
@@ -173,6 +212,9 @@ function prescriptionOf(slot: SeedSlot): ExercisePrescription {
     repRange: { ...block.repRange },
     targetRIR: { ...block.targetRIR },
     restSeconds: slot.restSeconds,
+    // The profile travels with the prescription: the engine reads it per exercise, so a
+    // strength lift and a Copenhagen plank stop sharing one column.
+    role: slot.role,
   };
 }
 

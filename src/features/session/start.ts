@@ -195,6 +195,9 @@ function copyPrescription(prescription: ExercisePrescription): ExercisePrescript
       upperBound: prescription.targetRIR.upperBound,
     },
     restSeconds: prescription.restSeconds,
+    // The profile is part of the prescription: without it the session would ask the
+    // engine for hypertrophy numbers for a strength lift the plan declared differently.
+    ...(prescription.role === undefined ? {} : { role: prescription.role }),
   };
 }
 

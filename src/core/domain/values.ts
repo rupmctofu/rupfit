@@ -10,6 +10,9 @@ export const MUSCLE_GROUPS = [
   'quadriceps',
   'hamstrings',
   'glutes',
+  // Adductors are their own group: Copenhagen planks and the football work target them,
+  // and calling them `core` hid the one adaptation the programme is built around.
+  'adductors',
   'calves',
   'lowerBack',
   'chest',
