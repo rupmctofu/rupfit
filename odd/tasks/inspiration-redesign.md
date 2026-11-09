@@ -18,11 +18,9 @@ Separar sistema de diseño, direcciones visuales, implementación verificable y 
 - T3 — Crear tres direcciones visuales: una propuesta principal con las seis pantallas, dos alternativas de jerarquía para el recorrido esencial. Solo datos existentes o ejemplos DEMO explícitos. Specs S1. Ruta: inline, `design/rupfit-inspiration/`. Hecho: `8806d94`.
 - T4 — Adaptar shell/navegación de cuatro destinos a Inicio, Historial, Ejercicios y Perfil sin romper rutas hash. Specs S1. Ruta: inline (`src/app/`). Hecho: `ef89ad5`.
 - T5 — Reordenar Inicio y Entrenar para que la próxima sesión, acción primaria y rutina sean lo primero. Specs S1. Ruta: dos workers en paralelo, superficies `src/features/home/` y `src/features/train/`, disjuntas. Hecho: `77d0f35`.
-- T6 — Añadir detalle de ejercicio como drill-down de Progreso y rediseñar Estadísticas/Historial con datos existentes. Specs S1. Ruta: worker (`src/features/progress/`, `src/app/routes.tsx`, `src/app/App.tsx`). Commit: sí.
-- T7 — Aplicar la dirección violeta a la sesión y su estado activo, con ilustración vectorial local y sin alterar el motor. Specs S1. Ruta: worker (`src/features/session/`, `src/features/summary/`). Commit: yes.
-- T8 — Reorganizar Perfil y conservar ajustes, copia, almacenamiento, instalación y borrado. Specs S1. Ruta: worker (`src/features/profile/`). Commit: yes.
-- T9 — Verificar rutas, interacciones, reflow móvil, pruebas, typecheck, build y visuales; corregir el diff. Specs S1. Ruta: inline + verifier. Commit: yes.
-- T10 — Recomendar cuándo conviene cambiar a un modelo más barato para la ejecución rutinaria. Specs S2. Ruta: inline. Commit: no.
+- T6 — Implementar el resto de pantallas en tres subunidades paralelas y disjuntas: (a) detalle de ejercicio + Estadísticas/Historial (`src/features/progress/`, `src/app/routes.tsx`, `src/app/App.tsx`); (b) sesión activa + resumen (`src/features/session/`, `src/features/summary/`); (c) Perfil (`src/features/profile/`). Specs S1. Un commit revisable por subunidad.
+- T7 — Verificar rutas, interacciones, reflow móvil, pruebas, typecheck, build y visuales; corregir el diff. Specs S1. Ruta: inline + verifier. Commit: sí.
+- T8 — Recomendar cuándo conviene cambiar a un modelo más barato para la ejecución rutinaria. Specs S2. Ruta: inline. Commit: no.
 
 ## Log
 
@@ -46,3 +44,5 @@ Te dejo aquí una imagen de inspiración de cómo quiero que quede, pero a nivel
 **L8 — T5 completado y verificado**: Inicio ahora abre con `¡Vamos a entrenar!`, mantiene nombre/fecha en meta, pone `Tu próxima sesión` y la acción justo debajo; semana/actividad bajan. Ejercicios abre con la sesión real de hoy (y `Abrir la sesión de hoy` solo si existe) y la rutina semanal, con el día de descanso en texto al final. No se cambió `homeViewOf`, `trainViewOf`, start/plan save ni IndexedDB. El copy de bloqueos `Entrenar` pasa a `Ejercicios`. Visual: captura 390×844 de ambos screens, CTA y cuatro tabs visibles; screen de rutina sin overflow. Verificación tras merge: `npm test` 642/642; `tsc --noEmit` exit 0; `npm run build` exit 0; 13 rutas, 0 errores de consola. Commit `77d0f35`.
 
 **L9 — T6 ruta corregida**: el detalle de ejercicio no existe y requiere una ruta hash nueva dentro de Progreso; el app shell debe registrar la ruta en `src/app/routes.tsx` y `src/app/App.tsx`, no tratarla como ya existente en T4. La vista usa `exerciseKey` o fallback por nombre, y el progreso/historial presente; no toca entidades ni motor.
+
+**L10 — Routing T6**: detalle/estadísticas, sesión/resumen y Perfil son tres superficies autónomas, cada una con >100 líneas previsibles; la Writer rule dispara tres trabajadores en paralelo con rutas disjuntas. Se conserva un solo T6 in-progress en el todo como unidad padre; no se cambia ningún modelo, persistencia ni cálculo.
