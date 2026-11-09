@@ -51,7 +51,7 @@ export function EmptyState({
     <div className={classes}>
       <p className="ds-empty__text">{children}</p>
       {action === undefined ? null : (
-        <button type="button" className="ds-empty__action" onClick={action.onClick}>
+        <button type="button" className="ds-action ds-empty__action" onClick={action.onClick}>
           {action.label}
         </button>
       )}

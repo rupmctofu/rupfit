@@ -154,8 +154,12 @@ function setRowFor(
   const isActive = props.interactive && slot === activeSlot;
   const state: SetState = isActive ? 'active' : 'pending';
   // No decision yet means no weight to show: the bottom bar is still asking for one, and
-  // `0 kg` inside a row would read as a prescription instead of an empty value.
-  const planned = props.draft.weightKg > 0 ? `${formatWeight(props.draft.weightKg)} kg` : null;
+  // the draft already carries the proposal, so a row would claim a weight the owner has
+  // not accepted. `0 kg` never reaches the row either.
+  const planned =
+    props.exercise.decision !== null && props.draft.weightKg > 0
+      ? `${formatWeight(props.draft.weightKg)} kg`
+      : null;
 
   return (
     <SetRow

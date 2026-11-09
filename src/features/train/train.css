@@ -51,7 +51,7 @@
   /* 48 px target, kept through padding so the row does not shift (§3). */
   min-height: var(--target-min);
   padding: 0 var(--space-3);
-  color: var(--color-accent-text);
+  color: var(--color-text);
   border-radius: var(--radius-control);
 }
 

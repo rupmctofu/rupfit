@@ -28,7 +28,7 @@
 
 .summary__retry {
   min-height: var(--target-min);
-  color: var(--color-accent-text);
+  color: var(--color-text);
 }
 
 /* The expanded read-out of one exercise: the sets behind the row. */

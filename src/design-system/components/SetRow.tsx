@@ -154,6 +154,9 @@ export function SetRow(props: SetRowProps): React.ReactElement {
                 disabled={disabled}
               />
             )}
+            {weightLabel === undefined ? null : (
+              <span className="ds-set__weight">{weightLabel}</span>
+            )}
             {onConfirm === undefined ? null : (
               <button
                 type="button"

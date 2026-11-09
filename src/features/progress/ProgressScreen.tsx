@@ -338,10 +338,11 @@ function Summary({
           Sin datos todavía. Registra una sesión y aquí aparecerán la fuerza por ejercicio, los
           récords y el volumen semanal.
         </EmptyState>
+        {/* Navigation only: the empty state already said there is no data, and three rows
+            repeating `sin datos` under it said it three more times. */}
         <Card padding="list">
-          <DataRow title="Récords" status={{ word: 'sin datos' }} />
-          <DataRow title="Historial" status={{ word: 'sin datos' }} onSelect={onOpenHistorial} />
-          <DataRow title="Peso corporal" status={{ word: 'sin datos' }} onSelect={onOpenWeight} />
+          <DataRow title="Historial" onSelect={onOpenHistorial} />
+          <DataRow title="Peso corporal" onSelect={onOpenWeight} />
         </Card>
       </>
     );

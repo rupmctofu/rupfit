@@ -469,7 +469,12 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
         >
           Terminar la sesión
         </TextButton>
-        {isLast ? null : <PrimaryAction onClick={() => goTo((session.activeIndex ?? 0) + 1)}>Siguiente</PrimaryAction>}
+        {/* Navigating to the next exercise is not the primary action while a set is still
+            pending: `Confirmar` owns the accent, and two lime fills in one viewport is
+            exactly the budget the design contract forbids. */}
+        {isLast ? null : (
+          <TextButton onClick={() => goTo((session.activeIndex ?? 0) + 1)}>Siguiente</TextButton>
+        )}
       </div>
     );
   })();

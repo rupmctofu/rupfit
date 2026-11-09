@@ -74,9 +74,10 @@ body {
   height: 22px;
 }
 
-/* Active is a real state, not only a hue: the stroke gains weight (§4, §9). */
-.tabbar__tab[aria-current='page'] .ds-icon {
-  stroke-width: 2.1;
+/* Active is a real state, not only a hue (§4, §9): the label gains weight. The icon
+   keeps the single stroke of the set — a second thickness is a second icon system. */
+.tabbar__tab[aria-current='page'] .tabbar__label {
+  font-weight: var(--weight-semibold);
 }
 
 .tabbar__label {

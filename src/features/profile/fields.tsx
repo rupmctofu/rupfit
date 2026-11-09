@@ -68,7 +68,7 @@ export function ToggleRow({ title, subtitle, on, onChange }: ToggleRowProps): Re
         role="switch"
         aria-checked={on}
         aria-label={title}
-        className="profile__switch"
+        className="ds-action profile__switch"
         onClick={() => onChange(!on)}
       >
         <span className="profile__switch-track" aria-hidden="true">

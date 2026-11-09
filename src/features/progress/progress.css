@@ -31,7 +31,7 @@
   gap: var(--space-1);
   min-height: var(--target-min);
   padding-right: var(--space-2);
-  color: var(--color-accent-text);
+  color: var(--color-text);
   font-size: var(--text-meta);
   line-height: var(--leading-meta);
   font-weight: var(--weight-semibold);
@@ -112,7 +112,7 @@
 }
 
 .progress__date:focus-visible {
-  outline: 2px solid var(--color-accent-text);
+  outline: 2px solid var(--color-text);
   outline-offset: 2px;
 }
 

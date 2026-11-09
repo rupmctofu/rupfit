@@ -363,7 +363,9 @@ export function HomeBody({
       ) : null}
 
       {view.hasHistory ? null : (
-        <EmptyState>Todavía no hay sesiones. La primera aparecerá aquí cuando la termines.</EmptyState>
+        <EmptyState bare>
+          Todavía no hay sesiones. La primera aparecerá aquí cuando la termines.
+        </EmptyState>
       )}
 
       <LastSessionCard view={view} />

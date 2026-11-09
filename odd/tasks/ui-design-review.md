@@ -28,10 +28,10 @@ Por tanto: `npm test`, `npm run typecheck` y `npm run build` pasan; `package.jso
 
 ## Tasks
 
-- T1 — Fundación del sistema: presupuesto de acento, iconos coherentes y un único componente de estado vacío. Specs S2, S3, S4. Ruta: inline (superficie compartida `src/design-system`). Commit: sí.
-- T2 — Pantalla de sesión: fila de serie con peso visible, acción primaria que registra, copia sin duplicados. Specs S1, S2, S3. Ruta: worker (superficie `src/features/session`, `src/design-system/components/SetRow.*`). Commit: sí.
-- T3 — Inicio, Entrenar, Progreso y Perfil: jerarquía por pantalla, estados vacíos unificados, acento contenido y acción destructiva en peligro. Specs S2, S3. Ruta: worker (superficie `src/features/{home,train,progress,profile}`). Commit: sí.
-- T4 — Verificación: tests, typecheck, build y recaptura visual de las trece pantallas. Spec S5. Ruta: inline + `gentle-ai-verify`. Commit: sí.
+- T1 — Fundación del sistema: presupuesto de acento, iconos coherentes y un único componente de estado vacío. Specs S2, S3, S4. Ruta: inline (superficie compartida `src/design-system`). Hecho: `2d75401`.
+- T2 — Pantalla de sesión: fila de serie con peso visible, acción primaria que registra, copia sin duplicados. Specs S1, S2, S3. Ruta: inline (el gate de writers exigió la referencia literal al documento; se hizo en la sesión padre). Hecho: `3d6091f`.
+- T3 — Inicio, Entrenar, Progreso y Perfil: jerarquía por pantalla, estados vacíos unificados, acento contenido y acción destructiva en peligro. Specs S2, S3. Ruta: inline. Hecho: `f12ccec`.
+- T4 — Verificación: tests, typecheck, build y recaptura visual de las trece pantallas. Spec S5. Hecho: `npm test` 631/631, `tsc --noEmit` sin salida, `npm run build` correcto, 13 capturas sin errores de consola.
 
 ## Log
 
@@ -211,3 +211,8 @@ Sé crítico. No des por bueno un diseño simplemente porque compile.
 
 **L3 — Decisiones de patrón de interacción.**
 Stepper para días por semana y para ajustar peso (es un valor numérico discreto y repetido); selector segmentado para objetivo y unidades (pocas opciones excluyentes y visibles de un vistazo); switch real, no chip de estado, para el descanso automático; botón de acción primaria para registrar serie y para empezar entrenamiento; pestañas para la navegación raíz; nada de `<select>` nativo salvo donde el sistema ya lo usa y no hay alternativa mejor; sin control deslizante en peso (el usuario necesita precisión de 1,25 kg, no un gesto continuo).
+
+**L4 — Correcciones al diagnóstico L2 tras leer el código.** Dos de las diez acusaciones eran parcialmente falsas y quedan así:
+- El saludo ya compone `Hola, <nombre>` cuando el perfil tiene nombre (`src/features/home/format.ts`); la captura decía `Hola` porque el store sembrado no tenía nombre. No se tocó.
+- Entrenar no es una pantalla de arranque sino el planificador semanal: quien crea la sesión es Inicio. Se retira la exigencia de «empezar de hoy en un toque» y se corrige solo la jerarquía (el aviso de descanso deja de ser una tarjeta con título propio por encima de los tres días reales).
+- El botón primario de la sesión sí es el correcto en el estado de decisión (`Aceptar 92,5 kg` / `Repetir` / `Otro peso`): lo que faltaba era el peso en las filas de serie, no otro botón.
