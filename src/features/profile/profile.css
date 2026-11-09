@@ -1,7 +1,7 @@
 /*
- * Perfil's layout: a single column of named sections, each one a card with the
- * screen's own field controls. Tokens only — no colour, radius, size or duration is
- * written here as a literal (docs/design-system.md §12).
+ * Perfil's layout: the identity card, one card of compact labelled settings, then the
+ * backup, storage and install details. Tokens only — no colour, radius, size or
+ * duration is written here as a literal (docs/design-system.md §12).
  *
  * The shell already owns the horizontal padding (src/app/shell.css), so this file adds
  * rhythm and the controls' geometry, never a second gutter.
@@ -30,7 +30,68 @@
   min-width: 0;
 }
 
-.profile__row {
+/* ---------------------------------------------------------------- identity */
+/* The only mark of this screen is an `R` monogram: the app has no photo, no level and
+   no notification, so nothing else is drawn next to the name. 44 px is the compact
+   control height token, which keeps the 22 px letter at the reference's 46/21
+   proportion without inventing a size. Neutral, not violet: identity is not the action
+   or the data point of the screen, and the accent probe is right to say so. */
+.profile__identity {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.profile__monogram {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--control-height-compact);
+  height: var(--control-height-compact);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-family: var(--font-numeric);
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  font-weight: var(--weight-semibold);
+  font-style: italic;
+}
+
+.profile__identity-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---------------------------------------------------------------- settings */
+/* One card holds the training settings, one compact row each: the label first and its
+   control beside it or, for the chips, right under it. The rows carry the padding and
+   the hairline, so a larger text size only makes a row taller. */
+.profile__settings.ds-card {
+  gap: 0;
+}
+
+.profile__setting {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3) 0;
+}
+
+/* The switch row keeps its label and its control on one line. */
+.profile__setting--row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.profile__setting-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -38,11 +99,31 @@
   min-width: 0;
 }
 
-.profile__row-text {
+.profile__setting-text {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
   min-width: 0;
+}
+
+/* 13 px medium ink: quiet next to the 17 px body copy, still a label and not an
+   uppercase section heading. */
+.profile__setting-label {
+  font-family: var(--font-sans);
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+/* The hairline belongs between neighbours, whichever kind of row they are — the list
+   rows of this screen use the same rule as `DataRow`. */
+.profile__setting + .profile__setting,
+.profile__setting + .ds-data-row,
+.ds-data-row + .profile__setting {
+  border-top: var(--layout-hairline) solid var(--color-border);
 }
 
 /* The one switch of the app. A state chip that read `Activado` looked like a badge or a
@@ -181,11 +262,59 @@ textarea.profile__input {
   color: var(--color-danger);
 }
 
+/* Import is a secondary workflow. Keep export visible, but let the form rest until the
+   owner asks for it: on a phone, the pasted JSON field used to add several screens of
+   controls between settings and storage. Native details/summary keeps it keyboard- and
+   screen-reader-operable without adding JS or a dependency. */
+.profile__disclosure {
+  border-top: var(--layout-hairline) solid var(--color-border);
+}
+
+.profile__disclosure-trigger {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: var(--target-min);
+  padding: var(--space-2) var(--space-8) var(--space-2) 0;
+  color: var(--color-text);
+  cursor: pointer;
+  touch-action: manipulation;
+  list-style: none;
+}
+
+/* `display:flex` hides the browser's native marker, so draw a small chevron ourselves
+   and rotate it when the disclosure opens; the affordance stays visible in both states. */
+.profile__disclosure-trigger::after {
+  content: '';
+  position: absolute;
+  right: var(--space-2);
+  top: 50%;
+  width: var(--space-2);
+  height: var(--space-2);
+  border-right: var(--layout-hairline) solid var(--color-muted);
+  border-bottom: var(--layout-hairline) solid var(--color-muted);
+  transform: translateY(-70%) rotate(45deg);
+  transition: transform var(--motion-fast) var(--motion-ease);
+}
+
+.profile__disclosure[open] .profile__disclosure-trigger::after {
+  transform: translateY(-25%) rotate(225deg);
+}
+
+.profile__disclosure-trigger:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-control-square);
+}
+
 /* Landing spot for the evicted banner's `Importar copia`; never hidden under the edge. */
 .profile__import {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  padding-top: var(--space-2);
   scroll-margin-top: var(--space-4);
 }
 

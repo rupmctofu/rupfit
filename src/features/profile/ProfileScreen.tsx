@@ -4,13 +4,16 @@
  *
  * The screen is a column of named sections in reading order, and the three platform
  * states come first because each is a fact the owner must be able to see without
- * scrolling:
+ * scrolling. After them the order is the owner's own data first and the operational
+ * details last: who they are and how they train, then the copy, the store and the build.
+ * A setting is a compact labelled row inside one card, never a section of its own.
  *
  * | group            | states that exist                                                       |
  * | ---------------- | ----------------------------------------------------------------------- |
  * | platform banners | storage evicted, not installed, update available                        |
- * | Perfil           | no profile yet, saved, save failed                                      |
- * | Entrenamiento    | rest timer on/off, days per week, equipment, empty equipment, library    |
+ * | Tu perfil        | no profile yet, saved, save failed                                      |
+ * | Entrenamiento    | days per week, rest timer on/off, equipment, empty equipment, goal,     |
+ * |                  | units, library entry                                                    |
  * | Copia            | export idle / in progress / done / **result unknown** / impossible;      |
  * |                  | import idle / invalid (with its path) / valid / restoring / merging /     |
  * |                  | failed / report                                                         |
@@ -18,11 +21,9 @@
  * |                  | deletion closed / open / confirmed / in progress / failed / done         |
  * | Instalación      | installed or in a tab, app version, backup format version                |
  *
- * Two rows of the approved artboard are replaced, and the replacements are recorded in
- * the task report: there is no Apple Health and no watch, so those rows become the
- * honest statement of §7.8; and the artboard's "descanso no se configura aquí" footnote
- * becomes the real `Descanso automático` switch, because the session state machine
- * already reads `profile.autoStartRestTimer`.
+ * The identity card carries the one mark of this screen, an `R` monogram, and no
+ * artwork: the app has no photo, no level and no notification of its own, so the card
+ * states the name and what the profile currently says (`goalsLine`) instead.
  *
  * Nothing here reads the clock on its own: `useAppServices()` provides the one clock,
  * and the export file name and the launch marker both come from it.
@@ -60,6 +61,7 @@ import {
   WEIGHT_GOALS,
   WEIGHT_GOAL_WORD,
   defaultProfile,
+  goalsLine,
 } from './copy';
 import './profile.css';
 
@@ -113,11 +115,17 @@ export function ProfileScreen(): React.ReactElement {
   const ready = data.phase === 'ready';
 
   const goToImport = (): void => {
-    importAnchor.current?.scrollIntoView({
+    const anchor = importAnchor.current;
+    if (anchor === null) return;
+    // The import form is intentionally tucked behind a native disclosure so export stays
+    // visible and the most-used profile controls keep first place. An eviction banner is
+    // a direct request to restore: open the disclosure before moving focus into it.
+    anchor.closest('details')?.setAttribute('open', '');
+    anchor.scrollIntoView({
       behavior: prefersReducedMotion() ? 'auto' : 'smooth',
       block: 'start',
     });
-    importAnchor.current?.focus();
+    anchor.focus();
   };
 
   return (
@@ -223,7 +231,9 @@ interface ProfileSectionProps {
   readonly onRetry: () => void;
 }
 
-/** Nombre, objetivo de peso y unidades: everything FR-1.3 lets the owner change here. */
+/** Nombre y la línea que resume el perfil: the identity card of the screen. The mark is
+ *  a monogram, not a photo; the summary under the name is derived from `UserProfile`
+ *  (`goalsLine`) so no decorative sentence has to be invented. */
 function ProfileSection({
   profile,
   saveFailed,
@@ -232,52 +242,39 @@ function ProfileSection({
 }: ProfileSectionProps): React.ReactElement {
   return (
     <section className="profile__section">
-      <SectionLabel>Perfil</SectionLabel>
+      <Card>
+        <div className="profile__identity">
+          <span className="profile__monogram" aria-hidden="true">
+            R
+          </span>
 
-      {profile === null ? (
-        <Card>
-          <p className="ds-body">
-            Todavía no hay perfil. Crea uno con los valores de partida y ajústalo aquí.
-          </p>
-          <TextButton align="start" onClick={() => onWrite({})}>
-            Crear perfil
-          </TextButton>
-        </Card>
-      ) : (
-        <Card>
-          <CommitField
-            label="Nombre"
-            hint="Opcional. Solo se usa para saludarte en Inicio."
-            value={profile.displayName ?? ''}
-            placeholder="Sin nombre"
-            onCommit={(value) => onWrite({ displayName: value.trim() === '' ? null : value.trim() })}
-          />
-
-          <span className="ds-meta">Objetivo de peso</span>
-          <ChipChoices
-            label="Objetivo de peso"
-            choices={WEIGHT_GOALS.map((goal) => ({ value: goal, word: WEIGHT_GOAL_WORD[goal] }))}
-            selected={profile.weightGoal === null ? [] : [profile.weightGoal]}
-            onToggle={(goal) => onWrite({ weightGoal: profile.weightGoal === goal ? null : goal })}
-          />
-          <p className="ds-caption">
-            {profile.weightGoal === null
-              ? 'Sin objetivo. Toca uno para fijarlo.'
-              : 'Toca el objetivo otra vez para quitarlo.'}
-          </p>
-
-          <span className="ds-meta">Unidades</span>
-          <ChipChoices
-            label="Unidades"
-            choices={MASS_UNITS.map((unit) => ({ value: unit, word: MASS_UNIT_WORD[unit] }))}
-            selected={[profile.massUnit]}
-            onToggle={(unit) => onWrite({ massUnit: unit })}
-          />
-          <p className="ds-caption">
-            Los pesos se guardan siempre en kilogramos; la unidad solo cambia cómo se escriben.
-          </p>
-        </Card>
-      )}
+          <div className="profile__identity-text">
+            {profile === null ? (
+              <>
+                <p className="ds-body">
+                  Todavía no hay perfil. Crea uno con los valores de partida y ajústalo aquí.
+                </p>
+                <TextButton align="start" onClick={() => onWrite({})}>
+                  Crear perfil
+                </TextButton>
+              </>
+            ) : (
+              <>
+                <CommitField
+                  label="Nombre"
+                  hint="Opcional. Solo se usa para saludarte en Inicio."
+                  value={profile.displayName ?? ''}
+                  placeholder="Sin nombre"
+                  onCommit={(value) =>
+                    onWrite({ displayName: value.trim() === '' ? null : value.trim() })
+                  }
+                />
+                <p className="ds-caption">{goalsLine(profile)}</p>
+              </>
+            )}
+          </div>
+        </div>
+      </Card>
 
       {saveFailed ? (
         <ErrorBanner message="No se pudo guardar el perfil. Inténtalo otra vez." onRetry={onRetry} />
@@ -294,8 +291,10 @@ interface TrainingSectionProps {
 }
 
 /**
- * Training settings. The rest switch is not decoration: `src/core/session` reads
- * `autoStartRestTimer` from the profile at boot, so this is the only place it is set.
+ * Training settings, one compact labelled row each. The rest switch is not decoration:
+ * `src/core/session` reads `autoStartRestTimer` from the profile at boot, so this is the
+ * only place it is set. Goal and units sit here as well: both change how a training
+ * number is read, and neither deserves a section of its own.
  */
 function TrainingSection({
   profile,
@@ -307,19 +306,21 @@ function TrainingSection({
     <section className="profile__section">
       <SectionLabel>Entrenamiento</SectionLabel>
 
-      <Card>
-        <div className="profile__row">
-          <span className="profile__row-text">
-            <span className="ds-body">Días por semana</span>
-            <span className="ds-meta">Los días que planeas entrenar.</span>
-          </span>
-          <Stepper
-            label="Días por semana"
-            value={profile.weeklyTrainingDays}
-            min={1}
-            max={7}
-            onChange={(days) => onWrite({ weeklyTrainingDays: days })}
-          />
+      <Card padding="list" className="profile__settings">
+        <div className="profile__setting">
+          <div className="profile__setting-head">
+            <span className="profile__setting-text">
+              <span className="profile__setting-label">Días por semana</span>
+              <span className="ds-caption">Los días que planeas entrenar.</span>
+            </span>
+            <Stepper
+              label="Días por semana"
+              value={profile.weeklyTrainingDays}
+              min={1}
+              max={7}
+              onChange={(days) => onWrite({ weeklyTrainingDays: days })}
+            />
+          </div>
         </div>
 
         <ToggleRow
@@ -329,23 +330,55 @@ function TrainingSection({
           onChange={(on) => onWrite({ autoStartRestTimer: on })}
         />
 
-        <span className="ds-meta">Equipo disponible</span>
-        <ChipChoices
-          label="Equipo disponible"
-          choices={EQUIPMENT_TYPES.map((equipment) => ({
-            value: equipment,
-            word: EQUIPMENT_WORD[equipment],
-          }))}
-          selected={profile.availableEquipment}
-          onToggle={(equipment) => onWrite({ availableEquipment: toggle(profile, equipment) })}
-        />
-        {profile.availableEquipment.length === 0 ? (
-          <Note>Sin equipo marcado no hay ejercicios que sugerir en Entrenar.</Note>
-        ) : null}
+        <div className="profile__setting">
+          <span className="profile__setting-label">Equipo disponible</span>
+          <ChipChoices
+            label="Equipo disponible"
+            choices={EQUIPMENT_TYPES.map((equipment) => ({
+              value: equipment,
+              word: EQUIPMENT_WORD[equipment],
+            }))}
+            selected={profile.availableEquipment}
+            onToggle={(equipment) => onWrite({ availableEquipment: toggle(profile, equipment) })}
+          />
+          {profile.availableEquipment.length === 0 ? (
+            <Note>Sin equipo marcado no hay ejercicios que sugerir en Entrenar.</Note>
+          ) : null}
+        </div>
+
+        <div className="profile__setting">
+          <span className="profile__setting-label">Objetivo de peso</span>
+          <ChipChoices
+            label="Objetivo de peso"
+            choices={WEIGHT_GOALS.map((goal) => ({ value: goal, word: WEIGHT_GOAL_WORD[goal] }))}
+            selected={profile.weightGoal === null ? [] : [profile.weightGoal]}
+            onToggle={(goal) => onWrite({ weightGoal: profile.weightGoal === goal ? null : goal })}
+          />
+          <p className="ds-caption">
+            {profile.weightGoal === null
+              ? 'Sin objetivo. Toca uno para fijarlo.'
+              : 'Toca el objetivo otra vez para quitarlo.'}
+          </p>
+        </div>
+
+        <div className="profile__setting">
+          <span className="profile__setting-label">Unidades</span>
+          <ChipChoices
+            label="Unidades"
+            choices={MASS_UNITS.map((unit) => ({ value: unit, word: MASS_UNIT_WORD[unit] }))}
+            selected={[profile.massUnit]}
+            onToggle={(unit) => onWrite({ massUnit: unit })}
+          />
+          <p className="ds-caption">
+            Los pesos se guardan siempre en kilogramos; la unidad solo cambia cómo se escriben.
+          </p>
+        </div>
 
         <DataRow
           title="Ejercicios"
-          subtitle={customCount > 0 ? `Biblioteca y rutina · ${customCount} propios` : 'Biblioteca y rutina'}
+          subtitle={
+            customCount > 0 ? `Biblioteca y rutina · ${customCount} propios` : 'Biblioteca y rutina'
+          }
           value={String(libraryCount)}
           onSelect={() => {
             window.location.hash = '#/entrenar';

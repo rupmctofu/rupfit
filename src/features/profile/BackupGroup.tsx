@@ -169,11 +169,13 @@ export function BackupGroup({
           <ErrorBanner message={exportControl.view.message} />
         ) : null}
 
-        <div className="ds-hairline" />
+        <details className="profile__disclosure">
+          <summary className="profile__disclosure-trigger">
+            <span className="ds-meta">Importar copia</span>
+            <span className="ds-caption">Restaurar o añadir datos desde un archivo Rupfit</span>
+          </summary>
 
-        <div className="profile__import" ref={importAnchor} tabIndex={-1}>
-          <SectionLabel>Importar copia</SectionLabel>
-
+          <div className="profile__import" ref={importAnchor} tabIndex={-1}>
           <label className="profile__file">
             <span className="ds-text-button">Elegir archivo…</span>
             <input type="file" accept="application/json,.json" onChange={onFile} />
@@ -267,7 +269,8 @@ export function BackupGroup({
           )}
 
           {report === null ? null : <p className="ds-body">{reportLine(report)}</p>}
-        </div>
+          </div>
+        </details>
       </Card>
     </section>
   );

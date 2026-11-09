@@ -58,10 +58,10 @@ export interface ToggleRowProps {
  *  The word stays: colour is never the only carrier of the state (§4). */
 export function ToggleRow({ title, subtitle, on, onChange }: ToggleRowProps): React.ReactElement {
   return (
-    <div className="profile__row">
-      <span className="profile__row-text">
-        <span className="ds-body">{title}</span>
-        <span className="ds-meta">{subtitle}</span>
+    <div className="profile__setting profile__setting--row">
+      <span className="profile__setting-text">
+        <span className="profile__setting-label">{title}</span>
+        <span className="ds-caption">{subtitle}</span>
       </span>
       <button
         type="button"
@@ -74,7 +74,7 @@ export function ToggleRow({ title, subtitle, on, onChange }: ToggleRowProps): Re
         <span className="profile__switch-track" aria-hidden="true">
           <span className="profile__switch-thumb" />
         </span>
-        <span className="profile__switch-word ds-meta">{on ? 'Activado' : 'Desactivado'}</span>
+        <span className="profile__switch-word ds-caption">{on ? 'Activado' : 'Desactivado'}</span>
       </button>
     </div>
   );
