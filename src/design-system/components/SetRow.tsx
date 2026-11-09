@@ -34,10 +34,13 @@ const STATE_WORD: Record<SetState, string> = {
   skipped: 'saltada',
 };
 
+/* Effort is the user's own word, not a verdict the app repeats per set: lime on
+   `fácil`/`correcto`/`duro` made the accent a decoration of every confirmed row (§4).
+   `fallo` keeps `warning`, the state that still needs attention. */
 const EFFORT_TONE: Record<Effort, ChipTone> = {
-  fácil: 'success',
-  correcto: 'success',
-  duro: 'accent',
+  fácil: 'neutral',
+  correcto: 'neutral',
+  duro: 'neutral',
   fallo: 'warning',
 };
 
@@ -183,7 +186,9 @@ export function SetRow(props: SetRowProps): React.ReactElement {
           )}
           <span className="ds-set__right">
             {record ? (
-              <Chip tone="success" dot>
+              /* The word `RÉCORD` already carries it; the lime dot repeated it in every
+                 record row (§4). */
+              <Chip dot>
                 RÉCORD
               </Chip>
             ) : null}

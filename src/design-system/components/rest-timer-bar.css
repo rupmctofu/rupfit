@@ -10,7 +10,7 @@
   gap: var(--space-3);
   box-sizing: border-box;
   min-height: var(--rest-bar-content-height);
-  padding: var(--space-2) 14px;
+  padding: var(--space-2) var(--layout-card-padding-dense);
   /* The 2 px progress line is drawn inside the padding, never over the content. */
   padding-bottom: calc(var(--space-2) + var(--progress-line-height));
   margin-bottom: var(--safe-bottom-padding);

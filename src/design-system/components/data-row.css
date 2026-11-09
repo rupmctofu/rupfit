@@ -5,7 +5,7 @@
   align-items: center;
   gap: var(--space-3);
   width: 100%;
-  padding: 14px 0;
+  padding: var(--layout-card-padding-dense) 0;
   background: none;
   border: 0;
   text-align: left;
@@ -51,8 +51,8 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 34px;
-  height: 34px;
+  width: var(--size-badge);
+  height: var(--size-badge);
   border-radius: var(--radius-badge);
   background: var(--color-surface-raised);
   color: var(--color-muted);
@@ -63,8 +63,8 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 22px;
-  height: 22px;
+  width: var(--size-set-mark);
+  height: var(--size-set-mark);
   border: var(--layout-hairline) solid var(--color-border);
   border-radius: var(--radius-pill);
   color: var(--color-subtle);
