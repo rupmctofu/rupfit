@@ -14,6 +14,7 @@
 import type { DBSchema } from 'idb';
 import type { BlockRole } from '../core/domain/progression';
 import type { MuscleGroup, ProgressionRecommendation } from '../core/domain';
+import type { SyncTable } from '../cloud/types';
 import type {
   ActivityKind,
   EpochMs,
@@ -124,6 +125,49 @@ export const ALL_STORES: readonly StoreName[] = STORE_NAMES;
 /* ------------------------------------------------------------------- records */
 
 /**
+ * The per-row sync metadata — `docs/cloud-sync.md` §2, mirrored locally.
+ *
+ * `rev` is the client's conflict counter, `updatedAt` the instant this device last
+ * changed the row (the sweep compares it), `deletedAt` the soft-delete mark of a row
+ * pulled from another device. The remote carries the same three numbers, plus
+ * `user_id`/`created_at`/`updated_at`, which are server bookkeeping and are not stored
+ * here: a row belongs to whoever is signed in, and the server owns its own clock.
+ *
+ * Optional, because a row written before the sync columns existed simply does not have
+ * them. That is what makes the whole change additive with **no `DB_VERSION` bump**:
+ * IndexedDB stores are schemaless, no index is created over `sync`, and the upgrade
+ * step does not need to touch a single row. `mappers.ts` reads an absent value as
+ * `SYNC_UNKNOWN`.
+ */
+export interface SyncMeta {
+  readonly rev: number;
+  readonly updatedAt: EpochMs;
+  readonly deletedAt: EpochMs | null;
+}
+
+/**
+ * One pending queue op, as it is stored in `meta`.
+ *
+ * Field for field what `src/cloud/outbox.ts` calls `OutboxOp`: the same identity
+ * (`table:rowId:rev`), the same retry counter and the same last error, so the sync
+ * service's queue can be handed this store without a translation layer. `src/storage`
+ * never imports the queue's code, only the vocabulary (a type).
+ */
+export interface PendingSyncOp {
+  readonly id: string;
+  readonly table: SyncTable;
+  readonly rowId: string;
+  readonly op: 'upsert' | 'delete';
+  readonly rev: number;
+  readonly queuedAt: EpochMs;
+  readonly attempts: number;
+  readonly lastError: string | null;
+}
+
+/** How far each table has been pushed to the account. Only ever moves forward. */
+export type SyncWatermarks = Partial<Record<SyncTable, EpochMs>>;
+
+/**
  * §5.2: `isArchived` is stored as `0 | 1`, not as a boolean, because a boolean is
  * not a valid IndexedDB key and `by_archived` would then hold no records at all.
  * Ascending order over the index puts the active rows first, which is the library
@@ -151,12 +195,15 @@ export interface ExerciseRow {
   alternatives?: readonly string[];
   /** The inline pictogram key of this concrete variant (training-flow T4). */
   illustration?: string;
+  /** Bumped by every repository write (see `SyncMeta`). */
+  sync?: SyncMeta;
 }
 
 export interface PlanDayRow {
   id: string;
   name: string;
   order: number;
+  sync?: SyncMeta;
 }
 
 export interface PlanItemRow {
@@ -167,6 +214,7 @@ export interface PlanItemRow {
   exerciseNameSnapshot: string;
   /** Stored whole: read and written with its parent, never queried by field (§5.2). */
   prescription: ExercisePrescription;
+  sync?: SyncMeta;
 }
 
 export interface SessionRow {
@@ -184,6 +232,7 @@ export interface SessionRow {
    * session with confirmed sets cannot disappear in a single silent step.
    */
   deletionPending: boolean;
+  sync?: SyncMeta;
 }
 
 /** `TrainingPhase` without importing a union shape the index cannot use. */
@@ -212,6 +261,7 @@ export interface ExerciseSessionRow {
    * unindexed member needs no migration and no schema bump.
    */
   substitutedFrom?: SubstitutedFrom;
+  sync?: SyncMeta;
 }
 
 /** The stored half of `SubstitutedFrom`: plain, JSON-safe, no `Date`. */
@@ -239,6 +289,7 @@ export interface SetRecordRow {
   effort: number | null;
   discomfort: number | null;
   confirmedAt: EpochMs;
+  sync?: SyncMeta;
 }
 
 export interface BodyMeasurementRow {
@@ -252,6 +303,7 @@ export interface BodyMeasurementRow {
   hipCm: number | null;
   bodyFatPercent: number | null;
   provenance: Provenance;
+  sync?: SyncMeta;
 }
 
 export interface ActivityRow {
@@ -267,6 +319,7 @@ export interface ActivityRow {
    * unambiguous way to say that.
    */
   externalSampleId?: string;
+  sync?: SyncMeta;
 }
 
 /** `PhaseState` with its optional members materialised (§5.1 single-row record). */
@@ -277,10 +330,17 @@ export interface StoredPhaseState {
   scheduledSessionsPerWeek?: number;
 }
 
+/**
+ * Everything `meta` may hold. The nine-store schema is unchanged: the queue ops and the
+ * push watermarks are rows in this already-existing store, keyed by a string, which is
+ * why neither needs an upgrade step.
+ */
 export type MetaRow =
-  | { key: 'profile'; value: UserProfile }
-  | { key: 'phaseState'; value: StoredPhaseState }
-  | { key: 'storage'; value: StorageAnswer };
+  | { key: 'profile'; value: UserProfile; sync?: SyncMeta }
+  | { key: 'phaseState'; value: StoredPhaseState; sync?: SyncMeta }
+  | { key: 'storage'; value: StorageAnswer }
+  | { key: 'syncWatermarks'; value: SyncWatermarks }
+  | { key: `outbox:${string}`; value: PendingSyncOp };
 
 /* -------------------------------------------------------------- idb DBSchema */
 

@@ -14,7 +14,8 @@
  * without IndexedDB simply gets a failing result instead of an exception during boot.
  */
 import { openDB, type IDBPDatabase } from 'idb';
-import { indexedDbSyncStore, SYNC_STORE_NAMES, type SyncStorePort } from './outbox';
+import { indexedDbSyncStore, SYNC_STORE_NAMES } from './outbox';
+import type { SyncStorePort } from './types';
 
 export const SYNC_DB_NAME = 'rupfit-cloud';
 export const SYNC_DB_VERSION = 1;

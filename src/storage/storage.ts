@@ -24,12 +24,28 @@ import { MeasurementRepository } from './repositories/measurements';
 import { PlanRepository } from './repositories/plan';
 import { MetaRepository, ProfileRepository } from './repositories/profile';
 import { SessionRepository } from './repositories/sessions';
+import { MetaSyncQueue, SyncRepository } from './repositories/sync';
 import { BackupService } from './codec/backup';
+import type { SyncStoragePort } from './port';
+import type { RowSyncDeps, SyncQueueSink } from './sync';
 
 export interface StorageOptions {
   /** The `idb` seam. A test supplies its own; the app uses the default. */
   readonly factory?: DatabaseFactory;
   readonly dbName?: string;
+  /**
+   * The clock every stamped write uses. Injected, with `Date.now` as the composition
+   * root's default, so a test can assert an exact `updatedAt` and the store itself still
+   * never reads a clock of its own.
+   */
+  readonly now?: () => number;
+  /**
+   * The queue the repositories append to, inside the row's own transaction. Defaults to
+   * the `meta`-backed queue; the caller may pass its own sink (for instance one that also
+   * wakes the sync service) and it still has to write through the transaction it is
+   * given, never through one of its own (odd/tasks/cloud-sync.md T3).
+   */
+  readonly queue?: SyncQueueSink;
 }
 
 export class IndexedDbStorage implements StoragePort {
@@ -43,6 +59,12 @@ export class IndexedDbStorage implements StoragePort {
   readonly profile: ProfileRepository;
   readonly meta: MetaRepository;
   readonly backup: BackupService;
+  /**
+   * The sync surface, deliberately **not** part of `StoragePort`: a screen holds a
+   * `StoragePort` and therefore cannot write history behind a guard's back.
+   */
+  readonly sync: SyncStoragePort;
+  private readonly queue: MetaSyncQueue;
 
   constructor(options: StorageOptions = {}) {
     this.database = new Database(
@@ -53,13 +75,19 @@ export class IndexedDbStorage implements StoragePort {
             ...(options.dbName === undefined ? {} : { name: options.dbName }),
           },
     );
-    this.sessions = new SessionRepository(this.database);
-    this.exercises = new ExerciseRepository(this.database);
-    this.plan = new PlanRepository(this.database);
-    this.measurements = new MeasurementRepository(this.database);
-    this.activities = new ActivityRepository(this.database);
-    this.profile = new ProfileRepository(this.database);
-    this.meta = new MetaRepository(this.database);
+    this.queue = new MetaSyncQueue(this.database);
+    const deps: RowSyncDeps = {
+      queue: options.queue ?? this.queue,
+      now: options.now ?? (() => Date.now()),
+    };
+    this.sync = new SyncRepository(this.database, this.queue);
+    this.sessions = new SessionRepository(this.database, deps);
+    this.exercises = new ExerciseRepository(this.database, deps);
+    this.plan = new PlanRepository(this.database, deps);
+    this.measurements = new MeasurementRepository(this.database, deps);
+    this.activities = new ActivityRepository(this.database, deps);
+    this.profile = new ProfileRepository(this.database, deps);
+    this.meta = new MetaRepository(this.database, deps);
     this.backup = new BackupService(this.database);
   }
 
@@ -116,6 +144,6 @@ export class IndexedDbStorage implements StoragePort {
   }
 }
 
-export function createStorage(options: StorageOptions = {}): StoragePort {
+export function createStorage(options: StorageOptions = {}): IndexedDbStorage {
   return new IndexedDbStorage(options);
 }

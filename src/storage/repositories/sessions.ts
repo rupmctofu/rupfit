@@ -9,9 +9,10 @@ import { deleteSessionConfirmation, SET_INDEX_START } from '../constants';
 import { atLeastKeyRange, prefixKeyRange, type Database } from '../db';
 import { StorageError } from '../errors';
 import type { ExerciseSession, SessionStatus, SetRecord, Uuid, WorkoutSession } from '../entities';
-import { exerciseSessionFromRow, exerciseSessionToRow, sessionToRow, setToRow } from '../mappers';
+import { exerciseSessionFromRow, exerciseSessionToRow, isTombstone, sessionToRow, setToRow } from '../mappers';
 import { loadSession } from '../readers';
 import type { ExerciseSessionRow, RupfitDb, SessionRow, StoreName } from '../records';
+import { deleteStamped, writeStamped, type RowSyncDeps } from '../sync';
 import type {
   DeleteSessionInput,
   ExerciseSessionState,
@@ -27,10 +28,20 @@ type WriteTx = IDBPTransaction<RupfitDb, StoreName[], 'readwrite'>;
 /** The stores a full aggregate read touches. `sets` is a read here, never a write. */
 const AGGREGATE_STORES: readonly StoreName[] = ['sessions', 'exerciseSessions', 'sets'];
 
+/**
+ * Every write also touches `meta`, where the queue keeps its pending ops
+ * (odd/tasks/cloud-sync.md T3): the row and its op have to commit together, so the store
+ * the op lives in has to be in the same transaction.
+ */
+const QUEUE_STORE: StoreName = 'meta';
+
 const TERMINAL_STATUSES: readonly SessionStatus[] = ['completed', 'partial', 'abandoned'];
 
 export class SessionRepository implements SessionRepositoryPort {
-  constructor(private readonly database: Database) {}
+  constructor(
+    private readonly database: Database,
+    private readonly sync: RowSyncDeps,
+  ) {}
 
   async byId(id: Uuid): Promise<WorkoutSession | undefined> {
     return this.database.read(AGGREGATE_STORES, async (tx) => {
@@ -42,7 +53,9 @@ export class SessionRepository implements SessionRepositoryPort {
   async inProgress(): Promise<WorkoutSession | undefined> {
     return this.database.read(AGGREGATE_STORES, async (tx) => {
       const rows = await tx.objectStore('sessions').index('by_status').getAll('inProgress');
-      const resumable = sortByDate(rows.filter((row) => !row.deletionPending));
+      const resumable = sortByDate(
+        rows.filter((row) => !row.deletionPending && !isTombstone(row)),
+      );
       const first = resumable[0];
       if (first === undefined) return undefined;
       return (await loadSession(tx, first.id)) ?? undefined;
@@ -55,7 +68,9 @@ export class SessionRepository implements SessionRepositoryPort {
         .objectStore('sessions')
         .index('by_scheduledDate')
         .getAll(atLeastKeyRange(date));
-      const scheduled = rows.filter((row) => row.status === 'scheduled' && !row.deletionPending);
+      const scheduled = rows.filter(
+        (row) => row.status === 'scheduled' && !row.deletionPending && !isTombstone(row),
+      );
       const first = scheduled[0];
       if (first === undefined) return undefined;
       return (await loadSession(tx, first.id)) ?? undefined;
@@ -65,7 +80,9 @@ export class SessionRepository implements SessionRepositoryPort {
   async recent(limit: number): Promise<readonly WorkoutSession[]> {
     return this.database.read(AGGREGATE_STORES, async (tx) => {
       const rows = await tx.objectStore('sessions').index('by_scheduledDate').getAll();
-      const newestFirst = sortByDate(rows.filter((row) => !row.deletionPending)).reverse();
+      const newestFirst = sortByDate(
+        rows.filter((row) => !row.deletionPending && !isTombstone(row)),
+      ).reverse();
       const selected = newestFirst.slice(0, Math.max(0, limit));
 
       const sessions: WorkoutSession[] = [];
@@ -82,7 +99,7 @@ export class SessionRepository implements SessionRepositoryPort {
    * `scheduled` row and its exercise sessions — no sets, no `inProgress`.
    */
   async create(session: WorkoutSession): Promise<WorkoutSession> {
-    return this.database.write(['sessions', 'exerciseSessions'], async (tx) => {
+    return this.database.write(['sessions', 'exerciseSessions', QUEUE_STORE], async (tx) => {
       const sessions = tx.objectStore('sessions');
       const existing = await sessions.get(session.id);
       if (existing !== undefined) {
@@ -102,12 +119,21 @@ export class SessionRepository implements SessionRepositoryPort {
         await assertNoOtherInProgress(tx, session.id);
       }
 
-      await sessions.put(sessionToRow(session, false));
-      const exerciseSessions = tx.objectStore('exerciseSessions');
+      await writeStamped({
+        ...this.sync,
+        tx,
+        table: 'sessions',
+        key: session.id,
+        row: sessionToRow(session, false),
+      });
       for (const exerciseSession of session.exercises) {
-        await exerciseSessions.put(
-          exerciseSessionToRow(exerciseSession, session.id, session.scheduledDate),
-        );
+        await writeStamped({
+          ...this.sync,
+          tx,
+          table: 'session_exercises',
+          key: exerciseSession.id,
+          row: exerciseSessionToRow(exerciseSession, session.id, session.scheduledDate),
+        });
       }
       return session;
     });
@@ -118,7 +144,7 @@ export class SessionRepository implements SessionRepositoryPort {
     exerciseSessionId: Uuid,
     set: SetRecord,
   ): Promise<WorkoutSession> {
-    return this.database.write(['sets', 'exerciseSessions', 'sessions'], async (tx) => {
+    return this.database.write(['sets', 'exerciseSessions', 'sessions', QUEUE_STORE], async (tx) => {
       const sessions = tx.objectStore('sessions');
       const exerciseSessions = tx.objectStore('exerciseSessions');
       const sets = tx.objectStore('sets');
@@ -177,18 +203,32 @@ export class SessionRepository implements SessionRepositoryPort {
         await assertNoOtherInProgress(tx, sessionRow.id);
       }
 
-      await sets.put(setToRow(set, exerciseSessionId, sessionId));
-
-      await exerciseSessions.put({
-        ...exerciseSessionRow,
-        status: 'active',
-        usedWeightKg: set.weightKg,
+      await writeStamped({
+        ...this.sync,
+        tx,
+        table: 'sets',
+        key: set.id,
+        row: setToRow(set, exerciseSessionId, sessionId),
       });
 
-      await sessions.put({
-        ...sessionRow,
-        status: sessionRow.status === 'scheduled' ? 'inProgress' : sessionRow.status,
-        startedAt: sessionRow.startedAt ?? set.confirmedAt,
+      await writeStamped({
+        ...this.sync,
+        tx,
+        table: 'session_exercises',
+        key: exerciseSessionId,
+        row: { ...exerciseSessionRow, status: 'active', usedWeightKg: set.weightKg },
+      });
+
+      await writeStamped({
+        ...this.sync,
+        tx,
+        table: 'sessions',
+        key: sessionId,
+        row: {
+          ...sessionRow,
+          status: sessionRow.status === 'scheduled' ? 'inProgress' : sessionRow.status,
+          startedAt: sessionRow.startedAt ?? set.confirmedAt,
+        },
       });
 
       const updated = await loadSession(tx, sessionId);
@@ -200,7 +240,7 @@ export class SessionRepository implements SessionRepositoryPort {
   }
 
   async recordDecision(input: LoadDecisionInput): Promise<LoadDecisionRecord> {
-    return this.database.write(['exerciseSessions'], async (tx) => {
+    return this.database.write(['exerciseSessions', QUEUE_STORE], async (tx) => {
       const store = tx.objectStore('exerciseSessions');
       const row = await store.get(input.exerciseSessionId);
       if (row === undefined) {
@@ -224,12 +264,18 @@ export class SessionRepository implements SessionRepositoryPort {
       const loadDeltaKg =
         input.recommendedWeightKg === null ? null : usedWeightKg - input.recommendedWeightKg;
 
-      await store.put({
-        ...row,
-        decision: input.decision,
-        recommendedWeightKg: input.recommendedWeightKg,
-        usedWeightKg,
-        loadDeltaKg,
+      await writeStamped({
+        ...this.sync,
+        tx,
+        table: 'session_exercises',
+        key: input.exerciseSessionId,
+        row: {
+          ...row,
+          decision: input.decision,
+          recommendedWeightKg: input.recommendedWeightKg,
+          usedWeightKg,
+          loadDeltaKg,
+        },
       });
 
       return {
@@ -257,7 +303,7 @@ export class SessionRepository implements SessionRepositoryPort {
    * not touched.
    */
   async substitute(input: SubstituteExerciseInput): Promise<ExerciseSessionState> {
-    return this.database.write(['sessions', 'exerciseSessions', 'sets'], async (tx) => {
+    return this.database.write(['sessions', 'exerciseSessions', 'sets', QUEUE_STORE], async (tx) => {
       const exercises = tx.objectStore('exerciseSessions');
       const row = await exercises.get(input.exerciseSessionId);
       if (row === undefined) {
@@ -312,7 +358,13 @@ export class SessionRepository implements SessionRepositoryPort {
         loadDeltaKg: null,
         substitutedFrom: { ...input.substitutedFrom },
       };
-      await exercises.put(updated);
+      await writeStamped({
+        ...this.sync,
+        tx,
+        table: 'session_exercises',
+        key: updated.id,
+        row: updated,
+      });
       return stripSets(exerciseSessionFromRow(updated, []));
     });
   }
@@ -326,7 +378,7 @@ export class SessionRepository implements SessionRepositoryPort {
       );
     }
 
-    return this.database.write(['sessions', 'exerciseSessions'], async (tx) => {
+    return this.database.write(['sessions', 'exerciseSessions', QUEUE_STORE], async (tx) => {
       const sessions = tx.objectStore('sessions');
       const row = await sessions.get(sessionId);
       if (row === undefined) {
@@ -358,12 +410,24 @@ export class SessionRepository implements SessionRepositoryPort {
           status: settled,
           completedAt: at,
         };
-        await exerciseSessions.put(updated);
+        await writeStamped({
+          ...this.sync,
+          tx,
+          table: 'session_exercises',
+          key: updated.id,
+          row: updated,
+        });
         updatedExercises.push(updated);
       }
 
       const updatedSession: SessionRow = { ...row, status, endedAt: at };
-      await sessions.put(updatedSession);
+      await writeStamped({
+        ...this.sync,
+        tx,
+        table: 'sessions',
+        key: updatedSession.id,
+        row: updatedSession,
+      });
 
       return {
         id: updatedSession.id,
@@ -384,26 +448,34 @@ export class SessionRepository implements SessionRepositoryPort {
   }
 
   async markDeletionPending(id: Uuid): Promise<void> {
-    await this.database.write(['sessions'], async (tx) => {
+    await this.database.write(['sessions', QUEUE_STORE], async (tx) => {
       const store = tx.objectStore('sessions');
       const row = await store.get(id);
       if (row === undefined) {
         throw new StorageError('notFound', `Session ${id} is not stored.`, { sessionId: id });
       }
-      await store.put({ ...row, deletionPending: true });
+      await writeStamped({
+        ...this.sync,
+        tx,
+        table: 'sessions',
+        key: id,
+        row: { ...row, deletionPending: true },
+      });
     });
   }
 
   async pendingDeletionIds(): Promise<readonly Uuid[]> {
     return this.database.read(['sessions'], async (tx) => {
       const rows = await tx.objectStore('sessions').getAll();
-      return rows.filter((row) => row.deletionPending).map((row) => row.id);
+      return rows
+        .filter((row) => row.deletionPending && !isTombstone(row))
+        .map((row) => row.id);
     });
   }
 
   /** I-1: the cascade by hand, in one transaction, after the typed confirmation. */
   async delete(sessionId: Uuid, input: DeleteSessionInput): Promise<void> {
-    await this.database.write(['sessions', 'exerciseSessions', 'sets'], async (tx) => {
+    await this.database.write(['sessions', 'exerciseSessions', 'sets', QUEUE_STORE], async (tx) => {
       const sessions = tx.objectStore('sessions');
       const row = await sessions.get(sessionId);
       if (row === undefined) {
@@ -433,12 +505,17 @@ export class SessionRepository implements SessionRepositoryPort {
       for (const exerciseRow of exerciseRows) {
         const setKeys = await setIndex.getAllKeys(prefixKeyRange(exerciseRow.id));
         for (const key of setKeys) {
-          await sets.delete(key);
+          await deleteStamped({ ...this.sync, tx, table: 'sets', key });
         }
-        await exerciseSessions.delete(exerciseRow.id);
+        await deleteStamped({
+          ...this.sync,
+          tx,
+          table: 'session_exercises',
+          key: exerciseRow.id,
+        });
       }
 
-      await sessions.delete(sessionId);
+      await deleteStamped({ ...this.sync, tx, table: 'sessions', key: sessionId });
     });
   }
 }
@@ -446,7 +523,9 @@ export class SessionRepository implements SessionRepositoryPort {
 /** I-9: at most one session is `inProgress`. Read and checked inside the transaction. */
 async function assertNoOtherInProgress(tx: WriteTx, sessionId: Uuid): Promise<void> {
   const rows = await tx.objectStore('sessions').index('by_status').getAll('inProgress');
-  const other = rows.find((row) => row.id !== sessionId && !row.deletionPending);
+  const other = rows.find(
+    (row) => row.id !== sessionId && !row.deletionPending && !isTombstone(row),
+  );
   if (other !== undefined) {
     throw new StorageError('conflict', 'Another session is already in progress.', {
       sessionId: other.id,

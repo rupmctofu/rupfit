@@ -42,7 +42,52 @@ import type {
   SetRecordRow,
   StoredPhaseState,
   StoredRecommendation,
+  SyncMeta,
 } from './records';
+
+/* --------------------------------------------------------------- sync metadata */
+
+/**
+ * What a row without `sync` reads as: written before the columns existed, never changed
+ * since, not deleted. `rev: 0` means "this device has never published it", which is the
+ * honest answer and the one the first write turns into `rev: 1`.
+ *
+ * `updatedAt: 0` is the oldest possible instant, so the merge treats such a row as the
+ * *older* version of a mutable table. The information is still not lost: the merge in
+ * `src/cloud/sync.ts` keeps the loser as a conflict record, never as a deletion.
+ */
+export const SYNC_UNKNOWN: SyncMeta = { rev: 0, updatedAt: 0, deletedAt: null };
+
+/** The sync metadata of a stored row, defaulted when the row predates the columns. */
+export function syncOf(row: { readonly sync?: SyncMeta } | undefined): SyncMeta {
+  if (row === undefined) return SYNC_UNKNOWN;
+  const sync = row.sync;
+  if (sync === undefined) return SYNC_UNKNOWN;
+  return { rev: sync.rev, updatedAt: sync.updatedAt, deletedAt: sync.deletedAt };
+}
+
+/**
+ * The bookkeeping of one write: another revision, stamped with this write's instant.
+ * A row that was already soft-deleted stays soft-deleted; only `applySyncRow` sets the
+ * mark, and nothing in the app clears it.
+ */
+export function nextSync(previous: SyncMeta, at: EpochMs): SyncMeta {
+  return { rev: previous.rev + 1, updatedAt: at, deletedAt: previous.deletedAt };
+}
+
+/** A row another device deleted. Kept on disk; hidden from every app-facing read. */
+export function isTombstone(row: { readonly sync?: SyncMeta } | undefined): boolean {
+  return syncOf(row).deletedAt !== null;
+}
+
+/** The stored fields without the sync metadata: what `applySyncRow` may write back. */
+export function stripSync(row: object): Record<string, unknown> {
+  const rest: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (key !== 'sync') rest[key] = value;
+  }
+  return rest;
+}
 
 /* ------------------------------------------------------------------ exercise */
 

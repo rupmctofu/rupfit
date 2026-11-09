@@ -22,6 +22,7 @@ import {
   activityFromRow,
   exerciseFromRow,
   exerciseSessionFromRow,
+  isTombstone,
   measurementFromRow,
   phaseStateFromStored,
   planDayFromRow,
@@ -43,7 +44,8 @@ export async function loadSession<Mode extends 'readonly' | 'readwrite'>(
   sessionId: string,
 ): Promise<WorkoutSession | null> {
   const sessionRow = await tx.objectStore('sessions').get(sessionId);
-  if (sessionRow === undefined) return null;
+  // A tombstone is a row another device deleted: still on disk, never in an answer.
+  if (sessionRow === undefined || isTombstone(sessionRow)) return null;
 
   const exerciseRows = await tx
     .objectStore('exerciseSessions')
@@ -54,8 +56,14 @@ export async function loadSession<Mode extends 'readonly' | 'readwrite'>(
 
   const exercises: ExerciseSession[] = [];
   for (const exerciseRow of exerciseRows) {
+    if (isTombstone(exerciseRow)) continue;
     const setRows = await setIndex.getAll(prefixKeyRange(exerciseRow.id));
-    exercises.push(exerciseSessionFromRow(exerciseRow, setRows.map(setFromRow)));
+    exercises.push(
+      exerciseSessionFromRow(
+        exerciseRow,
+        setRows.filter((row) => !isTombstone(row)).map(setFromRow),
+      ),
+    );
   }
   return sessionFromRow(sessionRow, exercises);
 }
@@ -67,6 +75,7 @@ export async function readAllSessions<Mode extends 'readonly' | 'readwrite'>(
   const rows = await tx.objectStore('sessions').index('by_scheduledDate').getAll();
   const sessions: WorkoutSession[] = [];
   for (const row of rows) {
+    if (isTombstone(row)) continue;
     const session = await loadSession(tx, row.id);
     if (session !== null) sessions.push(session);
   }
@@ -80,8 +89,9 @@ export async function readAllPlanDays<Mode extends 'readonly' | 'readwrite'>(
   const itemIndex = tx.objectStore('planItems').index('by_planDay_order');
   const days: PlanDay[] = [];
   for (const row of rows) {
+    if (isTombstone(row)) continue;
     const items = await itemIndex.getAll(prefixKeyRange(row.id));
-    days.push(planDayFromRow(row, items));
+    days.push(planDayFromRow(row, items.filter((item) => !isTombstone(item))));
   }
   return days;
 }
@@ -90,33 +100,35 @@ export async function readAllExercises<Mode extends 'readonly' | 'readwrite'>(
   tx: Transaction<Mode>,
 ): Promise<Exercise[]> {
   const rows = await tx.objectStore('exercises').index('by_archived').getAll();
-  return rows.map(exerciseFromRow);
+  return rows.filter((row) => !isTombstone(row)).map(exerciseFromRow);
 }
 
 export async function readAllMeasurements<Mode extends 'readonly' | 'readwrite'>(
   tx: Transaction<Mode>,
 ): Promise<BodyMeasurement[]> {
   const rows = await tx.objectStore('bodyMeasurements').index('by_date').getAll();
-  return rows.map(measurementFromRow);
+  return rows.filter((row) => !isTombstone(row)).map(measurementFromRow);
 }
 
 export async function readAllActivities<Mode extends 'readonly' | 'readwrite'>(
   tx: Transaction<Mode>,
 ): Promise<ActivityRecord[]> {
   const rows = await tx.objectStore('activities').index('by_date').getAll();
-  return rows.map(activityFromRow);
+  return rows.filter((row) => !isTombstone(row)).map(activityFromRow);
 }
 
 export async function readProfile<Mode extends 'readonly' | 'readwrite'>(
   tx: Transaction<Mode>,
 ): Promise<UserProfile | null> {
   const row = await tx.objectStore('meta').get(META_KEYS.profile);
-  return row !== undefined && row.key === 'profile' ? row.value : null;
+  return row !== undefined && row.key === 'profile' && !isTombstone(row) ? row.value : null;
 }
 
 export async function readPhaseState<Mode extends 'readonly' | 'readwrite'>(
   tx: Transaction<Mode>,
 ): Promise<PhaseState | null> {
   const row = await tx.objectStore('meta').get(META_KEYS.phaseState);
-  return row !== undefined && row.key === 'phaseState' ? phaseStateFromStored(row.value) : null;
+  return row !== undefined && row.key === 'phaseState' && !isTombstone(row)
+    ? phaseStateFromStored(row.value)
+    : null;
 }

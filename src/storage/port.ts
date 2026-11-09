@@ -7,6 +7,9 @@
  */
 
 import type { MovementPattern } from '../core/domain';
+import type { SyncTable } from '../cloud/types';
+import type { SyncMeta } from './records';
+import type { SyncOutboxStorePort } from './sync';
 import type {
   ActivityRecord,
   BodyMeasurement,
@@ -174,6 +177,51 @@ export interface MetaRepositoryPort {
   /** Q-4: the recorded answer, probed once per launch, never prompted for. */
   readStorageAnswer(): Promise<StorageAnswer | undefined>;
   saveStorageAnswer(answer: StorageAnswer): Promise<void>;
+}
+
+/* ---------------------------------------------------------------------- sync */
+
+/**
+ * One stored row as the sync layer sees it: the record itself, plus its metadata.
+ *
+ * `record` is the raw stored shape (`docs/data-model.md` §5.2), not a domain object: the
+ * sync layer has to carry a row it cannot interpret, and the remote is what maps field
+ * names to SQL columns. For the eight id-keyed tables `id` is the row's own id; for
+ * `profiles` and `phase_state` it is the fixed `meta` key they are stored under.
+ */
+export interface StoredSyncRow {
+  readonly table: SyncTable;
+  readonly id: string;
+  readonly sync: SyncMeta;
+  readonly record: Readonly<Record<string, unknown>>;
+}
+
+/**
+ * The sync read/write surface — deliberately not on `StoragePort`.
+ *
+ * A screen holds a `StoragePort`, so it cannot reach these methods at all: that is what
+ * "the sync path is the only one allowed to write history directly" means as code. The
+ * app-facing methods keep their guards (`sessions.create` still refuses sets,
+ * `confirmSet` still refuses a gap in the index) and none of them is relaxed here.
+ */
+export interface SyncStoragePort {
+  /** The stored row and its metadata, or `undefined`. Tombstones are returned too. */
+  readSyncRow(table: SyncTable, id: Uuid): Promise<StoredSyncRow | undefined>;
+  /** Rows changed after `since`, oldest first. The sweep that pushes them reads this. */
+  listSyncRows(table: SyncTable, since: EpochMs): Promise<readonly StoredSyncRow[]>;
+  /**
+   * Writes a pulled row exactly as received — including a set whose index does not extend
+   * the list, or an exercise session whose session is not here yet, both of which the
+   * app-facing API refuses. A row with `deletedAt` set is written and hidden, never
+   * removed: bytes are evidence (S5, S7).
+   */
+  applySyncRow(table: SyncTable, row: StoredSyncRow): Promise<void>;
+  /** The per-table "last pushed" mark, `null` before the first push. */
+  readPushWatermark(table: SyncTable): Promise<EpochMs | null>;
+  /** Only ever moves forward: a re-push must not rewind a table. */
+  writePushWatermark(table: SyncTable, at: EpochMs): Promise<void>;
+  /** The pending queue, in the shape `src/cloud/outbox.ts` consumes. */
+  queue(): SyncOutboxStorePort;
 }
 
 /** §9: the collections the document carries, and with them the import report keys. */

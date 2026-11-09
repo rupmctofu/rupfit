@@ -1,13 +1,17 @@
 /**
  * Measurements repository — body weight and measurements, docs/data-model.md §5.1
  * (`by_date`) and I-10.
+ *
+ * Writes are stamped and queued in their own transaction (odd/tasks/cloud-sync.md T3);
+ * reads hide a row another device deleted.
  */
 
 import { windowKeyRange, type Database } from '../db';
 import { StorageError } from '../errors';
 import type { BodyMeasurement, EpochMs, Uuid } from '../entities';
-import { measurementFromRow, measurementToRow } from '../mappers';
+import { isTombstone, measurementFromRow, measurementToRow } from '../mappers';
 import type { MeasurementRepositoryPort } from '../port';
+import { deleteStamped, writeStamped, type RowSyncDeps } from '../sync';
 
 /** The measures a row may carry; at least one must be present (I-10). */
 const MEASURES = [
@@ -25,12 +29,15 @@ export function hasAnyMeasure(measurement: BodyMeasurement): boolean {
 }
 
 export class MeasurementRepository implements MeasurementRepositoryPort {
-  constructor(private readonly database: Database) {}
+  constructor(
+    private readonly database: Database,
+    private readonly sync: RowSyncDeps,
+  ) {}
 
   async all(): Promise<readonly BodyMeasurement[]> {
     return this.database.read(['bodyMeasurements'], async (tx) => {
       const rows = await tx.objectStore('bodyMeasurements').index('by_date').getAll();
-      return rows.map(measurementFromRow);
+      return rows.filter((row) => !isTombstone(row)).map(measurementFromRow);
     });
   }
 
@@ -40,7 +47,7 @@ export class MeasurementRepository implements MeasurementRepositoryPort {
         .objectStore('bodyMeasurements')
         .index('by_date')
         .getAll(windowKeyRange(from, to));
-      return rows.map(measurementFromRow);
+      return rows.filter((row) => !isTombstone(row)).map(measurementFromRow);
     });
   }
 
@@ -54,14 +61,20 @@ export class MeasurementRepository implements MeasurementRepositoryPort {
         { measureId: measurement.id },
       );
     }
-    await this.database.write(['bodyMeasurements'], async (tx) => {
-      await tx.objectStore('bodyMeasurements').put(measurementToRow(measurement));
+    await this.database.write(['bodyMeasurements', 'meta'], async (tx) => {
+      await writeStamped({
+        ...this.sync,
+        tx,
+        table: 'body_measurements',
+        key: measurement.id,
+        row: measurementToRow(measurement),
+      });
     });
   }
 
   async remove(id: Uuid): Promise<void> {
-    await this.database.write(['bodyMeasurements'], async (tx) => {
-      await tx.objectStore('bodyMeasurements').delete(id);
+    await this.database.write(['bodyMeasurements', 'meta'], async (tx) => {
+      await deleteStamped({ ...this.sync, tx, table: 'body_measurements', key: id });
     });
   }
 }

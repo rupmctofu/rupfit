@@ -16,5 +16,5 @@
     "jsx": "react-jsx",
     "types": ["vite/client"]
   },
-  "include": ["src/app/**/*", "src/features/**/*", "src/design-system/**/*", "src/storage/**/*", "src/pwa/**/*", "src/main.tsx"]
+  "include": ["src/app/**/*", "src/features/**/*", "src/design-system/**/*", "src/storage/**/*", "src/cloud/**/*", "src/pwa/**/*", "src/main.tsx"]
 }

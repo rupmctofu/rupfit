@@ -10,6 +10,7 @@ export {
   DB_VERSION,
   DELETE_ALL_CONFIRMATION,
   META_KEYS,
+  OUTBOX_OP_PREFIX,
   RESTORE_CONFIRMATION,
   SET_INDEX_START,
   deleteSessionConfirmation,
@@ -52,10 +53,45 @@ export {
   SCHEMA,
   STORE_NAMES,
   type IndexSchema,
+  type PendingSyncOp,
   type RupfitDb,
   type StoreName,
   type StoreSchema,
+  type SyncMeta,
+  type SyncWatermarks,
 } from './records';
+
+export {
+  SYNC_UNKNOWN,
+  isTombstone,
+  nextSync,
+  stripSync,
+  syncOf,
+} from './mappers';
+
+export {
+  deleteStamped,
+  keyedStore,
+  outboxOpKey,
+  pendingOp,
+  pendingOpId,
+  storedKey,
+  tableTarget,
+  watermarksRow,
+  writeStamped,
+  type KeyedStore,
+  type PendingOpInput,
+  type ReadTx,
+  type RowSyncDeps,
+  type StampedDeleteInput,
+  type StampedWriteInput,
+  type SyncOutboxStorePort,
+  type SyncQueueSink,
+  type TableTarget,
+  type WriteTx,
+} from './sync';
+
+export { MetaSyncQueue, SyncRepository } from './repositories/sync';
 
 export {
   defaultDatabaseFactory,
@@ -92,7 +128,9 @@ export {
   type SessionRepositoryPort,
   type SessionStateChange,
   type StoragePort,
+  type StoredSyncRow,
   type SubstituteExerciseInput,
+  type SyncStoragePort,
 } from './port';
 
 export {

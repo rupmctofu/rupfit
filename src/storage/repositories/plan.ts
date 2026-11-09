@@ -5,19 +5,26 @@
  * The prescription of a *performed* exercise lives in `exerciseSessions` and is frozen
  * (I-2). This store is the template the next session is generated from; editing it
  * never rewrites a started or finished session (Q-2).
+ *
+ * Every write is stamped and queued in its own transaction (odd/tasks/cloud-sync.md T3);
+ * every read hides a tombstone another device left.
  */
 
 import { prefixKeyRange, type Database } from '../db';
 import { StorageError } from '../errors';
 import type { PlanDay, Uuid } from '../entities';
-import { planDayFromRow, planDayToRow, planItemToRow } from '../mappers';
+import { isTombstone, planDayFromRow, planDayToRow, planItemToRow } from '../mappers';
 import type { PlanItemRow } from '../records';
 import type { PlanRepositoryPort } from '../port';
+import { deleteStamped, writeStamped, type RowSyncDeps } from '../sync';
 
-const PLAN_STORES = ['planDays', 'planItems'] as const;
+const PLAN_STORES = ['planDays', 'planItems', 'meta'] as const;
 
 export class PlanRepository implements PlanRepositoryPort {
-  constructor(private readonly database: Database) {}
+  constructor(
+    private readonly database: Database,
+    private readonly sync: RowSyncDeps,
+  ) {}
 
   async all(): Promise<readonly PlanDay[]> {
     return this.database.read(PLAN_STORES, async (tx) => {
@@ -26,8 +33,9 @@ export class PlanRepository implements PlanRepositoryPort {
 
       const days: PlanDay[] = [];
       for (const row of rows) {
+        if (isTombstone(row)) continue;
         const dayItems = await items.getAll(prefixKeyRange(row.id));
-        days.push(planDayFromRow(row, dayItems));
+        days.push(planDayFromRow(row, dayItems.filter((item) => !isTombstone(item))));
       }
       return days;
     });
@@ -36,29 +44,28 @@ export class PlanRepository implements PlanRepositoryPort {
   async byId(id: Uuid): Promise<PlanDay | undefined> {
     return this.database.read(PLAN_STORES, async (tx) => {
       const row = await tx.objectStore('planDays').get(id);
-      if (row === undefined) return undefined;
+      if (row === undefined || isTombstone(row)) return undefined;
       const items = await tx
         .objectStore('planItems')
         .index('by_planDay_order')
         .getAll(prefixKeyRange(id));
-      return planDayFromRow(row, items);
+      return planDayFromRow(row, items.filter((item) => !isTombstone(item)));
     });
   }
 
   async save(day: PlanDay): Promise<void> {
     await this.database.write(PLAN_STORES, async (tx) => {
-      const days = tx.objectStore('planDays');
       const items = tx.objectStore('planItems');
       const index = items.index('by_planDay_order');
-
-      await days.put(planDayToRow(day));
 
       // Replaced, not merged: a removed item must not linger. The deletes and the
       // writes are in this same transaction, so the day is never half-edited.
       const existing = await index.getAll(prefixKeyRange(day.id));
       const keep = new Set(day.items.map((item) => item.id));
       for (const row of existing) {
-        if (!keep.has(row.id)) await items.delete(row.id);
+        if (!keep.has(row.id)) {
+          await deleteStamped({ ...this.sync, tx, table: 'plan_items', key: row.id });
+        }
       }
 
       for (const item of day.items) {
@@ -70,8 +77,16 @@ export class PlanRepository implements PlanRepositoryPort {
             { planItemId: item.id },
           );
         }
-        await items.put(row);
+        await writeStamped({ ...this.sync, tx, table: 'plan_items', key: row.id, row });
       }
+
+      await writeStamped({
+        ...this.sync,
+        tx,
+        table: 'plan_days',
+        key: day.id,
+        row: planDayToRow(day),
+      });
     });
   }
 
@@ -80,10 +95,9 @@ export class PlanRepository implements PlanRepositoryPort {
       const items = tx.objectStore('planItems');
       const rows = await items.index('by_planDay_order').getAll(prefixKeyRange(id));
       for (const row of rows) {
-        await items.delete(row.id);
+        await deleteStamped({ ...this.sync, tx, table: 'plan_items', key: row.id });
       }
-      await tx.objectStore('planDays').delete(id);
+      await deleteStamped({ ...this.sync, tx, table: 'plan_days', key: id });
     });
   }
 }
-

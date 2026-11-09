@@ -30,12 +30,24 @@ export function deleteSessionConfirmation(dayNameSnapshot: string): string {
   return `BORRAR ${dayNameSnapshot}`;
 }
 
-/** The fixed keys of the single-row records in `meta` (§5.1). */
+/**
+ * The fixed keys of the single-row records in `meta` (§5.1), plus the two the sync layer
+ * keeps beside them. `meta` is schemaless and already keyed, so the push watermarks and
+ * the pending queue ops need no object store of their own and no `DB_VERSION` bump.
+ */
 export const META_KEYS = {
   profile: 'profile',
   phaseState: 'phaseState',
   storage: 'storage',
+  /** The per-table "last pushed" marks (odd/tasks/cloud-sync.md T3/T4). */
+  syncWatermarks: 'syncWatermarks',
 } as const;
+
+/**
+ * Prefix of a pending queue op inside `meta`. The rest of the key is the op's own id
+ * (`table:rowId:rev`), so one row's op is addressable without a scan of its own.
+ */
+export const OUTBOX_OP_PREFIX = 'outbox:';
 
 export type MetaKey = (typeof META_KEYS)[keyof typeof META_KEYS];
 

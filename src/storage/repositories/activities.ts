@@ -5,21 +5,28 @@
  * The dedupe rule is the document's: a unique index on `externalSampleId`, plus an
  * upsert-by-index inside the transaction. Manual rows omit the key entirely, so they
  * are not in the index and can never collide with an imported sample.
+ *
+ * Writes are stamped and queued in their own transaction (odd/tasks/cloud-sync.md T3);
+ * reads hide a row another device deleted.
  */
 
 import { windowKeyRange, type Database } from '../db';
 import { StorageError } from '../errors';
 import type { ActivityRecord, EpochMs, Uuid } from '../entities';
-import { activityFromRow, activityToRow } from '../mappers';
+import { activityFromRow, activityToRow, isTombstone } from '../mappers';
 import type { ActivityRepositoryPort } from '../port';
+import { deleteStamped, writeStamped, type RowSyncDeps } from '../sync';
 
 export class ActivityRepository implements ActivityRepositoryPort {
-  constructor(private readonly database: Database) {}
+  constructor(
+    private readonly database: Database,
+    private readonly sync: RowSyncDeps,
+  ) {}
 
   async all(): Promise<readonly ActivityRecord[]> {
     return this.database.read(['activities'], async (tx) => {
       const rows = await tx.objectStore('activities').index('by_date').getAll();
-      return rows.map(activityFromRow);
+      return rows.filter((row) => !isTombstone(row)).map(activityFromRow);
     });
   }
 
@@ -29,12 +36,12 @@ export class ActivityRepository implements ActivityRepositoryPort {
         .objectStore('activities')
         .index('by_date')
         .getAll(windowKeyRange(from, to));
-      return rows.map(activityFromRow);
+      return rows.filter((row) => !isTombstone(row)).map(activityFromRow);
     });
   }
 
   async save(activity: ActivityRecord): Promise<void> {
-    await this.database.write(['activities'], async (tx) => {
+    await this.database.write(['activities', 'meta'], async (tx) => {
       const store = tx.objectStore('activities');
 
       if (activity.externalSampleId !== null) {
@@ -48,13 +55,19 @@ export class ActivityRepository implements ActivityRepositoryPort {
         }
       }
 
-      await store.put(activityToRow(activity));
+      await writeStamped({
+        ...this.sync,
+        tx,
+        table: 'activities',
+        key: activity.id,
+        row: activityToRow(activity),
+      });
     });
   }
 
   async remove(id: Uuid): Promise<void> {
-    await this.database.write(['activities'], async (tx) => {
-      await tx.objectStore('activities').delete(id);
+    await this.database.write(['activities', 'meta'], async (tx) => {
+      await deleteStamped({ ...this.sync, tx, table: 'activities', key: id });
     });
   }
 }
