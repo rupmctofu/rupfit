@@ -92,9 +92,13 @@ function writeDetail(row: ExerciseRow, exercise: Exercise): ExerciseRow {
     exercise.variantOf === undefined
       ? withDescription
       : { ...withDescription, variantOf: exercise.variantOf };
-  return exercise.alternatives === undefined
-    ? withVariant
-    : { ...withVariant, alternatives: [...exercise.alternatives] };
+  const withAlternatives: ExerciseRow =
+    exercise.alternatives === undefined
+      ? withVariant
+      : { ...withVariant, alternatives: [...exercise.alternatives] };
+  return exercise.illustration === undefined
+    ? withAlternatives
+    : { ...withAlternatives, illustration: exercise.illustration };
 }
 
 /** The inverse: a row that does not carry a column leaves the domain field absent. */
@@ -111,9 +115,13 @@ function readDetail(exercise: Exercise, row: ExerciseRow): Exercise {
     row.variantOf === undefined
       ? withDescription
       : { ...withDescription, variantOf: row.variantOf };
-  return row.alternatives === undefined
-    ? withVariant
-    : { ...withVariant, alternatives: [...row.alternatives] };
+  const withAlternatives: Exercise =
+    row.alternatives === undefined
+      ? withVariant
+      : { ...withVariant, alternatives: [...row.alternatives] };
+  return row.illustration === undefined
+    ? withAlternatives
+    : { ...withAlternatives, illustration: row.illustration };
 }
 
 /* ---------------------------------------------------------------------- plan */
@@ -188,7 +196,7 @@ export function exerciseSessionToRow(
   sessionId: string,
   sessionDate: EpochMs,
 ): ExerciseSessionRow {
-  return {
+  const row: ExerciseSessionRow = {
     id: exerciseSession.id,
     sessionId,
     sessionDate,
@@ -207,13 +215,17 @@ export function exerciseSessionToRow(
     status: exerciseSession.status,
     completedAt: exerciseSession.completedAt,
   };
+  // `exactOptionalPropertyTypes`: a row that was not substituted has no key at all.
+  return exerciseSession.substitutedFrom === undefined
+    ? row
+    : { ...row, substitutedFrom: { ...exerciseSession.substitutedFrom } };
 }
 
 export function exerciseSessionFromRow(
   row: ExerciseSessionRow,
   sets: readonly SetRecord[],
 ): ExerciseSession {
-  return {
+  const exerciseSession: ExerciseSession = {
     id: row.id,
     order: row.order,
     exerciseId: row.exerciseId,
@@ -228,6 +240,10 @@ export function exerciseSessionFromRow(
     status: row.status,
     completedAt: row.completedAt,
   };
+  // An old row has no column: it is the prescribed exercise, not a substitution.
+  return row.substitutedFrom === undefined
+    ? exerciseSession
+    : { ...exerciseSession, substitutedFrom: { ...row.substitutedFrom } };
 }
 
 export function setToRow(set: SetRecord, exerciseSessionId: string, sessionId: string): SetRecordRow {

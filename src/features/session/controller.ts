@@ -18,7 +18,7 @@
  * injected `Clock` is used only for the boot reads and the history window.
  */
 
-import type { Exercise } from '../../core/domain';
+import type { Equipment, Exercise } from '../../core/domain';
 import {
   createSession,
   isSessionAnswered,
@@ -32,7 +32,8 @@ import {
   type SessionSource,
   type SessionState,
 } from '../../core/session/model';
-import type { SetRecord, StoragePort, WorkoutSession } from '../../storage';
+import type { SetRecord, StoragePort, SubstitutedFrom, WorkoutSession } from '../../storage';
+import { canSubstitute, SUBSTITUTION_REFUSED } from './substitution';
 
 /** The one clock the session screen is allowed to read. */
 export interface Clock {
@@ -90,6 +91,14 @@ export interface SessionRuntime {
   readonly history: SessionHistory;
   /** The library entry of each exercise session, for the equipment and muscle chips. */
   readonly exercises: Readonly<Record<string, Exercise>>;
+  /**
+   * The swaps stored on this session's rows, keyed by exercise session id (S4, T5). Read
+   * from the row, not from the library: the read-out says «sustituye a X» after a reload
+   * exactly as it does the moment the owner picks, and never invents one.
+   */
+  readonly substitutions: Readonly<Record<string, SubstitutedFrom>>;
+  /** `Perfil`'s declared equipment; empty means it does not narrow the alternatives. */
+  readonly availableEquipment: readonly Equipment[];
   /** A write that failed, in Spanish, with `retry()` as the way out. */
   readonly error: string | null;
   /** The reducer's refusal for the last event, in Spanish. */
@@ -102,10 +111,22 @@ export interface SessionMachine {
   /** Reads the session, its history and the library. `session-resumed` or `page-recovered`. */
   boot(): Promise<SessionRuntime>;
   dispatch(event: SessionEvent, now: EpochMs): Promise<SessionRuntime>;
+  /**
+   * `Sugerir otro ejercicio` (S4, T5): swaps the exercise of one row for this session only.
+   * Refused, without touching storage, once that exercise has an answered set (S6).
+   */
+  substitute(input: SubstituteExerciseRequest): Promise<SessionRuntime>;
   /** Re-runs the event whose write failed, or the boot that failed. */
   retry(now: EpochMs): Promise<SessionRuntime>;
   /** `Seguir`: the resume banner goes away and the session stays as it is. */
   dismissRecovery(): SessionRuntime;
+}
+
+/** What the screen asks for: this row, that library exercise, at that instant. */
+export interface SubstituteExerciseRequest {
+  readonly exerciseSessionId: string;
+  readonly candidate: Exercise;
+  readonly now: EpochMs;
 }
 
 const EMPTY_RUNTIME: SessionRuntime = {
@@ -114,6 +135,8 @@ const EMPTY_RUNTIME: SessionRuntime = {
   recovery: 'none',
   history: {},
   exercises: {},
+  substitutions: {},
+  availableEquipment: [],
   error: null,
   rejection: null,
 };
@@ -245,6 +268,17 @@ export function previousPoint(points: readonly HistoryPoint[]): HistoryPoint | n
   return null;
 }
 
+/** The swaps the stored rows carry, keyed by exercise session id (T5). */
+export function substitutionsOf(session: WorkoutSession): Readonly<Record<string, SubstitutedFrom>> {
+  const found: Record<string, SubstitutedFrom> = {};
+  for (const exercise of session.exercises) {
+    if (exercise.substitutedFrom !== undefined) {
+      found[exercise.id] = { ...exercise.substitutedFrom };
+    }
+  }
+  return found;
+}
+
 function countConfirmed(state: SessionState): number {
   return state.exercises.reduce(
     (total, exercise) => total + exercise.sets.filter((entry) => entry.status === 'confirmed').length,
@@ -318,6 +352,9 @@ export function createSessionMachine(deps: SessionDeps): SessionMachine {
 
       const recent = await storage.sessions.recent(HISTORY_SESSIONS);
       const exercises = await loadLibrary(stored);
+      // Only to read the declared equipment: an empty list is "not narrowed", which is
+      // what a profile the owner has not filled in honestly means (S4).
+      const profile = await storage.profile.read();
       const source = sessionSourceFrom(stored);
       const journaled = journal.read();
 
@@ -353,6 +390,8 @@ export function createSessionMachine(deps: SessionDeps): SessionMachine {
         recovery,
         history: historyFrom(recent, deps.clock.now()),
         exercises,
+        substitutions: substitutionsOf(stored),
+        availableEquipment: profile?.availableEquipment ?? [],
         error: null,
         rejection: null,
       });
@@ -449,6 +488,86 @@ export function createSessionMachine(deps: SessionDeps): SessionMachine {
     }
   }
 
+  /**
+   * S4/T5, in three steps and in this order: validate the swap against the state that is
+   * on screen, write it to the row, then publish it. A refused swap writes nothing; a
+   * failed write leaves the exercise as it was and says so, like a failed set does.
+   *
+   * The state is patched here instead of in the reducer because the swap is not a session
+   * event: the reducer owns what happens *during* a session (sets, decisions, the card on
+   * screen), while a substitution is a property of the stored row (S6) that the reducer
+   * does not model. Nothing the reducer computes — the prescription, the answered sets,
+   * the active card — is touched.
+   */
+  async function substitute(request: SubstituteExerciseRequest): Promise<SessionRuntime> {
+    const current = runtime;
+    if (current.session === null || busy) return current;
+    const exercise = current.session.exercises.find(
+      (candidate) => candidate.id === request.exerciseSessionId,
+    );
+    if (exercise === undefined) return current;
+    if (!canSubstitute(exercise, !isTerminal(current.session))) {
+      return publish({ rejection: SUBSTITUTION_REFUSED, error: null });
+    }
+
+    const substitutedFrom: SubstitutedFrom = {
+      exerciseId: exercise.exerciseId,
+      exerciseNameSnapshot: exercise.exerciseNameSnapshot,
+      at: request.now,
+    };
+
+    busy = true;
+    try {
+      await storage.sessions.substitute({
+        exerciseSessionId: exercise.id,
+        exerciseId: request.candidate.id,
+        exerciseNameSnapshot: request.candidate.name,
+        substitutedFrom,
+      });
+      // The decision belonged to the exercise that left: a new one is written for the
+      // substitute, so the storage guard of I-8 does not refuse its first set.
+      decided.delete(exercise.id);
+
+      const next: SessionState = {
+        ...current.session,
+        exercises: current.session.exercises.map((candidate) =>
+          candidate.id === exercise.id
+            ? {
+                ...candidate,
+                exerciseId: request.candidate.id,
+                exerciseNameSnapshot: request.candidate.name,
+                recommendation: null,
+                decision: null,
+                recommendedWeightKg: null,
+                usedWeightKg: null,
+                loadDeltaKg: null,
+              }
+            : candidate,
+        ),
+      };
+      journal.write(next);
+
+      return publish({
+        session: next,
+        exercises: {
+          ...current.exercises,
+          [exercise.id]: request.candidate,
+          [request.candidate.id]: request.candidate,
+        },
+        substitutions: { ...current.substitutions, [exercise.id]: substitutedFrom },
+        error: null,
+        rejection: null,
+      });
+    } catch {
+      return publish({
+        error: 'No se pudo cambiar el ejercicio. Sigue el que tenías.',
+        rejection: null,
+      });
+    } finally {
+      busy = false;
+    }
+  }
+
   async function retry(now: EpochMs): Promise<SessionRuntime> {
     if (runtime.phase === 'failed') return boot();
     const event = pending;
@@ -465,6 +584,7 @@ export function createSessionMachine(deps: SessionDeps): SessionMachine {
     },
     boot,
     dispatch,
+    substitute,
     retry,
     dismissRecovery: () => publish({ recovery: 'none' }),
   };

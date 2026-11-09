@@ -71,6 +71,21 @@ export interface SetRecord {
   readonly confirmedAt: EpochMs;
 }
 
+/**
+ * What an exercise session replaced, when the owner swapped the exercise for this session
+ * only (odd/tasks/training-flow.md S4, T5). The substituted row keeps its own `id` and
+ * takes the substitute's `exerciseId`, so the two histories never mix (S6): this record
+ * is the evidence of what the slot originally prescribed, not a second exercise.
+ */
+export interface SubstitutedFrom {
+  /** The library row of the original exercise, `null` once it is deleted (I-4). */
+  readonly exerciseId: Uuid | null;
+  /** Snapshot of the original name: history survives its deletion too. */
+  readonly exerciseNameSnapshot: string;
+  /** The instant of the swap, never "now" when it is read back. */
+  readonly at: EpochMs;
+}
+
 /** §3 `ExerciseSession`, with the sets it contains. */
 export interface ExerciseSession {
   readonly id: Uuid;
@@ -91,6 +106,12 @@ export interface ExerciseSession {
   readonly sets: readonly SetRecord[];
   readonly status: ExerciseStatus;
   readonly completedAt: EpochMs | null;
+  /**
+   * The swap this row carries (S4, S6). Optional and additive: a row written before the
+   * column existed, or one that was never substituted, simply does not have it, and
+   * `mappers.ts` reads that as "this is the prescribed exercise". No migration.
+   */
+  readonly substitutedFrom?: SubstitutedFrom;
 }
 
 /** §3 `WorkoutSession`. */

@@ -30,7 +30,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Discomfort, Effort } from '../../core/domain';
+import type { Discomfort, Effort, Equipment, Exercise } from '../../core/domain';
 import {
   activeExercise,
   isSessionAnswered,
@@ -51,9 +51,24 @@ import {
   SectionLabel,
   TextButton,
   WeightKeypad,
+  type IconName,
 } from '../../design-system';
 import type { StoragePort } from '../../storage';
 import { ExerciseCard, type SetDraft } from './ExerciseCard';
+import { ExerciseIllustration } from './ExerciseIllustration';
+import { illustrationKeyOf } from './illustrationKey';
+import {
+  ringCompletedLabel,
+  ringLabel,
+  ringSegments,
+} from './ring';
+import { SessionRing } from './SessionRing';
+import {
+  canSubstitute,
+  candidateById,
+  substitutionCandidates,
+  substitutionHint,
+} from './substitution';
 import {
   historyFor,
   previousPoint,
@@ -69,6 +84,7 @@ import {
   formatWeekdayTime,
   formatWeight,
   parseWeight,
+  prescriptionLine,
   type DiscomfortChip,
   type EffortChip,
 } from './format';
@@ -80,6 +96,25 @@ import './session.css';
 const READAPTATION_WEEKS = 4;
 /** The fallback step when the library entry is not known: the smallest plate pair. */
 const DEFAULT_INCREMENT_KG = 2.5;
+
+/** The equipment of the library row, in the words the picker and the card use. */
+const EQUIPMENT_LABEL: Record<Equipment, string> = {
+  barbell: 'Barra',
+  dumbbell: 'Mancuerna',
+  machine: 'Máquina',
+  cable: 'Polea',
+  bodyweight: 'Peso corporal',
+  band: 'Banda',
+};
+
+const EQUIPMENT_ICON: Record<Equipment, IconName> = {
+  barbell: 'barbell',
+  dumbbell: 'dumbbell',
+  machine: 'machine',
+  cable: 'cable',
+  bodyweight: 'person',
+  band: 'band',
+};
 
 export interface SessionScreenProps {
   readonly storage: StoragePort;
@@ -133,12 +168,21 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
     ...(journal === undefined ? {} : { journal }),
   });
   const { runtime, now, screenState } = controller;
+  const substitute = controller.substitute;
   const session = runtime.session;
 
   const [drafts, setDrafts] = useState<Record<string, SetDraft>>({});
   const [keypad, setKeypad] = useState<{ readonly exerciseSessionId: string; readonly value: string } | null>(
     null,
   );
+  /**
+   * `Sugerir otro ejercicio` (S4): the exercise session being swapped and the library the
+   * alternatives are read from. The library is read on demand — the session only knows the
+   * rows it prescribes — and a failed read leaves an empty list with its own sentence
+   * instead of a picker that promises nothing.
+   */
+  const [swapping, setSwapping] = useState<{ readonly exerciseSessionId: string } | null>(null);
+  const [library, setLibrary] = useState<readonly Exercise[]>([]);
   const trackRef = useRef<HTMLDivElement | null>(null);
   const guardRef = useRef(0);
   const settleRef = useRef<number | null>(null);
@@ -157,6 +201,31 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
 
   const active = session === null ? null : activeExercise(session);
   const total = session?.exercises.length ?? 0;
+
+  const openSwapping = useCallback(
+    (exercise: ExerciseState) => {
+      setSwapping({ exerciseSessionId: exercise.id });
+    },
+    [],
+  );
+
+  // The library is read once per mount: `Sugerir otro ejercicio` resolves the row's
+  // `alternatives` against it, and the session itself only carries the rows it prescribes.
+  // A failed read leaves an empty list, and the action simply does not appear.
+  useEffect(() => {
+    let live = true;
+    void storage.exercises
+      .all()
+      .then((rows) => {
+        if (live) setLibrary(rows);
+      })
+      .catch(() => {
+        if (live) setLibrary([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [storage]);
 
   const goTo = useCallback(
     (index: number) => {
@@ -212,6 +281,9 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
     (exercise: ExerciseState) => {
       const slot = nextSlotOf(exercise);
       if (slot === null) return;
+      // A confirmed set ends the possibility of a swap (S6): the picker never stays open on
+      // an exercise the write would refuse.
+      setSwapping(null);
       const draft = draftFor(exercise);
       dispatch({
         type: 'set-confirmed',
@@ -333,6 +405,29 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
   const decided = exerciseOnScreen !== null && exerciseOnScreen.decision !== null;
   const slot = exerciseOnScreen === null ? null : nextSlotOf(exerciseOnScreen);
   const lastSlot = exerciseOnScreen?.prescription.sets ?? 0;
+
+  // ---------------------------------------------------------------- the visual core
+  const segments = ringSegments(session);
+  const heroDetail = exerciseOnScreen === null ? undefined : runtime.exercises[exerciseOnScreen.id];
+  const heroIllustration = illustrationKeyOf(heroDetail);
+  const swappingExercise =
+    swapping === null
+      ? null
+      : session.exercises.find((exercise) => exercise.id === swapping.exerciseSessionId) ?? null;
+  const swappingDetail =
+    swappingExercise === null ? undefined : runtime.exercises[swappingExercise.id];
+  const candidates =
+    swappingDetail === undefined
+      ? []
+      : substitutionCandidates(swappingDetail, library, runtime.availableEquipment);
+  const equipmentScoped = runtime.availableEquipment.length > 0;
+
+  const chooseAlternative = (id: string): void => {
+    const picked = candidateById(candidates, id);
+    if (picked === null || swapping === null) return;
+    setSwapping(null);
+    substitute(swapping.exerciseSessionId, picked);
+  };
 
   // `Terminar la sesión` is the sheet's quiet exit in every state that is not the
   // pinned confirm: the outcome is derived from what was answered, never from a second tap.
@@ -501,8 +596,7 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
       {outcomeNotice === null ? null : <div className="session__notice">{outcomeNotice}</div>}
 
       {terminal ? (
-        <div className="session__body">
-          <Card>
+        <div className="session__body">          <Card>
             <SectionLabel>Resumen</SectionLabel>
             <DataStrip
               label="Totales de la sesión"
@@ -515,6 +609,44 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
           </Card>
         </div>
       ) : null}
+
+      {/* S2: the visual core of the session. Outside the paged track on purpose — the
+          ring, the current variant, its name and its prescribed work are read at a
+          glance, one hand, 390 px, with no scrolling at all. The paged cards below keep
+          the sets, the compare tiles and the history. */}
+      {terminal || exerciseOnScreen === null ? null : (
+        <section className="session-hero" aria-label="Ejercicio actual">
+          <SessionRing segments={segments}>
+            {/* S3: the drawing of this variant, or the implement. A row the library no
+                longer has shows nothing rather than somebody else's exercise. */}
+            {heroIllustration !== null ? (
+              <ExerciseIllustration
+                illustration={heroIllustration}
+                label={exerciseOnScreen.exerciseNameSnapshot}
+                className="session-hero__art"
+              />
+            ) : heroDetail === undefined ? null : (
+              <span className="session-hero__icon">
+                <Icon name={EQUIPMENT_ICON[heroDetail.equipment]} size={40} />
+              </span>
+            )}
+          </SessionRing>
+          <div className="session-hero__text">
+            <p className="ds-caption session-hero__step">
+              {`${ringLabel(segments)} · ${ringCompletedLabel(segments)}`}
+            </p>
+            <h2 className="session-hero__name">{exerciseOnScreen.exerciseNameSnapshot}</h2>
+            <p className="session-hero__prescription">
+              {prescriptionLine(exerciseOnScreen.prescription)}
+            </p>
+            <p className="ds-caption session-hero__weight">
+              {todayWeightKg === null
+                ? 'Peso de hoy por decidir'
+                : `Hoy ${formatWeight(todayWeightKg)} kg`}
+            </p>
+          </div>
+        </section>
+      )}
 
       <div className="session__track" ref={trackRef} onScroll={onScroll}>
         {session.exercises.map((exercise, index) => (
@@ -531,6 +663,9 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
               }
               draft={draftFor(exercise)}
               interactive={!terminal && index === session.activeIndex}
+              // The hero above already names the exercise, its prescription and the weight
+              // of the day; the card starts at the chips when it is on screen.
+              heroShown
               onRepsChange={(reps) => patchDraft(exercise, { reps })}
               onEffortChange={(effort: EffortChip | null) => patchDraft(exercise, { effort })}
               onDiscomfortChange={(discomfort: DiscomfortChip | null) =>
@@ -540,6 +675,17 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
               onEditWeight={() => openKeypad(exercise)}
               onWeightStep={(direction) => stepWeight(exercise, direction)}
               onSkipRemaining={() => skipRemaining(exercise)}
+              substitutedFromName={runtime.substitutions[exercise.id]?.exerciseNameSnapshot}
+              {...(!terminal &&
+              index === session.activeIndex &&
+              canSubstitute(exercise, true) &&
+              substitutionCandidates(
+                runtime.exercises[exercise.id],
+                library,
+                runtime.availableEquipment,
+              ).length > 0
+                ? { onSuggestAlternative: () => openSwapping(exercise) }
+                : {})}
             />
           </div>
         ))}
@@ -552,6 +698,29 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
           onPrevious={() => goTo((session.activeIndex ?? 0) - 1)}
           onNext={() => goTo((session.activeIndex ?? 0) + 1)}
         />
+      )}
+
+      {swapping === null || terminal ? null : (
+        <div className="session__substitute">
+          <Card>
+            <SectionLabel>Sugerir otro ejercicio</SectionLabel>
+            <p className="ds-caption">
+              {substitutionHint(candidates.length, equipmentScoped)}
+            </p>
+            {candidates.map((candidate) => (
+              <button
+                key={candidate.id}
+                type="button"
+                className="ds-action session-substitute__option"
+                onClick={() => chooseAlternative(candidate.id)}
+              >
+                <span className="session-substitute__name">{candidate.name}</span>
+                <span className="ds-caption">{EQUIPMENT_LABEL[candidate.equipment]}</span>
+              </button>
+            ))}
+            <TextButton onClick={() => setSwapping(null)}>Cancelar</TextButton>
+          </Card>
+        </div>
       )}
 
       {keypad === null ? null : (

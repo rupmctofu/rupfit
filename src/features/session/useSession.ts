@@ -9,6 +9,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import type { Exercise } from '../../core/domain';
 import type { SessionEvent } from '../../core/session/model';
 import type { StoragePort } from '../../storage';
 import {
@@ -37,6 +38,8 @@ export interface SessionController {
   readonly now: number;
   readonly screenState: ScreenState;
   dispatch(event: SessionEvent): void;
+  /** `Sugerir otro ejercicio`, applied to one exercise session of this session. */
+  substitute(exerciseSessionId: string, candidate: Exercise): void;
   retry(): void;
   dismissRecovery(): void;
 }
@@ -83,11 +86,18 @@ export function useSessionController(options: UseSessionOptions): SessionControl
     void machine.retry(clock.now());
   }, [machine, clock]);
 
+  const substitute = useCallback(
+    (exerciseSessionId: string, candidate: Exercise) => {
+      void machine.substitute({ exerciseSessionId, candidate, now: clock.now() });
+    },
+    [machine, clock],
+  );
+
   const dismissRecovery = useCallback(() => {
     machine.dismissRecovery();
   }, [machine]);
 
   const screenState = useMemo(() => screenStateOf(runtime), [runtime]);
 
-  return { machine, runtime, now, screenState, dispatch, retry, dismissRecovery };
+  return { machine, runtime, now, screenState, dispatch, substitute, retry, dismissRecovery };
 }

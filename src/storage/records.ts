@@ -149,6 +149,8 @@ export interface ExerciseRow {
   description?: string;
   variantOf?: string;
   alternatives?: readonly string[];
+  /** The inline pictogram key of this concrete variant (training-flow T4). */
+  illustration?: string;
 }
 
 export interface PlanDayRow {
@@ -204,6 +206,19 @@ export interface ExerciseSessionRow {
   loadDeltaKg: number | null;
   status: ExerciseStatus;
   completedAt: EpochMs | null;
+  /**
+   * The substitution this row carries (training-flow S4, T5), absent on every row that
+   * was not swapped and on every row written before the column existed: an optional,
+   * unindexed member needs no migration and no schema bump.
+   */
+  substitutedFrom?: SubstitutedFrom;
+}
+
+/** The stored half of `SubstitutedFrom`: plain, JSON-safe, no `Date`. */
+export interface SubstitutedFrom {
+  exerciseId: string | null;
+  exerciseNameSnapshot: string;
+  at: EpochMs;
 }
 
 /** A recommendation with its instant as an indexable, JSON-safe number (§2). */

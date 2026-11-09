@@ -39,6 +39,7 @@ export type {
   SessionStatus,
   SetRecord,
   StorageAnswer,
+  SubstitutedFrom,
   TrainingPhase,
   UserProfile,
   Uuid,
@@ -91,6 +92,7 @@ export {
   type SessionRepositoryPort,
   type SessionStateChange,
   type StoragePort,
+  type SubstituteExerciseInput,
 } from './port';
 
 export {

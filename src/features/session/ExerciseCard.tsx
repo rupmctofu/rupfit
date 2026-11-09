@@ -35,6 +35,7 @@ import {
   type SetState,
 } from '../../design-system';
 import type { HistoryPoint } from './controller';
+import { substitutionNote } from './substitution';
 import {
   formatDiscomfort,
   formatEffort,
@@ -62,6 +63,20 @@ export interface ExerciseCardProps {
   readonly draft: SetDraft;
   /** This card is the one on screen and the session is still open. */
   readonly interactive: boolean;
+  /**
+   * The screen's hero already shows the exercise name, its prescription and today's
+   * weight above the card. Repeating the title inside it made the first viewport a wall of
+   * the same sentence twice; when the hero is there, the card keeps the chips and the
+   * work, not the heading.
+   */
+  readonly heroShown?: boolean | undefined;
+  /**
+   * `Sugerir otro ejercicio` (S4). Absent when the library offers nothing or the swap is
+   * too late — the card never shows an action that would be refused.
+   */
+  readonly onSuggestAlternative?: (() => void) | undefined;
+  /** The exercise this card replaced for this session only, when it was substituted. */
+  readonly substitutedFromName?: string | undefined;
   readonly onRepsChange: (reps: number) => void;
   readonly onEffortChange: (effort: EffortChip | null) => void;
   readonly onDiscomfortChange: (discomfort: DiscomfortChip | null) => void;
@@ -249,7 +264,7 @@ function HistoryStrip({
 }
 
 export function ExerciseCard(props: ExerciseCardProps): React.ReactElement {
-  const { exercise, detail, history, todayWeightKg, draft, interactive } = props;
+  const { exercise, detail, history, todayWeightKg, draft, interactive, heroShown } = props;
   const prescription = exercise.prescription;
   const previous = (() => {
     for (let index = history.length - 1; index >= 0; index -= 1) {
@@ -281,7 +296,9 @@ export function ExerciseCard(props: ExerciseCardProps): React.ReactElement {
 
   const title = (
     <div className="session-card__head">
-      <h1 className="ds-card-title ds-card-title--large">{exercise.exerciseNameSnapshot}</h1>
+      {heroShown === true ? null : (
+        <h1 className="ds-card-title ds-card-title--large">{exercise.exerciseNameSnapshot}</h1>
+      )}
       {/* No subtitle restating the previous session: the compare tiles below already say
           `Última vez 90 kg · 3 × 10` and the reason line says why today's weight changed.
           Three restatements of the same two numbers was the loudest thing on the screen. */}
@@ -301,6 +318,14 @@ export function ExerciseCard(props: ExerciseCardProps): React.ReactElement {
   return (
     <Card className="session-card" label={`Ejercicio: ${exercise.exerciseNameSnapshot}`}>
       {title}
+      {/* The read-out of a swap (S4, S6): the card is the substitute, the plan is not,
+          and the original keeps its own history. Shown whether or not the card is the
+          one on screen, because it is a fact about the session, not a control. */}
+      {props.substitutedFromName === undefined ? null : (
+        <p className="session-card__substitution ds-caption">
+          {substitutionNote(props.substitutedFromName)}
+        </p>
+      )}
       {/* The rule under the head belongs to the block that follows it: the weight
           summary, or the first-time explanation. With history and no decision the
           compare tiles sit directly under the chips, as the render draws them. */}
@@ -362,6 +387,11 @@ export function ExerciseCard(props: ExerciseCardProps): React.ReactElement {
       {interactive && activeSlot !== null ? (
         <TextButton onClick={props.onSkipRemaining}>Saltar el resto</TextButton>
       ) : null}
+
+      {/* The busy-machine path (S4): a secondary action, never a second primary fill. */}
+      {props.onSuggestAlternative === undefined ? null : (
+        <TextButton onClick={props.onSuggestAlternative}>Sugerir otro ejercicio</TextButton>
+      )}
     </Card>
   );
 }

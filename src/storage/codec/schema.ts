@@ -136,6 +136,17 @@ const exerciseSessionSchema = z.object({
   sets: z.array(setSchema),
   status: z.enum(['pending', 'active', 'done', 'skipped']),
   completedAt: instantSchema.nullable(),
+  /**
+   * T5: optional and additive. A backup written before the column existed validates and
+   * an exported substitution round-trips; no version bump either way.
+   */
+  substitutedFrom: z
+    .object({
+      exerciseId: idSchema.nullable(),
+      exerciseNameSnapshot: z.string().min(1),
+      at: instantSchema,
+    })
+    .optional(),
 });
 
 const phaseSchema = z.discriminatedUnion('kind', [
@@ -172,6 +183,8 @@ const exerciseSchema = z.object({
   description: z.string().min(1).optional(),
   variantOf: idSchema.optional(),
   alternatives: z.array(idSchema).optional(),
+  /** T4: the inline pictogram key of the concrete variant. Optional, like the rest. */
+  illustration: z.string().min(1).optional(),
 });
 
 const planItemSchema = z.object({

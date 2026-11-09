@@ -43,6 +43,9 @@ TestResults/
 *.cer
 *.env
 .env.*
+# The template carries no secrets and documents what the cloud account needs
+# (ADR-0002); it is committed on purpose.
+!.env.example
 
 # Node / TypeScript toolchain
 node_modules/

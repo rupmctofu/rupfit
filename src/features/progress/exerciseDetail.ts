@@ -219,16 +219,6 @@ export function exerciseFor(
 }
 
 /**
- * The one illustration this feature owns is a back squat with a bar. It is attached
- * only to content that *is* a squat: the library row's movement pattern, or a name
- * that says so. Any other exercise gets no picture instead of a wrong one.
- */
-export function isSquatExercise(name: string, detail: Exercise | undefined): boolean {
-  if (detail !== undefined && detail.pattern === 'squat') return true;
-  return /sentadilla|squat/i.test(name);
-}
-
-/**
  * The muscles the movement also works (odd/tasks/training-program.md S4, T3).
  *
  * Empty for a library row written before the field existed — a custom exercise or an old

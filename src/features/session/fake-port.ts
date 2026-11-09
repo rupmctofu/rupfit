@@ -30,6 +30,7 @@ import type {
   SetRecord,
   StoragePort,
   StorageState,
+  SubstituteExerciseInput,
   UserProfile,
   WorkoutSession,
 } from '../../storage';
@@ -211,8 +212,49 @@ export function createFakeStorage(options: FakeStorageOptions = {}): FakeStorage
         loadDeltaKg,
       };
     },
-    async finish(sessionId, status, at): Promise<SessionStateChange> {
-      record('sessions.finish');
+    /**
+     * T5: the same three guards the repository applies — a closed session, an exercise
+     * already settled and an exercise with confirmed sets all refuse the swap.
+     */
+    async substitute(input: SubstituteExerciseInput): Promise<ExerciseSessionState> {
+      record('sessions.substitute');
+      const owner = sessions.find((session) =>
+        session.exercises.some((exercise) => exercise.id === input.exerciseSessionId),
+      );
+      if (owner === undefined) throw new Error('fake storage: no session owns that exercise');
+      if (owner.status === 'completed' || owner.status === 'partial' || owner.status === 'abandoned') {
+        throw new Error('fake storage: a closed session cannot substitute');
+      }
+      const exercise = owner.exercises.find(
+        (candidate) => candidate.id === input.exerciseSessionId,
+      );
+      if (exercise === undefined) throw new Error('fake storage: exercise not found');
+      if (exercise.sets.length > 0) {
+        throw new Error('fake storage: the exercise already has confirmed sets');
+      }
+
+      const updated = {
+        ...exercise,
+        exerciseId: input.exerciseId,
+        exerciseNameSnapshot: input.exerciseNameSnapshot,
+        recommendation: null,
+        decision: null,
+        recommendedWeightKg: null,
+        usedWeightKg: null,
+        loadDeltaKg: null,
+        substitutedFrom: { ...input.substitutedFrom },
+      };
+      replace({
+        ...owner,
+        exercises: owner.exercises.map((candidate) =>
+          candidate.id === input.exerciseSessionId ? updated : candidate,
+        ),
+      });
+
+      const { sets: _sets, ...state } = updated;
+      return state;
+    },
+    async finish(sessionId, status, at): Promise<SessionStateChange> {      record('sessions.finish');
       const session = find(sessionId);
       const settled = status === 'completed' ? 'done' : 'skipped';
       const next: WorkoutSession = {

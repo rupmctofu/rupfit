@@ -19,6 +19,7 @@ import type {
   LoadDecisionRecord,
   SessionRepositoryPort,
   SessionStateChange,
+  SubstituteExerciseInput,
 } from '../port';
 
 type WriteTx = IDBPTransaction<RupfitDb, StoreName[], 'readwrite'>;
@@ -238,6 +239,81 @@ export class SessionRepository implements SessionRepositoryPort {
         usedWeightKg,
         loadDeltaKg,
       };
+    });
+  }
+
+  /**
+   * S4/T5: one transaction over the row and its (empty) set list.
+   *
+   * Three guards, all inside the transaction:
+   * 1. a closed session cannot be rewritten;
+   * 2. an exercise that already reached `done`/`skipped` cannot be swapped;
+   * 3. **no confirmed set** — the work already done was done by the prescribed exercise,
+   *    and moving those sets onto the substitute's key would mix the two histories (S6).
+   *
+   * The decision columns and the frozen recommendation are cleared with the swap: both
+   * belonged to the exercise being replaced, and carrying either across is exactly the
+   * accidental mix S6 forbids. The prescription stays — it is the slot's, and the plan is
+   * not touched.
+   */
+  async substitute(input: SubstituteExerciseInput): Promise<ExerciseSessionState> {
+    return this.database.write(['sessions', 'exerciseSessions', 'sets'], async (tx) => {
+      const exercises = tx.objectStore('exerciseSessions');
+      const row = await exercises.get(input.exerciseSessionId);
+      if (row === undefined) {
+        throw new StorageError(
+          'notFound',
+          `Exercise session ${input.exerciseSessionId} is not stored.`,
+          { exerciseSessionId: input.exerciseSessionId },
+        );
+      }
+
+      const session = await tx.objectStore('sessions').get(row.sessionId);
+      if (session === undefined) {
+        throw new StorageError('notFound', `Session ${row.sessionId} is not stored.`, {
+          sessionId: row.sessionId,
+        });
+      }
+      if (TERMINAL_STATUSES.includes(session.status)) {
+        throw new StorageError(
+          'invalidTransition',
+          `Session ${session.id} is ${session.status}; a closed session cannot substitute.`,
+          { sessionId: session.id, status: session.status },
+        );
+      }
+      if (row.status === 'done' || row.status === 'skipped') {
+        throw new StorageError(
+          'invalidTransition',
+          `Exercise session ${row.id} is ${row.status}; only a pending one can be substituted.`,
+          { exerciseSessionId: row.id, status: row.status },
+        );
+      }
+
+      const confirmed = await tx
+        .objectStore('sets')
+        .index('by_exerciseSession_index')
+        .getAll(prefixKeyRange(input.exerciseSessionId));
+      if (confirmed.length > 0) {
+        throw new StorageError(
+          'conflict',
+          'The exercise already has confirmed sets; they belong to it, not to the substitute.',
+          { exerciseSessionId: input.exerciseSessionId, sets: confirmed.length },
+        );
+      }
+
+      const updated: ExerciseSessionRow = {
+        ...row,
+        exerciseId: input.exerciseId,
+        exerciseNameSnapshot: input.exerciseNameSnapshot,
+        recommendation: null,
+        decision: null,
+        recommendedWeightKg: null,
+        usedWeightKg: null,
+        loadDeltaKg: null,
+        substitutedFrom: { ...input.substitutedFrom },
+      };
+      await exercises.put(updated);
+      return stripSets(exerciseSessionFromRow(updated, []));
     });
   }
 

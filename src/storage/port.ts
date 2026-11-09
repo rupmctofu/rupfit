@@ -19,6 +19,7 @@ import type {
   SetRecord,
   SessionStatus,
   StorageAnswer,
+  SubstitutedFrom,
   UserProfile,
   Uuid,
   WorkoutSession,
@@ -64,6 +65,21 @@ export interface DeleteAllInput {
   readonly seed?: readonly Exercise[];
 }
 
+/**
+ * `Sugerir otro ejercicio` for this session only (odd/tasks/training-flow.md S4, T5).
+ *
+ * The row keeps its `id` — the sets it may later receive point at it — and takes the
+ * substitute's `exerciseId` and snapshot name, so the substitute progresses on its own
+ * history. `substitutedFrom` preserves what the slot prescribed, so the read-out can say
+ * that it was a substitution and the original's history is untouched.
+ */
+export interface SubstituteExerciseInput {
+  readonly exerciseSessionId: Uuid;
+  readonly exerciseId: Uuid | null;
+  readonly exerciseNameSnapshot: string;
+  readonly substitutedFrom: SubstitutedFrom;
+}
+
 /** I-1: what the open sequence counts. Report only; the scan never deletes (Q-5). */
 export interface OrphanReport {
   readonly setsWithoutExerciseSession: number;
@@ -96,6 +112,11 @@ export interface SessionRepositoryPort {
   confirmSet(sessionId: Uuid, exerciseSessionId: Uuid, set: SetRecord): Promise<WorkoutSession>;
   /** I-8: writes the decision once and stores `loadDeltaKg` with it. */
   recordDecision(input: LoadDecisionInput): Promise<LoadDecisionRecord>;
+  /**
+   * S4/T5: swaps the exercise of one exercise session, in one transaction, before any set
+   * of it is confirmed. The plan is not touched: a session row is a snapshot.
+   */
+  substitute(input: SubstituteExerciseInput): Promise<ExerciseSessionState>;
   /** §7: a terminal status only from `inProgress`, in one transaction. */
   finish(sessionId: Uuid, status: SessionStatus, at: EpochMs): Promise<SessionStateChange>;
   /** I-5: the flag is committed first, so the deletion cannot be silent. */

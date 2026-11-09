@@ -114,7 +114,7 @@ export function decodeSession(session: EncodedSession): WorkoutSession {
 }
 
 export function encodeExerciseSession(exerciseSession: ExerciseSession): EncodedExerciseSession {
-  return {
+  const encoded: EncodedExerciseSession = {
     id: exerciseSession.id,
     order: exerciseSession.order,
     exerciseId: exerciseSession.exerciseId,
@@ -132,12 +132,16 @@ export function encodeExerciseSession(exerciseSession: ExerciseSession): Encoded
     status: exerciseSession.status,
     completedAt: exerciseSession.completedAt,
   };
+  // T5: absent on every row that was not substituted, so an old backup stays identical.
+  return exerciseSession.substitutedFrom === undefined
+    ? encoded
+    : { ...encoded, substitutedFrom: { ...exerciseSession.substitutedFrom } };
 }
 
 export function decodeExerciseSession(
   exerciseSession: EncodedExerciseSession,
 ): ExerciseSession {
-  return {
+  const decoded: ExerciseSession = {
     id: exerciseSession.id,
     order: exerciseSession.order,
     exerciseId: exerciseSession.exerciseId,
@@ -155,6 +159,9 @@ export function decodeExerciseSession(
     status: exerciseSession.status,
     completedAt: exerciseSession.completedAt,
   };
+  return exerciseSession.substitutedFrom === undefined
+    ? decoded
+    : { ...decoded, substitutedFrom: { ...exerciseSession.substitutedFrom } };
 }
 
 export function serializeDocument(document: BackupDocument): string {
@@ -210,9 +217,13 @@ function copyExercise(exercise: Exercise): Exercise {
     exercise.variantOf === undefined
       ? withDescription
       : { ...withDescription, variantOf: exercise.variantOf };
-  return exercise.alternatives === undefined
-    ? withVariant
-    : { ...withVariant, alternatives: [...exercise.alternatives] };
+  const withAlternatives: Exercise =
+    exercise.alternatives === undefined
+      ? withVariant
+      : { ...withVariant, alternatives: [...exercise.alternatives] };
+  return exercise.illustration === undefined
+    ? withAlternatives
+    : { ...withAlternatives, illustration: exercise.illustration };
 }
 
 function copyPlanDay(day: PlanDay): PlanDay {

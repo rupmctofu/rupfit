@@ -27,6 +27,7 @@ import {
   DEMO_NOW,
   pastSessions,
   PROFILE,
+  RDL,
   sessionFixture,
 } from './fixture';
 
@@ -143,6 +144,9 @@ describe('boot', () => {
       'exercises.byId',
       'exercises.byId',
       'exercises.byId',
+      // S4/T5: the declared equipment, so «Sugerir otro ejercicio» only offers what the
+      // owner can actually use. One read, and only the profile's `availableEquipment`.
+      'profile.read',
     ]);
   });
 
@@ -374,6 +378,81 @@ describe('rejections', () => {
     expect(storage.calls).toEqual([]);
     expect(next.rejection).toBe('Las series se registran en orden.');
     expect(next.session).toEqual(before);
+  });
+});
+
+describe('Sugerir otro ejercicio (S4, T5)', () => {
+  it('writes the swap to the row and gives the substitute its own history', async () => {
+    const { machine, storage, runtime } = await booted();
+    const before = activeSession(runtime).exercises[0];
+
+    const next = await machine.substitute({
+      exerciseSessionId: ACTIVE_EXERCISE_ID,
+      candidate: RDL,
+      now: NOW,
+    });
+
+    expect(storage.calls).toEqual(['sessions.substitute']);
+    const swapped = activeSession(next).exercises[0];
+    // The row keeps its id and takes the substitute's identity: from here on its
+    // progression is its own (S6). The prescription of the slot does not move.
+    expect(swapped?.id).toBe(ACTIVE_EXERCISE_ID);
+    expect(swapped?.exerciseId).toBe(RDL.id);
+    expect(swapped?.exerciseNameSnapshot).toBe(RDL.name);
+    expect(swapped?.prescription).toEqual(before?.prescription);
+    // The recommendation and the decision belonged to the exercise that left.
+    expect(swapped?.decision).toBeNull();
+    expect(swapped?.recommendation).toBeNull();
+    expect(swapped?.usedWeightKg).toBeNull();
+    // The read-out says what it replaced, and the card's library row is the new one.
+    expect(next.substitutions[ACTIVE_EXERCISE_ID]?.exerciseNameSnapshot).toBe(
+      'Peso muerto convencional',
+    );
+    expect(next.exercises[ACTIVE_EXERCISE_ID]?.name).toBe(RDL.name);
+
+    const stored = storage
+      .stored()
+      .find((session) => session.id === activeSession(next).id)
+      ?.exercises.find((exercise) => exercise.id === ACTIVE_EXERCISE_ID);
+    expect(stored?.exerciseId).toBe(RDL.id);
+    expect(stored?.substitutedFrom?.exerciseNameSnapshot).toBe('Peso muerto convencional');
+  });
+
+  it('refuses once the exercise has a confirmed set, and writes nothing', async () => {
+    const { machine, runtime } = await booted({
+      storage: createFakeStorage({
+        ...sessionFixture(NOW, { confirmedSets: 2, decision: { kind: 'accepted' } }),
+      }),
+    });
+
+    const next = await machine.substitute({
+      exerciseSessionId: ACTIVE_EXERCISE_ID,
+      candidate: RDL,
+      now: NOW,
+    });
+
+    expect(next.rejection).not.toBeNull();
+    expect(next.session).toBe(activeSession(runtime));
+  });
+
+  it('leaves the exercise as it was when the write fails', async () => {
+    const failing = createFakeStorage({
+      ...sessionFixture(NOW),
+      failOn: (call) => call === 'sessions.substitute',
+    });
+    const machine = createSessionMachine({ storage: failing, clock: clockAt(NOW), journal: journalSpy() });
+    const before = await machine.boot();
+
+    const next = await machine.substitute({
+      exerciseSessionId: ACTIVE_EXERCISE_ID,
+      candidate: RDL,
+      now: NOW,
+    });
+
+    expect(next.error).not.toBeNull();
+    expect(activeSession(next).exercises[0]?.exerciseId).toBe(
+      activeSession(before).exercises[0]?.exerciseId,
+    );
   });
 });
 

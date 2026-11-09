@@ -1,0 +1,55 @@
+/*
+ * The exercise pictograms (training-flow S2–S3). Structure only: every colour is a token
+ * and every stroke follows the theme. Nothing here is animated, so there is no motion
+ * for `prefers-reduced-motion` to turn off.
+ *
+ * The accent is deliberately absent: on the session sheet the one accent belongs to
+ * `Registrar serie`, and a picture painted with it would compete with the action.
+ */
+
+.exercise-art {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.exercise-art__floor {
+  fill: none;
+  stroke: var(--color-border);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.exercise-art__figure {
+  fill: none;
+  stroke: var(--color-text);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.exercise-art__figure--thick {
+  stroke-width: 7;
+}
+
+.exercise-art__head {
+  fill: var(--color-text);
+  stroke: none;
+}
+
+.exercise-art__implement {
+  fill: none;
+  stroke: var(--color-muted);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.exercise-art__implement--thick {
+  stroke-width: 5;
+}
+
+.exercise-art__implement--solid {
+  fill: var(--color-muted);
+  stroke: none;
+}

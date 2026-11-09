@@ -36,17 +36,36 @@ const PHASE: TrainingPhase = { kind: 'readaptation', week: 2 };
 export const DEADLIFT: Exercise = {
   id: 'ex-peso-muerto',
   name: 'Peso muerto convencional',
+  illustration: 'deadlift-barbell',
   primaryMuscle: 'hamstrings',
   pattern: 'hinge',
   equipment: 'barbell',
   loadIncrementKg: 2.5,
   isCustom: false,
   isArchived: false,
+  // S4: the demo's busy-bar path — one alternative, same pattern and muscle, and it is
+  // barbell, so the profile's declared equipment keeps it on the list.
+  alternatives: ['ex-peso-muerto-rumano'],
+};
+
+/** The demo's substitute: same hinge, same hamstrings, another barbell lift. */
+export const RDL: Exercise = {
+  id: 'ex-peso-muerto-rumano',
+  name: 'Peso muerto rumano con barra',
+  illustration: 'rdl-barbell',
+  primaryMuscle: 'hamstrings',
+  pattern: 'hinge',
+  equipment: 'barbell',
+  loadIncrementKg: 2.5,
+  isCustom: false,
+  isArchived: false,
+  alternatives: ['ex-peso-muerto'],
 };
 
 export const BARBELL_ROW: Exercise = {
   id: 'ex-remo-barra',
   name: 'Remo con barra',
+  illustration: 'row-barbell',
   primaryMuscle: 'upperBack',
   pattern: 'horizontalPull',
   equipment: 'barbell',
@@ -58,6 +77,7 @@ export const BARBELL_ROW: Exercise = {
 export const SQUAT: Exercise = {
   id: 'ex-sentadilla',
   name: 'Sentadilla trasera',
+  illustration: 'squat-back',
   primaryMuscle: 'quadriceps',
   pattern: 'squat',
   equipment: 'barbell',
@@ -69,6 +89,7 @@ export const SQUAT: Exercise = {
 export const BENCH: Exercise = {
   id: 'ex-press-banca',
   name: 'Press de banca',
+  illustration: 'bench-press',
   primaryMuscle: 'chest',
   pattern: 'horizontalPush',
   equipment: 'barbell',
@@ -80,6 +101,7 @@ export const BENCH: Exercise = {
 export const OVERHEAD: Exercise = {
   id: 'ex-press-militar',
   name: 'Press militar',
+  illustration: 'shoulder-press-barbell',
   primaryMuscle: 'shoulders',
   pattern: 'verticalPush',
   equipment: 'barbell',
@@ -91,6 +113,7 @@ export const OVERHEAD: Exercise = {
 export const CURL: Exercise = {
   id: 'ex-curl-mancuerna',
   name: 'Curl con mancuernas',
+  illustration: 'curl-dumbbell',
   primaryMuscle: 'biceps',
   pattern: 'isolation',
   equipment: 'dumbbell',
@@ -99,7 +122,15 @@ export const CURL: Exercise = {
   isArchived: false,
 };
 
-export const EXERCISES: readonly Exercise[] = [DEADLIFT, BARBELL_ROW, SQUAT, BENCH, OVERHEAD, CURL];
+export const EXERCISES: readonly Exercise[] = [
+  DEADLIFT,
+  RDL,
+  BARBELL_ROW,
+  SQUAT,
+  BENCH,
+  OVERHEAD,
+  CURL,
+];
 
 /** `3 × 10 a 3–4 RIR · descanso 180 s` — the target line of the decision render. */
 export const DEADLIFT_PRESCRIPTION: ExercisePrescription = {

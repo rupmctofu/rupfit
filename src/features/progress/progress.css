@@ -105,17 +105,6 @@
   height: auto;
 }
 
-.progress__art-floor {
-  stroke: var(--color-border);
-  stroke-width: 3;
-}
-
-.progress__art-mark {
-  stroke: var(--color-chart-2);
-  stroke-width: 2;
-  stroke-dasharray: 4 5;
-}
-
 /* The muscle group and the equipment of the library row, when it still exists. */
 .progress__chips {
   display: flex;

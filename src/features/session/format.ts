@@ -121,3 +121,15 @@ export function targetLine(prescription: ExercisePrescription): string {
   const rir = formatRange(prescription.targetRIR.lowerBound, prescription.targetRIR.upperBound);
   return `Objetivo · ${prescription.sets} × ${reps} a ${rir} RIR · descanso ${prescription.restSeconds} s`;
 }
+
+/**
+ * `3 × 6–8 · descanso 180 s` — the prescribed sets, reps and rest, without the RIR window.
+ *
+ * The session's hero line (S2: «debe mostrarse claramente el peso, las series y las
+ * repeticiones prescritas») has room for one short line at 390 px, and the effort target
+ * stays on the card's own `targetLine`, where there is width to say it in full.
+ */
+export function prescriptionLine(prescription: ExercisePrescription): string {
+  const reps = formatRange(prescription.repRange.lowerBound, prescription.repRange.upperBound);
+  return `${prescription.sets} × ${reps} · descanso ${prescription.restSeconds} s`;
+}

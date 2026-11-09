@@ -16,6 +16,7 @@ import {
   formatWeekdayTime,
   formatWeight,
   parseWeight,
+  prescriptionLine,
   spanishDecimals,
   targetLine,
 } from './format';
@@ -112,5 +113,17 @@ describe('the target line', () => {
     expect(
       targetLine({ sets: 4, repRange: { lowerBound: 8, upperBound: 12 }, targetRIR: { lowerBound: 2, upperBound: 2 }, restSeconds: 90 }),
     ).toBe('Objetivo · 4 × 8–12 a 2 RIR · descanso 90 s');
+  });
+});
+
+describe('the hero line', () => {
+  it('writes the prescribed work short enough for one line at 390 px', () => {
+    expect(
+      prescriptionLine({ sets: 3, repRange: { lowerBound: 6, upperBound: 8 }, targetRIR: { lowerBound: 4, upperBound: 5 }, restSeconds: 180 }),
+    ).toBe('3 × 6–8 · descanso 180 s');
+  });
+
+  it('keeps a single-value range a single value', () => {
+    expect(prescriptionLine(ROW_PRESCRIPTION)).toBe('2 × 12 · descanso 120 s');
   });
 });

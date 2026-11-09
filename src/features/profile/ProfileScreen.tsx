@@ -12,6 +12,8 @@
  * | ---------------- | ----------------------------------------------------------------------- |
  * | platform banners | storage evicted, not installed, update available                        |
  * | Tu perfil        | no profile yet, saved, save failed                                      |
+ * | Cuenta           | no project, signed out, signed in; sync synced / offline / syncing /    |
+ * |                  | pending / failed (spec S2, S8)                                          |
  * | Entrenamiento    | days per week, equipment, empty equipment, goal, units, library entry  |
  * | Copia            | export idle / in progress / done / **result unknown** / impossible;      |
  * |                  | import idle / invalid (with its path) / valid / restoring / merging /     |
@@ -28,7 +30,7 @@
  * and the export file name and the launch marker both come from it.
  */
 
-import { useCallback, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useRef, useState } from 'react';
 import {
   Banner,
   Card,
@@ -46,6 +48,14 @@ import { ChipChoices, CommitField, Note } from './fields';
 import { dataState, evictionCopy } from './launch-marker';
 import { installState } from './device-mode';
 import { updateState } from './update-state';
+// The account card is the only thing in the app that needs the Supabase client, and that
+// client is most of a chunk on its own. Loading it with the screen would make every install
+// pay 60 kB gzip for a feature most launches never open; splitting it means the shell stays
+// where it was and the account code arrives when Perfil does.
+const AccountGroup = lazy(async () => {
+  const module = await import('./AccountGroup');
+  return { default: module.AccountGroup };
+});
 import { BackupGroup } from './BackupGroup';
 import { InstallGroup } from './InstallGroup';
 import { StorageGroup } from './StorageGroup';
@@ -179,6 +189,12 @@ export function ProfileScreen(): React.ReactElement {
             onWrite={writeProfile}
             onRetry={() => writeProfile(lastPatch.current)}
           />
+
+          {/* Above the settings: the account is the one fact that explains where the
+              training goes, and the sync state has to be visible without scrolling. */}
+          <Suspense fallback={null}>
+            <AccountGroup />
+          </Suspense>
 
           {data.profile === null ? null : (
             <>

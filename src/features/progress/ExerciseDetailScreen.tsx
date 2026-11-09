@@ -47,12 +47,13 @@ import {
   alternativesOf,
   exerciseFor,
   exerciseHistory,
-  isSquatExercise,
   openSessionOf,
   secondaryMusclesOf,
   type ExerciseHistory,
   type ExerciseSessionPoint,
 } from './exerciseDetail';
+import { ExerciseIllustration } from '../session/ExerciseIllustration';
+import { illustrationKeyOf } from '../session/illustrationKey';
 import {
   formatDayMonth,
   formatDayMonthYear,
@@ -115,44 +116,6 @@ function sessionLabels(points: readonly ExerciseSessionPoint[]): readonly string
     seen.set(base, count);
     return count === 1 ? base : `${base} (${count})`;
   });
-}
-
-/**
- * The one illustration this feature owns: an original, inline squat with a bar. It is
- * drawn in `currentColor` and two tokens, so it follows the theme instead of pinning
- * the artboard's skin tone, and it is described in words because it is not decoration
- * of a number — it is the only picture of the screen.
- */
-function SquatIllustration(): React.ReactElement {
-  return (
-    <figure
-      className="progress__art"
-      role="img"
-      aria-label="Ilustración vectorial de una persona en sentadilla con una barra sobre la espalda"
-    >
-      <svg viewBox="0 0 360 184" aria-hidden="true" focusable="false">
-        <path className="progress__art-floor" d="M30 145h300" fill="none" />
-        {/* The rack: two uprights and the bar across them. */}
-        <g fill="currentColor">
-          <rect x="70" y="36" width="9" height="73" rx="3" />
-          <rect x="280" y="36" width="9" height="73" rx="3" />
-          <rect x="57" y="45" width="36" height="13" rx="5" />
-          <rect x="266" y="45" width="36" height="13" rx="5" />
-          <rect x="76" y="49" width="208" height="5" rx="2" />
-        </g>
-        {/* The athlete: head, back, arms on the bar, hips below the bar, feet on the floor. */}
-        <g fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="179" cy="59" r="12" />
-          <path d="M167 57q2-18 23-10l4 12-8-5-14 4z" fill="currentColor" stroke="none" />
-          <path d="M168 74q12-8 23 1l16 35-18 16-28-14z" fill="currentColor" stroke="none" />
-          <path d="M168 79 145 51 123 51M190 79l23-27 21 0" strokeWidth="9" />
-          <path d="M171 118 145 139 122 139M189 120l23 19 25 1" strokeWidth="12" />
-          <path d="M122 139h-25M237 140h25" strokeWidth="9" />
-        </g>
-        <path className="progress__art-mark" d="M30 153h300" fill="none" />
-      </svg>
-    </figure>
-  );
 }
 
 function setsWord(count: number): string {
@@ -419,7 +382,10 @@ export function ExerciseDetailScreen({
 
   const known = exerciseFor(exercises, exerciseKey, history?.name ?? nameFromKey(exerciseKey));
   const name = history?.name ?? known?.name ?? nameFromKey(exerciseKey);
-  const squat = isSquatExercise(name, known);
+  // S3: the drawing of this concrete variant, or none. A row without a key — a custom
+  // exercise, an old import — shows the muscle and the equipment instead of borrowing the
+  // picture of an exercise it is not.
+  const art = illustrationKeyOf(known);
 
   // Only a stored value is shown: the open session's own decided weight, else the one
   // it recommended. Neither is invented and neither is recomputed here.
@@ -443,7 +409,11 @@ export function ExerciseDetailScreen({
     <div className="progress">
       <DrilldownHeader title={name} backLabel="Progreso" onBack={onBack} />
 
-      {squat ? <SquatIllustration /> : null}
+      {art === null ? null : (
+        <figure className="progress__art">
+          <ExerciseIllustration illustration={art} label={name} />
+        </figure>
+      )}
 
       {known === undefined ? null : (
         <div className="progress__chips">

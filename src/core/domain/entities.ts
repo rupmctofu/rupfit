@@ -36,6 +36,14 @@ export interface Exercise {
   readonly variantOf?: string;
   /** Ids that can replace this row when its machine is busy (S5). */
   readonly alternatives?: readonly string[];
+  /**
+   * The inline pictogram of this concrete variant (odd/tasks/training-flow.md S3, T4).
+   * A small named key, resolved by the artwork table the UI owns — never a URL, never a
+   * shared picture for two different variants. Optional and additive like the fields
+   * above: a row written before it existed, or a custom row, has none, and the UI falls
+   * back to the equipment icon instead of drawing somebody else's exercise.
+   */
+  readonly illustration?: string;
 }
 
 export interface ExercisePrescription {

@@ -193,6 +193,154 @@
   white-space: nowrap;
 }
 
+/* ------------------------------------------------------------------ the hero */
+/*
+ * The visual core of S2, outside the paged track: the ring, the current variant, its
+ * name and its prescribed work are on the first screenful at 390 px, with no scrolling
+ * and no tap — the sets and the history live in the cards below.
+ */
+.session-hero {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0 var(--layout-screen-padding);
+  min-width: 0;
+}
+
+.session-ring {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  flex: none;
+}
+
+.session-ring__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The three states, in cues that survive a monochrome screen: thickness first, ink
+   second. The accent stays on the pinned `Registrar serie` (§4 accent budget). */
+.session-ring__segment {
+  transition: stroke-width var(--motion-base) var(--motion-ease);
+}
+
+.session-ring__segment--completed {
+  stroke: var(--color-muted);
+}
+
+.session-ring__segment--current {
+  stroke: var(--color-text);
+}
+
+.session-ring__segment--pending {
+  stroke: var(--color-border);
+}
+
+.session-ring__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Two classes deep on purpose: `illustrations.css` also sizes the SVG and the two
+   stylesheets may load in either order. */
+.session-ring .session-hero__art {
+  width: 64%;
+}
+
+.session-hero__icon {
+  display: inline-flex;
+  color: var(--color-muted);
+}
+
+.session-hero__text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  text-align: center;
+}
+
+.session-hero__step {
+  color: var(--color-muted);
+}
+
+.session-hero__name {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  letter-spacing: var(--tracking-title);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+
+.session-hero__prescription {
+  margin: 0;
+  font-family: var(--font-numeric);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+}
+
+.session-hero__weight {
+  color: var(--color-muted);
+}
+
+/* No ring transition at all when the owner asked for less motion (§6.2). */
+@media (prefers-reduced-motion: reduce) {
+  .session-ring__segment {
+    transition: none;
+  }
+}
+
+/* -------------------------------------------------------------- the swap picker */
+
+.session__substitute {
+  flex: none;
+  padding: 0 var(--layout-screen-padding) var(--space-2);
+  max-height: 60dvh;
+  overflow-y: auto;
+}
+
+.session-substitute__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  /* §3 / S4: a 48 px row, usable with one thumb. */
+  min-height: var(--target-min);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control-square);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  text-align: left;
+}
+
+.session-substitute__name {
+  min-width: 0;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  font-weight: var(--weight-medium);
+}
+
+/* The read-out of a stored substitution: a fact about the card, not a control. */
+.session-card__substitution {
+  margin: 0;
+  padding-left: var(--space-2);
+  border-left: 2px solid var(--color-border);
+  color: var(--color-muted);
+}
+
 /* --------------------------------------------------------------- the bottom bar */
 
 .session__bar {

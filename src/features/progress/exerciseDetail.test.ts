@@ -11,7 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import { EFFORT } from '../../core/domain';
 import type { Exercise } from '../../storage';
-import { exerciseHistory, exerciseFor, exerciseUsages, isSquatExercise, openSessionOf } from './exerciseDetail';
+import { exerciseHistory, exerciseFor, exerciseUsages, openSessionOf } from './exerciseDetail';
 import { exerciseKey } from './aggregates';
 import { exerciseKeyFromHash, exerciseViewHash, parseProgressView } from './navigation';
 import { formatRepRange, formatRest } from './format';
@@ -172,16 +172,6 @@ describe('the per-exercise history', () => {
     expect(history?.points[0]?.topSetKg).toBeNull();
     expect(history?.points[0]?.topSetReps).toBeNull();
     expect(exerciseUsages(bodyweight)[0]?.topSetKg).toBeNull();
-  });
-});
-
-describe('the illustration', () => {
-  it('is attached to squat content only', () => {
-    expect(isSquatExercise('Sentadilla trasera', LIBRARY[0])).toBe(true);
-    // The library pattern is the stronger signal: a custom name is still a squat.
-    expect(isSquatExercise('Mi sentadilla', { ...LIBRARY[0]!, name: 'Mi sentadilla' })).toBe(true);
-    expect(isSquatExercise('Press de banca', LIBRARY[1])).toBe(false);
-    expect(isSquatExercise('Remo con barra', undefined)).toBe(false);
   });
 });
 

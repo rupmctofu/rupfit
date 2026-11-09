@@ -1,7 +1,7 @@
 /*
- * Perfil's layout: the identity card, one card of compact labelled settings, then the
- * backup, storage and install details. Tokens only — no colour, radius, size or
- * duration is written here as a literal (docs/design-system.md §12).
+ * Perfil's layout: the identity card, the account card, one card of compact labelled
+ * settings, then the backup, storage and install details. Tokens only — no colour,
+ * radius, size or duration is written here as a literal (docs/design-system.md §12).
  *
  * The shell already owns the horizontal padding (src/app/shell.css), so this file adds
  * rhythm and the controls' geometry, never a second gutter.
@@ -164,6 +164,32 @@ textarea.profile__input {
 
 .profile__hint--danger {
   color: var(--color-danger);
+}
+
+/* ---------------------------------------------------------------- account */
+/* S2 and S8: one form when signed out, one list of facts when signed in. The card
+   reuses the field chrome above, so it only adds rhythm — no second input style, no
+   second gutter, no colour of its own. */
+.profile__account-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* Two actions on one line when they fit and a column when the text size says so; each
+   keeps its own 48 px target through the design system's button. */
+.profile__account-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  min-width: 0;
+}
+
+/* A field waiting for an answer is not an error: muted ink, still readable. */
+.profile__input:disabled {
+  color: var(--color-muted);
 }
 
 /* ------------------------------------------------------------------- files */
