@@ -46,6 +46,19 @@ export const HOME_SESSION_WINDOW = 8;
 /** The readaptation programme is four blocks (docs/training-science.md §6). */
 export const READAPTATION_BLOCKS = 4;
 
+/**
+ * What a manually recorded row is called, per kind.
+ *
+ * `other` reads `Fútbol registrado` because the only manual `other` row Rupfit writes is
+ * the football capture (`features/home/football.ts`, spec S1). A second manual kind would
+ * have to bring its own wording instead of reusing this map.
+ */
+const MANUAL_ACTIVITY_LABELS: Readonly<Record<ActivityRecord['kind'], string>> = {
+  strength: 'Fuerza registrada',
+  cardio: 'Cardio registrado',
+  other: 'Fútbol registrado',
+};
+
 /** The body-weight card: a seven-day mean, and at most this many points in the line. */
 export const WEIGHT_WINDOW_DAYS = 7;
 const SPARKLINE_POINTS = 10;
@@ -158,6 +171,36 @@ export interface WeightView {
   readonly series: readonly number[];
 }
 
+/**
+ * What a manually recorded activity says: the label is what the row *is*, the detail is
+ * the stored date and duration. Nothing here is estimated and nothing is derived from a
+ * health import, because the row came from the owner's own tap.
+ */
+export interface ActivityEntryView {
+  readonly id: string;
+  /** `Fútbol registrado` */
+  readonly label: string;
+  /** `8 nov · 50 min` */
+  readonly detail: string;
+}
+
+/**
+ * The activity section of Inicio.
+ *
+ * Two buckets, never mixed: `recorded` is what the owner typed (a `provenance: 'manual'`
+ * row), and `imported` is the count of the rows that arrived from somewhere else. The
+ * old view collapsed both into one "imported" count, which would have called a manually
+ * recorded football match an imported health sample.
+ */
+export interface ActivityView {
+  /** Manual rows, newest first. The football capture writes exactly one of these. */
+  readonly recorded: readonly ActivityEntryView[];
+  /** Rows Rupfit did not write by hand: counts only, and read-only for the owner. */
+  readonly imported: number;
+  /** `true` only when the store holds no activity at all: the honest empty state. */
+  readonly empty: boolean;
+}
+
 export interface NoticeView {
   readonly evicted: boolean;
   readonly notInstalled: boolean;
@@ -175,8 +218,8 @@ export interface HomeView {
   readonly last: LastSessionView | null;
   readonly week: WeekView | null;
   readonly weight: WeightView | null;
-  /** `imported`: how many imported activity rows exist. Always present (§8 Inicio). */
-  readonly activity: { readonly imported: number } | null;
+  /** Always present (§8 Inicio): the manual rows and the imported count, apart. */
+  readonly activity: ActivityView;
   readonly notice: NoticeView;
   readonly hasHistory: boolean;
 }
@@ -502,6 +545,30 @@ function weightViewOf(measurements: readonly BodyMeasurement[], now: EpochMs): W
   };
 }
 
+/**
+ * The activity section: the rows the owner recorded, apart from the imported ones.
+ *
+ * Only `provenance: 'manual'` is "registered": it is the only provenance the app itself
+ * writes, and calling it imported would be a lie about where the number came from.
+ * Anything else (an import, or an estimate from a bridge) is a count the owner cannot
+ * edit here, exactly as before.
+ */
+function activityViewOf(activities: readonly ActivityRecord[]): ActivityView {
+  const manual = activities
+    .filter((row) => row.provenance === 'manual')
+    .sort((left, right) => right.date - left.date);
+
+  return {
+    recorded: manual.map((row) => ({
+      id: row.id,
+      label: MANUAL_ACTIVITY_LABELS[row.kind],
+      detail: `${formatShortDate(row.date)} · ${formatDuration(row.durationSeconds * 1000)}`,
+    })),
+    imported: activities.length - manual.length,
+    empty: activities.length === 0,
+  };
+}
+
 export function homeViewOf(input: HomeInput): HomeView {
   const { now, recent, inProgress, plan, profile, phaseState } = input;
   const pool = inProgress === undefined ? recent : [...recent, inProgress];
@@ -520,7 +587,10 @@ export function homeViewOf(input: HomeInput): HomeView {
     last: lastSessionOf(recent),
     week: weekViewOf(recent, now),
     weight: weightViewOf(input.measurements, now),
-    activity: { imported: input.activities.length },
+    // Read only, and never handed to the rotation: `nextPlanDay` above sees `plan` and
+    // `recent` (sessions) and nothing else, so a recorded football match cannot move the
+    // strength day that comes next (S6).
+    activity: activityViewOf(input.activities),
     notice: {
       evicted: input.lostData,
       // §7.8: the advisory lives in Perfil, plus at most one notice on Inicio — and

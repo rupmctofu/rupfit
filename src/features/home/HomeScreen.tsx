@@ -5,8 +5,9 @@
  * order and this file follows it: the title «¡Vamos a entrenar!», the next session card,
  * and one primary action next to that card. The personalised name and the date stay on
  * screen under the title, smaller than the action; the week, the last session, the body
- * weight, the imported activity and the empty states move below it. The platform notices
- * of §7.8 keep their tone and sit under the action, never above the day.
+ * weight, the activity (the manual football capture and the imported count) and the empty
+ * states move below it. The platform notices of §7.8 keep their tone and sit under the
+ * action, never above the day.
  *
  * The file holds no decision worth testing: `homeViewOf` decides, this renders. Two
  * rules it does keep:
@@ -30,6 +31,7 @@ import {
   PrimaryAction,
   SectionLabel,
   Sparkline,
+  TextButton,
 } from '../../design-system';
 import type { StoragePort } from '../../storage';
 import { useAppServices } from '../../app/providers';
@@ -37,6 +39,7 @@ import type { Clock } from '../session/controller';
 import { useStartSession, type StartNotice } from '../session/startSession';
 import { summaryHash } from '../summary/route';
 import { DemoHome } from './DemoHome';
+import { FOOTBALL_DURATION_MINUTES, useFootballCapture } from './football';
 import { demoFlagOf, useLocationKey } from './useHash';
 import { formatDayName } from './format';
 import { homeViewOf, HOME_SESSION_WINDOW, type HomeInput, type HomeView } from './selectors';
@@ -130,6 +133,10 @@ export interface HomeProps {
   /** True while the write is in flight: the action is disabled and says so (S3). */
   readonly starting?: boolean | undefined;
   readonly startNotice?: StartNotice | null | undefined;
+  /** Writes the manual football activity. Absent: the capture is not offered. */
+  readonly onRecordFootball?: (() => void) | undefined;
+  readonly recording?: boolean | undefined;
+  readonly footballNotice?: string | null | undefined;
 }
 
 function navigateTo(href: string): void {
@@ -283,24 +290,79 @@ function WeightCard({ view }: HomeViewOnly): React.ReactElement | null {
   );
 }
 
-function ActivityCard({ view }: HomeViewOnly): React.ReactElement | null {
+/**
+ * Activity: what the owner recorded, and then what arrived from elsewhere.
+ *
+ * Two deliberate changes from the old card, both demanded by S1/S6:
+ *
+ * 1. The capture is here, and it writes an `ActivityRecord` — never a session. The next
+ *    strength day above is untouched by it, which is why the card says so in one line.
+ * 2. `N actividades importadas` used to cover every row, so a manually recorded football
+ *    match would have read as an imported health sample. Manual rows are now named for
+ *    what they are (`Fútbol registrado`) with their date and duration, and only the rows
+ *    Rupfit did not write are counted as imported.
+ */
+function ActivitySection({
+  view,
+  onRecordFootball,
+  recording = false,
+  footballNotice = null,
+}: HomeViewOnly & {
+  readonly onRecordFootball?: (() => void) | undefined;
+  readonly recording?: boolean | undefined;
+  readonly footballNotice?: string | null | undefined;
+}): React.ReactElement {
   const activity = view.activity;
-  if (activity === null) return null;
   return (
     <section className="home__section">
       <SectionLabel icon={<Icon name="heart" size={14} />}>Actividad</SectionLabel>
-      {activity.imported === 0 ? (
-        <EmptyState bare>
-          Todavía no hay datos de salud importados. Esto no impide entrenar.
-        </EmptyState>
-      ) : (
+
+      <Card label="Fútbol">
+        <span className="ds-card-title">Fútbol</span>
+        <p className="ds-body ds-body--muted">
+          {`${String(FOOTBALL_DURATION_MINUTES)} minutos, dos partes de 25. Se guarda como actividad: no cuenta como sesión ni cambia el orden de tus días de fuerza.`}
+        </p>
+        {onRecordFootball === undefined ? null : (
+          <TextButton icon="plus" align="start" disabled={recording} onClick={onRecordFootball}>
+            {recording ? 'Guardando…' : 'Registrar fútbol'}
+          </TextButton>
+        )}
+        {/* A plain result line: no modal, no timer, and no claim about a screen that has
+            not re-read yet. */}
+        {footballNotice === null ? null : <p className="ds-body">{footballNotice}</p>}
+      </Card>
+
+      {activity.recorded.length === 0 ? null : (
+        <Card padding="dense" label="Actividad registrada">
+          <div className="home__activity" role="list">
+            {activity.recorded.map((row) => (
+              <div key={row.id} className="home__activity-row" role="listitem">
+                <span className="ds-body">{row.label}</span>
+                <span className="ds-meta">{row.detail}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {activity.imported === 0 ? null : (
         <Card>
           <div className="ds-row">
-            <span className="ds-body">{`${String(activity.imported)} actividades importadas`}</span>
+            <span className="ds-body">
+              {activity.imported === 1
+                ? '1 actividad importada'
+                : `${String(activity.imported)} actividades importadas`}
+            </span>
             <Chip>Sólo lectura</Chip>
           </div>
         </Card>
       )}
+
+      {activity.empty ? (
+        <EmptyState bare>
+          Todavía no hay actividad registrada. Esto no impide entrenar.
+        </EmptyState>
+      ) : null}
     </section>
   );
 }
@@ -315,6 +377,9 @@ export function HomeBody({
   onNavigate = navigateTo,
   starting = false,
   startNotice = null,
+  onRecordFootball,
+  recording = false,
+  footballNotice = null,
 }: HomeProps): React.ReactElement {
   const navigate = onNavigate;
   const action = view.action;
@@ -401,7 +466,12 @@ export function HomeBody({
       <WeekCard view={view} />
       <LastSessionCard view={view} />
       <WeightCard view={view} />
-      <ActivityCard view={view} />
+      <ActivitySection
+        view={view}
+        {...(onRecordFootball === undefined ? {} : { onRecordFootball })}
+        recording={recording}
+        footballNotice={footballNotice}
+      />
     </div>
   );
 }
@@ -425,9 +495,17 @@ export function HomeScreenWithPort({
   const [attempt, setAttempt] = useState(0);
   const start = useStartSession({ storage, clock, onNavigate });
 
+  // One counter serves both the retry and the re-read after a write. It is a read, not a
+  // navigation: recording football must leave the owner on Inicio, on the same day.
+  const refresh = useCallback(() => setAttempt((value) => value + 1), []);
+  const capture = useFootballCapture({ storage, clock, onSaved: refresh });
+
   useEffect(() => {
     let cancelled = false;
-    setBoot({ phase: 'loading', input: null });
+    // A re-read keeps the view on screen: after `Registrar fútbol` the owner must not see
+    // `Abriendo tus datos…` replace the screen he just used. Only the first boot, which
+    // has nothing to keep, shows the loading line.
+    setBoot((current) => (current.input === null ? { phase: 'loading', input: null } : current));
     readHome(storage, clock.now(), evidence).then(
       (input) => {
         if (!cancelled) setBoot({ phase: 'ready', input });
@@ -441,7 +519,7 @@ export function HomeScreenWithPort({
     };
   }, [storage, clock, attempt, evidence]);
 
-  const retry = useCallback(() => setAttempt((value) => value + 1), []);
+  const retry = refresh;
 
   if (boot.phase === 'loading' || boot.input === null) {
     return boot.phase === 'failed' ? (
@@ -459,6 +537,9 @@ export function HomeScreenWithPort({
       onStart={start.start}
       starting={start.busy}
       startNotice={start.notice}
+      onRecordFootball={capture.save}
+      recording={capture.busy}
+      footballNotice={capture.notice}
       {...(onNavigate === undefined ? {} : { onNavigate })}
     />
   );

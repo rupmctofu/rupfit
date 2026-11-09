@@ -404,14 +404,101 @@ describe('homeViewOf', () => {
     expect(view.weight).toBeNull();
   });
 
-  it('states that there is no imported health data, without inventing one', () => {
-    expect(homeViewOf(input()).activity).toEqual({ imported: 0 });
-    const imported = homeViewOf(
+  it('states that there is nothing recorded, without inventing an activity', () => {
+    expect(homeViewOf(input()).activity).toEqual({ recorded: [], imported: 0, empty: true });
+  });
+
+  it('names a manually recorded football match as such, with its date and duration', () => {
+    const view = homeViewOf(
       input({
-        activities: [{ id: 'a1', date: NOW, kind: 'cardio', durationSeconds: 1800, activeEnergyKcal: 210, provenance: 'imported', externalSampleId: 'x' }],
+        activities: [
+          {
+            id: 'football-1',
+            date: NOW,
+            kind: 'other',
+            durationSeconds: 50 * 60,
+            activeEnergyKcal: null,
+            provenance: 'manual',
+            externalSampleId: null,
+          },
+        ],
       }),
     );
-    expect(imported.activity?.imported).toBe(1);
+
+    expect(view.activity.empty).toBe(false);
+    expect(view.activity.recorded).toEqual([
+      { id: 'football-1', label: 'Fútbol registrado', detail: '8 nov · 50 min' },
+    ]);
+    // Nothing was imported, so the old wording must not appear at all.
+    expect(view.activity.imported).toBe(0);
+  });
+
+  it('keeps the manual rows and the imported count apart, newest manual first', () => {
+    const view = homeViewOf(
+      input({
+        activities: [
+          {
+            id: 'football-old',
+            date: NOW - 7 * DAY_MS,
+            kind: 'other',
+            durationSeconds: 50 * 60,
+            activeEnergyKcal: null,
+            provenance: 'manual',
+            externalSampleId: null,
+          },
+          {
+            id: 'imported-1',
+            date: NOW,
+            kind: 'cardio',
+            durationSeconds: 1800,
+            activeEnergyKcal: 210,
+            provenance: 'imported',
+            externalSampleId: 'x',
+          },
+          {
+            id: 'football-new',
+            date: NOW - DAY_MS,
+            kind: 'other',
+            durationSeconds: 50 * 60,
+            activeEnergyKcal: null,
+            provenance: 'manual',
+            externalSampleId: null,
+          },
+        ],
+      }),
+    );
+
+    expect(view.activity.recorded.map((row) => row.id)).toEqual(['football-new', 'football-old']);
+    expect(view.activity.imported).toBe(1);
+  });
+
+  it('leaves the strength rotation exactly as it was when an activity exists', () => {
+    const withoutActivity = homeViewOf(input());
+    const football = {
+      id: 'football-1',
+      date: NOW,
+      kind: 'other' as const,
+      durationSeconds: 50 * 60,
+      activeEnergyKcal: null,
+      provenance: 'manual' as const,
+      externalSampleId: null,
+    };
+
+    // Today, the day it names, its numbers and the action are all the session/plan
+    // rotation's answer, and `nextPlanDay` never reads an activity.
+    const withActivity = homeViewOf(input({ activities: [football] }));
+    expect(withActivity.today).toEqual(withoutActivity.today);
+    expect(withActivity.action).toEqual(withoutActivity.action);
+    expect(withActivity.week).toEqual(withoutActivity.week);
+    expect(withActivity.last).toEqual(withoutActivity.last);
+
+    // And a match recorded on a day with no session does not become one: the rotation
+    // still previews the next plan day, and the week strip still counts sessions only.
+    const restDay = homeViewOf(input({ recent: [], activities: [football] }));
+    expect(restDay.today?.state).toBe('preview');
+    expect(restDay.action?.kind).toBe('start');
+    expect(restDay.hasHistory).toBe(false);
+    expect(restDay.week).toBeNull();
   });
 
   it('warns once about not being installed, and only when there is something to lose', () => {
