@@ -40,7 +40,11 @@ body {
   position: sticky;
   bottom: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* Four destinations and one action: the action's column is as wide as the control itself
+     (its label plus padding, ~73 px), and the four 1fr columns take the rest — ~62 px per
+     destination at 320 px, ~89 px at 430 px. Nothing wraps and the four tabs never become
+     five. */
+  grid-template-columns: repeat(2, 1fr) auto repeat(2, 1fr);
   border-top: var(--layout-hairline) solid var(--color-border);
   background: var(--color-surface);
   padding-bottom: var(--safe-bottom-padding);
@@ -87,4 +91,49 @@ body {
 
 .tabbar__label {
   letter-spacing: var(--tracking-caption);
+}
+
+/* ------------------------------------------------------- Tu Entreno (S1)
+   The bar's action. It carries the design system's one primary action (`.ds-primary`, the
+   accent fill) and this file only gives it the bar's geometry: pill, 56 px box, stacked
+   glyph and label, lifted over the bar's edge. The accent is therefore spent once, by the
+   component that owns it — the four destinations keep their tinted `aria-current` state,
+   and no second accent fill exists in the bar. `.tabbar` in the selector keeps these
+   overrides above `.ds-primary` whatever order the two stylesheets load in. */
+.tabbar .tabbar__train {
+  align-self: center;
+  justify-self: center;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: auto;
+  min-width: 68px;
+  /* 56 px: above the 48 px target (S4, NFR-4), and the same height the tabs reserve, so
+     the lift is the only thing that grows. */
+  min-height: var(--control-height);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-tab);
+  line-height: var(--leading-tab);
+  letter-spacing: var(--tracking-caption);
+  /* Lifted, never taller than its slot: nothing overlaps a destination. */
+  transform: translateY(-8px);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 0.28);
+}
+
+/* One line of ten characters, at 320 px as at 430 px: the label never wraps into two. */
+.tabbar .tabbar__train .ds-primary__label {
+  white-space: nowrap;
+}
+
+/* The action's outcome, between the screen and the bar it came from. The bottom padding is
+   what the raised pill borrows; without it a banner would touch the button. */
+.shell__notice {
+  padding: var(--space-2) var(--layout-screen-padding) var(--space-4);
+  background: var(--color-bg);
+}
+
+@media (max-width: 399px) {
+  .tabbar .tabbar__train {
+    min-width: 64px;
+  }
 }

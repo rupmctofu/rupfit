@@ -10,11 +10,14 @@ rules a reviewer can check; it makes no claim that a build exists.
 
 ## 1. Design constraints
 
-1. **One device, one user, no server.** All durable state lives in this origin's
-   IndexedDB inside the browser. There is no API to call and no account to create.
-2. **Offline is the only mode.** The network is used for exactly two things: the
-   first install, and fetching a new version. No user action waits on a request
-   (§6).
+1. **Local first; the server is a mirror, never a step.** All durable state lives in
+   this origin's IndexedDB, and every action completes against it. Since ADR-0002 an
+   account and a Supabase mirror exist, but they sit *behind* the local write: a
+   screen never waits for, nor reads from, the network to train. A device with no
+   account keeps working exactly as it did before.
+2. **Offline is still the operating mode.** The network is used for the first
+   install, a new version, and the sync pass that runs after a local write — never in
+   an action path (§6, ADR-0002).
 3. **The progression engine must be testable without a browser.** It is pure
    TypeScript over plain data. A wrong recommendation is silent and damaging, and
    it must be verifiable in Node, on Windows, in CI.
@@ -181,6 +184,9 @@ time threatens NFR-1; it is not revisitable mid-phase.
 - `react`, `react-dom`
 - `idb`
 - `zod`
+- `@supabase/supabase-js` — auth and the remote mirror only, added by owner gate in
+  ADR-0002. It is imported by `src/cloud` and by nothing else; `src/storage` and
+  `src/core` never see it. Cost is measured in the build and recorded below.
 
 Build and development only: `typescript`, `vite`, `@vitejs/plugin-react`,
 `vite-plugin-pwa` (and its Workbox packages), `vitest`, `fake-indexeddb`,

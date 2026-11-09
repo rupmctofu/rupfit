@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   isSessionRoute,
   isSummaryRoute,
@@ -9,7 +9,9 @@ import {
   type Route,
 } from './routes';
 import { AppProvider, useAppServices } from './providers';
-import { Icon, type IconName } from '../design-system';
+import { Banner, ErrorBanner, Icon, PrimaryAction, type IconName } from '../design-system';
+import { SESSION_HASH, useStartSession, type StartNotice } from '../features/session/startSession';
+import { trainingAccess } from './trainingAccess';
 import { HomeScreen } from '../features/home/HomeScreen';
 import { TrainScreen } from '../features/train/TrainScreen';
 import { ProgressScreen } from '../features/progress/ProgressScreen';
@@ -32,6 +34,28 @@ const TABS: readonly { route: Route; label: string; icon: IconName }[] = [
   { route: 'entrenar', label: 'Ejercicios', icon: 'dumbbell' },
   { route: 'perfil', label: 'Perfil', icon: 'person' },
 ];
+
+type TabSpec = (typeof TABS)[number];
+
+/** One of the four destinations. Only the destinations ever carry `aria-current`. */
+function TabLink({ tab, current }: { readonly tab: TabSpec; readonly current: boolean }): React.ReactElement {
+  return (
+    <a className="tabbar__tab" href={`#/${tab.route}`} aria-current={current ? 'page' : undefined}>
+      <span className="tabbar__icon" aria-hidden="true">
+        <Icon name={tab.icon} size={20} />
+      </span>
+      <span className="tabbar__label">{tab.label}</span>
+    </a>
+  );
+}
+
+/**
+ * The bar's action reads this, and only this: one stable accessible name (`Tu Entreno`),
+ * whatever time it is and whether or not a session is open. The state of the store is not
+ * part of the name — the press resolves it — so the owner's voice control and a screen
+ * reader always find the same button.
+ */
+export const TRAIN_LABEL = 'Tu Entreno';
 
 /** The routes that live inside the tab shell. The session and the summary do not. */
 type ShellRoute =
@@ -94,6 +118,13 @@ function Screen({ route }: { route: ShellRoute }): React.ReactElement {
  * setup in place of the tab instead of a screen full of refusals. The sheet routes and the
  * gallery opt out — they own the viewport and their own data, and `#/sesion/demo` must not
  * touch IndexedDB at all.
+ *
+ * The bar carries four destinations and one action, `Tu Entreno` (S1). The action is not a
+ * fifth tab: it is the design system's primary action, sitting between the second and third
+ * destination, and it navigates the way Inicio does — `SESSION_HASH` and `useStartSession`,
+ * one `planStart`, one writer, no second router. `trainingAccess` (./trainingAccess.ts)
+ * decides resume-vs-start-vs-refuse from the offer the gate already holds; a refusal says
+ * one of `START_COPY`'s sentences just above the bar and never moves the owner.
  */
 function AppShell(): React.ReactElement {
   const route = useHashRoute();
@@ -133,6 +164,48 @@ function AppShell(): React.ReactElement {
   const tabShell = isTabShellRoute(route);
   const gate = useSetupGate(storage, tabShell);
 
+  /*
+   * The bar's one action (`Tu Entreno`, S1). It is the shell's own navigation, not a
+   * second one: `trainingAccess` decides which of the three paths the press takes from the
+   * offer the gate already holds, `SESSION_HASH` is the route Inicio lands on, and the
+   * start itself is `useStartSession` — the same hook, the same `planStart`, the same only
+   * `sessions.create`. No storage read is added here and nothing is polled.
+   *
+   * A refusal is rendered where it is read: just above the bar, in `START_COPY`'s words,
+   * with the same tone and the same `Ir a Perfil` escape hatch Inicio offers. Nothing
+   * navigates on a refusal, so the owner stays on the screen that shows the message, and no
+   * half-created session exists to clean up (`runStart` navigates only after the write
+   * resolves).
+   */
+  const start = useStartSession({ storage, clock });
+  const [refusal, setRefusal] = useState<StartNotice | null>(null);
+  const noticeOfStart: StartNotice | null = start.notice ?? refusal;
+
+  const openTraining = (): void => {
+    const access = trainingAccess(gate.offer);
+    setRefusal(null);
+    if (access.kind === 'refused') {
+      setRefusal(access.notice);
+      return;
+    }
+    start.dismiss();
+    if (access.kind === 'resume') {
+      // The sheet boots from the store and lands on the exercise that is due: no reset,
+      // no write, and not even a read from here.
+      window.location.hash = SESSION_HASH;
+      return;
+    }
+    start.start();
+  };
+
+  const dismissStart = start.dismiss;
+  // A message belongs to the screen that produced it: leaving the section clears it, so a
+  // stale refusal never follows the owner around the tabs.
+  useEffect(() => {
+    setRefusal(null);
+    dismissStart();
+  }, [route, dismissStart]);
+
   // `#/empezar` is explicit: the owner (or a support note) asked for that screen and it
   // shows even when the store already trains, where it only adds what is missing.
   const showSetup = route === 'empezar' || gate.offer.kind === 'setup';
@@ -168,21 +241,58 @@ function AppShell(): React.ReactElement {
         )}
       </main>
       {showTabs ? (
-        <nav className="tabbar" aria-label="Navegación principal">
-          {TABS.map((tab) => (
-            <a
-              key={tab.route}
-              className="tabbar__tab"
-              href={`#/${tab.route}`}
-              aria-current={tabFor(route) === tab.route ? 'page' : undefined}
+        <>
+          {/* The action's outcome, above the bar it came from. `danger` offers
+              `Reintentar`; a missing profile sends the owner to the tab that can fix it,
+              because a retry cannot write one. */}
+          {noticeOfStart === null ? null : (
+            <div className="shell__notice">
+              {noticeOfStart.tone === 'danger' ? (
+                <ErrorBanner
+                  message={noticeOfStart.message}
+                  {...(noticeOfStart.retry ? { onRetry: openTraining } : {})}
+                />
+              ) : (
+                <Banner
+                  tone="warning"
+                  title={noticeOfStart.message}
+                  {...(noticeOfStart.profile
+                    ? {
+                        action: {
+                          label: 'Ir a Perfil',
+                          onClick: () => {
+                            window.location.hash = '#/perfil';
+                          },
+                        },
+                      }
+                    : {})}
+                />
+              )}
+            </div>
+          )}
+          {/* Four destinations and one action: the bar never gains a fifth tab. The action
+              sits between the second and third destination in the DOM, so it is the middle
+              of the bar on screen and on the keyboard alike. It is the design-system's one
+              primary action — the bar's only accent fill — sized down in shell.css; the
+              four destinations keep their `aria-current` state, which is the only other
+              accent in the bar. */}
+          <nav className="tabbar" aria-label="Navegación principal">
+            {TABS.slice(0, 2).map((tab) => (
+              <TabLink key={tab.route} tab={tab} current={tabFor(route) === tab.route} />
+            ))}
+            <PrimaryAction
+              className="tabbar__train"
+              icon="play"
+              disabled={start.busy}
+              onClick={openTraining}
             >
-              <span className="tabbar__icon" aria-hidden="true">
-                <Icon name={tab.icon} size={20} />
-              </span>
-              <span className="tabbar__label">{tab.label}</span>
-            </a>
-          ))}
-        </nav>
+              {TRAIN_LABEL}
+            </PrimaryAction>
+            {TABS.slice(2).map((tab) => (
+              <TabLink key={tab.route} tab={tab} current={tabFor(route) === tab.route} />
+            ))}
+          </nav>
+        </>
       ) : null}
     </div>
   );
