@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rupfit · sistema visual</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f3ff;
+      --surface: #fff;
+      --raised: #f0edfa;
+      --border: #e2def0;
+      --ink: #17142a;
+      --muted: #67637d;
+      --subtle: #77738a;
+      --accent: #5734e6;
+      --accent-ink: #fff;
+      --accent-text: #4f2dd1;
+      --accent-muted: #eee9ff;
+      --success: #15805e;
+      --warning: #8a5600;
+      --danger: #b4233d;
+      --chart-2: #8d77ee;
+      --chart-3: #4375c8;
+      --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+      --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+      --space-5: 20px; --space-6: 24px; --space-7: 28px; --space-8: 32px;
+      --card-radius: 16px; --pill: 999px; --target: 48px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: var(--bg); font-family: var(--font); }
+    main { width: min(1440px, 100%); margin: 0 auto; padding: 44px 56px 64px; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 36px; }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand-mark { width: 52px; height: 52px; border-radius: 17px; display: grid; place-items: center; color: white; background: var(--accent); font-size: 32px; font-weight: 800; font-style: italic; }
+    h1 { margin: 0; font-size: 34px; line-height: 40px; letter-spacing: -.6px; }
+    .lede { color: var(--muted); font-size: 17px; line-height: 22px; margin: 8px 0 0; }
+    .eyebrow { color: var(--muted); font-size: 13px; line-height: 18px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; margin: 0 0 14px; }
+    .section { margin: 0 0 30px; }
+    .palette { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
+    .swatch { min-width: 0; overflow: hidden; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
+    .color { height: 74px; }
+    .swatch p { margin: 0; padding: 9px 10px 11px; font-size: 12px; line-height: 16px; }
+    .swatch strong { display: block; font-size: 12px; font-weight: 600; }
+    .swatch code { color: var(--muted); font: 11px/16px ui-monospace, monospace; }
+    .grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 24px; }
+    .panel { min-width: 0; padding: 24px; border-radius: var(--card-radius); border: 1px solid var(--border); background: var(--surface); }
+    .type-row { display: grid; grid-template-columns: 110px 1fr 100px; align-items: baseline; gap: 14px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .type-row:last-child { border: 0; }
+    .type-row small { color: var(--muted); }
+    .type-row .screen { font-size: 34px; line-height: 40px; font-weight: 600; letter-spacing: -.6px; }
+    .type-row .title { font-size: 22px; line-height: 28px; font-weight: 600; }
+    .type-row .body { font-size: 17px; line-height: 22px; }
+    .type-row .meta { font-size: 15px; line-height: 20px; color: var(--muted); }
+    .type-row .caption { font-size: 12px; line-height: 16px; color: var(--muted); }
+    .component-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 16px 0 20px; }
+    .button { min-height: 56px; border: 0; padding: 0 24px; border-radius: var(--pill); color: var(--accent-ink); background: var(--accent); font: 600 17px/22px var(--font); }
+    .secondary { min-height: 48px; border: 1px solid var(--border); padding: 0 18px; border-radius: 12px; color: var(--ink); background: var(--surface); font: 600 15px/20px var(--font); }
+    .chip { min-height: 32px; display: inline-flex; align-items: center; padding: 0 13px; border-radius: var(--pill); color: var(--accent-text); background: var(--accent-muted); font-size: 13px; font-weight: 600; }
+    .metric { min-width: 140px; flex: 1; padding: 16px; border-radius: 16px; background: var(--raised); }
+    .metric span { display: block; color: var(--muted); font-size: 13px; }
+    .metric strong { display: block; margin-top: 4px; font-size: 28px; line-height: 32px; font-variant-numeric: tabular-nums; }
+    .demo-card { padding: 20px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+    .demo-card h2 { margin: 0 0 5px; font-size: 22px; line-height: 28px; }
+    .demo-card p { margin: 0; color: var(--muted); font-size: 15px; line-height: 20px; }
+    .chart-wrap { margin-top: 16px; padding: 12px; background: var(--raised); border-radius: 14px; }
+    .chart-labels { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; }
+    .step { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding: 12px; border-radius: 14px; background: var(--raised); }
+    .step-label { color: var(--muted); font-size: 13px; font-weight: 600; }
+    .step-value { font-size: 17px; font-weight: 600; }
+    .check { width: 24px; height: 24px; border: 1px solid var(--success); border-radius: 50%; display: grid; place-items: center; color: var(--success); font-weight: 700; }
+    .space-scale { display: flex; align-items: end; gap: 12px; min-height: 72px; }
+    .space-unit { flex: 1; text-align: center; color: var(--muted); font-size: 12px; }
+    .space-unit i { display: block; margin: 0 auto 7px; width: 100%; max-width: 52px; background: var(--accent-muted); border-radius: 4px 4px 0 0; }
+    .radius-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+    .radius-sample { min-width: 84px; padding: 14px 10px; text-align: center; border: 1px solid var(--border); background: var(--raised); color: var(--muted); font-size: 12px; }
+    footer { margin-top: 32px; color: var(--muted); font-size: 13px; }
+    @media (max-width: 900px) { main { padding: 28px 20px 40px; } .palette { grid-template-columns: repeat(4, 1fr); } .grid { grid-template-columns: 1fr; } }
+    @media (max-width: 520px) { header { align-items: flex-start; flex-direction: column; gap: 16px; } .palette { grid-template-columns: repeat(2, 1fr); } .type-row { grid-template-columns: 70px 1fr; } .type-row small:last-child { grid-column: 2; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <div class="brand"><span class="brand-mark" aria-hidden="true">R</span><h1>Sistema Rupfit</h1></div>
+        <p class="lede">Lavanda clara · violeta de acción · fuerza legible en movimiento</p>
+      </div>
+      <span class="chip">Theme claro · preferencia del sistema oscuro respetada</span>
+    </header>
+
+    <section class="section" aria-labelledby="palette-title">
+      <h2 id="palette-title" class="eyebrow">Color · roles, no decoración</h2>
+      <div class="palette">
+        <article class="swatch"><div class="color" style="background:#f5f3ff"></div><p><strong>Lienzo</strong><code>#F5F3FF</code></p></article>
+        <article class="swatch"><div class="color" style="background:#ffffff"></div><p><strong>Superficie</strong><code>#FFFFFF</code></p></article>
+        <article class="swatch"><div class="color" style="background:#f0edfa"></div><p><strong>Elevada</strong><code>#F0EDFA</code></p></article>
+        <article class="swatch"><div class="color" style="background:#5734e6"></div><p><strong>Acción primaria</strong><code>#5734E6</code></p></article>
+        <article class="swatch"><div class="color" style="background:#eee9ff"></div><p><strong>Selección</strong><code>#EEE9FF</code></p></article>
+        <article class="swatch"><div class="color" style="background:#15805e"></div><p><strong>Éxito</strong><code>#15805E</code></p></article>
+        <article class="swatch"><div class="color" style="background:#b4233d"></div><p><strong>Peligro</strong><code>#B4233D</code></p></article>
+      </div>
+    </section>
+
+    <div class="grid">
+      <section class="panel" aria-labelledby="type-title">
+        <h2 id="type-title" class="eyebrow">Tipografía · escala 17 px rem</h2>
+        <div class="type-row"><small>Screen · 34/40</small><span class="screen">Vamos a entrenar</span><small>600 · Sans</small></div>
+        <div class="type-row"><small>Title · 22/28</small><span class="title">Sentadilla trasera</span><small>600 · Sans</small></div>
+        <div class="type-row"><small>Body · 17/22</small><span class="body">La carga propuesta se decide en cada sesión.</span><small>400 · Sans</small></div>
+        <div class="type-row"><small>Meta · 15/20</small><span class="meta">3 series · descanso 180 s</span><small>400 · Muted</small></div>
+        <div class="type-row"><small>Caption · 12/16</small><span class="caption">Semana 2 · datos de la sesión</span><small>400 · Muted</small></div>
+        <h2 class="eyebrow" style="margin-top:24px">Espaciado · grid 4 px</h2>
+        <div class="space-scale">
+          <span class="space-unit"><i style="height:4px"></i>4</span><span class="space-unit"><i style="height:8px"></i>8</span><span class="space-unit"><i style="height:12px"></i>12</span><span class="space-unit"><i style="height:16px"></i>16</span><span class="space-unit"><i style="height:20px"></i>20</span><span class="space-unit"><i style="height:24px"></i>24</span><span class="space-unit"><i style="height:32px"></i>32</span>
+        </div>
+        <div class="radius-row"><span class="radius-sample" style="border-radius:16px">Card · 16</span><span class="radius-sample" style="border-radius:12px">Control · 12</span><span class="radius-sample" style="border-radius:999px">Pill · 999</span></div>
+      </section>
+
+      <section class="panel" aria-labelledby="components-title">
+        <h2 id="components-title" class="eyebrow">Componentes · un punto de atención</h2>
+        <div class="component-row"><button class="button" type="button">Registrar serie</button><button class="secondary" type="button">Cambiar peso</button><span class="chip">Barra · activo</span></div>
+        <div class="component-row">
+          <article class="metric"><span>Sesiones</span><strong>—</strong></article>
+          <article class="metric"><span>Series esta semana</span><strong>— de —</strong></article>
+        </div>
+        <article class="demo-card">
+          <h2>Sentadilla trasera</h2>
+          <p>Muestra de componentes · sin datos de entrenamiento</p>
+          <div class="chart-wrap">
+            <svg viewBox="0 0 560 130" role="img" aria-label="Ejemplo visual de histórico: los puntos son ilustrativos, no datos de Rupfit">
+              <path d="M20 102 L115 82 L210 87 L305 57 L400 65 L495 34 L540 42" fill="none" stroke="#5734e6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="20" cy="102" r="5" fill="#5734e6"/><circle cx="115" cy="82" r="5" fill="#5734e6"/><circle cx="210" cy="87" r="5" fill="#5734e6"/><circle cx="305" cy="57" r="5" fill="#5734e6"/><circle cx="400" cy="65" r="5" fill="#5734e6"/><circle cx="495" cy="34" r="7" fill="#5734e6"/><circle cx="540" cy="42" r="5" fill="#5734e6"/>
+            </svg>
+            <div class="chart-labels"><span>Ago</span><span>Sep</span><span>Oct</span><span>Nov</span></div>
+          </div>
+          <div class="step"><span class="step-label">SERIE 1</span><span class="step-value">— reps · — kg</span><span class="check" aria-label="Completada">✓</span></div>
+        </article>
+        <footer>Targets interactivos ≥48 px · sin sombras · sin gradientes en gráficas · acento violeta limitado.</footer>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

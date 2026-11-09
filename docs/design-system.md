@@ -1,8 +1,14 @@
 # Rupfit — Design System
 
-Status: specified, not implemented. The design phase in `docs/roadmap.md` produces
-an artboard for the training screen and must be reviewed by the owner before UI code
-starts.
+> **Visual direction updated 2026-11-09:** the owner supplied a new light-lavender/violet
+> reference and authorized applying it across the app. Current visual tokens and component
+> snapshot live in `design/system.md` and `src/design-system/tokens.css`; the palette, theme
+> default and artboard references in this older spec are historical and superseded for
+> appearance only. Training behavior, data provenance, accessibility, offline operation,
+> safe areas and timer invariants below remain binding.
+
+Status: this document is the original product design specification; see the current
+visual snapshot above for shipped appearance.
 
 Target platform: **iOS Safari / WebKit** on the owner's iPhone 14 Pro (iOS 17/18),
 installed from Safari to the Home Screen as a PWA (spec S2). Every visual rule below

@@ -61,7 +61,7 @@ body {
 }
 
 .tabbar__tab[aria-current='page'] {
-  color: var(--color-accent, #c6f24e);
+  color: var(--color-accent, #5734e6);
 }
 
 /* The tab icon is the design-system glyph, not a text character: the four tabs used to

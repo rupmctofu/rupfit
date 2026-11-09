@@ -1,8 +1,13 @@
 # `src/design-system` — tokens and components
 
-The visual language of `docs/design-system.md` §4–§7 and §9, expressed once. Every
-screen of the eight approved screens is built from these parts; no screen may
-re-declare a colour, a radius, a font size or a duration.
+> **Current visual direction (owner reference, 2026-11-09):** light lavender and violet.
+> Use `src/design-system/tokens.css` and the synced snapshot `design/system.md` as the
+> current color source. The old skin-B-lime tables and `design/f2-mvp` render references
+> below describe the superseded visual direction; component contracts and accessibility
+> rules remain useful unless explicitly superseded by the current tokens.
+
+The shared visual system is expressed once. Screens use these components and do not
+re-declare colours, radii, font sizes or durations.
 
 Sources, in the order they win when they disagree:
 

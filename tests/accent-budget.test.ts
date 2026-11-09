@@ -24,7 +24,7 @@ import { describe, expect, it } from 'vitest';
 const SRC = fileURLToPath(new URL('../src', import.meta.url).href);
 
 /** Accent flavours a stylesheet may spell. `--color-accent` also covers `-text`/`-muted`. */
-const ACCENT = /var\(--color-accent|#b8f34a|#c6f24e/i;
+const ACCENT = /var\(--color-accent|#5734e6|#4f2dd1/i;
 
 /** Dev surfaces: the gallery ships every tone on purpose, and demos live beside the tab bar. */
 const SKIP = new Set(['/gallery.css', '/demo.css']);
@@ -39,7 +39,7 @@ type AllowList = Readonly<Record<string, readonly string[]>>;
 const ALLOWED: AllowList = {
   'app/shell.css': [
     // Active state: the current tab of the tab bar (§4).
-    'color: var(--color-accent, #c6f24e);',
+    'color: var(--color-accent, #5734e6);',
   ],
   'features/home/home.css': [
     // The today marker: the single data point Inicio exists to answer ("do I train today?").
