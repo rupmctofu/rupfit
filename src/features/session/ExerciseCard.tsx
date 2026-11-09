@@ -11,6 +11,11 @@
  *
  * Read-only when it is not the card on screen: a card you swiped away from still shows
  * its sets, but nothing on it can be confirmed by accident.
+ *
+ * The open row shows the two numbers the owner is looking at — the reps it is counting
+ * and the weight on the bar — and the screen's pinned bar registers them
+ * (`Registrar serie`). Only while the rest bar occupies that slot does the row bring
+ * its own compact confirm back, so logging a set during the rest stays one tap.
  */
 
 import type { Exercise, ExercisePrescription } from '../../core/domain';
@@ -56,6 +61,11 @@ export interface ExerciseCardProps {
   readonly draft: SetDraft;
   /** This card is the one on screen and the session is still open. */
   readonly interactive: boolean;
+  /**
+   * The open row carries its own compact `Confirmar`. Off while the pinned bar holds
+   * the screen's one accent (`Registrar serie`), so the same tap never exists twice.
+   */
+  readonly confirmInRow: boolean;
   readonly onRepsChange: (reps: number) => void;
   readonly onEffortChange: (effort: EffortChip | null) => void;
   readonly onDiscomfortChange: (discomfort: DiscomfortChip | null) => void;
@@ -176,7 +186,7 @@ function setRowFor(
             discomfort: props.draft.discomfort,
             showDiscomfort: props.draft.showDiscomfort,
             onRepsChange: props.onRepsChange,
-            onConfirm: props.onConfirm,
+            ...(props.confirmInRow ? { onConfirm: props.onConfirm } : {}),
             onEffortChange: props.onEffortChange,
             onDiscomfortChange: props.onDiscomfortChange,
             onShowDiscomfort: props.onShowDiscomfort,

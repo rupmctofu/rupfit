@@ -107,20 +107,22 @@ export function SummarySheet({ storage, clock, sessionId, topSlot }: SummaryShee
     return (
       <div className="summary">
         {topSlot}
-        {boot.phase === 'loading' ? (
-          <p className="ds-meta">Leyendo la sesión…</p>
-        ) : (
-          <EmptyState
-            action={{ label: 'Volver a Inicio', onClick: () => { window.location.hash = '#/inicio'; } }}
-          >
-            {boot.phase === 'missing' ? NOT_FOUND : 'No se pudo leer la sesión. Inténtalo otra vez.'}
-          </EmptyState>
-        )}
-        {boot.phase === 'failed' ? (
-          <button type="button" className="ds-action summary__retry" onClick={retry}>
-            Reintentar
-          </button>
-        ) : null}
+        <div className="summary__scroll">
+          {boot.phase === 'loading' ? (
+            <p className="ds-meta">Leyendo la sesión…</p>
+          ) : (
+            <EmptyState
+              action={{ label: 'Volver a Inicio', onClick: () => { window.location.hash = '#/inicio'; } }}
+            >
+              {boot.phase === 'missing' ? NOT_FOUND : 'No se pudo leer la sesión. Inténtalo otra vez.'}
+            </EmptyState>
+          )}
+          {boot.phase === 'failed' ? (
+            <button type="button" className="ds-action summary__retry" onClick={retry}>
+              Reintentar
+            </button>
+          ) : null}
+        </div>
       </div>
     );
   }

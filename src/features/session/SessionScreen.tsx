@@ -16,7 +16,9 @@
  *    write resolved, so a failed write leaves the set exactly where the thumb left it
  *    and the banner offers `Reintentar` (`sesion-error`).
  * 3. **Two taps per set.** The rep count is a stepper, effort and discomfort are
- *    optional chips, and `Confirmar` is the second tap (FR-6.7).
+ *    optional chips, and the pinned `Registrar serie` of the open row — the compact
+ *    `Confirmar` of the row itself while the rest bar owns that slot — is the second
+ *    tap (FR-6.7).
  *
  * The only local state is what the reducer deliberately does not own: the reps being
  * counted, the optional answers of the set in progress, and the keypad's draft weight
@@ -342,6 +344,15 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
   const slot = exerciseOnScreen === null ? null : nextSlotOf(exerciseOnScreen);
   const lastSlot = exerciseOnScreen?.prescription.sets ?? 0;
 
+  // `Terminar la sesión` is the sheet's quiet exit in every state that is not the
+  // rest bar: the outcome is derived from what was answered, never from a second tap.
+  const finishSession = (): void => {
+    dispatch({
+      type: 'session-finished',
+      outcome: isSessionAnswered(session) ? 'completed' : 'partial',
+    });
+  };
+
   const recoveryNotice = ((): React.ReactElement | null => {
     if (screenState !== 'resumed' && screenState !== 'recovered') return null;
     const position = slot ?? lastSlot;
@@ -456,21 +467,35 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
       );
     }
 
+    // The open set is what the owner is doing right now: its one strong action sits in
+    // the pinned bar, where the thumb already is, instead of at the end of a row that
+    // has to hold `Serie n`, the rep stepper, the weight and the button at 390 px. The
+    // row keeps the weight and the reps; the bar registers them. While the rest bar
+    // owns this slot the row keeps its compact `Confirmar`, so logging a set during
+    // the rest is still one tap and the screen still never shows two accent fills.
+    if (exerciseOnScreen !== null && slot !== null) {
+      const draft = draftFor(exerciseOnScreen);
+      return (
+        <div className="session__actions session__actions--stack">
+          <PrimaryAction onClick={() => confirmSet(exerciseOnScreen)}>
+            Registrar serie
+            <span className="ds-visually-hidden">
+              {` ${String(slot)} de ${String(lastSlot)}, ${String(draft.reps)} repeticiones`}
+            </span>
+          </PrimaryAction>
+          <TextButton onClick={finishSession} className="session__finish">
+            Terminar la sesión
+          </TextButton>
+        </div>
+      );
+    }
+
     const isLast = (session.activeIndex ?? 0) + 1 >= total;
     return (
       <div className="session__actions session__actions--split">
-        <TextButton
-          onClick={() =>
-            dispatch({
-              type: 'session-finished',
-              outcome: isSessionAnswered(session) ? 'completed' : 'partial',
-            })
-          }
-        >
-          Terminar la sesión
-        </TextButton>
-        {/* Navigating to the next exercise is not the primary action while a set is still
-            pending: `Confirmar` owns the accent, and two lime fills in one viewport is
+        <TextButton onClick={finishSession}>Terminar la sesión</TextButton>
+        {/* Navigating to the next exercise is not the primary action: the pinned
+            `Registrar serie` owns the accent, and two accent fills in one viewport is
             exactly the budget the design contract forbids. */}
         {isLast ? null : (
           <TextButton onClick={() => goTo((session.activeIndex ?? 0) + 1)}>Siguiente</TextButton>
@@ -538,6 +563,7 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
               }
               draft={draftFor(exercise)}
               interactive={!terminal && index === session.activeIndex}
+              confirmInRow={restRunning}
               onRepsChange={(reps) => patchDraft(exercise, { reps })}
               onEffortChange={(effort: EffortChip | null) => patchDraft(exercise, { effort })}
               onDiscomfortChange={(discomfort: DiscomfortChip | null) =>

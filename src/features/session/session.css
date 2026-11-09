@@ -215,6 +215,22 @@
   flex: 1 1 auto;
 }
 
+/* The split bar cannot hold both labels on one line at 390 px: the quiet exit was clipped
+   by the pinned `Registrar serie` (`Terminar la sesió…`). The primary action takes the
+   whole line and the exit sits under it, right-aligned, so neither label is truncated and
+   only the primary keeps the accent. */
+.session__actions--stack {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+}
+
+.session__finish {
+  align-self: center;
+  white-space: nowrap;
+}
+
 /* The quieter of two competing actions (§7.1): a pill, never a second accent fill. */
 .session__ghost {
   flex: 0 1 auto;

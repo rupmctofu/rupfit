@@ -3,7 +3,8 @@
  *
  * The eyebrow and the title, the three totals of the artboard (series against the
  * prescription, duration, volume), the records of the day or the sentence that says
- * there were none, the per-exercise read-out with its sets on demand, and one `Hecho`.
+ * there were none, the per-exercise read-out with its sets on demand, and one `Hecho`
+ * pinned at the bottom of the sheet so the read-out can grow without moving it.
  *
  * The screen is presentational: `summaryViewOf` derives every number from the stored
  * aggregate, and `SummaryEntry` owns the reads and the one write (`sessions.finish`,
@@ -82,57 +83,77 @@ export function SummaryScreen({
 }: SummaryScreenProps): React.ReactElement {
   return (
     <div className="summary">
-      {topSlot}
+      {/* The demo strip lives inside the sheet, not above it, and brings its own
+          gutter so the pinned `Hecho` can span the full width. */}
+      {topSlot === undefined ? null : <div className="summary__top">{topSlot}</div>}
 
-      <header className="summary__head">
-        <p className="ds-section-label">{view.eyebrow}</p>
-        <h1 className="ds-screen-title">{view.title}</h1>
-      </header>
+      <div className="summary__scroll">
+        <header className="summary__head">
+          <p className="ds-section-label">{view.eyebrow}</p>
+          <h1 className="ds-screen-title">{view.title}</h1>
+        </header>
 
-      {error === undefined || error === null ? null : <ErrorBanner message={error} onRetry={onRetry} />}
+        {error === undefined || error === null ? null : <ErrorBanner message={error} onRetry={onRetry} />}
 
-      <Card label={formatDayName(view.dayName)}>
-        <SectionLabel>{formatDayName(view.dayName)}</SectionLabel>
-        <DataStrip
-          label="Totales de la sesión"
-          items={[
-            { label: 'Series', value: view.totals.series },
-            { label: 'Duración', value: view.totals.duration ?? '—' },
-            { label: 'Volumen', value: view.totals.volume, unit: 'kg' },
-          ]}
-        />
-        {view.note === null ? null : (
-          <>
-            <hr className="ds-hairline" />
-            <p className="ds-caption">{view.note}</p>
-          </>
-        )}
-      </Card>
-
-      {view.records.map((record) => (
-        <Card key={record.line} label={`Récord · ${record.exerciseName}`}>
-          <div className="ds-row">
-            <Chip dot>
-              RÉCORD
-            </Chip>
-            <span className="ds-meta">{record.when}</span>
-          </div>
-          <p className="ds-card-title">{record.line}</p>
-          <p className="ds-caption">{record.detail}</p>
+        {/* The totals of the session that was just written, before anything else: the
+            three numbers are what the end of a session exists to answer. */}
+        <Card label={formatDayName(view.dayName)}>
+          <SectionLabel>{formatDayName(view.dayName)}</SectionLabel>
+          <DataStrip
+            label="Totales de la sesión"
+            items={[
+              { label: 'Series', value: view.totals.series },
+              { label: 'Duración', value: view.totals.duration ?? '—' },
+              { label: 'Volumen', value: view.totals.volume, unit: 'kg' },
+            ]}
+          />
+          {view.note === null ? null : (
+            <>
+              <hr className="ds-hairline" />
+              <p className="ds-caption">{view.note}</p>
+            </>
+          )}
         </Card>
-      ))}
 
-      {view.noRecords === null ? null : <EmptyState>{view.noRecords}</EmptyState>}
+        {/* One card for the records of the day, separated by hairlines: three cards for
+            three records pushed the exercise read-out and `Hecho` out of the 390 px
+            viewport. */}
+        {view.records.length === 0 ? null : (
+          <Card padding="list" label="Récords de la sesión">
+            {view.records.map((record, index) => (
+              <Fragment key={record.line}>
+                {index === 0 ? null : <hr className="ds-hairline" />}
+                <div className="summary__record" role="group" aria-label={`Récord · ${record.exerciseName}`}>
+                  <div className="ds-row">
+                    <Chip dot>
+                      RÉCORD
+                    </Chip>
+                    <span className="ds-meta">{record.when}</span>
+                  </div>
+                  <p className="ds-card-title">{record.line}</p>
+                  <p className="ds-caption">{record.detail}</p>
+                </div>
+              </Fragment>
+            ))}
+          </Card>
+        )}
 
-      <Card padding="list" label="Ejercicios de la sesión">
-        {view.exercises.map((row) => (
-          <ExerciseRow key={row.id} row={row} />
-        ))}
-      </Card>
+        {view.noRecords === null ? null : <EmptyState>{view.noRecords}</EmptyState>}
 
-      <PrimaryAction onClick={onDone} disabled={busy}>
-        Hecho
-      </PrimaryAction>
+        <Card padding="list" label="Ejercicios de la sesión">
+          {view.exercises.map((row) => (
+            <ExerciseRow key={row.id} row={row} />
+          ))}
+        </Card>
+      </div>
+
+      {/* The one action of the sheet stays where the thumb is, whatever the length of
+          the read-out above it. */}
+      <div className="summary__bar">
+        <PrimaryAction onClick={onDone} disabled={busy}>
+          Hecho
+        </PrimaryAction>
+      </div>
     </div>
   );
 }
