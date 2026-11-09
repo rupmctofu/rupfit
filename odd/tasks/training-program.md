@@ -44,10 +44,11 @@ Por tanto: nada de asistentes nuevos ni de opciones de plan por usuario; el plan
 
 - T1 — Motor: cuatro perfiles de prescripción (`strength`, `hypertrophy`, `accessory`, `preventive`) en la tabla de bloques, sin tocar incremento, decisión ni progresión doble. Specs S2, S3, S7. Ruta: inline. Commit: sí.
 - T2 — Semilla: tres días nuevos (Pierna / Torso A / Torso B) con ejercicios y perfiles por slot; jubilar la rotación antigua. Specs S1, S2. Ruta: inline. Commit: sí.
-- T3 — Biblioteca: nombres específicos, músculos secundarios, descripción, variante y alternativas como campos opcionales aditivos (sin migración destructiva). Specs S4, S5. Ruta: inline (dominio y almacenamiento) + worker (UI). Commit: sí.
-- T4 — Fútbol como actividad manual independiente, sin crear sesión ni tocar la rotación. Specs S1, S6. Ruta: worker. Commit: sí.
-- T5 — Documentación de programa, prescripción, biblioteca y actividad. Specs S1-S8. Ruta: worker. Commit: sí.
-- T6 — Verificación: tests, typecheck, build, captura de las pantallas afectadas y revisión independiente. Specs S7. Ruta: inline + verifier. Commit: sí.
+- T3 — Biblioteca: nombres específicos, músculos secundarios, descripción, variante y alternativas como campos opcionales aditivos (sin migración destructiva). Specs S4, S5. Ruta: inline (dominio y almacenamiento) + worker (UI). Hecho: `0a2ba9c`.
+- T3b — Refresco de la biblioteca sembrada en tiendas existentes: upsert de filas de la semilla, nunca filas propias, conservando `isArchived` y el id. Specs S4, S7. Ruta: inline (`src/features/onboarding/library-refresh.ts` + arranque). Hecho: `0a2ba9c`.
+- T4 — Fútbol como actividad manual independiente, sin crear sesión ni tocar la rotación. Specs S1, S6. Ruta: worker (`src/features/home/`). Hecho: `bd9c3c3`.
+- T5 — Documentación de programa, prescripción, biblioteca y actividad. Specs S1-S8. Ruta: inline. Hecho: `5673e73` y `32f2e0f`.
+- T6 — Verificación: tests, typecheck, build, captura de las pantallas afectadas y revisión independiente. Specs S7. Ruta: inline + verifier. Hecho: `gentle-ai-verify` sobre `0d839d5..bd9c3c3`, un bloqueante corregido en `32f2e0f`.
 
 ## Log
 
@@ -67,3 +68,7 @@ No quiero reconstruir la aplicación ni cambiar innecesariamente su motor de pro
 **L3 — La rotación no conoce días de la semana.** `PlanDay` no almacena weekday (`docs/data-model.md §3`) y `nextPlanDay` elige la sesión siguiente a la última cerrada (`src/features/session/start.ts:86-120`). S1 se implementa como orden de tres días (Pierna → Torso A → Torso B) más el fútbol como actividad ajena a la rotación: Rupfit nunca programará fuerza el jueves porque no programa días, y no cuenta el fútbol como sesión porque es una `ActivityRecord`. Se documenta la limitación en lugar de inventar un calendario que el modelo no tiene.
 
 **L4 — Decisión del propietario sobre el alcance.** «no quiero que alguien se baje la app y se le configure a sus necesidades. Yo te he dado las mías para que implementes con tu criterio»: se cierra la pregunta sobre ampliar el motor y se descarta cualquier asistente de configuración de plan.
+
+**L5 — Verificación independiente y su bloqueante.** `gentle-ai-verify` revisó `0d839d5..bd9c3c3` y encontró que `src/storage/mappers.ts` copiaba la prescripción sin `role`: el motor leía perfil, el almacén lo borraba, y en la app real todo se juzgaba como hipertrofia (una sentadilla de 3 × 6 salía «series incompletas» y el bloque no pasaba). Corregido en `32f2e0f` con una prueba que recorre semilla → fila guardada → recomendación. El mismo commit sube `ENGINE_VERSION` a 1.1.0 (§12 lo exige cuando cambian los números de §8), documenta la tabla de cuatro columnas y saca del índice un módulo muerto (`src/core/format`) que se había colado.
+
+**L6 — Lo que el verificador dejó abierto, aceptado.** 14 filas de la biblioteca que el plan no prescribe siguen sin descripción, y `face pull` no tiene alternativa porque su familia (patrón + músculo) no tiene hermano honesto; rellenarlo violaría S5. Las alternativas se muestran en el detalle del ejercicio, no en mitad de una serie (eso pediría un flujo nuevo en la sesión, fuera de S6). El fútbol queda como actividad manual de 50 minutos sin kcal: no hay dato real que inventar.
