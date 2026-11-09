@@ -82,6 +82,60 @@
   min-width: 0;
 }
 
+/* ------------------------------------------------ the exercise detail view */
+
+/*
+ * The one illustration of the feature: original inline SVG, drawn in `currentColor`
+ * and two tokens so it follows the theme. The surface is the quiet raised lavender,
+ * never a photograph (there are no exercise photos in `public/`).
+ */
+.progress__art {
+  display: block;
+  margin: 0;
+  overflow: hidden;
+  padding: var(--space-3);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+.progress__art svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.progress__art-floor {
+  stroke: var(--color-border);
+  stroke-width: 3;
+}
+
+.progress__art-mark {
+  stroke: var(--color-chart-2);
+  stroke-width: 2;
+  stroke-dasharray: 4 5;
+}
+
+/* The muscle group and the equipment of the library row, when it still exists. */
+.progress__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* `Última vez` beside `En sesión`: the pair reflows as a column on a narrow screen. */
+.progress__compare {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.progress__compare > * {
+  flex: 1 1 8rem;
+}
+
 /* ------------------------------------------------------- the weigh-in entry */
 
 /*

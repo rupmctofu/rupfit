@@ -6,7 +6,9 @@
  * 1. **Every number is derived.** The charts, the records and the weekly volume are
  *    computed in `aggregates.ts` from the sessions and measurements the storage port
  *    returned; nothing is stored, cached or made up (`docs/data-model.md` §8, I-6). The
- *    four reads of the tab are the only I/O it performs.
+ *    four reads of the tab are the only I/O it performs: the recent sessions, the
+ *    measurements, the profile and the exercise library — the last one only to name the
+ *    muscle group and the equipment of an exercise that still exists.
  * 2. **The clock is the provider's.** `now` arrives once, from `clock.now()`, and is
  *    handed to the pure functions with every row. No component below reads
  *    `Date.now()`; the tab is a static image of the data, so it has no ticking state.
@@ -20,6 +22,14 @@
  * the strength chart with its estimate, then the weekly volume and the records (the
  * approved render `progreso-12w`); `Volumen` leads with the bars; `Peso` shows the
  * body-weight blocks of `peso-gaps`.
+ *
+ * ## The drill-downs
+ *
+ * Three views live inside the tab and are read from the hash (`navigation.ts`):
+ * `#/progreso/historial`, `#/progreso/peso` and `#/progreso/ejercicio/<exerciseKey>`.
+ * The last one is the reference artboard's exercise detail (`ExerciseDetailScreen`);
+ * it is reached from the `Por ejercicio` list, the Récords row and the Historial rows,
+ * so a stored name that is trained is never a dead end.
  *
  * ## The one boundary this file crosses, and why
  *
@@ -44,7 +54,13 @@ import {
   MetricTile,
 } from '../../design-system';
 import { useAppServices } from '../../app/providers';
-import type { BodyMeasurement, StoragePort, UserProfile, WorkoutSession } from '../../storage';
+import type {
+  BodyMeasurement,
+  Exercise,
+  StoragePort,
+  UserProfile,
+  WorkoutSession,
+} from '../../storage';
 import {
   isRecordedSession,
   personalRecords,
@@ -61,12 +77,15 @@ import {
 } from './aggregates';
 import {
   formatDayMonth,
+  formatDayMonthYear,
   formatGoal,
   formatSignedWeight,
   formatVolume,
   formatWeight,
   monthAbbreviation,
 } from './format';
+import { ExerciseDetailScreen } from './ExerciseDetailScreen';
+import { exerciseUsages, type ExerciseUsage } from './exerciseDetail';
 import { HistorialScreen } from './HistorialScreen';
 import { useProgressView } from './navigation';
 import { LastWeighInTile, MeanAndGoalRows, WeightScreen } from './WeightScreen';
@@ -117,6 +136,7 @@ interface ProgressFacts {
   readonly sessions: readonly WorkoutSession[];
   readonly measurements: readonly BodyMeasurement[];
   readonly profile: UserProfile | null;
+  readonly exercises: readonly Exercise[];
   readonly now: number;
 }
 
@@ -145,10 +165,11 @@ function ProgressTab({
 
     void (async () => {
       try {
-        const [sessions, measurements, profile] = await Promise.all([
+        const [sessions, measurements, profile, exercises] = await Promise.all([
           storage.sessions.recent(HISTORY_LIMIT),
           storage.measurements.all(),
           storage.profile.read(),
+          storage.exercises.all(),
         ]);
         if (cancelled) return;
         setState({
@@ -156,6 +177,7 @@ function ProgressTab({
           sessions,
           measurements,
           profile: profile ?? null,
+          exercises,
           now: clock.now(),
         });
       } catch {
@@ -225,11 +247,24 @@ function ProgressTab({
     );
   }
 
+  if (navigation.view === 'exercise' && navigation.exerciseKey !== null) {
+    return (
+      <ExerciseDetailScreen
+        sessions={state.sessions}
+        exercises={state.exercises}
+        exerciseKey={navigation.exerciseKey}
+        onBack={navigation.back}
+        onStartTraining={startTraining}
+      />
+    );
+  }
+
   if (navigation.view === 'historial') {
     return (
       <HistorialScreen
         sessions={state.sessions}
         onBack={navigation.back}
+        onOpenExercise={navigation.openExercise}
         onStartTraining={startTraining}
       />
     );
@@ -259,6 +294,7 @@ function ProgressTab({
         onMetric={setMetric}
         onOpenHistorial={() => navigation.navigate('historial')}
         onOpenWeight={() => navigation.navigate('peso')}
+        onOpenExercise={navigation.openExercise}
         onStartTraining={startTraining}
       />
     </div>
@@ -276,6 +312,8 @@ interface SummaryProps {
   readonly onMetric: (metric: Metric) => void;
   readonly onOpenHistorial: () => void;
   readonly onOpenWeight: () => void;
+  /** Opens `#/progreso/ejercicio/<key>` for one exercise of the stored data. */
+  readonly onOpenExercise: (key: string) => void;
   readonly onStartTraining: () => void;
 }
 
@@ -288,6 +326,7 @@ function Summary({
   onMetric,
   onOpenHistorial,
   onOpenWeight,
+  onOpenExercise,
   onStartTraining,
 }: SummaryProps): React.ReactElement {
   const derived = useMemo(() => {
@@ -297,6 +336,8 @@ function Summary({
       strength: strengthSeries(sessions, { now }),
       volume: weeklyVolume(sessions, { now }),
       records: personalRecords(sessions),
+      // The detail's entry point: the exercises that actually have recorded sets.
+      usages: exerciseUsages(sessions),
     };
   }, [sessions, now]);
 
@@ -356,14 +397,14 @@ function Summary({
         <>
           <StrengthCard series={derived.strength} />
           <VolumeCard volume={derived.volume} />
-          <RecordsCard records={derived.records} />
+          <RecordsCard records={derived.records} onOpenExercise={onOpenExercise} />
         </>
       ) : null}
 
       {metric === 'volumen' ? (
         <>
           <VolumeCard volume={derived.volume} />
-          <RecordsCard records={derived.records} />
+          <RecordsCard records={derived.records} onOpenExercise={onOpenExercise} />
         </>
       ) : null}
 
@@ -384,6 +425,7 @@ function Summary({
         </Card>
       ) : null}
 
+      <ExerciseListCard usages={derived.usages} onOpenExercise={onOpenExercise} />
       {drilldown}
     </>
   );
@@ -551,7 +593,13 @@ function VolumeCard({ volume }: { readonly volume: WeeklyVolume }): React.ReactE
 
 /* ------------------------------------------------------------- the records */
 
-function RecordsCard({ records }: { readonly records: readonly PersonalRecord[] }): React.ReactElement {
+function RecordsCard({
+  records,
+  onOpenExercise,
+}: {
+  readonly records: readonly PersonalRecord[];
+  readonly onOpenExercise: (key: string) => void;
+}): React.ReactElement {
   const top = topRecord(records);
 
   return (
@@ -567,8 +615,56 @@ function RecordsCard({ records }: { readonly records: readonly PersonalRecord[] 
         }
         {...(top === null
           ? { status: { word: 'sin datos', tone: 'muted' as const } }
-          : { value: String(records.length) })}
+          : {
+              value: String(records.length),
+              // The record is of one exercise: the row opens that exercise's detail.
+              onSelect: () => onOpenExercise(top.exerciseKey),
+              selectLabel: `Abrir el detalle de ${top.exerciseName}`,
+            })}
       />
+    </Card>
+  );
+}
+
+/* ---------------------------------------------------------- by exercise */
+
+/**
+ * `Por ejercicio` — the existing per-exercise history, listed. Each row is one exercise
+ * with recorded sets, with the load of its last session; tapping it opens
+ * `#/progreso/ejercicio/<key>`. No row is drawn for an exercise without sets, and a
+ * bodyweight exercise writes `sin peso` instead of a `0 kg` it did not lift.
+ */
+function ExerciseListCard({
+  usages,
+  onOpenExercise,
+}: {
+  readonly usages: readonly ExerciseUsage[];
+  readonly onOpenExercise: (key: string) => void;
+}): React.ReactElement | null {
+  if (usages.length === 0) return null;
+
+  return (
+    <Card padding="list" label="Por ejercicio">
+      <div className="ds-row">
+        <span className="ds-section-label">Por ejercicio</span>
+        <span className="ds-caption">
+          {`${String(usages.length)} ${usages.length === 1 ? 'ejercicio' : 'ejercicios'} con series`}
+        </span>
+      </div>
+      {usages.map((usage) => (
+        <DataRow
+          key={usage.key}
+          title={usage.name}
+          subtitle={`Última vez · ${formatDayMonthYear(usage.lastAt)} · ${String(
+            usage.sessionCount,
+          )} ${usage.sessionCount === 1 ? 'sesión' : 'sesiones'}`}
+          {...(usage.topSetKg === null
+            ? { status: { word: 'sin peso', tone: 'muted' as const } }
+            : { value: formatWeight(usage.topSetKg), valueUnit: 'kg' })}
+          onSelect={() => onOpenExercise(usage.key)}
+          selectLabel={`Abrir el detalle de ${usage.name}`}
+        />
+      ))}
     </Card>
   );
 }

@@ -43,7 +43,8 @@ type ShellRoute =
   | 'resumen'
   | 'resumen/demo'
   | 'progreso/historial'
-  | 'progreso/peso';
+  | 'progreso/peso'
+  | 'progreso/ejercicio';
 
 function Screen({ route }: { route: ShellRoute }): React.ReactElement {
   switch (route) {
@@ -55,6 +56,9 @@ function Screen({ route }: { route: ShellRoute }): React.ReactElement {
       return <ProgressScreen />;
     case 'progreso/historial':
     case 'progreso/peso':
+    // The exercise detail is a third view inside the same tab: the shell renders the
+    // tab and `ProgressScreen` reads the key from the hash (`navigation.ts`).
+    case 'progreso/ejercicio':
       return <ProgressScreen />;
     case 'perfil':
       return <ProfileScreen />;

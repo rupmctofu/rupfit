@@ -148,7 +148,13 @@ function recordedSessions(sessions: readonly WorkoutSession[]): readonly Workout
   return sessions.filter(isRecordedSession);
 }
 
-function exerciseKey(exercise: ExerciseSession): string {
+/**
+ * The identity of an exercise across sessions: its id, or its snapshot name when the
+ * library row is gone (`exerciseId` is `null` for a deleted exercise, I-4). Exported
+ * because the drill-down of `#/progreso/ejercicio/<key>` builds its hash from it and
+ * must use exactly the same key the aggregations group by.
+ */
+export function exerciseKey(exercise: ExerciseSession): string {
   return exercise.exerciseId ?? `name:${exercise.exerciseNameSnapshot}`;
 }
 

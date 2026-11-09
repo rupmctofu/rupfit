@@ -16,7 +16,7 @@
  * not this task's surface.
  */
 
-import type { Provenance, WeightGoal } from '../../storage';
+import type { Provenance, RepRange, WeightGoal } from '../../storage';
 
 /** `92,5` — two decimals at most, trailing zeros dropped, comma as the separator. */
 export function formatWeight(kg: number): string {
@@ -43,6 +43,13 @@ export function formatSignedWeight(kg: number): string {
   return `${sign}${formatWeight(Math.abs(kg))} kg`;
 }
 
+/** `2 h 15 min` — a summed duration, as the Historial totals write it. */
+export function formatHoursMinutes(ms: number): string {
+  const minutes = durationMinutes(ms);
+  const hours = Math.floor(minutes / 60);
+  return hours === 0 ? `${String(minutes)} min` : `${String(hours)} h ${String(minutes % 60)} min`;
+}
+
 /** `52 min` — a duration in whole minutes, as the Historial rows write it. */
 export function formatDurationMinutes(ms: number): string {
   return `${durationMinutes(ms)} min`;
@@ -53,6 +60,18 @@ export function durationMinutes(ms: number): number {
   return Math.round(ms / 60_000);
 }
 
+/** `3:00` — a rest between sets, in whole minutes and seconds. */
+export function formatRest(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return `${String(minutes)}:${String(remainder).padStart(2, '0')}`;
+}
+
+/** `6–8` — the stored rep range, en dash, as a prescription writes it. */
+export function formatRepRange(range: RepRange): string {
+  return `${String(range.lowerBound)}–${String(range.upperBound)}`;
+}
+
 function capitalise(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
@@ -60,6 +79,15 @@ function capitalise(text: string): string {
 /** `6 nov` — the weigh-in date and the chart's axis label. */
 export function formatDayMonth(at: number): string {
   return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short' }).format(new Date(at));
+}
+
+/** `6 nov 2024` — a session title where two years of history can meet, and the table's row labels. */
+export function formatDayMonthYear(at: number): string {
+  return new Intl.DateTimeFormat('es-ES', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(at));
 }
 
 /** `nov` — the strength chart's axis, thinned to three labels by `LineChart`. */
