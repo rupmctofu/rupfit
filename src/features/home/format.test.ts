@@ -78,6 +78,9 @@ describe('day names', () => {
     expect(formatDayName('SENTADILLA / PIERNA')).toBe('Sentadilla / Pierna');
     expect(formatDayName('PESO MUERTO / TRACCIÓN')).toBe('Peso muerto / Tracción');
     expect(formatDayName('MOVILIDAD')).toBe('Movilidad');
+    // The owner's split names the halves by letter, and the letter stays a letter.
+    expect(formatDayName('TORSO A')).toBe('Torso A');
+    expect(formatDayName('TORSO B')).toBe('Torso B');
   });
 
   it('reads the focus out of the snapshot instead of storing a second field', () => {

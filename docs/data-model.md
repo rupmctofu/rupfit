@@ -111,6 +111,16 @@ export interface Exercise {
   readonly loadIncrementKg: number;
   readonly isCustom: boolean;
   readonly isArchived: boolean;
+  /** Additive 2026-11-09 (`odd/tasks/training-program.md` S4). All optional: rows and
+   *  backups written before them keep loading, and the mappers default them. */
+  readonly secondaryMuscles?: readonly MuscleGroup[];
+  /** How to execute it, naming the machine or implement. */
+  readonly description?: string;
+  /** The generic movement this row is a variant of, by exercise id. */
+  readonly variantOf?: string;
+  /** Exercise ids that can replace it when the machine is busy: same primary muscle and
+   *  same pattern, plausible equipment swap. The substitute keeps its own history. */
+  readonly alternatives?: readonly string[];
 }
 
 export interface ExercisePrescription {
@@ -118,6 +128,11 @@ export interface ExercisePrescription {
   readonly repRange: IntRange;
   readonly targetRIR: IntRange;
   readonly restSeconds: number;
+  /** Prescription profile of the readaptation block table (`progression-engine.md §8`):
+   *  `strength | hypertrophy | accessory | preventive`. Optional and additive: a
+   *  prescription written before profiles existed falls back to the phase role and then
+   *  to `hypertrophy`, so stored sessions and old backups stay valid. */
+  readonly role?: BlockRole;
 }
 
 export interface SetRecord {

@@ -98,14 +98,26 @@ implementation time:
 - **EV** When effort is comparable, loads from roughly 30 % to 85 % of 1RM produce
   similar hypertrophy; heavier loads favour maximal strength (R6). For a
   strength-first goal, the working range should sit in the heavier half.
-- **DD** Prescription:
+- **DD** Prescription, updated 2026-11-09 (`odd/tasks/training-program.md` S2). The
+  readaptation table now has one column per profile, so a strength lift and a preventive
+  movement no longer share one row of numbers:
 
-  | Role | Reps | Target RIR | Approx. %1RM | Sets |
+  | Profile | Block 1 | Block 2 | Block 3 | Block 4 |
   | --- | --- | --- | --- | --- |
-  | Primary lift, normal phase | 6–10 | 1–3 | 70–85 % | 3–4 |
-  | Primary lift, readaptation | 8–12 | 2–5 | 55–70 % | 2–3 |
-  | Accessory | 8–15 | 1–3 | 60–75 % | 2–3 |
-  | Isolation / core | 10–20 | 1–2 | 50–65 % | 2–3 |
+  | `strength` | 3 × 6–8 @ 4–5 | 3 × 6–8 @ 3–4 | 4 × 5–8 @ 2–3 | 4 × 5–6 @ 2 |
+  | `hypertrophy` | 3 × 8–10 @ 4–5 | 3 × 8–10 @ 3–4 | 4 × 8–12 @ 2–3 | 4 × 8–10 @ 2 |
+  | `accessory` | 2 × 10–12 @ 4 | 3 × 10–12 @ 3 | 3 × 10–15 @ 2–3 | 3 × 10–12 @ 2 |
+  | `preventive` | 2 × 6–8 @ 5–6 | 2 × 6–8 @ 5 | 3 × 6–10 @ 4–5 | 3 × 8–10 @ 3–4 |
+
+  Normal-phase ranges are unchanged: 6–10 for a primary lift, 8–15 for an accessory,
+  10–20 for isolation. The percentage column was always a sanity range, never an input:
+  the engine works from real weights and real reps.
+
+  `preventive` exists because two movements of this programme are prescribed for tissue
+  tolerance, not for load: the assisted Nordic curl and the adapted Copenhagen plank. Two
+  sets, five to six reps in reserve, and a profile that rises to `3 × 8–10 @ 3–4` by block
+  4 rather than following the hypertrophy curve. Neither is presented as injury
+  prevention; the claim is capacity, not protection.
 
   The percentage column is a sanity range for the UI, never an input to the load
   calculation: the engine works from real weights and real reps, not from an

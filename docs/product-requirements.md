@@ -119,19 +119,33 @@ Consequences the requirements below depend on:
 
 ### FR-3 Routine and schedule — MVP
 
-- **FR-3.1 MUST** ship the three-day template verbatim:
+- **FR-3.1 MUST** ship the owner's three gym days. Superseded on 2026-11-09 by
+  `odd/tasks/training-program.md` (his own training needs, not a template for others):
 
-  | Day | Name | Primary lift |
-  | --- | --- | --- |
-  | Monday | `SENTADILLA / PIERNA` | Sentadilla trasera |
-  | Wednesday | `PESO MUERTO / TRACCIÓN` | Peso muerto convencional |
-  | Friday | `PRESS BANCA / EMPUJE` | Press banca |
+  | Day | Name | Strength lift | Football |
+  | --- | --- | --- | --- |
+  | Monday | `PIERNA` | Sentadilla trasera (+ peso muerto rumano) | — |
+  | Tuesday | `TORSO A` | Press banca | — |
+  | Thursday | — | — | Match, ~50 min, recorded as an activity |
+  | Friday | `TORSO B` | Press banca inclinado | — |
 
-- **FR-3.2 MUST** ship these accessory suggestions per day, editable and
-  reorderable: *Pierna* — prensa, zancadas o unilateral, curl femoral, gemelos,
-  core; *Tracción* — remo, jalón al pecho o dominadas asistidas, face pulls,
-  curl de bíceps, cadena posterior; *Empuje* — press inclinado con mancuernas,
-  press de hombro, elevaciones laterales, extensiones de tríceps, espalda alta.
+  Rupfit stores no weekday (`data-model.md §3`), so the three days are a rotation and the
+  calendar lives with the owner. Football is an `ActivityRecord`, never a session, and it
+  never moves the rotation. Wednesday, Saturday and Sunday are rest because only three gym
+  days exist.
+
+- **FR-3.2 MUST** ship these accessories per day, editable and reorderable, each with its
+  own prescription profile (`progression-engine.md §8`):
+  *Pierna* — prensa (hypertrophy), curl femoral sentado (accessory), nordic curl asistido
+  (preventive), copenhagen plank adaptado (preventive), elevación de gemelos de pie y
+  elevación de sóleo sentado (accessory); *Torso A* — remo con barra, jalón al pecho,
+  press de hombro (hypertrophy), elevaciones laterales, curl de bíceps con barra,
+  extensiones de tríceps (accessory); *Torso B* — remo en máquina, dominadas asistidas,
+  press de hombro en máquina (hypertrophy), face pull, curl en polea, extensión de tríceps
+  sobre la cabeza (accessory). The full version of the Nordic curl and of the Copenhagen
+  plank ship in the library but never in the starting plan: S3 asks for a prudent
+  introduction, so they enter as a change of exercise the owner makes, not as load the
+  engine adds.
 - **FR-3.3 MUST** allow: add exercise, remove exercise, reorder, change sets and
   reps, substitute an exercise for an alternative, and set weights and increments.
 - **FR-3.4 MUST** support scheduling by calendar date with the weekday template as

@@ -96,8 +96,18 @@ export function formatDayName(name: string): string {
   return name
     .split('/')
     .map((part) => {
-      const trimmed = part.trim().toLowerCase();
-      return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+      const words = part.trim().split(/\s+/).filter((word) => word !== '');
+      return words
+        .map((word, index) => {
+          const lower = word.toLowerCase();
+          // A lone letter is a label, not a word: `TORSO A` reads `Torso A`, never
+          // `Torso a`.
+          if (index > 0 && word.length === 1) return word.toUpperCase();
+          // Sentence case from the first word on: `PESO MUERTO` is `Peso muerto`.
+          if (index > 0) return lower;
+          return lower.charAt(0).toUpperCase() + lower.slice(1);
+        })
+        .join(' ');
     })
     .join(' / ');
 }
