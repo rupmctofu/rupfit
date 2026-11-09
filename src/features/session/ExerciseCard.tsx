@@ -139,6 +139,7 @@ function setRowFor(
         targetReps={entry.set.targetReps}
         state="confirmed"
         reps={entry.set.actualReps}
+        weightLabel={`${formatWeight(entry.set.weightKg)} kg`}
         effort={formatEffort(entry.set.effort)}
         discomfort={formatDiscomfort(entry.set.discomfort)}
         record={best > 0 && entry.set.weightKg > best}
@@ -152,6 +153,9 @@ function setRowFor(
 
   const isActive = props.interactive && slot === activeSlot;
   const state: SetState = isActive ? 'active' : 'pending';
+  // No decision yet means no weight to show: the bottom bar is still asking for one, and
+  // `0 kg` inside a row would read as a prescription instead of an empty value.
+  const planned = props.draft.weightKg > 0 ? `${formatWeight(props.draft.weightKg)} kg` : null;
 
   return (
     <SetRow
@@ -159,6 +163,7 @@ function setRowFor(
       index={slot}
       targetReps={targetReps}
       state={state}
+      {...(planned === null ? {} : { weightLabel: planned })}
       {...(isActive
         ? {
             reps: props.draft.reps,
@@ -259,16 +264,12 @@ export function ExerciseCard(props: ExerciseCardProps): React.ReactElement {
   const title = (
     <div className="session-card__head">
       <h1 className="ds-card-title ds-card-title--large">{exercise.exerciseNameSnapshot}</h1>
-      <p className="ds-meta">
-        {previous === null
-          ? 'Sin historial en este ejercicio'
-          : `Sesión anterior · ${formatWeight(previous.weightKg)} kg × ${previous.reps} · ${
-              formatEffort(previous.effort) ?? 'sin esfuerzo'
-            }`}
-      </p>
+      {/* No subtitle restating the previous session: the compare tiles below already say
+          `Última vez 90 kg · 3 × 10` and the reason line says why today's weight changed.
+          Three restatements of the same two numbers was the loudest thing on the screen. */}
       {detail === undefined ? null : (
         <div className="session-card__chips">
-          <Chip tone="accent" icon={EQUIPMENT_ICON[detail.equipment]}>
+          <Chip icon={EQUIPMENT_ICON[detail.equipment]}>
             {EQUIPMENT_LABEL[detail.equipment]}
           </Chip>
           <Chip>{MUSCLE_LABEL[detail.primaryMuscle]}</Chip>

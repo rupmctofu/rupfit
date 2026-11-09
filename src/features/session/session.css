@@ -92,7 +92,9 @@
   scroll-snap-align: center;
   scroll-snap-stop: always;
   display: flex;
-  align-items: stretch;
+  /* The card hugs its content: stretching it to the sheet height left a large empty
+     region under the last set row, which reads as an unfinished screen. */
+  align-items: flex-start;
   padding: 0 var(--layout-screen-padding);
   overflow-y: auto;
   overscroll-behavior-y: contain;
@@ -173,7 +175,9 @@
   width: 100%;
   max-width: 34px;
   border-radius: var(--radius-track);
-  background: var(--color-surface-raised);
+  /* Visible without the accent: on `--color-surface-raised` the past bars vanished into
+     the card and the strip read as a single lime bar with six gaps. */
+  background: var(--color-border);
 }
 
 .session-strip__bar--today {
