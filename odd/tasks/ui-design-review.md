@@ -35,7 +35,10 @@ Por tanto: `npm test`, `npm run typecheck` y `npm run build` pasan; `package.jso
 - T5 — Sesión: el histórico de seis sesiones deja de competir con la serie activa y la tarjeta cabe en el viewport al desplegar la fila. Spec S1, S3. Ruta: worker. Commit: sí.
 - T6 — Entrenar: una sola palabra de estado por día y títulos que no se fuerzan a dos líneas. Spec S3. Ruta: worker. Commit: sí.
 - T7 — Consistencia: los literales de espaciado, radios y alturas de `src/design-system/*.css` pasan a tokens del 4 px grid. Spec S4. Ruta: worker. Commit: sí.
-- T8 — Cobertura: sonda durable que falla si un CSS de pantalla vuelve a gastar el acento fuera de la lista permitida. Spec S2, S5. Ruta: worker. Commit: sí.
+- T5 — Sesión: el histórico de seis sesiones deja de competir con la serie activa y la tarjeta cabe en el viewport al desplegar la fila. Spec S1, S3. Ruta: worker. Hecho: `4664a29`.
+- T6 — Entrenar: una sola palabra de estado por día y títulos que no se fuerzan a dos líneas. Spec S3. Ruta: worker. Hecho: `4664a29`.
+- T7 — Consistencia: los literales de espaciado, radios y alturas de `src/design-system/*.css` pasan a tokens del 4 px grid. Spec S4. Ruta: inline. Hecho: `a056568`, con `success` devuelto al lima documentado (L5).
+- T8 — Cobertura: sonda durable que falla si un CSS de pantalla vuelve a gastar el acento fuera de la lista permitida. Spec S2, S5. Ruta: inline (`tests/accent-budget.test.ts` + shim `tests/node-runtime.d.ts`). Hecho: `eafaab3`, demostrado en rojo con un infractor falso; 11 pruebas nuevas, 642/642 en total.
 
 ## Log
 
@@ -222,3 +225,5 @@ Stepper para días por semana y para ajustar peso (es un valor numérico discret
 - El saludo ya compone `Hola, <nombre>` cuando el perfil tiene nombre (`src/features/home/format.ts`); la captura decía `Hola` porque el store sembrado no tenía nombre. No se tocó.
 - Entrenar no es una pantalla de arranque sino el planificador semanal: quien crea la sesión es Inicio. Se retira la exigencia de «empezar de hoy en un toque» y se corrige solo la jerarquía (el aviso de descanso deja de ser una tarjeta con título propio por encima de los tres días reales).
 - El botón primario de la sesión sí es el correcto en el estado de decisión (`Aceptar 92,5 kg` / `Repetir` / `Otro peso`): lo que faltaba era el peso en las filas de serie, no otro botón.
+
+**L6 — Ronda 3 (misma petición, reenviada)**: se consolidó lo que la cancelación dejó a medias. T5 y T6 hechos por worker, T7 y T8 inline. Dos fallos de la propia sonda durante la instalación, documentados en el commit `eafaab3`: `?raw` llega vacío para CSS en esta toolchain (la primera versión fallaba en vacío), y `@types/node` no cabe (restricción de dependencias), de modo que la lectura en disco pasa por un shim declarativo de solo los cuatro builtin usados. Verificado visualmente: sesión con la serie abierta cabe a 390×844 con un solo acento, Entrenar con títulos en una línea y un `hoy` solo en el día actual, Perfil con el switch real y la acción destructiva en `danger`.
