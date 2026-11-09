@@ -1,8 +1,9 @@
 # `src/design-system` — tokens and components
 
-> **Current visual direction (owner reference, 2026-11-09):** light lavender and violet.
-> Use `src/design-system/tokens.css` and the synced snapshot `design/system.md` as the
-> current color source. The old skin-B-lime tables and `design/f2-mvp` render references
+> **Current visual direction (owner reference, 2026-11-09):** a near-black canvas with a
+> violet cast and a lilac accent; the light lavender palette remains available as
+> `data-theme="light"`. Use `src/design-system/tokens.css` and the synced snapshot
+> `design/system.md` as the current color source. The old skin-B-lime tables and `design/f2-mvp` render references
 > below describe the superseded visual direction; component contracts and accessibility
 > rules remain useful unless explicitly superseded by the current tokens.
 

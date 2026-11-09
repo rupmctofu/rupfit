@@ -11,36 +11,38 @@
  * soft elevated surfaces. The dark peer keeps charcoal depth and the same violet identity;
  * the orange `data-skin="a"` remains a gallery-only comparison skin.
  *
- * Theme: light is the product default from the reference; an explicit
- * `:root[data-theme="dark"]` opts into the dark peer, so OS preference never turns the
- * approved light UI dark unexpectedly.
+ * Theme: dark is the product default — the reference's lilac accent on a near-black
+ * canvas. `:root[data-theme="light"]` opts into the light peer; the OS preference never
+ * flips the approved interface on its own.
  */
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
   /* ------------------------------------------------------------------ colour */
-  /* Light lavender canvas, white work surfaces, and violet for the single action. */
-  --color-bg: #f5f3ff;
-  --color-surface: #ffffff;
-  --color-surface-raised: #f0edfa;
-  --color-border: #e2def0;
-  --color-text: #17142a;
-  --color-muted: #67637d;
-  --color-subtle: #77738a;
-  --color-accent: #5734e6;
-  --color-accent-ink: #ffffff;
-  --color-accent-text: #4f2dd1;
-  --color-accent-muted: #eee9ff;
-  --color-success: #15805e;
-  --color-warning: #8a5600;
-  --color-danger: #b4233d;
+  /* The owner's reference, kept dark: a near-black canvas with a violet cast, surfaces a
+     step above it, and one lilac accent for the single action. Light remains a peer,
+     selected explicitly with `data-theme="light"`. */
+  --color-bg: #12111b;
+  --color-surface: #1b1a27;
+  --color-surface-raised: #26243a;
+  --color-border: #3b394f;
+  --color-text: #f6f3ff;
+  --color-muted: #b4b0c9;
+  --color-subtle: #858098;
+  --color-accent: #a892ff;
+  --color-accent-ink: #171329;
+  --color-accent-text: #bbaaff;
+  --color-accent-muted: #30294d;
+  --color-success: #64d6aa;
+  --color-warning: #f0c06a;
+  --color-danger: #ff8994;
   /* Chart series, max 4, always paired with direct labels and semantic meaning. */
-  --color-chart-1: #5734e6;
-  --color-chart-2: #8d77ee;
-  --color-chart-3: #4375c8;
-  --color-chart-4: #15805e;
-  --color-focus-ring: #4f2dd1;
+  --color-chart-1: #b39bff;
+  --color-chart-2: #69b6ff;
+  --color-chart-3: #67d2a8;
+  --color-chart-4: #f0a875;
+  --color-focus-ring: #bbaaff;
 
   /* --------------------------------------------------------- type: families */
   --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
@@ -199,6 +201,7 @@
   --color-focus-ring: #4f2dd1;
 }
 
+/* Explicit dark is the default, kept so a stored preference keeps working. */
 :root[data-theme='dark'] {
   color-scheme: dark;
   --color-bg: #12111b;

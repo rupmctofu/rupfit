@@ -11,7 +11,11 @@ A source-grounded snapshot of the shipped UI system after adopting the owner's l
 
 ## Color
 
-### Light default
+### Dark default
+
+The product default since the owner asked for the dark interface with lilac tones: canvas `#12111B`, surface `#1B1A27`, raised `#26243A`, border `#3B394F`, text `#F6F3FF`, muted `#B4B0C9`, subtle `#858098`, accent `#A892FF`, accent ink `#171329`, accent text `#BBAAFF`, accent-muted `#30294D`, success `#64D6AA`, warning `#F0C06A`, danger `#FF8994`. Chart series: `#B39BFF`, `#69B6FF`, `#67D2A8`, `#F0A875`.
+
+### Light peer (`data-theme="light"`)
 
 | Token | Value | Role |
 |---|---:|---|
@@ -30,13 +34,9 @@ A source-grounded snapshot of the shipped UI system after adopting the owner's l
 | `--color-warning` | `#8A5600` | Advisory state |
 | `--color-danger` | `#B4233D` | Destructive/error state |
 
-### Dark peer (explicit `data-theme="dark"` override)
+### Chart colors (dark default)
 
-Canvas `#12111B`, surface `#1B1A27`, raised `#26243A`, border `#3B394F`, text `#F6F3FF`, muted `#B4B0C9`, subtle `#858098`, accent `#A892FF`, accent ink `#171329`, accent text `#BBAAFF`, accent-muted `#30294D`, success `#64D6AA`, warning `#F0C06A`, danger `#FF8994`. Chart series: `#B39BFF`, `#69B6FF`, `#67D2A8`, `#F0A875`.
-
-### Chart colors (light)
-
-`--color-chart-1..4`: `#5734E6`, `#8D77EE`, `#4375C8`, `#15805E`. Pair every series with a direct label; reserve violet for the series/data point the person needs to notice.
+`--color-chart-1..4`: `#5734E6`, `#8D77EE`, `#4375C8`, `#15805E`. Pair every series with a direct label; reserve lilac for the series or the data point the person needs to notice.
 
 ### Contrast spot-check (WCAG relative luminance)
 
