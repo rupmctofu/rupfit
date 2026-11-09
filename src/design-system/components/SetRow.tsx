@@ -48,6 +48,9 @@ export interface SetRowProps {
   readonly state: SetState;
   /** The current count while active, the achieved count once confirmed. */
   readonly reps?: number | undefined;
+  /// The weight this set is done at, already formatted with its unit (`92,5 kg`). A
+  /// set row without it is a row the user cannot act on.
+  readonly weightLabel?: string | undefined;
   readonly effort?: Effort | null | undefined;
   readonly discomfort?: Discomfort | null | undefined;
   /** A personal record is a word, not a green number (§6.3). */
@@ -66,6 +69,7 @@ function announced(props: SetRowProps): string {
   const { index, targetReps, state, reps } = props;
   const count = reps ?? targetReps;
   const parts = [`Serie ${index}`, STATE_WORD[state], `${count} de ${targetReps} repeticiones`];
+  if (props.weightLabel !== undefined) parts.push(props.weightLabel);
   if (props.effort != null) parts.push(props.effort);
   if (props.discomfort != null) parts.push(props.discomfort);
   if (props.record === true) parts.push('récord');
@@ -78,6 +82,7 @@ export function SetRow(props: SetRowProps): React.ReactElement {
     targetReps,
     state,
     reps,
+    weightLabel,
     effort,
     discomfort,
     record = false,
@@ -170,6 +175,9 @@ export function SetRow(props: SetRowProps): React.ReactElement {
               ? `${current} / ${targetReps}`
               : `${targetReps} reps`}
           </span>
+          {weightLabel === undefined ? null : (
+            <span className="ds-set__weight">{weightLabel}</span>
+          )}
           <span className="ds-set__right">
             {record ? (
               <Chip tone="success" dot>

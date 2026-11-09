@@ -35,7 +35,9 @@
   display: block;
   height: 100%;
   border-radius: var(--radius-track-thin);
-  background: var(--color-accent);
+  /* Navigation progress, not the data point that matters: the accent here competed
+     with the one action of the screen. */
+  background: var(--color-muted);
 }
 
 .ds-pager__count {

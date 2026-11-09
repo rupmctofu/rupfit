@@ -33,6 +33,10 @@
   overflow-wrap: anywhere;
 }
 
+/* A text button is the quieter action, so it does not spend the accent: the accent
+   belongs to the one primary action of the screen, and a screen with a lime link in
+   every card has no primary action at all (§4, §7.1). `tone` restores colour where the
+   word alone is not enough: a destructive row, or the rare emphasis. */
 .ds-text-button {
   display: inline-flex;
   align-items: center;
@@ -43,10 +47,18 @@
   padding: 0 var(--space-3);
   border-radius: var(--radius-control-square);
   background: none;
-  color: var(--color-accent-text);
+  color: var(--color-text);
   font-size: var(--text-meta);
   line-height: var(--leading-meta);
   font-weight: var(--weight-semibold);
+}
+
+.ds-text-button--accent {
+  color: var(--color-accent-text);
+}
+
+.ds-text-button--danger {
+  color: var(--color-danger);
 }
 
 .ds-text-button--start {

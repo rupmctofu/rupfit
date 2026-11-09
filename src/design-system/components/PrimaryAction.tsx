@@ -50,6 +50,8 @@ export interface TextButtonProps {
   readonly icon?: IconName | undefined;
   /** `start` for the inline actions that sit on a data row (`Cambiar`). */
   readonly align?: 'center' | 'start' | undefined;
+  /** `quiet` (default) is primary ink; `danger` for destructive rows; `accent` is rare. */
+  readonly tone?: 'quiet' | 'accent' | 'danger' | undefined;
   readonly className?: string | undefined;
 }
 
@@ -63,9 +65,16 @@ export function TextButton({
   disabled = false,
   icon,
   align = 'center',
+  tone = 'quiet',
   className,
 }: TextButtonProps): React.ReactElement {
-  const classes = ['ds-action', 'ds-text-button', `ds-text-button--${align}`, className ?? '']
+  const classes = [
+    'ds-action',
+    'ds-text-button',
+    `ds-text-button--${align}`,
+    tone === 'quiet' ? '' : `ds-text-button--${tone}`,
+    className ?? '',
+  ]
     .filter((p) => p !== '')
     .join(' ');
 

@@ -39,7 +39,11 @@
   --color-accent-ink: #101214;
   --color-accent-text: #b8f34a;
   --color-accent-muted: #26301b;
-  --color-success: #b8f34a;
+  /* Success is its own green, not the accent: when `check` glyphs, `correcto` chips and
+     record dots paint themselves lime, the accent stops marking the one thing that
+     matters and becomes the colour of "nothing is wrong" (§4). Skin A already shipped a
+     distinct success green; skin B now matches it. */
+  --color-success: #5fd38a;
   --color-warning: #e8b85c;
   --color-danger: #e47777;
   /* Chart series, max 4, always paired with a direct label (§4). */

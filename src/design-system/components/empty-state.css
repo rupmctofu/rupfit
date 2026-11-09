@@ -1,14 +1,27 @@
-/* Empty state: a dashed hairline box with one sentence and one action. */
+/* Empty state (§7.8): one sentence saying what is missing, and the single action
+   that fixes it. It never scolds, never blocks and never draws an empty chart.
+
+   Drawn as a quiet surface, not as a dashed rectangle: a dashed outline is the visual
+   language of a wireframe, and this box is the most-seen element of a fresh install,
+   so it has to read as finished product (§3, «no de prototipo»). The surface is one
+   step above the background, which is what gives the dark theme its depth (§4). */
 
 .ds-empty {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: var(--space-2);
+  gap: var(--space-3);
   padding: var(--space-4);
-  border: var(--layout-hairline) dashed var(--color-border);
+  background: var(--color-surface);
+  border: var(--layout-hairline) solid var(--color-border);
   border-radius: var(--radius-card);
   min-width: 0;
+}
+
+.ds-empty--bare {
+  background: none;
+  border-color: transparent;
+  padding: 0;
 }
 
 .ds-empty__text {
@@ -20,19 +33,38 @@
   overflow-wrap: anywhere;
 }
 
+/* Quiet by default: an outlined pill, clearly tappable, without spending the accent.
+   `primary` is for the screens where the empty state carries the only action there is
+   (Progreso before the first session), and then it is the one accent fill of the screen. */
 .ds-empty__action {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: var(--target-min);
-  padding: 0;
-  color: var(--color-accent-text);
+  padding: 0 var(--space-4);
+  border: var(--layout-hairline) solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-family: var(--font-sans);
   font-size: var(--text-meta);
   line-height: var(--leading-meta);
   font-weight: var(--weight-semibold);
-  background: none;
-  text-align: left;
+  text-align: center;
+}
+
+.ds-empty--primary .ds-empty__action {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  border-color: transparent;
 }
 
 .ds-empty__action:active {
   opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ds-empty__action {
+    transition: opacity var(--motion-fast) var(--motion-ease);
+  }
 }

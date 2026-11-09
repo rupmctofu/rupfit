@@ -57,6 +57,16 @@
   font-weight: var(--weight-semibold);
 }
 
+/* The selected state of a chip control, and the only one a selected option should use.
+   It is tinted, not filled: five lime pills in a row turn the accent into wallpaper (§4).
+   `--solid` stays available for the single deliberate emphasis in a screen. */
+.ds-chip--selected {
+  background: var(--color-accent-muted);
+  color: var(--color-accent-text);
+  border-color: transparent;
+  font-weight: var(--weight-semibold);
+}
+
 /* The 48 px target around a 26 px pill: no wrapper that shifts the layout (§3). */
 .ds-chip-control {
   display: inline-flex;

@@ -73,7 +73,9 @@
   min-height: var(--target-min);
   min-width: var(--target-min);
   padding: 0 var(--space-2);
-  color: var(--color-accent-text);
+  /* The action inside a banner is secondary: primary ink, and `danger` when the banner
+     is asking for something destructive. The accent stays for the screen's one action. */
+  color: var(--color-text);
   font-size: var(--text-label);
   line-height: var(--leading-label);
   font-weight: var(--weight-semibold);

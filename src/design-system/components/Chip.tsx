@@ -12,7 +12,14 @@ import { Icon } from './Icon';
 import '../foundation.css';
 import './chips.css';
 
-export type ChipTone = 'neutral' | 'success' | 'warning' | 'danger' | 'accent' | 'solid';
+export type ChipTone =
+  | 'neutral'
+  | 'selected'
+  | 'success'
+  | 'warning'
+  | 'danger'
+  | 'accent'
+  | 'solid';
 
 export interface ChipProps {
   readonly children: React.ReactNode;
@@ -50,9 +57,10 @@ export function Chip(props: ChipProps): React.ReactElement {
     return <Pill {...props} />;
   }
 
-  // The pressed state switches to the accent fill so the choice is visible without
-  // relying on a colour difference alone: the pill also gains weight and a label.
-  const tone: ChipTone = pressed ? 'solid' : (props.tone ?? 'neutral');
+  // The pressed state is tinted, never filled: a row of lime pills makes the accent the
+  // background of the screen instead of the mark of the one thing that matters (§4).
+  // The choice still reads without relying on colour alone: it gains weight and a label.
+  const tone: ChipTone = pressed ? 'selected' : (props.tone ?? 'neutral');
 
   return (
     <button

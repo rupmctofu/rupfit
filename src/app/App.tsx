@@ -9,6 +9,7 @@ import {
   type Route,
 } from './routes';
 import { AppProvider, useAppServices } from './providers';
+import { Icon, type IconName } from '../design-system';
 import { HomeScreen } from '../features/home/HomeScreen';
 import { TrainScreen } from '../features/train/TrainScreen';
 import { ProgressScreen } from '../features/progress/ProgressScreen';
@@ -22,11 +23,11 @@ import { useSetupGate } from '../features/onboarding/useSetupGate';
 import { registerServiceWorker } from '../pwa';
 import { GalleryScreen } from './gallery/GalleryScreen';
 
-const TABS: readonly { route: Route; label: string; icon: string }[] = [
-  { route: 'inicio', label: 'Inicio', icon: '⌂' },
-  { route: 'entrenar', label: 'Entrenar', icon: '⚑' },
-  { route: 'progreso', label: 'Progreso', icon: '▮▮▮' },
-  { route: 'perfil', label: 'Perfil', icon: '☺' },
+const TABS: readonly { route: Route; label: string; icon: IconName }[] = [
+  { route: 'inicio', label: 'Inicio', icon: 'home' },
+  { route: 'entrenar', label: 'Entrenar', icon: 'train' },
+  { route: 'progreso', label: 'Progreso', icon: 'chart' },
+  { route: 'perfil', label: 'Perfil', icon: 'person' },
 ];
 
 /** The routes that live inside the tab shell. The session and the summary do not. */
@@ -156,7 +157,7 @@ function AppShell(): React.ReactElement {
               aria-current={tabFor(route) === tab.route ? 'page' : undefined}
             >
               <span className="tabbar__icon" aria-hidden="true">
-                {tab.icon}
+                <Icon name={tab.icon} size={22} />
               </span>
               <span className="tabbar__label">{tab.label}</span>
             </a>

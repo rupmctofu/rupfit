@@ -40,6 +40,19 @@
   white-space: nowrap;
 }
 
+/* The weight of the set, beside the reps. The gym question is "how much do I put on the
+   bar", and it used to be answerable only from the card above the rows. */
+.ds-set__weight {
+  flex: none;
+  font-family: var(--font-numeric);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
 .ds-set__right {
   display: flex;
   align-items: center;

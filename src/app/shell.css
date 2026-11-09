@@ -56,7 +56,7 @@ body {
   min-height: 56px;
   text-decoration: none;
   color: var(--color-muted, #a1a1a6);
-  font-size: 11px;
+  font-size: var(--text-tab);
   touch-action: manipulation;
 }
 
@@ -64,9 +64,19 @@ body {
   color: var(--color-accent, #c6f24e);
 }
 
+/* The tab icon is the design-system glyph, not a text character: the four tabs used to
+   mix ⌂ ⚑ ▮▮▮ ☺ with the SVG set everywhere else, and a Unicode glyph renders with the
+   platform's own font and weight, so the bar never matched the icons inside the app. */
 .tabbar__icon {
-  font-size: 18px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+}
+
+/* Active is a real state, not only a hue: the stroke gains weight (§4, §9). */
+.tabbar__tab[aria-current='page'] .ds-icon {
+  stroke-width: 2.1;
 }
 
 .tabbar__label {
