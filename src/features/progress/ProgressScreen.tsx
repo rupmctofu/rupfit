@@ -61,6 +61,7 @@ import type {
   UserProfile,
   WorkoutSession,
 } from '../../storage';
+import { deleteSessionConfirmation } from '../../storage';
 import {
   isRecordedSession,
   personalRecords,
@@ -191,6 +192,23 @@ function ProgressTab({
   }, [storage, clock, attempt]);
 
   const retry = useCallback(() => setAttempt((current) => current + 1), []);
+
+  /**
+   * Deleting a stored session (odd/tasks/delete-session.md). The store demands two steps —
+   * flag, then remove — and refuses the second without the typed sentence, so this calls
+   * both in order and re-reads the tab from the store afterwards instead of editing the
+   * list in memory: the recommendation the engine computes has to see the deletion too.
+   */
+  const deleteSession = useCallback(
+    async (session: WorkoutSession): Promise<void> => {
+      await storage.sessions.markDeletionPending(session.id);
+      await storage.sessions.delete(session.id, {
+        confirmation: deleteSessionConfirmation(session.dayNameSnapshot),
+      });
+      setAttempt((current) => current + 1);
+    },
+    [storage],
+  );
   const startTraining = useCallback(() => {
     window.location.hash = '#/entrenar';
   }, []);
@@ -266,6 +284,7 @@ function ProgressTab({
         onBack={navigation.back}
         onOpenExercise={navigation.openExercise}
         onStartTraining={startTraining}
+        onDeleteSession={deleteSession}
       />
     );
   }

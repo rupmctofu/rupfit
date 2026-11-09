@@ -174,3 +174,42 @@
   display: block;
   min-width: 0;
 }
+
+/* ------------------------------------------------- deleting a stored session */
+/* The destructive block sits at the end of a session read-out: it is rarely the reason
+   the owner opened the session, so it never competes with the totals above it. */
+.progress__danger {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) 0 var(--space-1);
+  border-top: var(--layout-hairline) solid var(--color-border);
+}
+
+.progress__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* The typed sentence is the whole safeguard: a 48 px field the owner has to fill. */
+.progress__confirm-input {
+  width: 100%;
+  min-height: var(--target-min);
+  padding: var(--space-2) var(--space-3);
+  border: var(--layout-hairline) solid var(--color-border);
+  border-radius: var(--radius-control-square);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  user-select: text;
+  -webkit-user-select: text;
+  touch-action: manipulation;
+}
+
+.progress__confirm-input:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}

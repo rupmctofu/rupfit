@@ -26,10 +26,13 @@ import {
   DataRow,
   DataStrip,
   EmptyState,
+  ErrorBanner,
   SectionLabel,
+  TextButton,
 } from '../../design-system';
 import type { WorkoutSession } from '../../storage';
 import { exerciseKey, recordsInSession } from './aggregates';
+import { deleteGate, deleteHint, deletePhrase } from './deleteSession';
 import { exerciseUsages, type ExerciseUsage } from './exerciseDetail';
 import {
   durationMinutes,
@@ -42,7 +45,7 @@ import {
   formatWeight,
 } from './format';
 import { DrilldownHeader } from './parts';
-import { historySessions, sessionSummary } from './summary';
+import { historySessions, isHistorySession, sessionSummary } from './summary';
 import './progress.css';
 
 export interface HistorialScreenProps {
@@ -53,6 +56,11 @@ export interface HistorialScreenProps {
   readonly onOpenExercise: (key: string) => void;
   /** `#/entrenar`: the one action that fills an empty history. */
   readonly onStartTraining: () => void;
+  /**
+   * Removes a stored session for good (odd/tasks/delete-session.md). `undefined` keeps the
+   * screen read-only, which is what the demo and the tests use.
+   */
+  readonly onDeleteSession?: ((session: WorkoutSession) => Promise<void>) | undefined;
 }
 
 interface MonthGroup {
@@ -118,6 +126,7 @@ export function HistorialScreen({
   onBack,
   onOpenExercise,
   onStartTraining,
+  onDeleteSession,
 }: HistorialScreenProps): React.ReactElement {
   const rows = useMemo(() => historySessions(sessions), [sessions]);
   const usages = useMemo(() => exerciseUsages(sessions), [sessions]);
@@ -137,9 +146,22 @@ export function HistorialScreen({
     }
     return { durationMs, withDuration };
   }, [summaries]);
+  /**
+   * Sessions that exist but were never really trained: `scheduled`, `inProgress`, or a
+   * partial with zero sets. Historial hides them on purpose (they did not happen), but
+   * they still take space in the store and the owner cannot remove them from anywhere
+   * else, so they get their own honest section: visible, and deletable.
+   */
+  const ghosts = useMemo(
+    () => sessions.filter((session) => !isHistorySession(session)),
+    [sessions],
+  );
   const [openId, setOpenId] = useState<string | null>(null);
 
-  const open = openId === null ? undefined : rows.find((row) => row.id === openId);
+  const open =
+    openId === null
+      ? undefined
+      : ([...rows, ...ghosts].find((row) => row.id === openId) ?? undefined);
 
   if (open !== undefined) {
     return (
@@ -149,11 +171,19 @@ export function HistorialScreen({
         onBack={() => setOpenId(null)}
         backLabel="Historial"
         onOpenExercise={onOpenExercise}
+        {...(onDeleteSession === undefined
+          ? {}
+          : {
+              onDelete: async () => {
+                await onDeleteSession(open);
+                setOpenId(null);
+              },
+            })}
       />
     );
   }
 
-  if (rows.length === 0) {
+  if (rows.length === 0 && ghosts.length === 0) {
     return (
       <div className="progress">
         <DrilldownHeader title="Historial" backLabel="Progreso" onBack={onBack} />
@@ -178,6 +208,31 @@ export function HistorialScreen({
   return (
     <div className="progress">
       <DrilldownHeader title="Historial" backLabel="Progreso" onBack={onBack} />
+      {ghosts.length === 0 ? null : (
+        <div className="progress__group">
+          <SectionLabel>Sin series registradas</SectionLabel>
+          <Card padding="list">
+            {ghosts.map((session) => (
+              <DataRow
+                key={session.id}
+                icon="calendar"
+                title={`${formatWeekdayDay(session.scheduledDate)} · ${session.dayNameSnapshot}`}
+                subtitle="Empezada sin series · se puede borrar"
+                status={{
+                  word:
+                    session.status === 'completed' || session.status === 'partial' ||
+                    session.status === 'abandoned'
+                      ? 'sin series'
+                      : session.status === 'inProgress'
+                        ? 'en curso'
+                        : 'programada',
+                }}
+                onSelect={() => setOpenId(session.id)}
+              />
+            ))}
+          </Card>
+        </div>
+      )}
       {groupByMonth(rows).map((group) => (
         <div className="progress__group" key={group.title}>
           <SectionLabel>{group.title}</SectionLabel>
@@ -239,6 +294,8 @@ interface SessionReadOutProps {
   /** The label of the back control: what it returns to. */
   readonly backLabel: string;
   readonly onOpenExercise: (key: string) => void;
+  /** Absent when the screen must stay read-only. */
+  readonly onDelete?: (() => Promise<void>) | undefined;
 }
 
 /**
@@ -251,6 +308,7 @@ function SessionReadOut({
   onBack,
   backLabel,
   onOpenExercise,
+  onDelete,
 }: SessionReadOutProps): React.ReactElement {
   const summary = sessionSummary(session);
   const hits = recordsInSession(session, all);
@@ -340,6 +398,107 @@ function SessionReadOut({
           );
         })}
       </Card>
+
+      {onDelete === undefined ? null : (
+        <DeleteSessionBlock dayName={session.dayNameSnapshot} onDelete={onDelete} />
+      )}
     </div>
+  );
+}
+
+/**
+ * Removing a session that never happened (odd/tasks/delete-session.md).
+ *
+ * The action is behind a typed sentence, never a single tap: the owner pressed «Empezar»
+ * by mistake, and the same gesture should not be able to delete a real session. The gate
+ * itself lives in `deleteSession.ts`, so this component only renders its three states.
+ */
+function DeleteSessionBlock({
+  dayName,
+  onDelete,
+}: {
+  readonly dayName: string;
+  readonly onDelete: () => Promise<void>;
+}): React.ReactElement {
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const gate = deleteGate(typed, dayName);
+
+  if (!open) {
+    return (
+      <div className="progress__danger">
+        <TextButton
+          align="start"
+          tone="danger"
+          onClick={() => {
+            setOpen(true);
+            setFailed(false);
+          }}
+        >
+          Borrar esta sesión
+        </TextButton>
+        <p className="ds-caption">
+          Útil si empezaste un entrenamiento por error. Se borra del historial y deja de contar para
+          la próxima recomendación.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <Card>
+      <p className="ds-body">
+        Se borra la sesión y sus series. No se puede deshacer y el motor volverá a decidir como si
+        ese día no hubieras entrenado.
+      </p>
+
+      <label className="progress__confirm">
+        <span className="ds-meta">Confirmación</span>
+        <input
+          className="progress__confirm-input"
+          type="text"
+          value={typed}
+          autoCapitalize="characters"
+          autoCorrect="off"
+          spellCheck={false}
+          placeholder={deletePhrase(dayName)}
+          onChange={(event) => {
+            setTyped(event.target.value);
+            setFailed(false);
+          }}
+        />
+        <span className="ds-caption">{deleteHint(gate, dayName)}</span>
+      </label>
+
+      {failed ? (
+        <ErrorBanner message="No se pudo borrar la sesión. Sigue guardada; inténtalo otra vez." />
+      ) : null}
+
+      <TextButton
+        align="start"
+        tone="danger"
+        disabled={gate !== 'ready' || busy}
+        onClick={() => {
+          setBusy(true);
+          setFailed(false);
+          void (async () => {
+            try {
+              await onDelete();
+            } catch {
+              setFailed(true);
+              setBusy(false);
+            }
+          })();
+        }}
+      >
+        {busy ? 'Borrando…' : 'Borrar definitivamente'}
+      </TextButton>
+
+      <TextButton align="start" onClick={() => setOpen(false)}>
+        {busy ? 'Espera…' : 'Cancelar'}
+      </TextButton>
+    </Card>
   );
 }

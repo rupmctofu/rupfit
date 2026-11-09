@@ -21,8 +21,8 @@ Sesiones en curso, reanudación, resumen, copia de seguridad, historial y estad�
 
 ## Tasks
 
-- T1 — Exponer el borrado en Historial: entrada por sesión guardada, confirmación escrita, estado de error y de éxito. Specs S1, S2, S3. Ruta: worker (`src/features/progress/`). Commit: sí.
-- T2 — Verificar: pruebas del repositorio y de la lógica de confirmación, `typecheck`, `build` y captura de la pantalla con el diálogo abierto. Specs S3, S4. Ruta: inline + verifier. Commit: sí.
+- T1 — Exponer el borrado en Historial, más una sección para las sesiones sin series que el historial ocultaba. Specs S1, S2, S3. Ruta: inline (`src/features/progress/`). Hecho.
+- T2 — Verificar: 6 pruebas del portón de confirmación, `typecheck`, `build`, captura del formulario y borrado real de extremo a extremo en perfil de navegador desechable. Specs S3, S4. Hecho.
 
 ## Log
 
@@ -34,3 +34,9 @@ me gustaría poder eliminar un entreno, ya que a veces le doy a empezar entreno,
 **L2 — Decisión de producto.** El usuario eligió borrado definitivo frente a marcar como no real. Se implementa un solo camino: eliminar.
 
 **L3 — Hallazgo de código.** `src/storage/repositories/sessions.ts:329` ya expone `delete(sessionId, { confirmation })` con la invariante I-5 (marca primero, elimina después) y validación de la frase de confirmación; `tests/storage/repositories.test.ts` ya lo cubre. No hace falta tocar el modelo de datos: la tarea es de interfaz y flujo.
+
+**L4 — Hallazgo que cambió el alcance.** `historySessions` filtra por estado final **y** por tener al menos una serie (`src/features/progress/summary.ts:72-82`). La sesión del caso real —pulsar «Empezar» y no registrar nada— es `scheduled`/`inProgress`/`partial` sin series: no aparecía en Historial, así que un botón de borrar en el read-out habría sido inalcanzable para el usuario que lo pidió. Se añade la sección «Sin series registradas», que las hace visibles y borrables desde el mismo read-out.
+
+**L5 — Verificación funcional.** En un perfil de navegador desechable: la lista mostraba 1 grupo, el read-out abrió `abandonada 0/12`, el campo pedía `BORRAR SENTADILLA / PIERNA`, el botón se habilitó solo al escribir la frase exacta y, tras borrar, la app volvió a `#/progreso/historial` con 0 grupos y sin la sesión. `npm test` 659/659; `tsc` en ambos proyectos sin salida; `build` correcto; capturas 390 px sin errores de consola.
+
+**L6 — Alcance de lo borrable.** Borrar recalcula la recomendación siguiente porque el motor lee `sessions.recent`; el usuario aceptó esa consecuencia al elegir borrado definitivo sobre «marcar como no real».
