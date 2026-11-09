@@ -3,10 +3,15 @@
  *
  * A full-height sheet over the tab bar (design-system §8): the exit control and the day
  * on top, the phase banner, the paged exercise cards, the pager, and one bottom bar that
- * changes with what the owner has to decide next — the load decision, the rest, or the
- * end of the session. The end of the session is not a dead end: it offers the summary of
- * the session that was just written (`#/resumen/<id>`) and, second, the way back to
+ * changes with what the owner has to decide next — the load decision, the next set, or
+ * the end of the session. The end of the session is not a dead end: it offers the summary
+ * of the session that was just written (`#/resumen/<id>`) and, second, the way back to
  * Inicio.
+ *
+ * There is no rest timer here (S5): a confirmed set never blocks the session, never opens
+ * a countdown and never asks to be dismissed — the next set is registrable immediately.
+ * The prescribed rest of the exercise stays visible as the card's text line
+ * (`descanso 180 s`, `targetLine`), because it is information, not a gate.
  *
  * Three rules hold the file together:
  *
@@ -16,8 +21,7 @@
  *    write resolved, so a failed write leaves the set exactly where the thumb left it
  *    and the banner offers `Reintentar` (`sesion-error`).
  * 3. **Two taps per set.** The rep count is a stepper, effort and discomfort are
- *    optional chips, and the pinned `Registrar serie` of the open row — the compact
- *    `Confirmar` of the row itself while the rest bar owns that slot — is the second
+ *    optional chips, and the pinned `Registrar serie` of the open row is the second
  *    tap (FR-6.7).
  *
  * The only local state is what the reducer deliberately does not own: the reps being
@@ -29,11 +33,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Discomfort, Effort } from '../../core/domain';
 import {
   activeExercise,
-  isRestFinished,
   isSessionAnswered,
-  restDeadline,
-  restElapsedMs,
-  restRemainingMs,
   summarise,
   type ExerciseState,
 } from '../../core/session/model';
@@ -48,7 +48,6 @@ import {
   Pager,
   PhaseBanner,
   PrimaryAction,
-  RestTimerBar,
   SectionLabel,
   TextButton,
   WeightKeypad,
@@ -65,9 +64,7 @@ import {
 import {
   discomfortFromChip,
   effortFromChip,
-  formatOverrun,
   formatRest,
-  formatRestSpoken,
   formatVolume,
   formatWeekdayTime,
   formatWeight,
@@ -322,13 +319,6 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
   }
 
   const summary = summarise(session);
-  const restDeadlineAt = restDeadline(session);
-  const restFinished = isRestFinished(session, now);
-  const restRunning = restDeadlineAt !== null;
-  const restDurationMs = session.rest.durationSeconds === null
-    ? 0
-    : (session.rest.durationSeconds + session.rest.extensionSeconds) * 1000;
-  const restProgress = restFinished ? 1 : restDurationMs === 0 ? 0 : restElapsedMs(session, now) / restDurationMs;
 
   const terminal = screenState === 'finished' || screenState === 'partial';
   const exerciseOnScreen = active;
@@ -345,7 +335,7 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
   const lastSlot = exerciseOnScreen?.prescription.sets ?? 0;
 
   // `Terminar la sesión` is the sheet's quiet exit in every state that is not the
-  // rest bar: the outcome is derived from what was answered, never from a second tap.
+  // pinned confirm: the outcome is derived from what was answered, never from a second tap.
   const finishSession = (): void => {
     dispatch({
       type: 'session-finished',
@@ -416,27 +406,6 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
       );
     }
 
-    if (restRunning) {
-      return (
-        <RestTimerBar
-          state={restFinished ? 'finished' : 'running'}
-          remainingLabel={formatRest(restRemainingMs(session, now))}
-          progress={restProgress}
-          accessibleLabel={
-            restFinished
-              ? `Descanso terminado, ${formatOverrun(Math.max(0, now - (restDeadlineAt ?? now)))}`
-              : formatRestSpoken(restRemainingMs(session, now))
-          }
-          {...(restFinished
-            ? { overrunLabel: formatOverrun(Math.max(0, now - (restDeadlineAt ?? now))) }
-            : {})}
-          onExtend={() => dispatch({ type: 'rest-extended', seconds: 15 })}
-          onSkip={() => dispatch({ type: 'rest-skipped' })}
-          {...(restFinished ? { onDismiss: () => dispatch({ type: 'rest-skipped' }) } : {})}
-        />
-      );
-    }
-
     if (exerciseOnScreen !== null && !decided) {
       if (suggestion === null) {
         return (
@@ -470,9 +439,8 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
     // The open set is what the owner is doing right now: its one strong action sits in
     // the pinned bar, where the thumb already is, instead of at the end of a row that
     // has to hold `Serie n`, the rep stepper, the weight and the button at 390 px. The
-    // row keeps the weight and the reps; the bar registers them. While the rest bar
-    // owns this slot the row keeps its compact `Confirmar`, so logging a set during
-    // the rest is still one tap and the screen still never shows two accent fills.
+    // row keeps the weight and the reps; the bar registers them — before and after a
+    // confirmed set alike, so nothing has to be dismissed before the next one.
     if (exerciseOnScreen !== null && slot !== null) {
       const draft = draftFor(exerciseOnScreen);
       return (
@@ -563,14 +531,12 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
               }
               draft={draftFor(exercise)}
               interactive={!terminal && index === session.activeIndex}
-              confirmInRow={restRunning}
               onRepsChange={(reps) => patchDraft(exercise, { reps })}
               onEffortChange={(effort: EffortChip | null) => patchDraft(exercise, { effort })}
               onDiscomfortChange={(discomfort: DiscomfortChip | null) =>
                 patchDraft(exercise, { discomfort })
               }
               onShowDiscomfort={() => patchDraft(exercise, { showDiscomfort: true })}
-              onConfirm={() => confirmSet(exercise)}
               onEditWeight={() => openKeypad(exercise)}
               onWeightStep={(direction) => stepWeight(exercise, direction)}
               onSkipRemaining={() => skipRemaining(exercise)}

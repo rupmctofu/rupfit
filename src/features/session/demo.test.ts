@@ -30,8 +30,7 @@ const REQUIRED: readonly ScreenState[] = [
   'decision',
   'resumed',
   'recovered',
-  'rest',
-  'rest-finished',
+  'active',
   'finished',
   'partial',
   'error',
@@ -42,7 +41,7 @@ describe('the demo covers every required state of the screen', () => {
     const reached = new Set<ScreenState>();
     for (const scenario of DEMO_SCENARIOS) {
       const run = await runDemoScenario(scenario, NOW);
-      reached.add(screenStateOf(run.runtime, NOW));
+      reached.add(screenStateOf(run.runtime));
     }
 
     const missing = REQUIRED.filter((state) => !reached.has(state));
@@ -61,32 +60,36 @@ describe('the demo covers every required state of the screen', () => {
 
   it('resumes from the journal after a kill and from storage after a discarded page', async () => {
     const killed = await runDemoScenario(demoScenario('reanudada'), NOW);
-    expect(screenStateOf(killed.runtime, NOW)).toBe('resumed');
+    expect(screenStateOf(killed.runtime)).toBe('resumed');
     expect(killed.runtime.session?.exercises[0]?.sets.map((entry) => entry.status)).toEqual([
       'confirmed',
       'skipped',
     ]);
 
     const discarded = await runDemoScenario(demoScenario('pagina-descartada'), NOW);
-    expect(screenStateOf(discarded.runtime, NOW)).toBe('recovered');
+    expect(screenStateOf(discarded.runtime)).toBe('recovered');
     expect(discarded.runtime.session?.exercises[0]?.sets.map((entry) => entry.status)).toEqual([
       'confirmed',
       'confirmed',
     ]);
   });
 
-  it('reports the rest as finished once the screen has slept past the deadline', async () => {
-    const running = await runDemoScenario(demoScenario('descanso'), NOW);
-    expect(screenStateOf(running.runtime, NOW)).toBe('rest');
+  it('keeps a session with confirmed sets on the next set, with no rest state in between', async () => {
+    const run = await runDemoScenario(demoScenario('sin-descanso'), NOW);
 
-    const slept = await runDemoScenario(demoScenario('dormida'), NOW);
-    expect(screenStateOf(slept.runtime, NOW)).toBe('rest-finished');
+    // S5: the confirmed sets are the state; nothing waits for a countdown, and the
+    // screen is already on the set that follows.
+    expect(screenStateOf(run.runtime)).toBe('active');
+    expect(run.runtime.session?.exercises[0]?.sets.map((entry) => entry.status)).toEqual([
+      'confirmed',
+      'confirmed',
+    ]);
   });
 
   it('keeps the failed set unconfirmed in the error scenario', async () => {
     const run = await runDemoScenario(demoScenario('error'), NOW);
 
-    expect(screenStateOf(run.runtime, NOW)).toBe('error');
+    expect(screenStateOf(run.runtime)).toBe('error');
     expect(run.runtime.error).toBe('No se pudo guardar la serie 2. Sigue en la pantalla.');
     expect(run.runtime.session?.exercises[0]?.sets).toHaveLength(1);
     expect(run.storage.calls).toEqual(['sessions.confirmSet']);

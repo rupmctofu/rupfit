@@ -1,7 +1,7 @@
 /**
  * `#/sesion/demo` — the session screen on a phone, before Inicio exists.
  *
- * Nine scenarios, one per state the design's Sesión row requires plus the two the
+ * Eight scenarios, one per state the design's Sesión row requires plus the ones the
  * renders draw. Each scenario is *data*: a seed for the in-memory port, an optional
  * journal and, where a boot alone cannot reach the state (a failed write, a finished
  * session), one primed event. `runDemoScenario` is the whole recipe, so the test that
@@ -25,8 +25,7 @@ export type DemoScenarioId =
   | 'decision'
   | 'reanudada'
   | 'pagina-descartada'
-  | 'descanso'
-  | 'dormida'
+  | 'sin-descanso'
   | 'error'
   | 'parcial'
   | 'terminada';
@@ -104,17 +103,10 @@ export const DEMO_SCENARIOS: readonly DemoScenario[] = [
     seed: seedFor({ confirmedSets: 2, decision: { kind: 'accepted' } }),
   },
   {
-    id: 'descanso',
-    label: 'Descanso',
-    hint: 'El descanso corre desde la confirmación: quedan 1:45.',
+    id: 'sin-descanso',
+    label: 'Sin descanso',
+    hint: 'Una serie registrada no abre ningún temporizador: la siguiente se anota ya.',
     seed: seedFor({ confirmedSets: 2, decision: { kind: 'accepted' }, lastSetAgoSeconds: 75 }),
-    settled: true,
-  },
-  {
-    id: 'dormida',
-    label: 'Pantalla dormida',
-    hint: 'La pantalla se apagó: el descanso ya terminó y lo dice.',
-    seed: seedFor({ confirmedSets: 2, decision: { kind: 'accepted' }, lastSetAgoSeconds: 200 }),
     settled: true,
   },
   {

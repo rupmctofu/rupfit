@@ -14,8 +14,9 @@
  *
  * The open row shows the two numbers the owner is looking at — the reps it is counting
  * and the weight on the bar — and the screen's pinned bar registers them
- * (`Registrar serie`). Only while the rest bar occupies that slot does the row bring
- * its own compact confirm back, so logging a set during the rest stays one tap.
+ * (`Registrar serie`). The row has no confirm of its own: that button is the bar's, in
+ * every state, so the screen never shows two accent fills and nothing has to be
+ * dismissed between sets.
  */
 
 import type { Exercise, ExercisePrescription } from '../../core/domain';
@@ -61,16 +62,10 @@ export interface ExerciseCardProps {
   readonly draft: SetDraft;
   /** This card is the one on screen and the session is still open. */
   readonly interactive: boolean;
-  /**
-   * The open row carries its own compact `Confirmar`. Off while the pinned bar holds
-   * the screen's one accent (`Registrar serie`), so the same tap never exists twice.
-   */
-  readonly confirmInRow: boolean;
   readonly onRepsChange: (reps: number) => void;
   readonly onEffortChange: (effort: EffortChip | null) => void;
   readonly onDiscomfortChange: (discomfort: DiscomfortChip | null) => void;
   readonly onShowDiscomfort: () => void;
-  readonly onConfirm: () => void;
   readonly onEditWeight: () => void;
   readonly onSkipRemaining: () => void;
   readonly onWeightStep: (delta: number) => void;
@@ -187,7 +182,6 @@ function setRowFor(
             discomfort: props.draft.discomfort,
             showDiscomfort: props.draft.showDiscomfort,
             onRepsChange: props.onRepsChange,
-            ...(props.confirmInRow ? { onConfirm: props.onConfirm } : {}),
             onEffortChange: props.onEffortChange,
             onDiscomfortChange: props.onDiscomfortChange,
             onShowDiscomfort: props.onShowDiscomfort,

@@ -32,7 +32,9 @@ function install(storage: MemoryStorage | null): void {
 function state() {
   return snapshotFromSource(
     sessionSourceFrom(currentSession(DEMO_NOW, { confirmedSets: 1, decision: { kind: 'accepted' } })),
-    true,
+    // The session runs with no rest timer (S5), so neither the journal nor a resume can
+    // bring a countdown back.
+    false,
   );
 }
 
@@ -50,7 +52,7 @@ describe('the session journal', () => {
     const read = journal.read();
     expect(read?.id).toBe('session-demo');
     expect(read?.exercises[0]?.sets).toHaveLength(1);
-    expect(read?.rest.durationSeconds).toBe(180);
+    expect(read?.rest.startedAt).toBeNull();
   });
 
   it('keeps one key, so a second session cannot pile up beside the first', () => {

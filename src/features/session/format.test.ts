@@ -11,9 +11,7 @@ import {
   effortFromChip,
   formatDiscomfort,
   formatEffort,
-  formatOverrun,
   formatRest,
-  formatRestSpoken,
   formatVolume,
   formatWeekdayTime,
   formatWeight,
@@ -61,23 +59,12 @@ describe('volume', () => {
   });
 });
 
-describe('the rest bar', () => {
+describe('the session duration', () => {
   it('shows minutes and seconds', () => {
     expect(formatRest(105_000)).toBe('1:45');
     expect(formatRest(9_000)).toBe('0:09');
     expect(formatRest(0)).toBe('0:00');
     expect(formatRest(-5_000)).toBe('0:00');
-  });
-
-  it('says the remaining time in words for the accessible label', () => {
-    expect(formatRestSpoken(105_000)).toBe('Descanso, quedan 1 minuto 45 segundos');
-    expect(formatRestSpoken(45_000)).toBe('Descanso, quedan 45 segundos');
-    expect(formatRestSpoken(60_000)).toBe('Descanso, quedan 1 minuto');
-  });
-
-  it('says how long ago the rest ended', () => {
-    expect(formatOverrun(72_000)).toBe('hace 1:12');
-    expect(formatOverrun(0)).toBe('hace 0:00');
   });
 });
 

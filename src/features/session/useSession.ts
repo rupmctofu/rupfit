@@ -4,9 +4,8 @@
  *
  * The screen below this hook receives `now` as a parameter and never reads the clock
  * itself; the only interval in the session screen lives here. The tick exists for the
- * rest bar and the top bar's time — it is not a countdown, because the remaining time is
- * derived from the confirmation instant every time (§6.4, FR-8.4). Returning from a
- * locked screen therefore needs no correction: the next tick reads the same deadline.
+ * top bar's time — there is no countdown to drive, because the session has no rest
+ * timer (S5) and nothing on it depends on the clock for state.
  */
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
@@ -27,7 +26,7 @@ export interface UseSessionOptions {
   readonly storage: StoragePort;
   readonly clock: Clock;
   readonly journal?: SessionJournal | undefined;
-  /** The tick of the rest bar and the top bar. One second, never less. */
+  /** The tick of the top bar. One second, never less. */
   readonly tickMs?: number | undefined;
 }
 
@@ -88,7 +87,7 @@ export function useSessionController(options: UseSessionOptions): SessionControl
     machine.dismissRecovery();
   }, [machine]);
 
-  const screenState = useMemo(() => screenStateOf(runtime, now), [runtime, now]);
+  const screenState = useMemo(() => screenStateOf(runtime), [runtime]);
 
   return { machine, runtime, now, screenState, dispatch, retry, dismissRecovery };
 }

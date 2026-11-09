@@ -40,8 +40,8 @@ export interface Clock {
 }
 
 /**
- * What survives an app kill that storage does not hold: the card on screen, the rest
- * bar and the skipped slots (§7 keeps none of them).
+ * What survives an app kill that storage does not hold: the card on screen and the
+ * skipped slots (§7 keeps none of them).
  */
 export interface SessionJournal {
   read(): SessionState | null;
@@ -154,14 +154,20 @@ export function sessionSourceFrom(session: WorkoutSession): SessionSource {
   };
 }
 
-/** The state the reducer starts from before a recovery event replaces it. */
-function sessionSeedFrom(session: WorkoutSession, autoStartRest: boolean): SessionSeed {
+/**
+ * The reducer seed. `autoStartRest` is always `false`: the session has no rest timer
+ * (S5), so a confirmed set never opens a countdown or blocks the next one. The stored
+ * `UserProfile.autoStartRestTimer` field stays in the data model — removing it needs a
+ * migration and §3's model is not changed without one — but nothing in the session
+ * reads it any more, and Perfil no longer offers the switch.
+ */
+function sessionSeedFrom(session: WorkoutSession): SessionSeed {
   return {
     id: session.id,
     dayNameSnapshot: session.dayNameSnapshot,
     scheduledDate: session.scheduledDate,
     phase: session.phase,
-    autoStartRest,
+    autoStartRest: false,
     exercises: session.exercises.map((exercise) => ({
       id: exercise.id,
       exerciseId: exercise.exerciseId,
@@ -310,15 +316,15 @@ export function createSessionMachine(deps: SessionDeps): SessionMachine {
         });
       }
 
-      const profile = await storage.profile.read();
-      const autoStartRest = profile?.autoStartRestTimer ?? true;
       const recent = await storage.sessions.recent(HISTORY_SESSIONS);
       const exercises = await loadLibrary(stored);
       const source = sessionSourceFrom(stored);
       const journaled = journal.read();
 
-      const base = createSession(sessionSeedFrom(stored, autoStartRest));
-      const recovered = reduce(base, { type: 'page-recovered', source, autoStartRest }, deps.clock.now()).state;
+      // No profile read here: the rest switch of Perfil is gone (S5) and the session
+      // ignores `autoStartRestTimer`, so there is no setting this boot depends on.
+      const base = createSession(sessionSeedFrom(stored));
+      const recovered = reduce(base, { type: 'page-recovered', source, autoStartRest: false }, deps.clock.now()).state;
       // The journal is the fresher view only when it is not behind storage: a kill
       // between the set write and the journal write leaves storage ahead by one set,
       // and losing a confirmed set is the one thing §7 forbids.
@@ -475,8 +481,6 @@ export type ScreenState =
   | 'partial'
   | 'resumed'
   | 'recovered'
-  | 'rest'
-  | 'rest-finished'
   | 'first-time'
   | 'decision'
   | 'active';
@@ -485,8 +489,10 @@ export type ScreenState =
  * The state the screen is in, in the order the design's Sesión row lists them. One
  * function so the screen and the demo fixture test agree on what "the error state"
  * means instead of each keeping its own idea of it.
+ *
+ * There is no rest state: nothing on the screen waits for a countdown (S5).
  */
-export function screenStateOf(runtime: SessionRuntime, now: EpochMs): ScreenState {
+export function screenStateOf(runtime: SessionRuntime): ScreenState {
   if (runtime.phase === 'loading') return 'loading';
   if (runtime.phase === 'empty') return 'empty';
   if (runtime.phase === 'failed') return 'failed';
@@ -500,12 +506,6 @@ export function screenStateOf(runtime: SessionRuntime, now: EpochMs): ScreenStat
 
   if (runtime.recovery === 'resumed') return 'resumed';
   if (runtime.recovery === 'recovered') return 'recovered';
-
-  const rest = session.rest;
-  if (rest.exerciseSessionId !== null && rest.startedAt !== null && rest.durationSeconds !== null && !rest.dismissed) {
-    const deadline = rest.startedAt + (rest.durationSeconds + rest.extensionSeconds) * 1000;
-    return now >= deadline ? 'rest-finished' : 'rest';
-  }
 
   const exercise = session.exercises[session.activeIndex];
   if (exercise === undefined) return 'empty';

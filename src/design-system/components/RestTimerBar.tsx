@@ -1,5 +1,11 @@
 /*
- * The rest bar (§7.5).
+ * The rest bar (§7.5) — a design-system component, no longer part of the session.
+ *
+ * The Sesión screen has no rest timer (S5): recording a set never opens a countdown and
+ * nothing has to be dismissed before the next set, so this bar is not rendered there any
+ * more. It stays exported because the design-system gallery (`src/app/gallery`, out of
+ * this task's scope) still draws its three states; the prescribed rest survives only as
+ * the card's text line (`descanso 180 s`).
  *
  * 60 px of content above the home indicator plus safe-area padding, the remaining
  * time in tabular figures, `+15 s`, `Saltar` and a 2 px progress line. It stays

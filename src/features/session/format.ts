@@ -46,30 +46,10 @@ function pad(value: number): string {
   return String(Math.floor(value)).padStart(2, '0');
 }
 
-/** `1:45` — the rest bar's remaining time. */
+/** `1:45` — a duration in minutes and seconds (the session's total, and nothing else). */
 export function formatRest(ms: number): string {
   const total = Math.max(0, Math.round(ms / 1000));
   return `${Math.floor(total / 60)}:${pad(total % 60)}`;
-}
-
-/** `hace 1:12` — how long ago the rest ended. */
-export function formatOverrun(ms: number): string {
-  return `hace ${formatRest(ms)}`;
-}
-
-/** `Descanso, quedan 1 minuto 45 segundos` — the bar's static accessible label (§7.5). */
-export function formatRestSpoken(ms: number): string {
-  const total = Math.max(0, Math.round(ms / 1000));
-  const minutes = Math.floor(total / 60);
-  const seconds = total % 60;
-
-  const parts: string[] = [];
-  if (minutes === 1) parts.push('1 minuto');
-  else if (minutes > 1) parts.push(`${minutes} minutos`);
-  if (seconds === 1) parts.push('1 segundo');
-  else if (seconds > 1 || minutes === 0) parts.push(`${seconds} segundos`);
-
-  return `Descanso, quedan ${parts.join(' ')}`;
 }
 
 /** `Miércoles · 18:42` — the sheet's top bar. */

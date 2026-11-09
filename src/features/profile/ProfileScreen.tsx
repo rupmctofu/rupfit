@@ -12,8 +12,7 @@
  * | ---------------- | ----------------------------------------------------------------------- |
  * | platform banners | storage evicted, not installed, update available                        |
  * | Tu perfil        | no profile yet, saved, save failed                                      |
- * | Entrenamiento    | days per week, rest timer on/off, equipment, empty equipment, goal,     |
- * |                  | units, library entry                                                    |
+ * | Entrenamiento    | days per week, equipment, empty equipment, goal, units, library entry  |
  * | Copia            | export idle / in progress / done / **result unknown** / impossible;      |
  * |                  | import idle / invalid (with its path) / valid / restoring / merging /     |
  * |                  | failed / report                                                         |
@@ -43,7 +42,7 @@ import { EQUIPMENT_TYPES, type Equipment } from '../../core/domain';
 import { BACKUP_SCHEMA_VERSION, type UserProfile } from '../../storage';
 import { useAppServices } from '../../app/providers';
 import { createProfileId } from './browser-edges';
-import { ChipChoices, CommitField, Note, ToggleRow } from './fields';
+import { ChipChoices, CommitField, Note } from './fields';
 import { dataState, evictionCopy } from './launch-marker';
 import { installState } from './device-mode';
 import { updateState } from './update-state';
@@ -291,10 +290,12 @@ interface TrainingSectionProps {
 }
 
 /**
- * Training settings, one compact labelled row each. The rest switch is not decoration:
- * `src/core/session` reads `autoStartRestTimer` from the profile at boot, so this is the
- * only place it is set. Goal and units sit here as well: both change how a training
- * number is read, and neither deserves a section of its own.
+ * Training settings, one compact labelled row each. Goal and units sit here because both
+ * change how a training number is read, and neither deserves a section of its own.
+ *
+ * There is no `Descanso automático` switch: the session has no rest timer (S5).
+ * `UserProfile.autoStartRestTimer` stays in the stored model — removing a field needs a
+ * migration — but nothing reads it, so offering the switch would be a lie.
  */
 function TrainingSection({
   profile,
@@ -322,13 +323,6 @@ function TrainingSection({
             />
           </div>
         </div>
-
-        <ToggleRow
-          title="Descanso automático"
-          subtitle="Empieza el descanso al confirmar una serie."
-          on={profile.autoStartRestTimer}
-          onChange={(on) => onWrite({ autoStartRestTimer: on })}
-        />
 
         <div className="profile__setting">
           <span className="profile__setting-label">Equipo disponible</span>

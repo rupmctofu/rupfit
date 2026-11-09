@@ -221,10 +221,11 @@ export interface BuiltSession {
    * FR-8.1 as the profile states it when the session is built.
    *
    * It is deliberately **not** written into the aggregate: `WorkoutSession` has no such
-   * field (data-model §3), and the sheet re-reads `profile.autoStartRestTimer` at boot
-   * (`controller.boot`). Returning it keeps the creation-time read explicit and testable
-   * instead of letting a caller invent a default; a per-session snapshot would be a
-   * storage column and a data-model change, not a UI decision.
+   * field (data-model §3). The session screen no longer reads it either — the rest timer
+   * is gone (S5), so `controller.boot` seeds every session with `autoStartRest: false`
+   * and the switch left Perfil. Returning it keeps the creation-time read explicit and
+   * testable instead of letting a caller invent a default; a per-session snapshot would
+   * be a storage column and a data-model change, not a UI decision.
    */
   readonly autoStartRest: boolean;
 }
@@ -323,7 +324,7 @@ export type StartRefusal = 'noPlan' | 'noProfile' | 'emptyDay' | 'unknownDay';
 export const START_COPY = {
   noPlan: 'Todavía no hay ninguna rutina guardada. Prepara los días de la semana en Ejercicios.',
   noProfile:
-    'Antes de empezar necesitamos tu perfil: sin él la app no sabe cuántos días entrenas ni si debe iniciar el descanso. Se completa en Perfil.',
+    'Antes de empezar necesitamos tu perfil: sin él la app no sabe cuántos días entrenas. Se completa en Perfil.',
   emptyDay: 'Ese día todavía no tiene ejercicios. Añade alguno en Ejercicios antes de empezar.',
   unknownDay: 'Ese día ya no está en tu rutina. Vuelve a la rutina de Ejercicios.',
   resume: 'Tienes un entrenamiento abierto. Se abre donde lo dejaste; no se ha creado otro.',

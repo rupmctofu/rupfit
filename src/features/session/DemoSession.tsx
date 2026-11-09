@@ -4,8 +4,8 @@
  *
  * It says so on screen, it writes nothing to IndexedDB (the port is in memory), and it
  * lets the owner step through every state of the design's Sesión row with one tap. The
- * scenario's seed is built against the instant it was opened, so the rest bar counts
- * down for real instead of freezing at a fixture value.
+ * scenario's seed is built against the instant it was opened, so the set timestamps are
+ * real rather than frozen at a fixture value.
  */
 
 import { useCallback, useMemo, useRef, useState } from 'react';
@@ -19,7 +19,7 @@ export interface DemoSessionProps {
 
 interface DemoRun {
   readonly id: DemoScenarioId;
-  /** The instant the fixture was built at: the rest bar counts from here. */
+  /** The instant the fixture was built at: the set timestamps derive from here. */
   readonly at: number;
 }
 

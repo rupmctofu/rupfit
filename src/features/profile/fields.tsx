@@ -46,40 +46,6 @@ export function ChipChoices<T extends string>({
   );
 }
 
-export interface ToggleRowProps {
-  readonly title: string;
-  readonly subtitle: string;
-  readonly on: boolean;
-  readonly onChange: (next: boolean) => void;
-}
-
-/** A real switch, not a state chip: the row answers "is this on?", so it reads as a
- *  control (`role="switch"` + `aria-checked`) instead of a pill that could be a badge.
- *  The word stays: colour is never the only carrier of the state (§4). */
-export function ToggleRow({ title, subtitle, on, onChange }: ToggleRowProps): React.ReactElement {
-  return (
-    <div className="profile__setting profile__setting--row">
-      <span className="profile__setting-text">
-        <span className="profile__setting-label">{title}</span>
-        <span className="ds-caption">{subtitle}</span>
-      </span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={on}
-        aria-label={title}
-        className="ds-action profile__switch"
-        onClick={() => onChange(!on)}
-      >
-        <span className="profile__switch-track" aria-hidden="true">
-          <span className="profile__switch-thumb" />
-        </span>
-        <span className="profile__switch-word ds-caption">{on ? 'Activado' : 'Desactivado'}</span>
-      </button>
-    </div>
-  );
-}
-
 interface FieldChrome {
   readonly label: string;
   readonly hint?: string | undefined;

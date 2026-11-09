@@ -12,6 +12,7 @@ import { EFFORT } from '../../core/domain';
 import { isSessionAnswered, remainingSets, type SessionState } from '../../core/session/model';
 import {
   createSessionMachine,
+  screenStateOf,
   sessionSourceFrom,
   type Clock,
   type SessionJournal,
@@ -127,7 +128,7 @@ describe('boot', () => {
     expect(storage.calls).toEqual([]);
   });
 
-  it('reads the session, then the history, then the settings, then the library', async () => {
+  it('reads the session, then the history, then the library', async () => {
     const storage = createFakeStorage({ ...sessionFixture(NOW, { confirmedSets: 1, decision: { kind: 'accepted' } }) });
     const machine = createSessionMachine({ storage, clock: clockAt(NOW), journal: journalSpy() });
 
@@ -135,7 +136,6 @@ describe('boot', () => {
 
     expect(storage.calls).toEqual([
       'sessions.inProgress',
-      'profile.read',
       'sessions.recent',
       'exercises.byId',
       'exercises.byId',
@@ -281,7 +281,7 @@ describe('the load decision', () => {
   });
 });
 
-describe('navigation and rest', () => {
+describe('navigation and sets', () => {
   it('pages forward and back without touching the port', async () => {
     const { machine, storage } = await booted();
 
@@ -292,28 +292,33 @@ describe('navigation and rest', () => {
     expect(storage.calls).toEqual([]);
   });
 
-  it('treats the rest bar as a UI directive: no port call for start, extend or skip', async () => {
+  it('records a set with no rest in between: the next set is immediate', async () => {
     const { machine, storage } = await booted();
     await machine.dispatch({ type: 'weight-accepted', exerciseSessionId: ACTIVE_EXERCISE_ID }, NOW);
     await machine.dispatch({ type: 'set-confirmed', ...answers(1) }, NOW);
     storage.reset();
 
-    await machine.dispatch({ type: 'rest-started', exerciseSessionId: ACTIVE_EXERCISE_ID }, NOW);
-    await machine.dispatch({ type: 'rest-extended', seconds: 15 }, NOW);
-    const skipped = await machine.dispatch({ type: 'rest-skipped' }, NOW);
+    const next = await machine.dispatch({ type: 'set-confirmed', ...answers(2) }, NOW);
 
-    expect(storage.calls).toEqual([]);
-    expect(activeSession(skipped).rest.dismissed).toBe(true);
+    // S5: registering a set writes the set and asks nothing else — no timer to start,
+    // nothing to dismiss, and the screen is already on the next set.
+    expect(storage.calls).toEqual(['sessions.confirmSet']);
+    expect(activeSession(next).exercises[0]?.sets).toHaveLength(2);
+    expect(screenStateOf(next)).toBe('active');
   });
 
-  it('starts the rest from the confirmation instant when auto-start is on', async () => {
+  it('never starts a rest even though the stored profile keeps the switch on', async () => {
+    // The fixture profile says `autoStartRestTimer: true`, as a device that used the
+    // old Perfil switch would: the session ignores it (§3 keeps the field, S5 removes
+    // the timer).
     const { machine } = await booted();
     await machine.dispatch({ type: 'weight-accepted', exerciseSessionId: ACTIVE_EXERCISE_ID }, NOW);
 
     const next = await machine.dispatch({ type: 'set-confirmed', ...answers(1) }, NOW);
 
-    expect(activeSession(next).rest.startedAt).toBe(NOW);
-    expect(activeSession(next).rest.durationSeconds).toBe(180);
+    expect(activeSession(next).rest.startedAt).toBeNull();
+    expect(activeSession(next).rest.durationSeconds).toBeNull();
+    expect(activeSession(next).status).toBe('inProgress');
   });
 });
 
