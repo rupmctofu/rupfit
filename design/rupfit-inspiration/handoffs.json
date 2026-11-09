@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "chosen": "01-reference-flow.html",
+  "handoffs": {
+    "01-reference-flow.html": {
+      "status": "in_progress",
+      "queued": false,
+      "sentAt": "2026-11-09T10:29:19.358Z",
+      "startedAt": "2026-11-09T10:30:18.248Z",
+      "implementedAt": null,
+      "feature": "odd/tasks/inspiration-redesign.md",
+      "note": "Implementing the selected six-screen, reference-aligned direction in Rupfit's existing React app; preserve current data and flows.",
+      "previewUrl": "http://localhost:5173/rupfit/"
+    }
+  }
+}
