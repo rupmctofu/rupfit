@@ -94,7 +94,7 @@ export function StorageGroup({
       {done ? <p className="ds-body">Datos borrados. La app vuelve a empezar.</p> : null}
       {error === null ? null : <ErrorBanner message={error} />}
 
-      <TextButton align="start" onClick={() => setOpen(!open)}>
+      <TextButton align="start" tone={open ? 'quiet' : 'danger'} onClick={() => setOpen(!open)}>
         {open ? 'Cancelar el borrado' : 'Borrar todos los datos'}
       </TextButton>
 
@@ -121,7 +121,7 @@ export function StorageGroup({
             onChange={setConfirmation}
           />
 
-          <TextButton align="start" disabled={gate !== 'ready' || deleting} onClick={remove}>
+          <TextButton align="start" tone="danger" disabled={gate !== 'ready' || deleting} onClick={remove}>
             {deleting ? 'Borrando…' : 'Borrar definitivamente'}
           </TextButton>
         </Card>

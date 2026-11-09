@@ -334,7 +334,7 @@ function Summary({
   if (derived.recorded.length === 0 && weight.last === null) {
     return (
       <>
-        <EmptyState action={{ label: 'Empezar entrenamiento', onClick: onStartTraining }}>
+        <EmptyState tone="primary" action={{ label: 'Empezar entrenamiento', onClick: onStartTraining }}>
           Sin datos todavía. Registra una sesión y aquí aparecerán la fuerza por ejercicio, los
           récords y el volumen semanal.
         </EmptyState>

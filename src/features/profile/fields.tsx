@@ -53,7 +53,9 @@ export interface ToggleRowProps {
   readonly onChange: (next: boolean) => void;
 }
 
-/** A labelled switch: the pill carries the word, the button carries `aria-pressed`. */
+/** A real switch, not a state chip: the row answers "is this on?", so it reads as a
+ *  control (`role="switch"` + `aria-checked`) instead of a pill that could be a badge.
+ *  The word stays: colour is never the only carrier of the state (§4). */
 export function ToggleRow({ title, subtitle, on, onChange }: ToggleRowProps): React.ReactElement {
   return (
     <div className="profile__row">
@@ -61,9 +63,19 @@ export function ToggleRow({ title, subtitle, on, onChange }: ToggleRowProps): Re
         <span className="ds-body">{title}</span>
         <span className="ds-meta">{subtitle}</span>
       </span>
-      <Chip label={title} onClick={() => onChange(!on)} pressed={on}>
-        {on ? 'Activado' : 'Desactivado'}
-      </Chip>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label={title}
+        className="profile__switch"
+        onClick={() => onChange(!on)}
+      >
+        <span className="profile__switch-track" aria-hidden="true">
+          <span className="profile__switch-thumb" />
+        </span>
+        <span className="profile__switch-word ds-meta">{on ? 'Activado' : 'Desactivado'}</span>
+      </button>
     </div>
   );
 }

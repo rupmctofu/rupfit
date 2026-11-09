@@ -182,7 +182,7 @@ function TodayBlock({ view }: HomeViewOnly): React.ReactElement {
             card never reads like something that already exists. It is only true while the
             primary action is the one that creates it. */}
         {today.state === 'preview' && view.action?.kind === 'start' ? (
-          <p className="ds-caption">Se crea al empezar.</p>
+          <p className="ds-caption">La sesión se crea al empezar.</p>
         ) : null}
       </Card>
     </section>
@@ -266,7 +266,9 @@ function ActivityCard({ view }: HomeViewOnly): React.ReactElement | null {
     <section className="home__section">
       <SectionLabel icon={<Icon name="heart" size={14} />}>Actividad</SectionLabel>
       {activity.imported === 0 ? (
-        <EmptyState>Todavía no hay datos de salud importados. Esto no impide entrenar.</EmptyState>
+        <EmptyState bare>
+          Todavía no hay datos de salud importados. Esto no impide entrenar.
+        </EmptyState>
       ) : (
         <Card>
           <div className="ds-row">
@@ -312,15 +314,6 @@ export function HomeBody({
         />
       ) : null}
 
-      {/* §7.8: advisory, stated once, and only when there is something to lose. */}
-      {view.notice.notInstalled ? (
-        <Banner
-          tone="warning"
-          title="Guarda Rupfit en la pantalla de inicio para que Safari no borre tus datos."
-          text="Compartir → Añadir a pantalla de inicio."
-        />
-      ) : null}
-
       <TodayBlock view={view} />
 
       {/* Why nothing opened. A failed write offers `Reintentar`; a missing profile sends
@@ -356,6 +349,18 @@ export function HomeBody({
           {starting ? 'Empezando…' : action.label}
         </PrimaryAction>
       )}
+
+      {/* §7.8: advisory, stated once, and only when there is something to lose. It used
+          to sit above `Hoy toca` in warning orange, so the first thing the screen said was
+          a platform chore. It moves under the session action: the day first, the advice
+          afterwards. */}
+      {view.notice.notInstalled ? (
+        <Banner
+          tone="info"
+          title="Guarda Rupfit en la pantalla de inicio para que Safari no borre tus datos."
+          text="Compartir → Añadir a pantalla de inicio."
+        />
+      ) : null}
 
       {view.hasHistory ? null : (
         <EmptyState>Todavía no hay sesiones. La primera aparecerá aquí cuando la termines.</EmptyState>

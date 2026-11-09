@@ -107,15 +107,11 @@ export function TrainBody(props: TrainBodyProps): React.ReactElement {
       {view.today !== null && view.today.kind === 'rest' ? (
         <section className="train__section">
           <SectionLabel>Hoy</SectionLabel>
-          <Card>
-            <h2 className="ds-card-title">Nada programado</h2>
-            <p className="ds-body ds-body--muted">
-              Hoy no hay ninguna sesión programada. Descansa, o adelanta un día desde la rutina.
-            </p>
-            <TextButton align="start" onClick={() => onOpenRoutine(null)}>
-              Ver la rutina
-            </TextButton>
-          </Card>
+          {/* A rest day is not the headline of the screen: the three routine days are.
+              It used to be a card with a 22 px `Nada programado` title above them. */}
+          <p className="ds-body ds-body--muted">
+            Hoy no hay ninguna sesión programada. Descansa, o adelanta un día desde la rutina.
+          </p>
         </section>
       ) : null}
 

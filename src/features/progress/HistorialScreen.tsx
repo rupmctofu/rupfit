@@ -88,7 +88,7 @@ export function HistorialScreen({
     return (
       <div className="progress">
         <DrilldownHeader title="Historial" backLabel="Progreso" onBack={onBack} />
-        <EmptyState action={{ label: 'Empezar entrenamiento', onClick: onStartTraining }}>
+        <EmptyState tone="primary" action={{ label: 'Empezar entrenamiento', onClick: onStartTraining }}>
           Todavía no hay sesiones. Cuando termines la primera, aparecerá aquí con su recomendación y
           sus series.
         </EmptyState>

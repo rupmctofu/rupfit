@@ -16,7 +16,7 @@
  */
 
 import { useState } from 'react';
-import { Card, ErrorBanner, PrimaryAction, SectionLabel, TextButton } from '../../design-system';
+import { Card, ErrorBanner, SectionLabel, TextButton } from '../../design-system';
 import {
   RESTORE_CONFIRMATION,
   type BackupDocument,
@@ -141,13 +141,15 @@ export function BackupGroup({
       <SectionLabel>Copia de seguridad</SectionLabel>
 
       <Card>
-        <PrimaryAction
+        {/* Exporting is infrequent and Perfil has no primary action to protect: a filled
+            block here made the rarest action of the app its loudest element. */}
+        <TextButton
           icon="export"
-          onClick={() => exportControl.start()}
           disabled={exportControl.view.kind === 'working'}
+          onClick={() => exportControl.start()}
         >
           Exportar copia
-        </PrimaryAction>
+        </TextButton>
 
         <p className="ds-meta" aria-live="polite">
           {exportControl.view.kind === 'working'
