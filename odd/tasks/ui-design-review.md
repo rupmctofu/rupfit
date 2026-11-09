@@ -32,6 +32,10 @@ Por tanto: `npm test`, `npm run typecheck` y `npm run build` pasan; `package.jso
 - T2 — Pantalla de sesión: fila de serie con peso visible, acción primaria que registra, copia sin duplicados. Specs S1, S2, S3. Ruta: inline (el gate de writers exigió la referencia literal al documento; se hizo en la sesión padre). Hecho: `3d6091f`.
 - T3 — Inicio, Entrenar, Progreso y Perfil: jerarquía por pantalla, estados vacíos unificados, acento contenido y acción destructiva en peligro. Specs S2, S3. Ruta: inline. Hecho: `f12ccec`.
 - T4 — Verificación: tests, typecheck, build y recaptura visual de las trece pantallas. Spec S5. Hecho: `npm test` 631/631, `tsc --noEmit` sin salida, `npm run build` correcto, 13 capturas sin errores de consola.
+- T5 — Sesión: el histórico de seis sesiones deja de competir con la serie activa y la tarjeta cabe en el viewport al desplegar la fila. Spec S1, S3. Ruta: worker. Commit: sí.
+- T6 — Entrenar: una sola palabra de estado por día y títulos que no se fuerzan a dos líneas. Spec S3. Ruta: worker. Commit: sí.
+- T7 — Consistencia: los literales de espaciado, radios y alturas de `src/design-system/*.css` pasan a tokens del 4 px grid. Spec S4. Ruta: worker. Commit: sí.
+- T8 — Cobertura: sonda durable que falla si un CSS de pantalla vuelve a gastar el acento fuera de la lista permitida. Spec S2, S5. Ruta: worker. Commit: sí.
 
 ## Log
 
@@ -211,6 +215,8 @@ Sé crítico. No des por bueno un diseño simplemente porque compile.
 
 **L3 — Decisiones de patrón de interacción.**
 Stepper para días por semana y para ajustar peso (es un valor numérico discreto y repetido); selector segmentado para objetivo y unidades (pocas opciones excluyentes y visibles de un vistazo); switch real, no chip de estado, para el descanso automático; botón de acción primaria para registrar serie y para empezar entrenamiento; pestañas para la navegación raíz; nada de `<select>` nativo salvo donde el sistema ya lo usa y no hay alternativa mejor; sin control deslizante en peso (el usuario necesita precisión de 1,25 kg, no un gesto continuo).
+
+**L5 — Autocorrección: `success` vuelve al lima documentado.** Al revisar `docs/design-system.md:238` y `src/design-system/README.md:95-96,229-230` aparece que la skin B **decide a propósito** `success` = lima del acento («one green, no second success hue», cita del artboard, registrada como D5). Mi cambio de la ronda 1 (`success: #5fd38a`) contradice una decisión registrada del propietario sin autorización para ello. Se revierte el token al valor documentado y el lima se contiene donde de verdad sobraba: los chips de esfuerzo (`fácil`, `correcto`, `duro`) pasan a neutros —son palabras, no estados de éxito repetidos en cada serie— y `RÉCORD` deja de usar `success` para no pintar de lima un chip que se repite. El acento sigue reservado a la acción primaria, al estado activo y al dato que importa; la marca de serie completada conserva `success` porque ahí el lima significa «hecho».
 
 **L4 — Correcciones al diagnóstico L2 tras leer el código.** Dos de las diez acusaciones eran parcialmente falsas y quedan así:
 - El saludo ya compone `Hola, <nombre>` cuando el perfil tiene nombre (`src/features/home/format.ts`); la captura decía `Hola` porque el store sembrado no tenía nombre. No se tocó.

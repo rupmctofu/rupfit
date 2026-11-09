@@ -287,8 +287,8 @@
 }
 
 .session__demo-chip[aria-pressed='true'] {
-  background: var(--color-accent);
-  color: var(--color-accent-ink);
+  background: var(--color-accent-muted);
+  color: var(--color-accent-text);
 }
 
 @media (max-width: 374px) {

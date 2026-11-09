@@ -2,8 +2,8 @@
  * Entrenar — the week's routine and what happened in it (design-system §8).
  *
  * The title and the week, today when nothing is scheduled, the ordered template with one
- * state word per day, the readaptation block quoted quietly, and one entry to routine
- * management.
+ * state word per day — written only when the day has something to say — the readaptation
+ * block quoted quietly, and one entry to routine management.
  *
  * The management sheet is a real editor (`RoutineEditor.tsx`): it reorders, adds,
  * removes and re-prescribes through `plan.save`, one day per call. Its rules live in
@@ -118,17 +118,28 @@ export function TrainBody(props: TrainBodyProps): React.ReactElement {
       {view.days.length === 0 ? null : (
         <section className="train__section">
           <Card padding="list" label="Días de la rutina">
-            {view.days.map((day) => (
-              <DataRow
-                key={day.planDayId}
-                icon="dumbbell"
-                title={day.title}
-                subtitle={day.subtitle}
-                status={{ word: day.status.word, tone: day.status.tone }}
-                onSelect={() => onOpenRoutine(day.planDayId)}
-                selectLabel={`${day.title}. ${day.subtitle}. ${day.status.word}`}
-              />
-            ))}
+            {view.days.map((day) => {
+              // S3: `pendiente` is the ordinary state of a fresh week, so three identical
+              // words in a fixed right-hand column said nothing and cost the titles their
+              // line (`Peso muerto / Tracción` wrapped). Only the states that carry a fact
+              // are written: `hoy` and `hecha`. `statusOf` still decides all three.
+              const quiet = day.status.word === 'pendiente';
+              return (
+                <DataRow
+                  key={day.planDayId}
+                  icon="dumbbell"
+                  title={day.title}
+                  subtitle={day.subtitle}
+                  {...(quiet ? {} : { status: { word: day.status.word, tone: day.status.tone } })}
+                  onSelect={() => onOpenRoutine(day.planDayId)}
+                  selectLabel={
+                    quiet
+                      ? `${day.title}. ${day.subtitle}.`
+                      : `${day.title}. ${day.subtitle}. ${day.status.word}`
+                  }
+                />
+              );
+            })}
           </Card>
         </section>
       )}

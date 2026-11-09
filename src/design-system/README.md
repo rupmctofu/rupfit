@@ -172,10 +172,10 @@ elements, every one has an accessible name, and every interactive target is at l
 | --- | --- |
 | `Icon` | The artboard's 24 × 24 line icons as inline SVG; `aria-hidden` unless given a `label`. |
 | `PrimaryAction` | The single accent-filled action of a screen: 56 px, full width, `disabled` + `aria-disabled`. |
-| `TextButton` | The quieter accent-text action (`Cambiar`, `Editar rutina`, `Añadir`) with a 48 px hit area from padding. |
+| `TextButton` | The quieter action (`Cambiar`, `Editar rutina`, `Añadir`) with a 48 px hit area from padding. Primary ink by default; `tone="danger"` for destructive rows and `tone="accent"` only where the word alone is not enough. |
 | `Card` | Surface + hairline + radius; `padding="default" \| "dense" \| "list" \| "none"`; no shadow, never nested. |
 | `SectionLabel` | The 13 px uppercase secondary label that introduces a block, with an optional leading glyph. |
-| `Chip` | A word in a pill with a tone (neutral/success/warning/danger/accent/solid); as a control it is a 48 px `aria-pressed` toggle. |
+| `Chip` | A word in a pill with a tone (neutral/selected/success/warning/danger/accent/solid); as a control it is a 48 px `aria-pressed` toggle whose pressed state is `selected` — tinted, never lime-filled, so a row of chosen options does not turn the screen into the accent. |
 | `DataRow` | The list row: badge or weekday marker, title, subtitle, state word, value, chevron; a `<button>` with a sentence-long name when it navigates. |
 | `Numeral` | Tabular figures at `metric` / `metric-small` / `inline` with a smaller unit; digits are never letter-spaced. |
 | `MetricTile` | One metric: label, value + unit, optional delta word, one caption, optional trailing slot (a sparkline). |
@@ -187,7 +187,7 @@ elements, every one has an accessible name, and every interactive target is at l
 | `WeightSummary` | The bar after a decision: the weight once, two 48 px keys to nudge it, the target line and `Cambiar`. |
 | `WeightKeypad` | Our 4 × 3 pad of 48 px keys with a comma, a backspace and `Listo`; digits also work from a hardware keyboard. |
 | `RestTimerBar` | 60 px rest bar derived from the caller's `confirmedAt`: remaining time, `+15 s`, `Saltar`, 2 px progress line, `DESCANSO TERMINADO` state. |
-| `EmptyState` | What is missing in one sentence plus the one action that fixes it. |
+| `EmptyState` | What is missing in one sentence plus the one action that fixes it. `tone="quiet"` (a surface step, never the accent), `tone="primary"` (the screen's only accent fill, at most one per screen) and `bare` for a sentence without a box. No dashed border: that is wireframe language. |
 | `Banner` | Inline, non-blocking notice with a tone, an optional action and an optional disclosure; the home of the three platform states. |
 | `ErrorBanner` | `No se pudo guardar la serie 2…` + `Reintentar`; `role="status"`, never an alert or a modal. |
 | `PhaseBanner` | `Readaptación · semana 2 de 4`, quiet, raised surface, no accent fill. |

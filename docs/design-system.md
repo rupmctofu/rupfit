@@ -569,7 +569,12 @@ component; no native control is used.
 ### 7.8 `EmptyState`, `ErrorBanner`, and the platform states
 
 - `EmptyState`: one sentence saying what is missing and the single action that
-  fixes it.
+  fixes it. Drawn as a surface step, never as a dashed rectangle — a dashed outline
+  reads as a wireframe, and this is the most seen element of a fresh install. Three
+  shapes: `quiet` (default, never spends the accent), `primary` (the screen's only
+  accent fill, at most one per screen, for the screens whose only action this is)
+  and `bare` (the sentence without the box, for the places where a box would nest
+  inside a card).
 - `ErrorBanner`: inline, non-blocking, `danger` text on `bg.raised`, with
   `Reintentar` when retry is meaningful. Never an alert, never `window.alert`,
   never a modal for a recoverable condition.

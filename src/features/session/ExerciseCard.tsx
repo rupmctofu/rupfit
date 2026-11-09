@@ -1,7 +1,8 @@
 /**
  * One exercise card of the session sheet (§7.2): name, position, previous session,
  * the two compare tiles, the one-line reason, the last-six-sessions strip, the set rows
- * and the weight summary once the load is decided.
+ * and the weight summary once the load is decided. The strip is context and steps aside
+ * while a set row is being filled; `stripBars` below still computes it either way.
  *
  * The card is composed here rather than in `src/design-system`, exactly as that library
  * documents: the page container and its state machine belong to the screen. Everything
@@ -261,6 +262,14 @@ export function ExerciseCard(props: ExerciseCardProps): React.ReactElement {
   const activeSlot = interactive && decided ? nextSlotOf(exercise) : null;
   const best = pastBest(history);
   const reason = exercise.recommendation === null ? null : reasonText(exercise.recommendation);
+  // An open set row is the one thing the owner is working on (S1). The strip is context
+  // nobody acts on mid-set, and on a 390 × 844 screen it was the loudest block above the
+  // row, tall enough to push the effort chips below the fold at first paint. So the strip
+  // and both of its hairlines step aside exactly while a set row is open — the stepper,
+  // `Confirmar` and the chips state. It comes back while the weight is still to be decided
+  // (no set row can be open then) and again once every set of the exercise is answered.
+  // Only the render is decided here: the bars keep being computed the same way.
+  const showHistoryStrip = activeSlot === null;
 
   const slots: number[] = [];
   for (let slot = 1; slot <= prescription.sets; slot += 1) slots.push(slot);
@@ -329,15 +338,17 @@ export function ExerciseCard(props: ExerciseCardProps): React.ReactElement {
         </div>
       )}
 
-      {bars.length === 0 ? (
-        <hr className="ds-hairline" />
-      ) : (
-        <>
+      {showHistoryStrip ? (
+        bars.length === 0 ? (
           <hr className="ds-hairline" />
-          <HistoryStrip bars={bars} sets={prescription.sets} />
-          <hr className="ds-hairline" />
-        </>
-      )}
+        ) : (
+          <>
+            <hr className="ds-hairline" />
+            <HistoryStrip bars={bars} sets={prescription.sets} />
+            <hr className="ds-hairline" />
+          </>
+        )
+      ) : null}
 
       <div className="session-card__sets">
         {slots.map((slot) => setRowFor(slot, entryAt(exercise, slot), props, targetReps, activeSlot, best))}
