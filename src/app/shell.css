@@ -14,9 +14,9 @@ body,
 }
 
 body {
-  background: var(--color-bg, #000);
-  color: var(--color-text, #fff);
-  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
 }
@@ -26,14 +26,14 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
-  padding-top: env(safe-area-inset-top);
+  padding-top: var(--safe-top);
 }
 
 .shell__main {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 0 var(--space-4, 16px) var(--space-6, 24px);
+  padding: 0 var(--layout-screen-padding) var(--space-6);
 }
 
 .tabbar {
@@ -41,9 +41,9 @@ body {
   bottom: 0;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  border-top: 1px solid var(--color-border, #2a2a2a);
-  background: var(--color-bg, #000);
-  padding-bottom: env(safe-area-inset-bottom);
+  border-top: var(--layout-hairline) solid var(--color-border);
+  background: var(--color-surface);
+  padding-bottom: var(--safe-bottom-padding);
 }
 
 .tabbar__tab {
@@ -51,17 +51,17 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: var(--space-1);
   /* 48 CSS px minimum: chalk, sweat and cold hands cost accuracy (S4, NFR-4). */
-  min-height: 56px;
+  min-height: var(--control-height);
   text-decoration: none;
-  color: var(--color-muted, #a1a1a6);
+  color: var(--color-muted);
   font-size: var(--text-tab);
   touch-action: manipulation;
 }
 
 .tabbar__tab[aria-current='page'] {
-  color: var(--color-accent, #5734e6);
+  color: var(--color-accent);
 }
 
 /* The tab icon is the design-system glyph, not a text character: the four tabs used to
@@ -71,15 +71,20 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 22px;
+  height: var(--icon-size);
 }
 
 /* Active is a real state, not only a hue (§4, §9): the label gains weight. The icon
    keeps the single stroke of the set — a second thickness is a second icon system. */
+@media (max-width: 374px) {
+  .shell__main {
+    padding-inline: var(--layout-screen-padding-compact);
+  }
+}
 .tabbar__tab[aria-current='page'] .tabbar__label {
   font-weight: var(--weight-semibold);
 }
 
 .tabbar__label {
-  letter-spacing: 0.02em;
+  letter-spacing: var(--tracking-caption);
 }

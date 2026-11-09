@@ -30,7 +30,7 @@ A source-grounded snapshot of the shipped UI system after adopting the owner's l
 | `--color-warning` | `#8A5600` | Advisory state |
 | `--color-danger` | `#B4233D` | Destructive/error state |
 
-### Dark peer (`prefers-color-scheme: dark` or `data-theme="dark"`)
+### Dark peer (explicit `data-theme="dark"` override)
 
 Canvas `#12111B`, surface `#1B1A27`, raised `#26243A`, border `#3B394F`, text `#F6F3FF`, muted `#B4B0C9`, subtle `#858098`, accent `#A892FF`, accent ink `#171329`, accent text `#BBAAFF`, accent-muted `#30294D`, success `#64D6AA`, warning `#F0C06A`, danger `#FF8994`. Chart series: `#B39BFF`, `#69B6FF`, `#67D2A8`, `#F0A875`.
 

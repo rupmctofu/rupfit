@@ -23,10 +23,12 @@ import { useSetupGate } from '../features/onboarding/useSetupGate';
 import { registerServiceWorker } from '../pwa';
 import { GalleryScreen } from './gallery/GalleryScreen';
 
+// Keep the four tab destinations and their hashes stable; the reference renames the
+// existing plan and metrics surfaces to words people use for those tasks.
 const TABS: readonly { route: Route; label: string; icon: IconName }[] = [
   { route: 'inicio', label: 'Inicio', icon: 'home' },
-  { route: 'entrenar', label: 'Entrenar', icon: 'train' },
-  { route: 'progreso', label: 'Progreso', icon: 'chart' },
+  { route: 'progreso', label: 'Historial', icon: 'chart' },
+  { route: 'entrenar', label: 'Ejercicios', icon: 'dumbbell' },
   { route: 'perfil', label: 'Perfil', icon: 'person' },
 ];
 
@@ -157,7 +159,7 @@ function AppShell(): React.ReactElement {
               aria-current={tabFor(route) === tab.route ? 'page' : undefined}
             >
               <span className="tabbar__icon" aria-hidden="true">
-                <Icon name={tab.icon} size={22} />
+                <Icon name={tab.icon} size={20} />
               </span>
               <span className="tabbar__label">{tab.label}</span>
             </a>

@@ -39,7 +39,7 @@ type AllowList = Readonly<Record<string, readonly string[]>>;
 const ALLOWED: AllowList = {
   'app/shell.css': [
     // Active state: the current tab of the tab bar (§4).
-    'color: var(--color-accent, #5734e6);',
+    'color: var(--color-accent);',
   ],
   'features/home/home.css': [
     // The today marker: the single data point Inicio exists to answer ("do I train today?").

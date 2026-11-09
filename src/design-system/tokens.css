@@ -11,8 +11,9 @@
  * soft elevated surfaces. The dark peer keeps charcoal depth and the same violet identity;
  * the orange `data-skin="a"` remains a gallery-only comparison skin.
  *
- * Theme: light is the default; a dark system preference selects the dark peer, and
- * `:root[data-theme="dark"|"light"]` overrides it, so components never branch.
+ * Theme: light is the product default from the reference; an explicit
+ * `:root[data-theme="dark"]` opts into the dark peer, so OS preference never turns the
+ * approved light UI dark unexpectedly.
  */
 
 :root {
@@ -171,32 +172,9 @@
 }
 
 /* ------------------------------------------------------------------- light */
-/* Emitted twice on purpose: once for the system preference (unless the in-app
-   override says dark) and once for the in-app override. Plain CSS has no mixin. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    color-scheme: dark;
-    --color-bg: #12111b;
-    --color-surface: #1b1a27;
-    --color-surface-raised: #26243a;
-    --color-border: #3b394f;
-    --color-text: #f6f3ff;
-    --color-muted: #b4b0c9;
-    --color-subtle: #858098;
-    --color-accent: #a892ff;
-    --color-accent-ink: #171329;
-    --color-accent-text: #bbaaff;
-    --color-accent-muted: #30294d;
-    --color-success: #64d6aa;
-    --color-warning: #f0c06a;
-    --color-danger: #ff8994;
-    --color-chart-1: #b39bff;
-    --color-chart-2: #69b6ff;
-    --color-chart-3: #67d2a8;
-    --color-chart-4: #f0a875;
-    --color-focus-ring: #bbaaff;
-  }
-}
+/* Product default follows the supplied light UI reference; an OS dark preference does
+   not switch palettes without an explicit app-level choice. */
+/* Dark is an explicit host override (`data-theme="dark"`), not an OS-driven flip. */
 
 :root[data-theme='light'] {
   color-scheme: light;
