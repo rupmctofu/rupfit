@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rupfit · estructura de referencia</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f3ff; --surface: #fff; --raised: #f0edfa; --border: #e2def0;
+      --ink: #17142a; --muted: #67637d; --accent: #5734e6; --accent-ink: #fff;
+      --accent-text: #4f2dd1; --accent-muted: #eee9ff; --success: #15805e;
+      --warning: #8a5600; --danger: #b4233d; --chart-2: #8d77ee; --chart-3: #4375c8;
+      --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+      --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+      --space-5: 20px; --space-6: 24px; --space-8: 32px;
+      --card-radius: 16px; --pill: 999px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: var(--bg); font-family: var(--font); }
+    .board { width: 1440px; margin: auto; padding: 36px 58px 48px; }
+    .board-head { display:flex; justify-content:space-between; align-items:end; margin:0 0 26px; }
+    .board h1 { margin:0; font-size:30px; line-height:36px; letter-spacing:-.5px; }
+    .board-head p { margin:6px 0 0; color:var(--muted); font-size:14px; }
+    .key { display:flex; gap:8px; align-items:center; color:var(--muted); font-size:12px; }
+    .key b { padding:5px 10px; border-radius:999px; color:var(--accent-text); background:var(--accent-muted); font-weight:600; }
+    .phones { display:grid; grid-template-columns:repeat(3, 1fr); gap:24px; }
+    .phone { height:760px; overflow:hidden; display:flex; flex-direction:column; background:var(--surface); border:1px solid var(--border); border-radius:30px; }
+    .status { height:34px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 18px; color:var(--ink); font-size:12px; font-weight:600; }
+    .status .demo { color:var(--accent-text); font-size:9px; letter-spacing:.35px; }
+    .screen { flex:1; min-height:0; padding:6px 18px 10px; overflow:hidden; }
+    .screen h2 { margin:0; font-size:24px; line-height:29px; letter-spacing:-.35px; font-weight:700; }
+    .screen h3 { margin:0; font-size:17px; line-height:22px; font-weight:650; }
+    .meta { color:var(--muted); font-size:12px; line-height:16px; }
+    .caption { color:var(--muted); font-size:10px; line-height:14px; }
+    .eyebrow { color:var(--muted); font-size:10px; line-height:14px; font-weight:650; letter-spacing:.45px; text-transform:uppercase; }
+    .stack { display:flex; flex-direction:column; gap:10px; }
+    .row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:14px; }
+    .soft { background:var(--raised); border:0; }
+    .pill { display:inline-flex; align-items:center; gap:5px; padding:5px 9px; border-radius:999px; background:var(--accent-muted); color:var(--accent-text); font-size:10px; font-weight:600; white-space:nowrap; }
+    .btn { min-height:48px; display:flex; align-items:center; justify-content:center; gap:7px; border:0; border-radius:999px; background:var(--accent); color:var(--accent-ink); font:600 14px/18px var(--font); }
+    .btn.secondary { background:var(--surface); color:var(--accent-text); border:1px solid var(--border); }
+    .rule { height:1px; background:var(--border); }
+    .nav { height:58px; flex:none; display:grid; grid-template-columns:repeat(4,1fr); align-items:center; border-top:1px solid var(--border); background:rgba(255,255,255,.96); }
+    .nav a { color:var(--muted); text-decoration:none; display:flex; flex-direction:column; align-items:center; gap:3px; font-size:9px; line-height:11px; }
+    .nav a[aria-current] { color:var(--accent); font-weight:700; }
+    .nav svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+    .brand { display:flex; align-items:center; gap:8px; font-size:18px; font-weight:750; letter-spacing:-.4px; }
+    .mark { width:29px; height:29px; display:grid; place-items:center; border-radius:10px; background:var(--accent); color:#fff; font-size:19px; font-style:italic; font-weight:800; }
+    .home-head { display:flex; justify-content:space-between; align-items:center; margin:0 0 13px; }
+    .gear { width:30px; height:30px; display:grid; place-items:center; color:var(--muted); }
+    .gear svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; }
+    .home-title { margin-bottom:4px !important; font-size:23px !important; }
+    .section { margin:12px 0 7px; }
+    .next { display:flex; align-items:center; gap:10px; padding:12px; }
+    .calendar { width:35px; height:35px; flex:none; display:grid; place-items:center; border-radius:11px; background:var(--accent-muted); color:var(--accent); }
+    .calendar svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2; }
+    .next-main { flex:1; min-width:0; }
+    .next-main strong { display:block; font-size:13px; line-height:17px; }
+    .next-main small { display:block; margin-top:2px; color:var(--muted); font-size:10px; }
+    .chev { color:var(--muted); font-size:21px; }
+    .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+    .stat { background:var(--raised); border-radius:13px; padding:10px 7px; text-align:center; }
+    .stat strong { display:block; margin:4px 0 2px; font-size:17px; line-height:21px; font-variant-numeric:tabular-nums; }
+    .stat small { display:block; color:var(--muted); font-size:9px; }
+    .week { display:flex; justify-content:space-between; gap:5px; }
+    .day { width:38px; height:42px; background:var(--raised); border-radius:10px; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:2px; font-size:9px; color:var(--muted); }
+    .day.on { color:var(--accent-text); background:var(--accent-muted); font-weight:700; }
+    .art { position:relative; height:184px; overflow:hidden; border-radius:18px; background:linear-gradient(145deg,#f0edfa,#e4ddff); display:grid; place-items:center; }
+    .art svg { width:100%; height:100%; }
+    .backline { display:flex; align-items:center; justify-content:space-between; height:34px; font-size:13px; }
+    .exercise-title { font-size:22px !important; margin:2px 0 5px !important; }
+    .chartbox { padding:8px 9px 5px; border-radius:13px; background:var(--raised); }
+    .chartbox svg { width:100%; height:76px; display:block; }
+    .chart-labels { display:flex; justify-content:space-between; color:var(--muted); font-size:8px; }
+    .metrics-pair { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .metric { padding:10px; border-radius:13px; background:var(--raised); }
+    .metric label { display:block; color:var(--muted); font-size:9px; text-transform:uppercase; letter-spacing:.3px; }
+    .metric strong { display:block; margin-top:3px; font-size:20px; line-height:24px; font-variant-numeric:tabular-nums; }
+    .session-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; color:var(--accent-text); font-size:11px; font-weight:600; }
+    .session-title { text-align:center; font-size:18px !important; margin:4px 0 9px !important; }
+    .set-count { text-align:center; margin-bottom:12px; }
+    .set-count strong { display:block; font-size:38px; line-height:42px; font-variant-numeric:tabular-nums; }
+    .set-count span { color:var(--muted); font-size:12px; }
+    .loadbox { padding:14px; border-radius:18px; background:var(--raised); text-align:center; }
+    .loadrow { display:flex; align-items:center; justify-content:space-between; gap:6px; }
+    .adjust { width:42px; height:42px; border-radius:50%; background:#fff; border:1px solid var(--border); color:var(--ink); font-size:21px; }
+    .weight { font-size:36px; line-height:40px; font-weight:750; letter-spacing:-1px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .weight small { font-size:17px; letter-spacing:0; }
+    .rep { margin-top:6px; color:var(--muted); font-size:11px; }
+    .rest { min-height:40px; display:flex; align-items:center; justify-content:center; border:1px solid var(--border); border-radius:999px; color:var(--muted); font-size:11px; font-weight:600; }
+    .record { display:flex; align-items:center; gap:9px; padding:9px 0; border-bottom:1px solid var(--border); }
+    .record:last-child { border:0; }
+    .record-icon { width:34px; height:34px; flex:none; display:grid; place-items:center; border-radius:11px; background:var(--raised); color:var(--accent); font-size:17px; }
+    .record-name { flex:1; font-size:11px; font-weight:600; }
+    .record-value { font-size:11px; font-weight:700; }
+    .avatar { width:46px; height:46px; border-radius:50%; display:grid; place-items:center; flex:none; color:var(--accent-text); background:var(--accent-muted); font-size:21px; font-weight:700; }
+    .profile-row { display:flex; align-items:center; gap:10px; padding:12px 0; border-bottom:1px solid var(--border); font-size:12px; }
+    .profile-row:last-child { border:0; }
+    .profile-row .label { flex:1; }
+    .toggle { width:36px; height:21px; border-radius:99px; background:var(--accent); display:flex; align-items:center; justify-content:flex-end; padding:3px; }
+    .toggle i { width:15px; height:15px; border-radius:50%; background:white; }
+    .tabs { display:flex; gap:5px; background:var(--raised); border-radius:999px; padding:4px; }
+    .tabs span { flex:1; text-align:center; padding:7px 2px; color:var(--muted); border-radius:999px; font-size:9px; }
+    .tabs .selected { color:white; background:var(--accent); font-weight:650; }
+    .caption-bar { display:flex; align-items:center; gap:6px; color:var(--muted); font-size:9px; }
+    .top-record { padding:10px 11px; border:1px solid var(--border); border-radius:13px; }
+    .top-record strong { display:block; margin:5px 0 2px; font-size:14px; }
+    .target { color:var(--accent-text); font-size:9px; font-weight:650; }
+    .footer-note { margin-top:12px; text-align:center; color:var(--muted); font-size:11px; }
+    @media (prefers-reduced-motion: reduce) { *,*::before,*::after { scroll-behavior:auto !important; transition:none !important; animation:none !important; } }
+    @media (max-width:760px) { body { width:1440px; } }
+  </style>
+</head>
+<body>
+  <main class="board">
+    <header class="board-head">
+      <div><h1>Rupfit · estructura de referencia</h1><p>Seis superficies conectadas · navegación actual preservada · ejemplos marcados como DEMO</p></div>
+      <div class="key"><b>Lavanda + violeta</b><span>Propuesta principal · datos de ejemplo, no se guardan</span></div>
+    </header>
+    <div class="phones">
+      <!-- 1. INICIO -->
+      <article class="phone" aria-label="Inicio, propuesta de pantalla">
+        <div class="status"><span>9:41</span><span class="demo">DEMO · ILUSTRATIVO</span><span>●●● ◉ ▰</span></div>
+        <section class="screen">
+          <div class="home-head"><div class="brand"><span class="mark">R</span><span>Rupfit</span></div><span class="gear" aria-label="Configuración"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 13.5a7.2 7.2 0 0 0 0-3l2-1.2-2-3.4-2.2.8a8 8 0 0 0-2.6-1.5L14 2.8h-4l-.3 2.4a8 8 0 0 0-2.6 1.5l-2.2-.8-2 3.4 2 1.2a7.2 7.2 0 0 0 0 3l-2 1.2 2 3.4 2.2-.8a8 8 0 0 0 2.6 1.5l.3 2.4h4l.3-2.4a8 8 0 0 0 2.6-1.5l2.2.8 2-3.4z" transform="translate(-1 -1) scale(.92)"/></svg></span></div>
+          <h2 class="home-title">¡Vamos a entrenar!</h2><p class="meta" style="margin:0 0 12px">Tu próxima sesión</p>
+          <div class="card soft next"><span class="calendar"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4M17 3v4M3 10h18"/></svg></span><span class="next-main"><strong>Sentadilla / Pierna</strong><small>6 ejercicios · 40 min aprox.</small></span><span class="chev">›</span></div>
+          <button class="btn" style="width:100%;margin-top:9px">▶ &nbsp;Empezar entrenamiento</button>
+          <div class="row section"><h3>Tu semana</h3><span class="caption">3 días planeados</span></div>
+          <div class="stats"><div class="stat"><span class="eyebrow">Sesiones</span><strong>0</strong><small>registradas</small></div><div class="stat"><span class="eyebrow">Series</span><strong>0</strong><small>registradas</small></div><div class="stat"><span class="eyebrow">Récords</span><strong>—</strong><small>sin datos aún</small></div></div>
+          <div class="row section"><h3>Esta semana</h3><span class="caption">0 sesiones</span></div>
+          <div class="card" style="padding:10px"><div class="week"><span class="day on">LUN<small>hoy</small></span><span class="day">MAR<small>—</small></span><span class="day">MIÉ<small>—</small></span><span class="day">JUE<small>—</small></span><span class="day">VIE<small>—</small></span><span class="day">SÁB<small>—</small></span><span class="day">DOM<small>—</small></span></div></div>
+        </section>
+        <nav class="nav" aria-label="Navegación principal"><a aria-current="page" href="#"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/></svg>Inicio</a><a href="#"><svg viewBox="0 0 24 24"><path d="M4 20V11M9 20V6M14 20v-8M19 20V3"/></svg>Historial</a><a href="#"><svg viewBox="0 0 24 24"><path d="M4 12h16M7 8l-3 4 3 4M17 8l3 4-3 4"/></svg>Ejercicios</a><a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7"/></svg>Perfil</a></nav>
+      </article>
+
+      <!-- 2. DETALLE DE EJERCICIO -->
+      <article class="phone" aria-label="Detalle de ejercicio, propuesta de pantalla">
+        <div class="status"><span>9:41</span><span class="demo">DEMO · ILUSTRATIVO</span><span>●●● ◉ ▰</span></div>
+        <section class="screen stack" style="gap:7px">
+          <div class="backline"><span>‹ &nbsp;Ejercicios</span></div>
+          <div class="art" role="img" aria-label="Ilustración vectorial original de una persona realizando una sentadilla con barra">
+            <svg viewBox="0 0 360 184" aria-hidden="true">
+              <path d="M30 145h300" stroke="#d7d0ef" stroke-width="3"/>
+              <g fill="#17142a"><rect x="70" y="36" width="9" height="73" rx="3"/><rect x="280" y="36" width="9" height="73" rx="3"/><rect x="57" y="45" width="36" height="13" rx="5"/><rect x="266" y="45" width="36" height="13" rx="5"/><rect x="76" y="49" width="208" height="5" rx="2"/></g>
+              <g fill="none" stroke="#17142a" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="179" cy="59" r="12" fill="#e8c3a7" stroke="none"/><path d="M167 57q2-18 23-10l4 12-8-5-14 4z" fill="#17142a" stroke="none"/>
+                <path d="M168 74q12-8 23 1l16 35-18 16-28-14z" fill="#17142a" stroke="none"/>
+                <path d="M168 79 145 51 123 51M190 79l23-27 21 0" stroke-width="9"/><path d="M171 118 145 139 122 139M189 120l23 19 25 1" stroke-width="12"/><path d="M122 139h-25M237 140h25" stroke-width="9"/>
+              </g>
+              <path d="M30 153h300" stroke="#b9a9fa" stroke-width="2" stroke-dasharray="4 5"/>
+            </svg>
+          </div>
+          <div><h2 class="exercise-title">Sentadilla trasera</h2><div class="row" style="justify-content:flex-start"><span class="pill">● Piernas</span><span class="pill" style="background:var(--raised);color:var(--muted)">Barra</span></div></div>
+          <div class="metrics-pair"><div class="metric"><label>Última vez</label><strong>90 <small>kg</small></strong><span class="caption">3 × 10 reps</span></div><div class="metric" style="background:var(--accent-muted)"><label style="color:var(--accent-text)">Hoy · en sesión</label><strong style="color:var(--accent-text)">92,5 <small>kg</small></strong><span class="caption">3 × 10 reps</span></div></div>
+          <div class="row"><h3>Tu historial</h3><span class="target">Ver historial ›</span></div>
+          <div class="chartbox"><svg viewBox="0 0 300 76" role="img" aria-label="Gráfico ilustrativo de carga por sesión, datos de demostración">
+            <path d="M10 59 58 48 107 54 155 37 204 40 252 19 290 27" fill="none" stroke="#5734e6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="252" cy="19" r="4" fill="#5734e6"/></svg><div class="chart-labels"><span>Sesión 1</span><span>Sesión 3</span><span>Hoy</span></div></div>
+          <button class="btn secondary" style="width:100%">Ver ejercicio en la rutina</button>
+        </section>
+        <nav class="nav" aria-label="Navegación principal"><a href="#"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/></svg>Inicio</a><a href="#"><svg viewBox="0 0 24 24"><path d="M4 20V11M9 20V6M14 20v-8M19 20V3"/></svg>Historial</a><a aria-current="page" href="#"><svg viewBox="0 0 24 24"><path d="M4 12h16M7 8l-3 4 3 4M17 8l3 4-3 4"/></svg>Ejercicios</a><a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7"/></svg>Perfil</a></nav>
+      </article>
+
+      <!-- 3. SESIÓN ACTIVA -->
+      <article class="phone" aria-label="Sesión activa, propuesta de pantalla">
+        <div class="status"><span>× &nbsp; Salir</span><span class="demo">DEMO · 00:12</span><span>◴ 00:12</span></div>
+        <section class="screen stack" style="gap:12px">
+          <h2 class="session-title">Sentadilla trasera</h2>
+          <div class="set-count"><strong>1 / 3</strong><span>Series completadas</span></div>
+          <div class="loadbox"><div class="eyebrow" style="text-align:left;margin-bottom:7px">Peso de hoy</div><div class="loadrow"><button class="adjust" aria-label="Bajar peso">−</button><div class="weight">92,5 <small>kg</small></div><button class="adjust" aria-label="Subir peso">+</button></div><div class="rep">◎ &nbsp;8–10 repeticiones</div></div>
+          <div class="row"><span class="meta">Serie 1 · 8 reps</span><span class="pill">En curso</span></div>
+          <button class="btn" style="width:100%">✓ &nbsp;Registrar serie</button>
+          <div class="rest">◴ &nbsp; Descanso prescrito · 03:00</div>
+          <div class="card soft" style="display:flex;gap:9px;align-items:flex-start"><span style="font-size:19px;color:var(--accent)">✳</span><span><strong style="font-size:11px">Mantén la espalda recta</strong><br><span class="caption">Controla el movimiento en cada repetición.</span></span></div>
+          <p class="caption" style="text-align:center">Peso y repeticiones permanecen visibles mientras registras.</p>
+        </section>
+      </article>
+
+      <!-- 4. HISTORIAL -->
+      <article class="phone" aria-label="Historial, propuesta de pantalla">
+        <div class="status"><span>9:41</span><span class="demo">DEMO · DATOS DE EJEMPLO</span><span>●●● ◉ ▰</span></div>
+        <section class="screen stack" style="gap:9px">
+          <h2>Historial</h2><p class="meta" style="margin:-6px 0 0">Tus sesiones guardadas, por fecha</p>
+          <div class="row"><span class="eyebrow">Noviembre</span><span class="pill">3 sesiones</span></div>
+          <div class="card" style="padding:0 12px">
+            <div class="record"><span class="record-icon">▤</span><span class="record-name">Sentadilla / Pierna<br><span class="caption">Hoy · 6 ejercicios · 42 min</span></span><span class="chev">›</span></div>
+            <div class="record"><span class="record-icon">▤</span><span class="record-name">Press banca / Empuje<br><span class="caption">4 nov · 6 ejercicios · 48 min</span></span><span class="chev">›</span></div>
+            <div class="record"><span class="record-icon">▤</span><span class="record-name">Peso muerto / Tracción<br><span class="caption">1 nov · 6 ejercicios · 45 min</span></span><span class="chev">›</span></div>
+          </div>
+          <div class="row section"><h3>Últimos pesos</h3><span class="target">Por ejercicio</span></div>
+          <div class="chartbox"><div class="eyebrow" style="margin:0 0 6px">Sentadilla trasera · kg · DEMO</div><svg viewBox="0 0 300 94" role="img" aria-label="Evolución ilustrativa de peso, datos de demostración"><path d="M10 75H290M10 20V75" stroke="#e2def0" stroke-width="1"/><path d="M20 65 72 57 125 59 180 43 235 37 280 22" fill="none" stroke="#5734e6" stroke-width="3" stroke-linecap="round"/><circle cx="280" cy="22" r="4" fill="#5734e6"/></svg><div class="chart-labels"><span>Sep</span><span>Oct</span><span>Nov</span></div></div>
+          <div class="card soft"><div class="row"><span class="meta">Sesiones registradas</span><strong>3</strong></div><div class="rule" style="margin:8px 0"></div><div class="row"><span class="meta">Duración acumulada</span><strong>2 h 15 min</strong></div></div>
+        </section>
+        <nav class="nav" aria-label="Navegación principal"><a href="#"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/></svg>Inicio</a><a aria-current="page" href="#"><svg viewBox="0 0 24 24"><path d="M4 20V11M9 20V6M14 20v-8M19 20V3"/></svg>Historial</a><a href="#"><svg viewBox="0 0 24 24"><path d="M4 12h16M7 8l-3 4 3 4M17 8l3 4-3 4"/></svg>Ejercicios</a><a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7"/></svg>Perfil</a></nav>
+      </article>
+
+      <!-- 5. ESTADÍSTICAS -->
+      <article class="phone" aria-label="Estadísticas, propuesta de pantalla">
+        <div class="status"><span>9:41</span><span class="demo">DEMO · DATOS DE EJEMPLO</span><span>●●● ◉ ▰</span></div>
+        <section class="screen stack" style="gap:10px">
+          <h2>Estadísticas</h2><div class="tabs"><span class="selected">Fuerza</span><span>Volumen</span><span>Peso</span></div>
+          <div class="card"><div class="row"><span><span class="eyebrow">Fuerza · últimos meses</span><br><strong style="font-size:21px">Sentadilla trasera</strong></span><span class="pill">DEMO</span></div><div class="chartbox" style="margin-top:10px"><svg viewBox="0 0 300 122" role="img" aria-label="Gráfico de fuerza de demostración, puntos ilustrativos"><path d="M10 96H290M10 18V96" stroke="#e2def0"/><path d="M15 84 65 77 110 63 160 68 210 45 255 39 285 25" fill="none" stroke="#5734e6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="285" cy="25" r="4" fill="#5734e6"/></svg><div class="chart-labels"><span>Sep</span><span>Oct</span><span>Nov</span></div></div><div class="row" style="margin-top:10px"><span class="meta">Peso máximo registrado</span><strong>110 kg</strong></div></div>
+          <div class="row"><h3>Tus mejores marcas</h3><span class="target">Ver todas ›</span></div>
+          <div class="card" style="padding:0 12px"><div class="record"><span class="record-icon">◉</span><span class="record-name">Peso muerto<br><span class="caption">6 repeticiones</span></span><span class="record-value">110 kg</span></div><div class="record"><span class="record-icon">◉</span><span class="record-name">Remo con barra<br><span class="caption">10 repeticiones</span></span><span class="record-value">60 kg</span></div></div>
+          <div class="card soft"><div class="row"><span class="meta">Series esta semana</span><strong>8 de 12</strong></div><div class="row" style="margin-top:8px"><span class="meta">Volumen semanal</span><strong>7.761 kg</strong></div></div>
+          <p class="caption">Ejemplo visual · estos registros no se guardan.</p>
+        </section>
+        <nav class="nav" aria-label="Navegación principal"><a href="#"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/></svg>Inicio</a><a aria-current="page" href="#"><svg viewBox="0 0 24 24"><path d="M4 20V11M9 20V6M14 20v-8M19 20V3"/></svg>Historial</a><a href="#"><svg viewBox="0 0 24 24"><path d="M4 12h16M7 8l-3 4 3 4M17 8l3 4-3 4"/></svg>Ejercicios</a><a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7"/></svg>Perfil</a></nav>
+      </article>
+
+      <!-- 6. PERFIL -->
+      <article class="phone" aria-label="Perfil, propuesta de pantalla">
+        <div class="status"><span>9:41</span><span class="demo">DEMO · DATOS DE EJEMPLO</span><span>●●● ◉ ▰</span></div>
+        <section class="screen stack" style="gap:10px">
+          <h2>Perfil</h2>
+          <div class="card"><div class="row" style="justify-content:flex-start"><span class="avatar">R</span><span><strong style="font-size:17px">Rupfit</strong><br><span class="caption">Perfil de entrenamiento</span></span><span class="chev" style="margin-left:auto">›</span></div></div>
+          <div class="eyebrow section" style="margin-bottom:-4px">Entrenamiento</div>
+          <div class="card" style="padding:0 13px"><div class="profile-row"><span class="label">Días por semana</span><strong>3</strong><span class="chev">›</span></div><div class="profile-row"><span class="label">Descanso automático</span><span class="toggle"><i></i></span></div><div class="profile-row"><span class="label">Equipo disponible</span><span class="pill">Barra · Mancuerna</span></div><div class="profile-row"><span class="label">Unidades</span><span class="pill">Kilogramos</span></div></div>
+          <div class="eyebrow section" style="margin-bottom:-4px">Datos</div>
+          <div class="card" style="padding:0 13px"><div class="profile-row"><span class="label">Copia de seguridad</span><span class="chev">›</span></div><div class="profile-row"><span class="label">Almacenamiento</span><span class="chev">›</span></div><div class="profile-row"><span class="label">Instalación y versión</span><span class="chev">›</span></div></div>
+          <p class="caption">Tu copia exportada es la recuperación ante una expulsión del almacenamiento.</p>
+        </section>
+        <nav class="nav" aria-label="Navegación principal"><a href="#"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/></svg>Inicio</a><a href="#"><svg viewBox="0 0 24 24"><path d="M4 20V11M9 20V6M14 20v-8M19 20V3"/></svg>Historial</a><a href="#"><svg viewBox="0 0 24 24"><path d="M4 12h16M7 8l-3 4 3 4M17 8l3 4-3 4"/></svg>Ejercicios</a><a aria-current="page" href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 4-7 8-7s7 2 8 7"/></svg>Perfil</a></nav>
+      </article>
+    </div>
+    <p class="footer-note">Dirección 1 · imagen vectorial original · calendarios, gráficos y métricas se adaptan a datos reales; valores DEMO son solo demostrativos.</p>
+  </main>
+</body>
+</html>

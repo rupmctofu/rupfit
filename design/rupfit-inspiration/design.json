@@ -1,0 +1,28 @@
+{
+  "title": "Rupfit · rediseño inspirado en la referencia",
+  "brief": "App móvil de fuerza con identidad lavanda/violeta; conserva rutas y comportamiento actuales, muestra solo métricas con fuente real y acompaña la sesión de fuerza con ilustración vectorial local.",
+  "feature": "odd/tasks/inspiration-redesign.md",
+  "artboards": [
+    {
+      "file": "01-reference-flow.html",
+      "title": "Flujo de referencia · seis pantallas",
+      "tradeoff": "La dirección principal: seis superficies conectadas; gráficos e ilustración original, con DEMO explícito en los valores de ejemplo.",
+      "width": 1440,
+      "height": 1760
+    },
+    {
+      "file": "02-session-first.html",
+      "title": "Entrenar primero · mínimo desvío",
+      "tradeoff": "Prioriza empezar y registrar una serie; la evidencia y el histórico ceden espacio en Inicio.",
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "file": "03-evidence-first.html",
+      "title": "Evidencia primero · historial y progreso",
+      "tradeoff": "Hace fácil entender tendencias y marcas; el siguiente entrenamiento queda menos dominante.",
+      "width": 1440,
+      "height": 960
+    }
+  ]
+}
