@@ -8,9 +8,14 @@
  *
  * The SVG is a `role="img"` with a Spanish label because it is not decoration: it is how
  * the session says *which* movement the owner is about to do.
+ *
+ * One exception: a key listed in `renderArtwork.ts` is an approved illustration, painted as
+ * an `<img>` of a cut-out WebP instead of the line drawing. Everything else keeps the
+ * pictogram, so a variant without an approved picture still draws something honest.
  */
 
 import { PICTOGRAMS, PICTOGRAM_FLOOR, type Gear, type IllustrationKey, type Pictogram } from './pictograms';
+import { renderedArtworkOf } from './renderArtwork';
 import './illustrations.css';
 
 export interface ExerciseIllustrationProps {
@@ -131,6 +136,24 @@ function bodyShape(pictogram: Pictogram): readonly React.ReactElement[] {
 }
 
 export function ExerciseIllustration(props: ExerciseIllustrationProps): React.ReactElement {
+  const rendered = renderedArtworkOf(props.illustration);
+  if (rendered !== null) {
+    // The illustration is square with a transparent backdrop, so it drops into the same box
+    // the pictogram uses and needs no mask of its own (see illustrations.css).
+    return (
+      <img
+        className={
+          props.className === undefined
+            ? 'exercise-art exercise-art__render'
+            : `exercise-art exercise-art__render ${props.className}`
+        }
+        src={`${import.meta.env.BASE_URL}${rendered}`}
+        alt={`Ilustración de ${props.label}`}
+        width={512}
+        height={512}
+      />
+    );
+  }
   // Widened to the interface: the table is `as const`, and some poses have no gear.
   const pictogram: Pictogram = PICTOGRAMS[props.illustration];
   return (

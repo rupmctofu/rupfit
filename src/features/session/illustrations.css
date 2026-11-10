@@ -13,6 +13,17 @@
   height: auto;
 }
 
+/*
+ * The approved illustrations (see renderArtwork.ts). They hold the pictogram's square box so
+ * the session sheet does not jump between a drawing and a picture, and the cut-out arrives
+ * with its own transparency, so nothing here needs masking.
+ */
+.exercise-art__render {
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+}
+
+
 .exercise-art__floor {
   fill: none;
   stroke: var(--color-border);
