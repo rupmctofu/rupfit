@@ -22,6 +22,12 @@ export interface PagerProps {
   readonly noun?: string | undefined;
   readonly previousLabel?: string | undefined;
   readonly nextLabel?: string | undefined;
+  /**
+   * Whether the visible `1 / 6` is drawn. The session turns it off: the fill of the track
+   * plus the ring already say where the owner is, and the owner called the numeral noise.
+   * The group's accessible name keeps the position either way.
+   */
+  readonly count?: boolean | undefined;
 }
 
 export function Pager({
@@ -32,6 +38,7 @@ export function Pager({
   noun = 'Ejercicio',
   previousLabel,
   nextLabel,
+  count = true,
 }: PagerProps): React.ReactElement {
   const percent = total <= 0 ? 0 : Math.round((position / total) * 100);
 
@@ -49,9 +56,11 @@ export function Pager({
       <span className="ds-pager__track" aria-hidden="true">
         <span className="ds-pager__fill" style={{ width: `${percent}%` }} />
       </span>
-      <span className="ds-numeral ds-pager__count" aria-hidden="true">
-        {position} / {total}
-      </span>
+      {count ? (
+        <span className="ds-numeral ds-pager__count" aria-hidden="true">
+          {position} / {total}
+        </span>
+      ) : null}
       <button
         type="button"
         className="ds-action ds-pager__chevron"

@@ -45,6 +45,13 @@ export function LoadDecisionBar({
   disabled = false,
 }: LoadDecisionBarProps): React.ReactElement {
   const accept = acceptLabel ?? (previous === undefined ? 'Elegir peso' : `Aceptar ${suggested} ${unit}`);
+  /**
+   * The owner found a visible `Aceptar 92,5 kg` redundant under a sheet that already
+   * states the weight, so the primary action is the check alone. The accessible name
+   * stays the whole sentence, and an explicit `acceptLabel` still renders as text: the
+   * gallery and any caller that passes one see exactly what they passed.
+   */
+  const acceptIsIcon = acceptLabel === undefined && previous !== undefined;
   const repeat = repeatLabel ?? (previous === undefined ? '' : `Repetir ${previous}`);
   const showRepeat = previous !== undefined && onRepeat !== undefined;
 
@@ -55,8 +62,9 @@ export function LoadDecisionBar({
         className="ds-action ds-decision__action ds-decision__action--primary"
         onClick={onAccept}
         disabled={disabled}
+        {...(acceptIsIcon ? { 'aria-label': accept } : {})}
       >
-        {accept}
+        {acceptIsIcon ? <Icon name="check" size={22} /> : accept}
       </button>
       {showRepeat ? (
         <button
