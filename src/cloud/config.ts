@@ -17,18 +17,21 @@ export interface CloudConfig {
   readonly anonKey: string;
 }
 
-interface ViteEnv {
-  readonly VITE_SUPABASE_URL?: string | undefined;
-  readonly VITE_SUPABASE_ANON_KEY?: string | undefined;
-}
-
 /**
- * Vite inlines `import.meta.env` at build time. The cast keeps this module usable from
- * Node tests, where the object does not exist.
+ * Vite replaces `import.meta.env.VITE_SUPABASE_URL` textually at build time — and that is
+ * why the property is read here as a literal expression instead of through a variable
+ * holding `import.meta.env`: a dynamic property access is not replaced, so the bundle kept
+ * shipping an empty URL even with the variables exported by CI.
+ *
+ * The guard keeps the module usable from Node tests, where `import.meta.env` is absent.
  */
-function env(): ViteEnv {
-  const meta = import.meta as unknown as { readonly env?: ViteEnv };
-  return meta.env ?? {};
+function raw(key: 'VITE_SUPABASE_URL' | 'VITE_SUPABASE_ANON_KEY'): string | undefined {
+  try {
+    if (key === 'VITE_SUPABASE_URL') return import.meta.env.VITE_SUPABASE_URL;
+    return import.meta.env.VITE_SUPABASE_ANON_KEY;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Trims and rejects obvious placeholders, so a copied template fails loudly at sign-in. */
@@ -41,9 +44,8 @@ function usable(value: string | undefined): string | null {
 }
 
 export function cloudConfig(): CloudConfig | null {
-  const source = env();
-  const url = usable(source.VITE_SUPABASE_URL);
-  const anonKey = usable(source.VITE_SUPABASE_ANON_KEY);
+  const url = usable(raw('VITE_SUPABASE_URL'));
+  const anonKey = usable(raw('VITE_SUPABASE_ANON_KEY'));
   if (url === null || anonKey === null) return null;
   return { url, anonKey };
 }

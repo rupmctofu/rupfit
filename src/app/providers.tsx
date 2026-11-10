@@ -12,7 +12,13 @@
  */
 
 import { createContext, useContext, useState, type ReactNode } from 'react';
-import { createStorage, type StoragePort } from '../storage';
+import {
+  createStorage,
+  MetaSyncQueue,
+  type StoragePort,
+  type SyncStoragePort,
+} from '../storage';
+import { Database } from '../storage/db';
 import type { Clock, SessionJournal } from '../features/session/controller';
 import { createSessionStorageJournal } from '../features/session/journal';
 import {
@@ -22,8 +28,24 @@ import {
   type UpdateWatchOptions,
 } from '../pwa';
 
+/**
+ * The cloud surface, and the bell that wakes it.
+ *
+ * `storage` is the sync read/write port, which is deliberately **not** on `StoragePort`
+ * (`src/storage/port.ts`): a screen holds a `StoragePort` and therefore cannot write
+ * history behind a guard's back. Only the sync hook receives this one.
+ *
+ * `written` rings after a local write has appended its queue op. It is the "after a local
+ * write" trigger, wired where every write already passes: `StorageOptions.queue`.
+ */
+export interface CloudServices {
+  readonly storage: SyncStoragePort;
+  readonly written: (listener: () => void) => () => void;
+}
+
 export interface AppServices {
   readonly storage: StoragePort;
+  readonly cloud: CloudServices;
   readonly clock: Clock;
   /** The session journal: the card on screen and the rest bar, for this launch only. */
   readonly journal: SessionJournal;
@@ -32,9 +54,53 @@ export interface AppServices {
 /** The only wall clock the app has. Injected everywhere, so a test can pin it. */
 export const systemClock: Clock = { now: () => Date.now() };
 
-export function createAppServices(): AppServices {
+/** A one-line bus: whoever wrote, says so; whoever syncs, listens. */
+interface WriteBell {
+  ring(): void;
+  subscribe(listener: () => void): () => void;
+}
+
+function createWriteBell(): WriteBell {
+  const listeners = new Set<() => void>();
   return {
-    storage: createStorage(),
+    ring() {
+      for (const listener of listeners) {
+        try {
+          listener();
+        } catch {
+          // A wake-up that fails must never take down the local write that caused it (S1).
+        }
+      }
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+}
+
+export function createAppServices(): AppServices {
+  const bell = createWriteBell();
+
+  // The queue below writes the op through the transaction the repository hands it, so the
+  // op and its row still land in one commit. The `Database` beside it is only what
+  // `MetaSyncQueue` is constructed with; `enqueue` never opens a connection, so the store
+  // keeps its own connection and `deleteAll` is never blocked by this one.
+  const queue = new MetaSyncQueue(new Database());
+  const storage = createStorage({
+    queue: {
+      enqueue: async (tx, op) => {
+        await queue.enqueue(tx, op);
+        bell.ring();
+      },
+    },
+  });
+
+  return {
+    storage,
+    cloud: { storage: storage.sync, written: bell.subscribe },
     clock: systemClock,
     journal: createSessionStorageJournal(),
   };

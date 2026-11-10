@@ -8,9 +8,12 @@
  *    `item_order`, `session_order`; `index` → `set_index`; `date` → `measured_at`,
  *    `occurred_at`). The map below is the only place either vocabulary is written down,
  *    so a renamed column is one line here and no call site.
- * 2. **A push is an upsert on the app id.** `on conflict (id) do update`, with `user_id`
- *    from the signed-in session — never from the caller — so a retried push of the same
- *    row and the same `rev` leaves one row and cannot claim another account's key.
+ * 2. **A push is an upsert on the app id, and it never leans on a column default.**
+ *    `on conflict (id) do update`, with `user_id` from the signed-in session — never from
+ *    the caller and never `NULL` — so a retried push of the same row and the same `rev`
+ *    leaves one row, the insert policy's `with check (auth.uid() = user_id)` holds, and
+ *    a row cannot claim another account's key. The rest of the row is sent as it is and
+ *    the request asks the server to fill what the row leaves out from the defaults.
  * 3. **A failure is a value.** `pushRows` answers `{ acknowledged, error }`; it never
  *    throws into a caller that is finishing a workout (S1).
  *
@@ -148,11 +151,21 @@ const DECODE: Readonly<Record<string, (value: unknown) => unknown>> = {
   'exercises.is_archived': (value) => (value === true ? 1 : 0),
 };
 
-/** The account this remote pushes as, read from the session and never from the caller. */
+/**
+ * The account this remote pushes as, read from the session and never from the caller.
+ *
+ * The emptiness check is not cosmetic: `user_id` is what the insert policy compares
+ * against `auth.uid()`, and a value that is `undefined` or `''` is listed in the
+ * request's `columns` parameter while vanishing from the JSON body, which is exactly the
+ * `42501` this module exists to avoid. A batch with no real account belongs as an error
+ * value, not as a request with a hole in it.
+ */
 async function sessionUserId(client: SupabaseClient<Database>): Promise<string> {
   const { data } = await client.auth.getSession();
   const id = data.session?.user.id;
-  if (id === undefined) throw new Error('No signed-in account: sign in before syncing.');
+  if (typeof id !== 'string' || id === '') {
+    throw new Error('No signed-in account: sign in before syncing.');
+  }
   return id;
 }
 
@@ -178,10 +191,26 @@ interface SelectChain extends PromiseLike<{ readonly data: unknown[] | null; rea
 interface WireTable {
   upsert(
     rows: readonly Record<string, unknown>[],
-    options: { readonly onConflict: string },
+    options: UpsertOptions,
   ): PromiseLike<{ readonly error: WireError | null }>;
   select(columns: string): SelectChain;
 }
+
+interface UpsertOptions {
+  readonly onConflict: string;
+  /**
+   * `false` becomes `Prefer: missing=default`. `supabase-js` adds a `columns` query
+   * parameter to every array upsert — the union of the payload's keys — and PostgREST
+   * then inserts exactly those columns for every row of the batch. Without this header a
+   * key that one row omits arrives as `NULL` rather than as its `DEFAULT`, which is how
+   * `user_id` (and every other defaulted, `not null` column) was defeated. Asking for
+   * `missing=default` keeps the union list honest: absent means "the server decides".
+   */
+  readonly defaultToNull: boolean;
+}
+
+/** The upsert options do not vary per call, so they are stated once and pinned by a test. */
+const UPSERT_OPTIONS: UpsertOptions = { onConflict: 'id', defaultToNull: false };
 
 interface WireClient {
   from(table: string): WireTable;
@@ -219,6 +248,9 @@ export class SupabaseSyncRemote implements SyncRemote {
     const acknowledged: string[] = [];
     if (rows.length === 0) return { acknowledged, error: null };
 
+    // The owner of the batch, read once: every op of a push carries the same account, so
+    // one read describes all of them, a mid-batch sign-out cannot split the rows between
+    // two owners, and no row ever needs its own read of the session.
     let userId: string;
     try {
       userId = await sessionUserId(this.client);
@@ -229,9 +261,7 @@ export class SupabaseSyncRemote implements SyncRemote {
     for (const [table, batch] of groupByTable(rows)) {
       const payload = batch.map((row) => encodeRow(table, row, userId));
       try {
-        const { error } = await this.wire
-          .from(table)
-          .upsert(payload, { onConflict: 'id' });
+        const { error } = await this.wire.from(table).upsert(payload, UPSERT_OPTIONS);
         if (error !== null) return { acknowledged, error: `${table}: ${error.message}` };
       } catch (error) {
         return { acknowledged, error: `${table}: ${errorMessage(error)}` };
