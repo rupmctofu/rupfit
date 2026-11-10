@@ -77,7 +77,7 @@ const ROWS: readonly SeedExerciseRow[] = [
   { id: 'seed-ex-sentadilla-peso-corporal', name: 'Sentadilla con peso corporal', primaryMuscle: 'quadriceps', pattern: 'squat', equipment: 'bodyweight' },
 
   // ---------------------------------------------------------------- hinge
-  { id: 'seed-ex-peso-muerto', name: 'Peso muerto convencional', primaryMuscle: 'hamstrings', pattern: 'hinge', equipment: 'barbell' },
+  { id: 'seed-ex-peso-muerto', name: 'Peso muerto', primaryMuscle: 'hamstrings', pattern: 'hinge', equipment: 'barbell' },
   { id: 'seed-ex-peso-muerto-rumano', name: 'Peso muerto rumano con barra', primaryMuscle: 'hamstrings', pattern: 'hinge', equipment: 'barbell' },
   { id: 'seed-ex-peso-muerto-sumo', name: 'Peso muerto sumo', primaryMuscle: 'glutes', pattern: 'hinge', equipment: 'barbell' },
   { id: 'seed-ex-hip-thrust', name: 'Hip thrust', primaryMuscle: 'glutes', pattern: 'hinge', equipment: 'barbell' },

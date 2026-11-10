@@ -406,7 +406,7 @@ describe('Sugerir otro ejercicio (S4, T5)', () => {
     expect(swapped?.usedWeightKg).toBeNull();
     // The read-out says what it replaced, and the card's library row is the new one.
     expect(next.substitutions[ACTIVE_EXERCISE_ID]?.exerciseNameSnapshot).toBe(
-      'Peso muerto convencional',
+      'Peso muerto',
     );
     expect(next.exercises[ACTIVE_EXERCISE_ID]?.name).toBe(RDL.name);
 
@@ -415,7 +415,7 @@ describe('Sugerir otro ejercicio (S4, T5)', () => {
       .find((session) => session.id === activeSession(next).id)
       ?.exercises.find((exercise) => exercise.id === ACTIVE_EXERCISE_ID);
     expect(stored?.exerciseId).toBe(RDL.id);
-    expect(stored?.substitutedFrom?.exerciseNameSnapshot).toBe('Peso muerto convencional');
+    expect(stored?.substitutedFrom?.exerciseNameSnapshot).toBe('Peso muerto');
   });
 
   it('refuses once the exercise has a confirmed set, and writes nothing', async () => {

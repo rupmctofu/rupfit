@@ -35,7 +35,7 @@ const PHASE: TrainingPhase = { kind: 'readaptation', week: 2 };
 
 export const DEADLIFT: Exercise = {
   id: 'ex-peso-muerto',
-  name: 'Peso muerto convencional',
+  name: 'Peso muerto',
   illustration: 'deadlift-barbell',
   primaryMuscle: 'hamstrings',
   pattern: 'hinge',
