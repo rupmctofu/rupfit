@@ -38,6 +38,8 @@ const NOW = new Date(2023, 10, 8, 18, 0, 0).getTime();
 const MONDAY = new Date(2023, 10, 6, 18, 0, 0).getTime();
 const MONDAY_END = new Date(2023, 10, 6, 18, 52, 0).getTime();
 const FRIDAY = new Date(2023, 10, 10, 18, 0, 0).getTime();
+const TUESDAY = new Date(2023, 10, 7, 18, 0, 0).getTime();
+const THURSDAY = new Date(2023, 10, 9, 18, 0, 0).getTime();
 
 const PROFILE: UserProfile = {
   id: 'profile-1',
@@ -375,14 +377,82 @@ describe('homeViewOf', () => {
     });
   });
 
-  it('builds the week strip from the sessions that exist, not from the template', () => {
+  it('builds the week indicator from the sessions that exist, not from the template', () => {
     const view = homeViewOf(input());
     expect(view.week?.cells).toEqual([
       { key: 'sessions-monday', initial: 'LUN', state: 'done', label: 'Lunes, hecha' },
       { key: 'sessions-wednesday', initial: 'MIÉ', state: 'today', label: 'Miércoles, hoy' },
     ]);
-    expect(view.week?.done).toBe('1 de 2 sesiones');
+    // The header draws this arithmetic and nothing else: how many of the week's own
+    // planned sessions are closed. The old `1 de 2 sesiones` sentence is gone.
+    expect(view.week?.doneCount).toBe(1);
+    expect(view.week?.plannedCount).toBe(2);
     expect(view.week?.hard).toBe('3 series duras');
+  });
+
+  it('names the week indicator for a screen reader, count and hard sets in one line', () => {
+    expect(homeViewOf(input()).week?.label).toBe('1 de 2 sesiones hechas · 3 series duras');
+    // One planned session: the line agrees in the singular instead of reading `1 de 1
+    // sesiones hechas`.
+    expect(homeViewOf(input({ recent: [MONDAY_SESSION] })).week?.label).toBe(
+      '1 de 1 sesión hecha · 3 series duras',
+    );
+  });
+
+  it('counts a four-session week as the indicator draws it, one segment per session', () => {
+    const tuesday = session({ id: 'sessions-tuesday', status: 'completed', scheduledDate: TUESDAY });
+    const thursday = session({
+      id: 'sessions-thursday',
+      status: 'scheduled',
+      scheduledDate: THURSDAY,
+      startedAt: null,
+      endedAt: null,
+    });
+    const view = homeViewOf(
+      input({ recent: [MONDAY_SESSION, tuesday, WEDNESDAY_SESSION, thursday] }),
+    );
+
+    // `2 de 4`: the two closed sessions of the week, out of the four it plans.
+    expect(view.week?.plannedCount).toBe(4);
+    expect(view.week?.doneCount).toBe(2);
+    expect(view.week?.cells.map((cell) => cell.state)).toEqual([
+      'done',
+      'done',
+      'today',
+      'pending',
+    ]);
+    // The days a session was already trained on are what the segments fill, in order.
+    expect(view.week?.cells.map((cell) => cell.initial)).toEqual(['LUN', 'MAR', 'MIÉ', 'JUE']);
+  });
+
+  it('fills every segment of a week that is completely trained', () => {
+    const tuesday = session({ id: 'sessions-tuesday', status: 'completed', scheduledDate: TUESDAY });
+    const doneToday = session({
+      id: 'sessions-today',
+      status: 'completed',
+      scheduledDate: NOW,
+      endedAt: NOW,
+      exercises: WEDNESDAY_SESSION.exercises,
+    });
+    const view = homeViewOf(input({ recent: [MONDAY_SESSION, tuesday, doneToday] }));
+
+    expect(view.week?.plannedCount).toBe(3);
+    expect(view.week?.doneCount).toBe(view.week?.plannedCount);
+  });
+
+  it('counts the today session as a planned session before it is done', () => {
+    // A scheduled row is planned and not closed: 1 of 2, never 1 of 1.
+    expect(homeViewOf(input()).week?.doneCount).toBe(1);
+    expect(homeViewOf(input()).week?.plannedCount).toBe(2);
+    // A session of another week never enters the indicator.
+    const nextWeek = session({
+      id: 'next-week',
+      status: 'scheduled',
+      scheduledDate: NOW + 7 * DAY_MS,
+      startedAt: null,
+      endedAt: null,
+    });
+    expect(homeViewOf(input({ recent: [MONDAY_SESSION, nextWeek] })).week?.plannedCount).toBe(1);
   });
 
   it('writes the seven-day mean and the weigh-ins behind it', () => {
@@ -427,7 +497,13 @@ describe('homeViewOf', () => {
 
     expect(view.activity.empty).toBe(false);
     expect(view.activity.recorded).toEqual([
-      { id: 'football-1', label: 'Fútbol registrado', detail: '8 nov · 50 min' },
+      {
+        id: 'football-1',
+        label: 'Fútbol registrado',
+        detail: '8 nov · 50 min',
+        // The bin carries no visible text, so its name says which row it deletes (§9).
+        removeLabel: 'Eliminar fútbol del 8 de noviembre',
+      },
     ]);
     // Nothing was imported, so the old wording must not appear at all.
     expect(view.activity.imported).toBe(0);
@@ -492,13 +568,23 @@ describe('homeViewOf', () => {
     expect(withActivity.week).toEqual(withoutActivity.week);
     expect(withActivity.last).toEqual(withoutActivity.last);
 
+    // And the same happens the other way round: deleting the row puts the screen back
+    // exactly where it was, so the hero block and the rotation never saw it.
+    const afterDelete = homeViewOf(input({ activities: [] }));
+    expect(afterDelete.today).toEqual(withActivity.today);
+    expect(afterDelete.action).toEqual(withActivity.action);
+    expect(afterDelete.week?.doneCount).toBe(withActivity.week?.doneCount);
+    expect(afterDelete.activity.recorded).toEqual([]);
+
     // And a match recorded on a day with no session does not become one: the rotation
-    // still previews the next plan day, and the week strip still counts sessions only.
+    // still previews the next plan day, and the week indicator still counts sessions
+    // only — from zero, because that is exactly the week the owner wants to see.
     const restDay = homeViewOf(input({ recent: [], activities: [football] }));
     expect(restDay.today?.state).toBe('preview');
     expect(restDay.action?.kind).toBe('start');
     expect(restDay.hasHistory).toBe(false);
-    expect(restDay.week).toBeNull();
+    expect(restDay.week?.doneCount).toBe(0);
+    expect(restDay.week?.plannedCount).toBeGreaterThan(0);
   });
 
   it('warns once about not being installed, and only when there is something to lose', () => {

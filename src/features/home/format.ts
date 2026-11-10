@@ -56,6 +56,17 @@ export function formatShortDate(at: EpochMs): string {
   return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short' }).format(new Date(at));
 }
 
+/**
+ * `8 de noviembre` — the date an action names out loud.
+ *
+ * The bin of an activity row has no visible text, so its accessible name has to say
+ * which row it deletes: `Eliminar fútbol del 8 de noviembre` (§9). The month is written
+ * out because a screen reader reading `8 nov` as an abbreviation is a coin toss.
+ */
+export function formatDayAndMonth(at: EpochMs): string {
+  return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long' }).format(new Date(at));
+}
+
 /** `LUN`, `MIÉ`, `VIE` — the three letters of the week strip. */
 export function formatWeekdayInitial(at: EpochMs): string {
   return new Intl.DateTimeFormat('es-ES', { weekday: 'short' }).format(new Date(at)).toUpperCase();

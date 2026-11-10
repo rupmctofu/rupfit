@@ -10,6 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   dayFocus,
+  formatDayAndMonth,
   formatDayName,
   formatDuration,
   formatEstimate,
@@ -56,6 +57,10 @@ describe('dates', () => {
   it('writes a short date in Spanish, for a sentence rather than a column', () => {
     expect(formatShortDate(WEDNESDAY)).toBe('8 nov');
     expect(formatShortDate(MONDAY)).toBe('6 nov');
+
+    // The spoken date of an action's name: no abbreviation a screen reader can misread.
+    expect(formatDayAndMonth(WEDNESDAY)).toBe('8 de noviembre');
+    expect(formatDayAndMonth(MONDAY)).toBe('6 de noviembre');
   });
 
   it('writes the weekday of the week strip as three letters', () => {

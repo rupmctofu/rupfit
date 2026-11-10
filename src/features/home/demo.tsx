@@ -316,12 +316,24 @@ export function demoWeek(scenario: DemoScenario, now: number): DemoWeek {
   });
 
   const restDay = scenario === 'rest';
+  // One recorded match, so the bin of S5 is reachable on the review surface: a manual
+  // `other` row, exactly what the football capture writes. The empty scenarios keep
+  // their honest empty state.
+  const football: ActivityRecord = {
+    id: 'demo-football',
+    date: weekStart,
+    kind: 'other',
+    durationSeconds: 50 * 60,
+    activeEnergyKcal: null,
+    provenance: 'manual',
+    externalSampleId: null,
+  };
   return {
     now,
     plan,
     sessions: restDay ? [monday, lastWeek] : [monday, wednesday, friday, lastWeek],
     measurements: measurementsOf(weekStart),
-    activities: [],
+    activities: restDay ? [] : [football],
     exercises: LIBRARY,
     profile: DEMO_PROFILE,
     phaseState: DEMO_PHASE,
@@ -354,6 +366,14 @@ export function demoPort(week: DemoWeek): StoragePort {
       ...base.activities,
       all: () => Promise.resolve([...activities]),
       between: (from, to) => Promise.resolve(activities.filter((row) => row.date >= from && row.date <= to)),
+      // The bin of S5 must work on the demo too: the row leaves this list and nothing
+      // else, which is also the proof that a removal touches no session.
+      remove: (id) => {
+        const index = activities.findIndex((row) => row.id === id);
+        if (index < 0) return Promise.reject(new Error(`demo: no activity ${id}`));
+        activities.splice(index, 1);
+        return Promise.resolve();
+      },
     },
     meta: {
       ...base.meta,

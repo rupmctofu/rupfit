@@ -9,7 +9,7 @@
  * 2. **Absence is an answer.** An empty store produces empty states, never zeros:
  *    `last`, `week` and `weight` are `null` when the store has nothing to say, and the
  *    screen renders the dashed, honest version instead of a cheerful fake.
- * 3. **Never claim a fact the store cannot prove.** The week strip is built from the
+ * 3. **Never claim a fact the store cannot prove.** The week indicator is built from the
  *    sessions that exist, not from the weekday template (`PlanDay` carries no weekday);
  *    the estimate says `aprox.`; a duration is only written when `startedAt` and an end
  *    instant are both stored. With a plan but no session today the screen offers the day
@@ -29,6 +29,7 @@ import type {
 import { formatVolume, formatWeight } from '../session/format';
 import { nextPlanDay } from '../session/start';
 import {
+  formatDayAndMonth,
   formatDuration,
   formatEstimate,
   formatExerciseCount,
@@ -57,6 +58,18 @@ const MANUAL_ACTIVITY_LABELS: Readonly<Record<ActivityRecord['kind'], string>> =
   strength: 'Fuerza registrada',
   cardio: 'Cardio registrado',
   other: 'Fútbol registrado',
+};
+
+/**
+ * What the bin of a manual row says it deletes, per kind.
+ *
+ * The button shows a glyph and no word, so its accessible name has to name the row:
+ * `Eliminar fútbol del 8 de noviembre` (§9). Lower case because it sits mid-sentence.
+ */
+const MANUAL_ACTIVITY_NAMES: Readonly<Record<ActivityRecord['kind'], string>> = {
+  strength: 'fuerza',
+  cardio: 'cardio',
+  other: 'fútbol',
 };
 
 /** The body-weight card: a seven-day mean, and at most this many points in the line. */
@@ -102,8 +115,6 @@ export interface TodayView {
   readonly detail: string;
   /** `Readaptación · semana 2 de 4`, or `null` outside a readaptation block. */
   readonly phase: string | null;
-  /** The one line of explanation the phase banner uses (§7.6). */
-  readonly phaseNote: string | null;
   /** `12 series` — what the day prescribes in total. */
   readonly series: string | null;
   /**
@@ -156,8 +167,15 @@ export interface WeekCellView {
 
 export interface WeekView {
   readonly cells: readonly WeekCellView[];
-  /** `2 de 3 sesiones` — done out of the sessions this week actually has. */
-  readonly done: string;
+  /** How many of this week's planned sessions are closed: what the indicator fills. */
+  readonly doneCount: number;
+  /** The sessions the week plans: one segment of the indicator each. */
+  readonly plannedCount: number;
+  /**
+   * The indicator's accessible name. It draws no words, so this is where the count and
+   * the hard sets are said out loud: `2 de 4 sesiones hechas · 14 series duras`.
+   */
+  readonly label: string;
   /** `14 series duras` */
   readonly hard: string;
 }
@@ -182,6 +200,8 @@ export interface ActivityEntryView {
   readonly label: string;
   /** `8 nov · 50 min` */
   readonly detail: string;
+  /** The bin's accessible name: `Eliminar fútbol del 8 de noviembre`. */
+  readonly removeLabel: string;
 }
 
 /**
@@ -370,13 +390,10 @@ function round1(value: number): string {
 
 /* ------------------------------------------------------------------- the view */
 
-function phaseLine(phaseState: PhaseState | undefined): { line: string | null; note: string | null } {
-  if (phaseState === undefined) return { line: null, note: null };
+function phaseLine(phaseState: PhaseState | undefined): string | null {
+  if (phaseState === undefined) return null;
   const block = Math.min(Math.max(Math.trunc(phaseState.block), 1), READAPTATION_BLOCKS);
-  return {
-    line: `Readaptación · semana ${block} de ${READAPTATION_BLOCKS}`,
-    note: `Semana ${block} de readaptación: menos series y margen de sobra. El peso se propone, tú decides.`,
-  };
+  return `Readaptación · semana ${block} de ${READAPTATION_BLOCKS}`;
 }
 
 function todayViewOf(
@@ -403,8 +420,7 @@ function todayViewOf(
       estimated === 0
         ? formatExerciseCount(session.exercises.length)
         : `${formatExerciseCount(session.exercises.length)} · ${formatEstimate(estimated)}`,
-    phase: phase.line,
-    phaseNote: phase.note,
+    phase: phase,
     series: prescribed === 0 ? null : formatSeries(prescribed),
     state,
     done:
@@ -458,8 +474,7 @@ function previewDayOf(day: PlanDay | null, phaseState: PhaseState | undefined): 
       estimated === 0
         ? formatExerciseCount(day.items.length)
         : `${formatExerciseCount(day.items.length)} · ${formatEstimate(estimated)}`,
-    phase: phase.line,
-    phaseNote: phase.note,
+    phase: phase,
     series: prescribed === 0 ? null : formatSeries(prescribed),
     state: 'preview',
     done: null,
@@ -488,14 +503,36 @@ function lastSessionOf(sessions: readonly WorkoutSession[]): LastSessionView | n
   };
 }
 
-function weekViewOf(sessions: readonly WorkoutSession[], now: EpochMs): WeekView | null {
+function weekViewOf(
+  sessions: readonly WorkoutSession[],
+  now: EpochMs,
+  plannedDays: number,
+): WeekView | null {
   const week = weekSessionsOf(sessions, now);
-  if (week.length === 0) return null;
+
+  // A week with nothing recorded yet still has a number to show: «0 de 3». The indicator
+  // is the owner's question — how much of this week is done — and answering it only after
+  // the first session would hide it exactly when it motivates.
+  if (week.length === 0) {
+    if (plannedDays === 0) return null;
+    return {
+      cells: Array.from({ length: plannedDays }, (_, index) => ({
+        key: `planned-${String(index + 1)}`,
+        initial: '',
+        state: 'pending' as const,
+        label: 'pendiente',
+      })),
+      doneCount: 0,
+      plannedCount: plannedDays,
+      label: weekMeterCount(0, plannedDays),
+      hard: '0 series duras',
+    };
+  }
 
   const cells: WeekCellView[] = week.map((session) => {
     // Today's cell keeps its position even after the session is closed: the strip is
-    // the anchor of "where am I in the week", and the count below says in words how
-    // many sessions are already done.
+    // the anchor of "where am I in the week", and the filled segments say how many
+    // sessions are already done.
     const closed = session.status === 'completed' || session.status === 'partial';
     const state: WeekCellState = sameDay(session.scheduledDate, now)
       ? 'today'
@@ -512,15 +549,33 @@ function weekViewOf(sessions: readonly WorkoutSession[], now: EpochMs): WeekView
     };
   });
 
-  const done = week.filter(
+  const doneCount = week.filter(
     (session) => session.status === 'completed' || session.status === 'partial',
   ).length;
+  const plannedCount = cells.length;
+  const hard = `${hardSetCount(week)} series duras`;
 
   return {
     cells,
-    done: `${done} de ${cells.length} sesiones`,
-    hard: `${hardSetCount(week)} series duras`,
+    doneCount,
+    plannedCount,
+    label: `${weekMeterCount(doneCount, plannedCount)} · ${hard}`,
+    hard,
   };
+}
+
+/**
+ * `2 de 4 sesiones hechas` — the sentence the indicator never draws but always says.
+ *
+ * A week with one planned session reads `1 de 1 sesión hecha`, because the visible
+ * number and the noun have to agree before a screen reader reads them out loud.
+ */
+export function weekMeterCount(done: number, planned: number): string {
+  const noun = planned === 1 ? 'sesión' : 'sesiones';
+  // The participle agrees with the noun, not with the number: `1 de 2 sesiones hechas`
+  // and `1 de 1 sesión hecha` are both correct.
+  const agreement = planned === 1 ? 'hecha' : 'hechas';
+  return `${done} de ${planned} ${noun} ${agreement}`;
 }
 
 function weightViewOf(measurements: readonly BodyMeasurement[], now: EpochMs): WeightView | null {
@@ -563,6 +618,7 @@ function activityViewOf(activities: readonly ActivityRecord[]): ActivityView {
       id: row.id,
       label: MANUAL_ACTIVITY_LABELS[row.kind],
       detail: `${formatShortDate(row.date)} · ${formatDuration(row.durationSeconds * 1000)}`,
+      removeLabel: `Eliminar ${MANUAL_ACTIVITY_NAMES[row.kind]} del ${formatDayAndMonth(row.date)}`,
     })),
     imported: activities.length - manual.length,
     empty: activities.length === 0,
@@ -585,7 +641,7 @@ export function homeViewOf(input: HomeInput): HomeView {
     nothingToday: today !== null ? null : plan.length === 0 ? 'noPlan' : 'emptyDay',
     action: actionOf(today, inProgress),
     last: lastSessionOf(recent),
-    week: weekViewOf(recent, now),
+    week: weekViewOf(recent, now, plan.length),
     weight: weightViewOf(input.measurements, now),
     // Read only, and never handed to the rotation: `nextPlanDay` above sees `plan` and
     // `recent` (sessions) and nothing else, so a recorded football match cannot move the
