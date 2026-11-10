@@ -72,3 +72,10 @@ No quiero reconstruir la aplicación ni cambiar innecesariamente su motor de pro
 **L5 — Verificación independiente y su bloqueante.** `gentle-ai-verify` revisó `0d839d5..bd9c3c3` y encontró que `src/storage/mappers.ts` copiaba la prescripción sin `role`: el motor leía perfil, el almacén lo borraba, y en la app real todo se juzgaba como hipertrofia (una sentadilla de 3 × 6 salía «series incompletas» y el bloque no pasaba). Corregido en `32f2e0f` con una prueba que recorre semilla → fila guardada → recomendación. El mismo commit sube `ENGINE_VERSION` a 1.1.0 (§12 lo exige cuando cambian los números de §8), documenta la tabla de cuatro columnas y saca del índice un módulo muerto (`src/core/format`) que se había colado.
 
 **L6 — Lo que el verificador dejó abierto, aceptado.** 14 filas de la biblioteca que el plan no prescribe siguen sin descripción, y `face pull` no tiene alternativa porque su familia (patrón + músculo) no tiene hermano honesto; rellenarlo violaría S5. Las alternativas se muestran en el detalle del ejercicio, no en mitad de una serie (eso pediría un flujo nuevo en la sesión, fuera de S6). El fútbol queda como actividad manual de 50 minutos sin kcal: no hay dato real que inventar.
+
+**L11 — Cuatro días y trabajo de resistencia (decisión del propietario, 2026-11-10).** «quiero que implementes todo la tabla de ejercicios y los días con el nuevo tipo de entrenamiento que habíamos seleccionado». Se implementa:
+
+- **Cuatro días de gimnasio**: `PIERNA`, `TORSO A`, `TORSO B` y `FÍSICO`, este último el nuevo tipo: intervalos para aguantar el partido, más resistencia específica de aductores, sóleo y core.
+- **Un perfil de prescripción nuevo, `conditioning`**, que se prescribe **por tiempo** (series de 2–4 minutos o intervalos) y no por repeticiones: el motor lo mantiene en carga cero, sin incremento, y la sesión muestra minutos en lugar de repeticiones.
+- Nada de configuración: el plan es el que es, Perfil no pregunta días ni tipos.
+- Semana: lunes pierna, martes torso A, miércoles descanso, jueves fútbol, viernes torso B, sábado físico, domingo descanso. El fútbol sigue siendo actividad y no mueve la rotación.
