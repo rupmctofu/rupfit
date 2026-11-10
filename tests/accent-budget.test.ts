@@ -40,6 +40,9 @@ const ALLOWED: AllowList = {
   'app/shell.css': [
     // Active state: the current tab of the tab bar (§4).
     'color: var(--color-accent);',
+    // The bar's centre is the app's one primary action, drawn as the owner's mark on a
+    // lilac disc. Same role as PrimaryAction anywhere else, different shape.
+    'background: var(--color-accent);',
   ],
   'features/home/home.css': [
     // The today marker: the single data point Inicio exists to answer ("do I train today?").
