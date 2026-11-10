@@ -58,18 +58,23 @@ export const PICTOGRAM_FLOOR = FLOOR;
 export const PICTOGRAMS = {
   /* --------------------------------------------------------------- squat */
   'squat-back': {
-    head: [60, 28],
+    // Bar on the traps, not in the hands: the arms hang with the elbows down and the hands
+    // up on the bar. The legs are drawn as thigh plus shin plus foot on purpose — one line
+    // from hip to floor is what made the figure look like a stick at the size of the ring.
+    head: [60, 24],
     body: [
-      [[60, 36], [60, 62]],
-      [[58, 42], [42, 42]],
-      [[62, 42], [78, 42]],
-      [[60, 62], [47, 82], [46, 106]],
-      [[60, 62], [73, 82], [74, 106]],
+      [[60, 32], [58, 60]],
+      [[56, 42], [50, 54], [46, 40]],
+      [[62, 42], [70, 54], [74, 40]],
+      [[58, 60], [44, 80]],
+      [[58, 60], [72, 80]],
+      [[44, 80], [46, 106]],
+      [[72, 80], [70, 106]],
       [[46, 106], [36, 106]],
-      [[74, 106], [84, 106]],
+      [[70, 106], [80, 106]],
     ],
-    thick: [3, 4],
-    gear: [{ k: 'bar', x1: 30, x2: 90, y: 40 }],
+    thick: [0, 3, 4, 5, 6],
+    gear: [{ k: 'bar', x1: 34, x2: 88, y: 40 }],
   },
   'squat-front': {
     head: [60, 28],
@@ -278,14 +283,23 @@ export const PICTOGRAMS = {
   },
   /* ---------------------------------------------------------------- hinge */
   'deadlift-barbell': {
-    head: [70, 42],
+    // Conventional pull: the torso hinged forward over the bar, the arms straight down and
+    // the bar on the floor. Two legs, two arms, feet turned out — a single leg line read as
+    // somebody leaning on a stick.
+    head: [64, 26],
     body: [
-      [[66, 50], [52, 74]],
-      [[62, 56], [60, 84]],
-      [[52, 74], [50, 96], [54, 106]],
+      [[62, 34], [44, 58]],
+      [[58, 40], [56, 100]],
+      [[65, 42], [66, 100]],
+      [[42, 58], [42, 82]],
+      [[42, 82], [44, 106]],
+      [[47, 58], [52, 82]],
+      [[52, 82], [54, 106]],
+      [[44, 106], [34, 106]],
+      [[54, 106], [64, 106]],
     ],
-    thick: [2],
-    gear: [{ k: 'bar', x1: 24, x2: 94, y: 86 }],
+    thick: [0, 3, 4, 5, 6],
+    gear: [{ k: 'bar', x1: 22, x2: 92, y: 100 }],
   },
   'rdl-barbell': {
     head: [72, 44],
@@ -299,19 +313,25 @@ export const PICTOGRAMS = {
   },
   /* ----------------------------------------------------------------- push */
   'bench-press': {
-    head: [36, 74],
+    // Lying on the bench: torso along the pad, both arms bent with the elbows out and the
+    // hands at the bar, knees up and the feet on the floor. The previous version pressed
+    // with two straight lines and left the legs hanging, which read as a stick falling
+    // off a table at the size the ring draws it.
+    head: [36, 72],
     body: [
-      [[44, 78], [74, 78]],
-      [[52, 76], [50, 56]],
-      [[64, 76], [66, 56]],
-      [[74, 78], [88, 70], [92, 100]],
+      [[44, 76], [74, 76]],
+      [[52, 75], [46, 64], [52, 52]],
+      [[64, 75], [58, 64], [64, 52]],
+      [[74, 76], [86, 66]],
+      [[86, 66], [92, 104]],
+      [[92, 104], [84, 104]],
     ],
-    thick: [3],
+    thick: [0, 3, 4],
     gear: [
-      { k: 'slab', x: 28, y: 84, w: 62, h: 7 },
-      { k: 'slab', x: 34, y: 84, w: 5, h: 22 },
-      { k: 'slab', x: 78, y: 84, w: 5, h: 22 },
-      { k: 'bar', x1: 30, x2: 92, y: 54 },
+      { k: 'slab', x: 26, y: 80, w: 64, h: 6 },
+      { k: 'slab', x: 32, y: 86, w: 5, h: 20 },
+      { k: 'slab', x: 80, y: 86, w: 5, h: 20 },
+      { k: 'bar', x1: 26, x2: 96, y: 50 },
     ],
   },
   'incline-press-barbell': {
