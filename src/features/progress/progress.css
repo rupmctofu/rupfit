@@ -164,41 +164,91 @@
   min-width: 0;
 }
 
-/* ------------------------------------------------- deleting a stored session */
-/* The destructive block sits at the end of a session read-out: it is rarely the reason
-   the owner opened the session, so it never competes with the totals above it. */
-.progress__danger {
+/* ---------------------------------------- deleting a stored session, in two steps */
+/*
+ * The bin of a session (odd/tasks/home-hierarchy.md T4, S5; log L3). It is a sibling of
+ * the row and never a button inside the row's button, so a thumb reaching for the session
+ * cannot land in the delete by accident. Its target is the 48 px floor of §3.
+ */
+.progress__session-item {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3) 0 var(--space-1);
+  min-width: 0;
+}
+
+/* The separators of the card, moved from the data rows to the row's wrapper: the row is
+   no longer a direct sibling of the next one. */
+.progress__session-item + .progress__session-item {
   border-top: var(--layout-hairline) solid var(--color-border);
 }
 
-.progress__confirm {
+.progress__session {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: var(--space-1);
+  min-width: 0;
 }
 
-/* The typed sentence is the whole safeguard: a 48 px field the owner has to fill. */
-.progress__confirm-input {
-  width: 100%;
-  min-height: var(--target-min);
-  padding: var(--space-2) var(--space-3);
-  border: var(--layout-hairline) solid var(--color-border);
+.progress__session > .ds-data-row {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.progress__bin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--target-min);
+  height: var(--target-min);
   border-radius: var(--radius-control-square);
-  background: var(--color-surface-raised);
-  color: var(--color-text);
-  font-family: var(--font-sans);
-  font-size: var(--text-body);
-  line-height: var(--leading-body);
-  user-select: text;
-  -webkit-user-select: text;
-  touch-action: manipulation;
+  color: var(--color-danger);
 }
 
-.progress__confirm-input:focus-visible {
+.progress__bin:disabled {
+  color: var(--color-subtle);
+}
+
+.progress__bin:focus-visible {
   outline: var(--focus-ring-width) solid var(--color-focus-ring);
   outline-offset: var(--focus-ring-offset);
+}
+
+/* On the read-out the bin sits alone, at the top right of the open session. */
+.progress__delete {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.progress__delete-row {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+/*
+ * The question, inline: the row stays visible above it, so `Cancelar` is obviously a
+ * cancel and not a lost tap. The block takes the focus when it opens (`tabIndex` in the
+ * component), which is why it wears the same ring as the buttons it holds.
+ */
+.progress__question {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2) 0 var(--space-3);
+}
+
+.progress__question:focus-visible {
+  border-radius: var(--radius-control-square);
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.progress__question-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }

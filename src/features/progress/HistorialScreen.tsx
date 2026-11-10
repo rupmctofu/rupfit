@@ -19,7 +19,7 @@
  * session. A row opens only from stored data: no number on this screen is invented.
  */
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import {
   Card,
   Chip,
@@ -32,19 +32,27 @@ import {
 } from '../../design-system';
 import type { WorkoutSession } from '../../storage';
 import { exerciseKey, recordsInSession } from './aggregates';
-import { deleteGate, deleteHint, deletePhrase } from './deleteSession';
+import {
+  DELETE_FLOW_IDLE,
+  isAsking,
+  isFailed,
+  reduceDeleteFlow,
+  runDelete,
+  type DeleteFlow,
+} from './deleteFlow';
 import { exerciseUsages, type ExerciseUsage } from './exerciseDetail';
 import {
   durationMinutes,
   formatDayMonth,
   formatDurationMinutes,
   formatHoursMinutes,
+  formatLongDayMonth,
   formatMonthTitle,
   formatVolume,
   formatWeekdayDay,
   formatWeight,
 } from './format';
-import { DrilldownHeader } from './parts';
+import { DrilldownHeader, TrashGlyph } from './parts';
 import { historySessions, isHistorySession, sessionSummary } from './summary';
 import './progress.css';
 
@@ -158,6 +166,74 @@ export function HistorialScreen({
   );
   const [openId, setOpenId] = useState<string | null>(null);
 
+  /**
+   * The delete, in two taps (odd/tasks/home-hierarchy.md T4, S5). The flow lives here,
+   * one per list, so opening the question on one row closes it on any other, and the
+   * write below is the only thing that reaches the store.
+   */
+  const [flow, dispatch] = useReducer(reduceDeleteFlow, DELETE_FLOW_IDLE);
+
+  const confirmDelete = useCallback(
+    (session: WorkoutSession): void => {
+      // A question is only ever open when the screen can delete, so this is a guard for
+      // the type, not a second decision.
+      if (onDeleteSession === undefined) return;
+      const remove = onDeleteSession;
+      // The second tap is the state change; the flow handed to the write is this row's,
+      // and only this row's.
+      dispatch({ type: 'confirm' });
+      void (async () => {
+        const next = await runDelete({
+          flow: { step: 'confirming', sessionId: session.id },
+          session,
+          remove,
+        });
+        if (next.step === 'failed') {
+          dispatch({ type: 'failed' });
+          return;
+        }
+        if (next.step === 'idle') {
+          setOpenId(null);
+          dispatch({ type: 'deleted' });
+        }
+      })();
+    },
+    [onDeleteSession],
+  );
+
+  /** The bin and its question, or nothing when the screen is read-only. */
+  const deleteControl = useCallback(
+    (
+      session: WorkoutSession,
+      variant: 'row' | 'readout',
+      row?: React.ReactNode,
+    ): React.ReactElement | null => {
+      // Read-only (the demo and the tests): the row is rendered exactly as it was, in the
+      // same keyed wrapper, so the card keeps its separators.
+      if (onDeleteSession === undefined) {
+        return row === undefined ? null : (
+          <div className="progress__session-item" key={session.id}>
+            {row}
+          </div>
+        );
+      }
+      return (
+        <SessionDelete
+          key={session.id}
+          session={session}
+          flow={flow}
+          variant={variant}
+          onAsk={(sessionId) => dispatch({ type: 'ask', sessionId })}
+          onConfirm={confirmDelete}
+          onCancel={() => dispatch({ type: 'cancel' })}
+        >
+          {row}
+        </SessionDelete>
+      );
+    },
+    [flow, confirmDelete, onDeleteSession],
+  );
+
   const open =
     openId === null
       ? undefined
@@ -171,14 +247,7 @@ export function HistorialScreen({
         onBack={() => setOpenId(null)}
         backLabel="Historial"
         onOpenExercise={onOpenExercise}
-        {...(onDeleteSession === undefined
-          ? {}
-          : {
-              onDelete: async () => {
-                await onDeleteSession(open);
-                setOpenId(null);
-              },
-            })}
+        deleteControl={deleteControl(open, 'readout')}
       />
     );
   }
@@ -212,24 +281,27 @@ export function HistorialScreen({
         <div className="progress__group">
           <SectionLabel>Sin series registradas</SectionLabel>
           <Card padding="list">
-            {ghosts.map((session) => (
-              <DataRow
-                key={session.id}
-                icon="calendar"
-                title={`${formatWeekdayDay(session.scheduledDate)} · ${session.dayNameSnapshot}`}
-                subtitle="Empezada sin series · se puede borrar"
-                status={{
-                  word:
-                    session.status === 'completed' || session.status === 'partial' ||
-                    session.status === 'abandoned'
-                      ? 'sin series'
-                      : session.status === 'inProgress'
-                        ? 'en curso'
-                        : 'programada',
-                }}
-                onSelect={() => setOpenId(session.id)}
-              />
-            ))}
+            {ghosts.map((session) =>
+              deleteControl(
+                session,
+                'row',
+                <DataRow
+                  icon="calendar"
+                  title={`${formatWeekdayDay(session.scheduledDate)} · ${session.dayNameSnapshot}`}
+                  subtitle="Empezada sin series · se puede borrar"
+                  status={{
+                    word:
+                      session.status === 'completed' || session.status === 'partial' ||
+                      session.status === 'abandoned'
+                        ? 'sin series'
+                        : session.status === 'inProgress'
+                          ? 'en curso'
+                          : 'programada',
+                  }}
+                  onSelect={() => setOpenId(session.id)}
+                />,
+              ),
+            )}
           </Card>
         </div>
       )}
@@ -241,9 +313,10 @@ export function HistorialScreen({
               const summary = summaries.get(session.id);
               if (summary === undefined) return null;
               const day = formatWeekdayDay(session.scheduledDate);
-              return (
+              return deleteControl(
+                session,
+                'row',
                 <DataRow
-                  key={session.id}
                   icon="barbell"
                   title={`${day} · ${session.dayNameSnapshot}`}
                   subtitle={`${
@@ -252,7 +325,7 @@ export function HistorialScreen({
                   value={formatVolume(summary.volumeKg)}
                   valueUnit="kg"
                   onSelect={() => setOpenId(session.id)}
-                />
+                />,
               );
             })}
           </Card>
@@ -294,8 +367,8 @@ interface SessionReadOutProps {
   /** The label of the back control: what it returns to. */
   readonly backLabel: string;
   readonly onOpenExercise: (key: string) => void;
-  /** Absent when the screen must stay read-only. */
-  readonly onDelete?: (() => Promise<void>) | undefined;
+  /** The bin and its question, or `null` when the screen must stay read-only. */
+  readonly deleteControl?: React.ReactNode;
 }
 
 /**
@@ -308,7 +381,7 @@ function SessionReadOut({
   onBack,
   backLabel,
   onOpenExercise,
-  onDelete,
+  deleteControl,
 }: SessionReadOutProps): React.ReactElement {
   const summary = sessionSummary(session);
   const hits = recordsInSession(session, all);
@@ -317,6 +390,8 @@ function SessionReadOut({
   return (
     <div className="progress">
       <DrilldownHeader title={`Sesión del ${day}`} backLabel={backLabel} onBack={onBack} />
+
+      {deleteControl}
 
       <Card>
         <div className="ds-row">
@@ -398,107 +473,108 @@ function SessionReadOut({
           );
         })}
       </Card>
-
-      {onDelete === undefined ? null : (
-        <DeleteSessionBlock dayName={session.dayNameSnapshot} onDelete={onDelete} />
-      )}
     </div>
   );
 }
 
 /**
- * Removing a session that never happened (odd/tasks/delete-session.md).
+ * The bin of one session and the question it asks (odd/tasks/home-hierarchy.md T4, S5;
+ * log L3).
  *
- * The action is behind a typed sentence, never a single tap: the owner pressed «Empezar»
- * by mistake, and the same gesture should not be able to delete a real session. The gate
- * itself lives in `deleteSession.ts`, so this component only renders its three states.
+ * One tap never deletes: the bin opens «¿Eliminar esta sesión?» and the write waits for
+ * `Sí, eliminar`. The flow is `deleteFlow.ts` — a reducer with its own tests, because
+ * this project has no DOM to mount a screen in — and this component only renders its
+ * result and moves the focus: to the question when it opens, and back to the bin when the
+ * owner cancels or presses Escape.
+ *
+ * `variant` decides where the bin sits, not what it does: `row` places it beside a list
+ * row (a sibling button, never a button nested in the row's button), `readout` places it
+ * alone at the top right of an open session.
  */
-function DeleteSessionBlock({
-  dayName,
-  onDelete,
-}: {
-  readonly dayName: string;
-  readonly onDelete: () => Promise<void>;
-}): React.ReactElement {
-  const [open, setOpen] = useState(false);
-  const [typed, setTyped] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
-  const gate = deleteGate(typed, dayName);
+interface SessionDeleteProps {
+  readonly session: WorkoutSession;
+  readonly flow: DeleteFlow;
+  readonly variant: 'row' | 'readout';
+  readonly onAsk: (sessionId: string) => void;
+  readonly onConfirm: (session: WorkoutSession) => void;
+  readonly onCancel: () => void;
+  /** The list row, when the bin belongs to one. */
+  readonly children?: React.ReactNode;
+}
 
-  if (!open) {
-    return (
-      <div className="progress__danger">
-        <TextButton
-          align="start"
-          tone="danger"
-          onClick={() => {
-            setOpen(true);
-            setFailed(false);
-          }}
-        >
-          Borrar esta sesión
-        </TextButton>
-        <p className="ds-caption">
-          Útil si empezaste un entrenamiento por error. Se borra del historial y deja de contar para
-          la próxima recomendación.
-        </p>
-      </div>
-    );
-  }
+function SessionDelete({
+  session,
+  flow,
+  variant,
+  onAsk,
+  onConfirm,
+  onCancel,
+  children,
+}: SessionDeleteProps): React.ReactElement {
+  const bin = useRef<HTMLButtonElement | null>(null);
+  const question = useRef<HTMLDivElement | null>(null);
+  const asking = isAsking(flow, session.id);
+  const failed = isFailed(flow, session.id);
+  const open = asking || failed;
+  const busy = flow.step === 'deleting' && flow.sessionId === session.id;
+
+  // The question takes the focus when it opens, so it is read out and Tab reaches its two
+  // buttons. It borrows the focus with `tabIndex` and gives it back to the bin on cancel.
+  useEffect(() => {
+    if (open) question.current?.focus();
+  }, [open]);
+
+  const cancel = (): void => {
+    onCancel();
+    bin.current?.focus();
+  };
 
   return (
-    <Card>
-      <p className="ds-body">
-        Se borra la sesión y sus series. No se puede deshacer y el motor volverá a decidir como si
-        ese día no hubieras entrenado.
-      </p>
+    <div className={variant === 'row' ? 'progress__session-item' : 'progress__delete'}>
+      <div className={variant === 'row' ? 'progress__session' : 'progress__delete-row'}>
+        {children}
+        <button
+          ref={bin}
+          type="button"
+          className="ds-action progress__bin"
+          aria-label={`Eliminar la sesión del ${formatLongDayMonth(session.scheduledDate)}`}
+          onClick={() => onAsk(session.id)}
+          disabled={busy}
+        >
+          <TrashGlyph />
+        </button>
+      </div>
 
-      <label className="progress__confirm">
-        <span className="ds-meta">Confirmación</span>
-        <input
-          className="progress__confirm-input"
-          type="text"
-          value={typed}
-          autoCapitalize="characters"
-          autoCorrect="off"
-          spellCheck={false}
-          placeholder={deletePhrase(dayName)}
-          onChange={(event) => {
-            setTyped(event.target.value);
-            setFailed(false);
-          }}
-        />
-        <span className="ds-caption">{deleteHint(gate, dayName)}</span>
-      </label>
-
-      {failed ? (
-        <ErrorBanner message="No se pudo borrar la sesión. Sigue guardada; inténtalo otra vez." />
-      ) : null}
-
-      <TextButton
-        align="start"
-        tone="danger"
-        disabled={gate !== 'ready' || busy}
-        onClick={() => {
-          setBusy(true);
-          setFailed(false);
-          void (async () => {
-            try {
-              await onDelete();
-            } catch {
-              setFailed(true);
-              setBusy(false);
+      {open ? (
+        <div
+          ref={question}
+          className="progress__question"
+          role="group"
+          aria-label="Confirmar el borrado"
+          tabIndex={-1}
+          onKeyDown={(press) => {
+            if (press.key === 'Escape' && !busy) {
+              press.stopPropagation();
+              cancel();
             }
-          })();
-        }}
-      >
-        {busy ? 'Borrando…' : 'Borrar definitivamente'}
-      </TextButton>
-
-      <TextButton align="start" onClick={() => setOpen(false)}>
-        {busy ? 'Espera…' : 'Cancelar'}
-      </TextButton>
-    </Card>
+          }}
+        >
+          <p className="ds-body">
+            ¿Eliminar esta sesión? Se borrará del historial y no se puede deshacer.
+          </p>
+          {failed ? (
+            <ErrorBanner message="No se pudo borrar la sesión. Sigue guardada; inténtalo otra vez." />
+          ) : null}
+          <div className="progress__question-actions">
+            <TextButton tone="danger" disabled={busy} onClick={() => onConfirm(session)}>
+              {busy ? 'Eliminando…' : 'Sí, eliminar'}
+            </TextButton>
+            <TextButton disabled={busy} onClick={cancel}>
+              Cancelar
+            </TextButton>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }

@@ -100,6 +100,15 @@ export function formatMonthTitle(at: number): string {
   return capitalise(new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(new Date(at)));
 }
 
+/**
+ * `9 de noviembre` — the day written out, for a control whose name has to be a sentence
+ * the owner hears and not a label that only means something next to a number
+ * («Eliminar la sesión del 9 de noviembre»).
+ */
+export function formatLongDayMonth(at: number): string {
+  return new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'long' }).format(new Date(at));
+}
+
 /** `Miércoles 6` — the first line of a Historial row. */
 export function formatWeekdayDay(at: number): string {
   const weekday = new Intl.DateTimeFormat('es-ES', { weekday: 'long' }).format(new Date(at));

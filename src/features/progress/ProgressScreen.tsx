@@ -61,7 +61,6 @@ import type {
   UserProfile,
   WorkoutSession,
 } from '../../storage';
-import { deleteSessionConfirmation } from '../../storage';
 import {
   isRecordedSession,
   personalRecords,
@@ -88,6 +87,7 @@ import {
 import { ExerciseDetailScreen } from './ExerciseDetailScreen';
 import { exerciseUsages, type ExerciseUsage } from './exerciseDetail';
 import { HistorialScreen } from './HistorialScreen';
+import { deleteStoredSession } from './deleteFlow';
 import { useProgressView } from './navigation';
 import { LastWeighInTile, MeanAndGoalRows, WeightScreen } from './WeightScreen';
 import type { WeightDraft, WeightSaveOutcome } from './weightEntry';
@@ -194,17 +194,14 @@ function ProgressTab({
   const retry = useCallback(() => setAttempt((current) => current + 1), []);
 
   /**
-   * Deleting a stored session (odd/tasks/delete-session.md). The store demands two steps —
-   * flag, then remove — and refuses the second without the typed sentence, so this calls
-   * both in order and re-reads the tab from the store afterwards instead of editing the
-   * list in memory: the recommendation the engine computes has to see the deletion too.
+   * Deleting a stored session (odd/tasks/home-hierarchy.md T4; odd/tasks/delete-session.md).
+   * The two port calls and their order live in `deleteFlow.ts`, where they are tested; this
+   * callback adds the one thing the feature needs on top: re-reading the tab from the
+   * store afterwards, so the recommendation the engine computes sees the deletion too.
    */
   const deleteSession = useCallback(
     async (session: WorkoutSession): Promise<void> => {
-      await storage.sessions.markDeletionPending(session.id);
-      await storage.sessions.delete(session.id, {
-        confirmation: deleteSessionConfirmation(session.dayNameSnapshot),
-      });
+      await deleteStoredSession(storage.sessions, session);
       setAttempt((current) => current + 1);
     },
     [storage],

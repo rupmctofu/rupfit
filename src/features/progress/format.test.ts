@@ -12,6 +12,7 @@ import {
   formatDayMonth,
   formatDurationMinutes,
   formatGoal,
+  formatLongDayMonth,
   formatMonthTitle,
   formatProvenance,
   formatSignedWeight,
@@ -52,6 +53,12 @@ describe('dates', () => {
   it('writes the weekday with a capital letter, as the Historial rows do', () => {
     expect(formatWeekdayDay(at(2024, 10, 6))).toBe('Miércoles 6');
     expect(formatWeekdayDay(at(2024, 10, 4))).toBe('Lunes 4');
+  });
+
+  it('writes the day out in full, to name a session in a spoken sentence', () => {
+    // «Eliminar la sesión del 9 de noviembre»: a small-cased month, no abbreviation.
+    expect(formatLongDayMonth(at(2024, 10, 9))).toBe('9 de noviembre');
+    expect(formatLongDayMonth(at(2024, 0, 1))).toBe('1 de enero');
   });
 });
 
