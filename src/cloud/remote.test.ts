@@ -160,7 +160,8 @@ describe('pushRows, the request it actually sends', () => {
 
     const payload = client.upserts[0]?.rows[0] ?? {};
     expect(payload).toMatchObject({
-      id: 'exercise-1',
+      // Owner-scoped remote id: two accounts cannot collide on a local id like «profile».
+      id: `${USER_ID}:exercise-1`,
       user_id: USER_ID,
       name: 'Sentadilla',
       primary_muscle: 'quadriceps',
@@ -198,7 +199,7 @@ describe('pushRows, the request it actually sends', () => {
     expect(client.upserts[1]?.rows).toEqual(client.upserts[0]?.rows);
     expect(client.upserts[1]?.options).toEqual(client.upserts[0]?.options);
     // One row, because the identity the server conflicts on is the app id.
-    expect(client.upserts[1]?.rows[0]?.['id']).toBe('exercise-1');
+    expect(client.upserts[1]?.rows[0]?.['id']).toBe(`${USER_ID}:exercise-1`);
   });
 
   it('sends no other account than the session\'s, even if a row asks for it', async () => {

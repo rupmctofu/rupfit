@@ -300,6 +300,37 @@ export class SupabaseSyncRemote implements SyncRemote {
   }
 }
 
+/**
+ * `<owner>:<local id>` on the server, plain `<local id>` everywhere else.
+ *
+ * The prefix is the account's uuid, so it also documents who the row belongs to when
+ * reading the table by hand. A row that arrives without a prefix (written before this
+ * scheme, or by a hand-run probe) keeps its id as it is rather than being dropped.
+ */
+function remoteId(userId: string, localId: string): string {
+  return localId.startsWith(`${userId}:`) ? localId : `${userId}:${localId}`;
+}
+
+function localIdOf(remote: string): string | null {
+  const separator = remote.indexOf(':');
+  if (separator === -1) return remote === '' ? null : remote;
+  const rest = remote.slice(separator + 1);
+  return rest === '' ? null : rest;
+}
+
+/**
+ * The columns that point at another row: `plan_items.plan_day_id` → `plan_days`,
+ * `session_exercises.session_id` → `sessions`, `sets.session_id` and
+ * `sets.exercise_session_id` → their two parents. They travel with the owner prefix, the
+ * same one the parent's `id` carries.
+ */
+const PARENT_FIELDS: ReadonlySet<string> = new Set([
+  'plan_items.planDayId',
+  'session_exercises.sessionId',
+  'sets.sessionId',
+  'sets.exerciseSessionId',
+]);
+
 /** `{ table: rows }` in first-seen order, which is the push order the caller chose. */
 function groupByTable(rows: readonly PushRow[]): readonly [SyncTable, PushRow[]][] {
   const groups = new Map<SyncTable, PushRow[]>();
@@ -318,13 +349,30 @@ function groupByTable(rows: readonly PushRow[]): readonly [SyncTable, PushRow[]]
  */
 function encodeRow(table: SyncTable, row: PushRow, userId: string): Record<string, unknown> {
   const columns = COLUMNS[table];
-  const payload: Record<string, unknown> = { id: row.rowId, user_id: userId, rev: row.rev };
+  // The local id is only unique inside one device («profile», «seed-day-leg»), while the
+  // table's primary key is global. Two accounts sharing the id would make the second
+  // account's upsert hit the first one's row, and RLS would refuse it — correctly, as an
+  // UPDATE of somebody else's data. Prefixing with the owner makes the remote id unique
+  // per account without touching the local model or the schema.
+  const payload: Record<string, unknown> = {
+    id: remoteId(userId, row.rowId),
+    user_id: userId,
+    rev: row.rev,
+  };
 
   for (const [field, column] of Object.entries(columns)) {
     const value = row.values[field];
     if (value === undefined) continue;
     const encode = ENCODE[`${table}.${field}`];
-    payload[column] = encode === undefined ? value : encode(value);
+    // A child row points at its parent by the parent's *remote* id, and that id carries
+    // the owner like every other. Sending the local id here is what makes the database
+    // refuse the row: the referenced row simply does not exist under that name.
+    const stored = PARENT_FIELDS.has(`${table}.${field}`)
+      ? typeof value === 'string'
+        ? remoteId(userId, value)
+        : value
+      : value;
+    payload[column] = encode === undefined ? stored : encode(stored);
   }
 
   // A delete is an update that sets `deleted_at` (docs/cloud-sync.md §2); `sync.ts`
@@ -349,12 +397,20 @@ function decodeRow(table: SyncTable, raw: unknown): RemoteRow | null {
   const sql = raw as Record<string, unknown>;
   const id = sql['id'];
   if (typeof id !== 'string' || id === '') return null;
+  const localId = localIdOf(id);
+  if (localId === null) return null;
 
   const values: Record<string, unknown> = {};
   for (const [field, column] of Object.entries(COLUMNS[table])) {
     if (!(column in sql)) continue;
     const decode = DECODE[`${table}.${column}`];
-    values[field] = decode === undefined ? sql[column] : decode(sql[column]);
+    const raw = sql[column];
+    // A foreign key arrives with the owner prefix; the local model knows only the plain id.
+    const unparented =
+      PARENT_FIELDS.has(`${table}.${field}`) && typeof raw === 'string'
+        ? (localIdOf(raw) ?? raw)
+        : raw;
+    values[field] = decode === undefined ? unparented : decode(unparented);
   }
   // An absent sample id is written as an omitted key, never as `null` (§5.1): the unique
   // index would otherwise hold a row the document says is not in it.
@@ -364,7 +420,7 @@ function decodeRow(table: SyncTable, raw: unknown): RemoteRow | null {
 
   return {
     table,
-    rowId: id,
+    rowId: localId,
     rev: typeof sql['rev'] === 'number' ? sql['rev'] : 1,
     updatedAt: instantOf(sql['updated_at']) ?? 0,
     deletedAt: instantOf(sql['deleted_at']),
