@@ -33,6 +33,7 @@ import {
   canRetry,
   canSyncNow,
   lastSyncLine,
+  migrationLine,
   syncStateWords,
   type AccountSyncView,
 } from './account-sync';
@@ -174,6 +175,9 @@ interface SignedInProps {
 /** Signed in: who, how far the sync got, and the two actions of S8. */
 function SignedIn({ email, sync, busy, onSignOut, message }: SignedInProps): React.ReactElement {
   const words = syncStateWords(sync);
+  // La migración cuenta lo que hizo una vez y se queda hasta cerrar sesión: es el único
+  // sitio donde el dueño ve que su historial anterior llegó a la cuenta (S7).
+  const moved = migrationLine(sync);
 
   return (
     <>
@@ -188,9 +192,13 @@ function SignedIn({ email, sync, busy, onSignOut, message }: SignedInProps): Rea
 
       <Note>{lastSyncLine(sync)}</Note>
 
+      {moved === null ? null : <Note>{moved}</Note>}
+
       {canRetry(sync) ? (
         <ErrorBanner
-          message="No se pudo sincronizar. Lo guardado sigue en este dispositivo."
+          // El motivo va en la línea de estado (`syncStateWords`); aquí solo queda la
+          // acción, para no decir dos veces la misma frase.
+          message="La sincronización no ha terminado. Nada de lo que has guardado en este dispositivo se ha perdido."
           onRetry={sync.onRetry}
           retryLabel="Reintentar"
         />

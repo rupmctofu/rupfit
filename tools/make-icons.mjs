@@ -266,8 +266,10 @@ function analyse(image) {
       const r = pixels[i];
       const g = pixels[i + 1];
       const b = pixels[i + 2];
-      // lime #C6F24E against the black field
-      if (g > 150 && b < 130 && r > 100) {
+      // The glyph is the accent: lilac #A892FF on the dark field (index.html's old lime
+      // is gone with the visual direction in ADR-0002). Bright and blue-weighted, which
+      // is what separates the mark from the field and from any anti-aliasing between them.
+      if (b > 180 && r > 120 && g > 100 && b > g) {
         glyphPixels += 1;
         if (x < minX) minX = x;
         if (x > maxX) maxX = x;
@@ -315,7 +317,9 @@ function verify(target) {
   if (stats.glyphPixels === 0) problems.push(`${target.file}: no glyph pixels, the render is blank`);
   for (const corner of stats.corners) {
     if (corner.alpha !== 255) problems.push(`${target.file}: corner pixel is not opaque`);
-    if (corner.rgb.some((channel) => channel > 16)) {
+    // The field is the app's own canvas, a near-black with a violet cast (#12111B), not
+    // pure black: the check asserts "the corners are the dark field", not one hex value.
+    if (corner.rgb.some((channel) => channel > 32)) {
       problems.push(`${target.file}: corner pixel is ${corner.rgb.join(',')}, expected black`);
     }
   }

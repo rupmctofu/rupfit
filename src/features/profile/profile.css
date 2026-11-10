@@ -52,11 +52,20 @@
   border-radius: var(--radius-pill);
   background: var(--color-surface-raised);
   color: var(--color-text);
+  overflow: hidden;
   font-family: var(--font-numeric);
   font-size: var(--text-title);
   line-height: var(--leading-title);
   font-weight: var(--weight-semibold);
   font-style: italic;
+}
+
+/* The mark fills the plate it sits on: its own lavender carries the identity, so the
+   plate behind it stops being decoration and becomes the edge of the drawing. */
+.profile__mark {
+  display: block;
+  width: 44px;
+  height: 44px;
 }
 
 .profile__identity-text {

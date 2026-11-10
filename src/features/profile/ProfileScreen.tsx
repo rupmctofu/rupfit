@@ -30,7 +30,7 @@
  * and the export file name and the launch marker both come from it.
  */
 
-import { Suspense, lazy, useCallback, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useMemo, useRef, useState } from 'react';
 import {
   Banner,
   Card,
@@ -43,6 +43,7 @@ import {
 import { EQUIPMENT_TYPES, type Equipment } from '../../core/domain';
 import { BACKUP_SCHEMA_VERSION, type UserProfile } from '../../storage';
 import { useAppServices } from '../../app/providers';
+import { useSync } from '../../cloud/useSync';
 import { createProfileId } from './browser-edges';
 import { ChipChoices, CommitField, Note } from './fields';
 import { dataState, evictionCopy } from './launch-marker';
@@ -56,6 +57,7 @@ const AccountGroup = lazy(async () => {
   const module = await import('./AccountGroup');
   return { default: module.AccountGroup };
 });
+import type { AccountSyncView } from './account-sync';
 import { BackupGroup } from './BackupGroup';
 import { InstallGroup } from './InstallGroup';
 import { StorageGroup } from './StorageGroup';
@@ -83,10 +85,30 @@ function prefersReducedMotion(): boolean {
 }
 
 export function ProfileScreen(): React.ReactElement {
-  const { storage, clock } = useAppServices();
+  const { storage, cloud, clock } = useAppServices();
   const { data, markerStore, reload } = useProfileData();
   const update = useUpdateWatch();
   const exportControl = useBackupExport({ storage, clock, markerStore });
+
+  // One sync service per session, behind the card: signed out — or on a build with no
+  // project — this stays `sin conexión` and does no work. It never makes a screen wait.
+  // `historyAt` is the launch marker's instant, and it is what the history migration
+  // stamps a configuration row with: such a row has never had an instant of its own.
+  const now = useCallback(() => clock.now(), [clock]);
+  const historyAt = data.marker?.firstLaunchAt ?? null;
+  const sync = useSync({ storage: cloud.storage, subscribeWrites: cloud.written, now, historyAt });
+  const accountSync = useMemo<AccountSyncView>(
+    () => ({
+      phase: sync.phase,
+      pendingCount: sync.pending,
+      lastSyncedAt: sync.lastSyncedAt,
+      migrated: sync.migrated,
+      reason: sync.reason,
+      onSync: sync.syncNow,
+      onRetry: sync.syncNow,
+    }),
+    [sync.phase, sync.pending, sync.lastSyncedAt, sync.migrated, sync.reason, sync.syncNow],
+  );
 
   const [saveFailed, setSaveFailed] = useState(false);
   const profileRef = useRef<UserProfile | null>(null);
@@ -193,7 +215,7 @@ export function ProfileScreen(): React.ReactElement {
           {/* Above the settings: the account is the one fact that explains where the
               training goes, and the sync state has to be visible without scrolling. */}
           <Suspense fallback={null}>
-            <AccountGroup />
+            <AccountGroup sync={accountSync} />
           </Suspense>
 
           {data.profile === null ? null : (
@@ -260,7 +282,13 @@ function ProfileSection({
       <Card>
         <div className="profile__identity">
           <span className="profile__monogram" aria-hidden="true">
-            R
+            <img
+              className="profile__mark"
+              src={`${import.meta.env.BASE_URL}logo-mark.svg`}
+              alt=""
+              width={44}
+              height={44}
+            />
           </span>
 
           <div className="profile__identity-text">

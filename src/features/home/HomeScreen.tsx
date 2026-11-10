@@ -389,6 +389,15 @@ export function HomeBody({
       {/* The reference hierarchy: the title is the screen's, not a person's, and the name
           and the date stay one quiet line under it. */}
       <header className="home__head">
+        {/* The owner's own mark, at header size: it identifies the app before the screen
+            says anything else, and the wordmark stays in the lockup for the places with
+            room for it. */}
+        <img
+          className="home__brand"
+          src={`${import.meta.env.BASE_URL}logo-lockup.svg`}
+          alt="Rupfit"
+          height={26}
+        />
         <h1 className="ds-screen-title">{HOME_TITLE}</h1>
         <p className="ds-meta">{`${view.greeting} · ${view.dateLine}`}</p>
       </header>

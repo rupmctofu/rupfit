@@ -11,6 +11,15 @@
   padding-bottom: var(--space-8);
 }
 
+/* The lockup is pale-on-transparent by design: it reads on the dark canvas without a
+   plate behind it. Height is fixed so the header keeps one line of rhythm. */
+.home__brand {
+  display: block;
+  height: 26px;
+  width: auto;
+  margin-bottom: var(--space-2);
+}
+
 .home__head {
   display: flex;
   flex-direction: column;
