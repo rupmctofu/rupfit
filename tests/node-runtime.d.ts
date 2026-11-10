@@ -33,6 +33,13 @@ interface ImportMeta {
   readonly url: string;
 }
 
+/**
+ * `console.log` for a probe that reports what it measured. The typecheck pipeline has no
+ * `dom` lib, so the global is not there; declaring it here keeps the excuse narrow — a
+ * probe can print, and no product file gains access to Node.
+ */
+declare const console: { log(...args: readonly unknown[]): void };
+
 var URL: {
   // `href` instead of a nominal string, since the only consumer feeds it to fileURLToPath.
   new (url: string, base?: string): { href: string };
