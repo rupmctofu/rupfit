@@ -119,25 +119,30 @@ describe('the seeded library', () => {
 });
 
 describe('the starter plan', () => {
-  it('is the three gym days of the owner, in rotation order', () => {
-    // odd/tasks/training-program.md S1: leg, upper A, upper B. Rupfit stores no weekday,
-    // so the rotation is the three days and the calendar lives with the owner.
-    expect(plan.map((day) => day.name)).toEqual(['PIERNA', 'TORSO A', 'TORSO B']);
-    expect(plan.map((day) => day.order)).toEqual([0, 1, 2]);
+  it('is the four gym days of the owner, in rotation order', () => {
+    // odd/tasks/training-program.md S1 and L11: leg, upper A, upper B and the conditioning
+    // day. Rupfit stores no weekday, so the rotation is the four days and the calendar
+    // lives with the owner.
+    expect(plan.map((day) => day.name)).toEqual(['PIERNA', 'TORSO A', 'TORSO B', 'FÍSICO']);
+    expect(plan.map((day) => day.order)).toEqual([0, 1, 2, 3]);
   });
 
-  it('starts every day with its strength lift and keeps a readable number of exercises', () => {
+  it('starts every lifting day with its strength lift and keeps a readable number of exercises', () => {
     // Leg day is the longest on purpose: it carries the calves pair and the two
-    // preventive movements the football adaptation is built around.
+    // preventive movements the football adaptation is built around. The conditioning day
+    // has no strength lift to open with — its first slot is the interval, and that is the
+    // one day the engine prescribes by time.
     const lengths = plan.map((day) => day.items.length);
-    expect(lengths).toEqual([8, 7, 7]);
+    expect(lengths).toEqual([8, 7, 7, 4]);
     for (const day of plan) {
       expect(day.items.map((item) => item.order)).toEqual(day.items.map((_, index) => index));
-      expect(day.items[0]?.prescription.role).toBe('strength');
     }
+    expect(plan[0]?.items[0]?.prescription.role).toBe('strength');
+    expect(plan[3]?.items[0]?.prescription.role).toBe('conditioning');
     expect(plan[0]?.items[0]?.exerciseNameSnapshot).toBe('Sentadilla trasera');
     expect(plan[1]?.items[0]?.exerciseNameSnapshot).toBe('Press banca');
     expect(plan[2]?.items[0]?.exerciseNameSnapshot).toBe('Press banca inclinado');
+    expect(plan[3]?.items[0]?.exerciseNameSnapshot).toBe('Intervalos en cinta de correr');
   });
 
   it('prescribes the session muscle by muscle and never the same exercise twice', () => {
@@ -185,6 +190,34 @@ describe('the starter plan', () => {
     expect(new Set(exerciseIds).size).toBe(exerciseIds.length);
   });
 
+  it('writes the fourth day the owner asked for, with its own profiles', () => {
+    // L11: intervals first, then the resistance work that keeps Thursday's football from
+    // hurting — short Copenhagen, isometric soleus, front plank. Nothing on this day is
+    // loaded, so nothing here competes with the match for recovery.
+    const fisico = plan[3];
+    expect(fisico?.items.map((item) => item.exerciseNameSnapshot)).toEqual([
+      'Intervalos en cinta de correr',
+      'Copenhagen plank corto',
+      'Elevación de sóleo isométrica',
+      'Plancha',
+    ]);
+    expect(fisico?.items.map((item) => item.prescription.role)).toEqual([
+      'conditioning',
+      'preventive',
+      'preventive',
+      'preventive',
+    ]);
+    // Prescribed by time: block 1 is two intervals of two minutes, at 4–5 RIR.
+    expect(fisico?.items[0]?.prescription).toEqual({
+      sets: 2,
+      repRange: { lowerBound: 1, upperBound: 1 },
+      targetRIR: { lowerBound: 4, upperBound: 5 },
+      restSeconds: 120,
+      role: 'conditioning',
+      durationSeconds: 120,
+    });
+  });
+
   it('points every plan item at a seeded exercise, by id and by name snapshot', () => {
     const byId = new Map(SEED_EXERCISES.map((exercise) => [exercise.id, exercise]));
 
@@ -199,9 +232,9 @@ describe('the starter plan', () => {
   });
 
   it('writes the block-1 prescription of each profile, with the rest of §7', () => {
-    // Four profiles, four different answers at the same block: this is the whole point of
-    // odd/tasks/training-program.md S2 — a strength lift and a Copenhagen plank can no
-    // longer share one row of numbers.
+    // Five profiles, five different answers at the same block: this is the whole point of
+    // odd/tasks/training-program.md S2 and L11 — a strength lift, a Copenhagen plank and a
+    // treadmill interval can no longer share one row of numbers.
     expect(itemByName('Sentadilla trasera').prescription).toEqual({
       sets: 3,
       repRange: STRENGTH_REPS,
@@ -237,16 +270,17 @@ describe('the starter plan', () => {
     });
     expect(itemByName('Copenhagen plank adaptado').prescription.role).toBe('preventive');
 
-    // §7: only the three documented intervals exist, and only the day's strength lifs
-    // take the 180 s one.
+    // §7: only the three documented intervals exist, and only the day's strength lifts
+    // take the 180 s one. The conditioning day has neither: it prescribes no strength lift
+    // and rests its intervals the accessory-compound 120 s.
     for (const item of planItems) {
       expect([90, 120, 180]).toContain(item.prescription.restSeconds);
     }
     for (const day of plan) {
       const long = day.items.filter((item) => item.prescription.restSeconds === 180);
-      expect(long.length).toBeGreaterThan(0);
       expect(long.length).toBe(day.items.filter((item) => item.prescription.role === 'strength').length);
     }
+    expect(plan[3]?.items[0]?.prescription.restSeconds).toBe(120);
   });
 
   it('never puts the full Nordic curl before the assisted one', () => {
@@ -270,7 +304,7 @@ describe('seedRows()', () => {
 
     expect(first).toEqual(second);
     expect(first.exercises).toHaveLength(SEED_EXERCISES.length);
-    expect(first.planDays).toHaveLength(3);
+    expect(first.planDays).toHaveLength(4);
     // Not the same objects: a caller cannot mutate the seed for the next call.
     expect(first.planDays).not.toBe(second.planDays);
     expect(first.planDays[0]?.items).not.toBe(second.planDays[0]?.items);

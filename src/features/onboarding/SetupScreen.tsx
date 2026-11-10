@@ -186,7 +186,7 @@ function SetupForm({ gate, onDone, accountName }: SetupScreenProps): React.React
       </h1>
       <p className="ds-body ds-body--muted">
         {stored === undefined
-          ? 'Cuatro respuestas y tendrás una biblioteca de ejercicios, una rutina de tres días y un punto de partida para la primera sesión. Todo se puede cambiar después en Perfil.'
+          ? `Cuatro respuestas y tendrás una biblioteca de ejercicios, tus ${String(seedPlanDays().length)} días de rutina y un punto de partida para la primera sesión.`
           : 'Tu perfil ya está guardado. Falta la biblioteca de ejercicios y la rutina, y con esto se escriben.'}
       </p>
 
@@ -214,20 +214,9 @@ function SetupForm({ gate, onDone, accountName }: SetupScreenProps): React.React
               : 'Toca el objetivo otra vez para quitarlo.'}
           </p>
 
-          <div className="setup__row">
-            <span className="setup__row-text">
-              <span className="ds-body">Días por semana</span>
-              <span className="ds-meta">Los días que planeas entrenar.</span>
-            </span>
-            <Stepper
-              label="Días por semana"
-              value={days}
-              min={1}
-              max={7}
-              unit="días"
-              onChange={setDays}
-            />
-          </div>
+          {/* No day count here either: the programme has the days it has, and choosing
+              them was never the owner's ask (odd/tasks/training-program.md L11). The stored
+              value still follows the seeded rotation so nothing downstream reads a lie. */}
         </Card>
       </section>
 

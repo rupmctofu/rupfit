@@ -366,22 +366,9 @@ function TrainingSection({
       <SectionLabel>Entrenamiento</SectionLabel>
 
       <Card padding="list" className="profile__settings">
-        <div className="profile__setting">
-          <div className="profile__setting-head">
-            <span className="profile__setting-text">
-              <span className="profile__setting-label">Días por semana</span>
-              <span className="ds-caption">Los días que planeas entrenar.</span>
-            </span>
-            <Stepper
-              label="Días por semana"
-              value={profile.weeklyTrainingDays}
-              min={1}
-              max={7}
-              onChange={(days) => onWrite({ weeklyTrainingDays: days })}
-            />
-          </div>
-        </div>
-
+        {/* No «días por semana» control: the week is the programme's, not a preference the
+            owner tunes on a screen. The stored field stays for old backups and for the
+            gate's session count; nothing here edits it (odd/tasks/account-first.md). */}
         <div className="profile__setting">
           <span className="profile__setting-label">Equipo disponible</span>
           <ChipChoices

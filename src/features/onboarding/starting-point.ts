@@ -12,7 +12,7 @@
  * | step | after it | if it fails |
  * | --- | --- | --- |
  * | library | the exercises exist and `Entrenar`/`Perfil` can count them; the plan's ids have a target | nothing was written |
- * | plan | three days with items that resolve to real exercises; `planStart` can build a session | the library is complete, and the next run writes the plan |
+ * | plan | the seeded days with items that resolve to real exercises; `planStart` can build a session | the library is complete, and the next run writes the plan |
  * | phase | the session is built in readaptation block 1 (FR-4.1); without it `planStart` reads a missing state as the normal phase | the plan exists, and the next run writes the phase |
  * | profile | the shell stops offering the setup and the store can train | the library, the plan and the phase exist; the setup is offered again, because a store with no profile is exactly what the gate looks for |
  *

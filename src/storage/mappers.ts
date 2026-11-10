@@ -445,6 +445,12 @@ function copyPrescription(prescription: PlanItemRow['prescription']): PlanItemRo
     // The prescription profile must survive the store: without it every exercise is read
     // back as hypertrophy and the four-column block table collapses into one.
     ...(prescription.role === undefined ? {} : { role: prescription.role }),
+    // The timed work of a conditioning set travels with the profile and for the same
+    // reason: reading `role` back without its minutes would prescribe an interval it
+    // cannot express. Absent for every other profile, so those rows keep their exact shape.
+    ...(prescription.durationSeconds === undefined
+      ? {}
+      : { durationSeconds: prescription.durationSeconds }),
   };
 }
 

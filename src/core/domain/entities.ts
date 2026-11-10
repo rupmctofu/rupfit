@@ -59,4 +59,12 @@ export interface ExercisePrescription {
    * stored sessions and old backups keep working untouched.
    */
   readonly role?: BlockRole;
+  /**
+   * Seconds of work in one set, when the exercise is prescribed by time instead of by
+   * repetitions (the `conditioning` profile, odd/tasks/training-program.md L11). Optional
+   * and additive like `role`: absent on every rep-prescribed exercise, and absent from
+   * every prescription written before the profile existed, so an old row, an old session
+   * and an old backup load with no migration.
+   */
+  readonly durationSeconds?: number;
 }

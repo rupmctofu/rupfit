@@ -36,6 +36,11 @@ export const MOVEMENT_PATTERNS = [
   'verticalPull',
   'isolation',
   'core',
+  // The fourth gym day's own family (odd/tasks/training-program.md L11): intervals. A
+  // treadmill or a bike is not a squat and not an isolation, and calling it `core` would
+  // put it in the muscle pickers where it does not belong. Additive: an old row cannot
+  // have this value, and a row that has it cannot be read by a build older than this one.
+  'conditioning',
 ] as const;
 
 export type MovementPattern = (typeof MOVEMENT_PATTERNS)[number];

@@ -42,6 +42,16 @@ const PROFILE: UserProfile = {
   autoStartRestTimer: true,
 };
 
+/**
+ * How many days the programme has, read from the seed instead of written as a literal.
+ *
+ * The number is not this test's to know: a release can add a day (odd/tasks/training-
+ * program.md L11 added `FÍSICO`) and the assertion that matters is that the first-run flow
+ * writes *every* seeded day and nothing else — not that there happen to be three or four.
+ * Every other expectation below stays exact.
+ */
+const SEED_PLAN_DAYS = seedPlanDays().length;
+
 interface FakeStore extends StartingPointStore {
   readonly calls: readonly string[];
   readonly rows: {
@@ -130,7 +140,7 @@ describe('startingPointRows', () => {
     const rows = startingPointRows({ exercises: [], planDays: [], phaseState: undefined });
 
     expect(rows.exercises).toHaveLength(SEED_EXERCISES.length);
-    expect(rows.planDays).toHaveLength(3);
+    expect(rows.planDays).toHaveLength(SEED_PLAN_DAYS);
     expect(rows.phaseState).toEqual({ block: 1, passedBlocks: 0 });
   });
 
@@ -160,13 +170,13 @@ describe('writeStartingPoint', () => {
       kind: 'done',
       written: {
         exercises: SEED_EXERCISES.length,
-        planDays: 3,
+        planDays: SEED_PLAN_DAYS,
         phaseState: 1,
         profile: 1,
       },
     });
     expect(store.rows.exercises.size).toBe(SEED_EXERCISES.length);
-    expect(store.rows.planDays.size).toBe(3);
+    expect(store.rows.planDays.size).toBe(SEED_PLAN_DAYS);
     expect(store.rows.phaseState).toEqual({ block: 1, passedBlocks: 0 });
     expect(store.rows.profile).toEqual(PROFILE);
 
@@ -199,7 +209,7 @@ describe('writeStartingPoint', () => {
     expect(store.rows.planDays.size).toBe(first.planDays);
     expect(store.rows.profile?.id).toBe(first.profile);
     expect(store.rows.exercises.size).toBe(SEED_EXERCISES.length);
-    expect(store.rows.planDays.size).toBe(3);
+    expect(store.rows.planDays.size).toBe(SEED_PLAN_DAYS);
   });
 
   it('resumes a store whose profile was written and whose library is missing', async () => {
@@ -209,7 +219,7 @@ describe('writeStartingPoint', () => {
 
     expect(outcome.kind).toBe('done');
     expect(store.rows.exercises.size).toBe(SEED_EXERCISES.length);
-    expect(store.rows.planDays.size).toBe(3);
+    expect(store.rows.planDays.size).toBe(SEED_PLAN_DAYS);
     expect(store.rows.phaseState).toEqual({ block: 1, passedBlocks: 0 });
     // One profile row, the one the owner already had: the store is keyed by `profile`.
     expect(store.rows.profile).toEqual(PROFILE);
@@ -229,7 +239,7 @@ describe('writeStartingPoint', () => {
     await writeStartingPoint(store, PROFILE);
 
     expect(store.rows.planDays.get('seed-day-leg')).toEqual(edited);
-    expect(store.rows.planDays.size).toBe(3);
+    expect(store.rows.planDays.size).toBe(SEED_PLAN_DAYS);
   });
 
   it('stops at the step that failed, and says which one', async () => {

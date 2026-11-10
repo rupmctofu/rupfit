@@ -14,6 +14,7 @@ import { BasicsSections } from './BasicsSections';
 import { ChartSections } from './ChartSections';
 import { DataSections } from './DataSections';
 import { FeedbackSections } from './FeedbackSections';
+import { ArtSections } from './ArtSections';
 import { SessionSections } from './SessionSections';
 import './gallery.css';
 
@@ -104,6 +105,7 @@ export function GalleryScreen(): React.ReactElement {
       <BasicsSections />
       <DataSections />
       <SessionSections />
+      <ArtSections />
       <FeedbackSections />
       <ChartSections />
     </div>

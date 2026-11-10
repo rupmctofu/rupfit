@@ -73,6 +73,24 @@ const BLOCK_TABLE: Record<BlockRole, readonly BlockPrescription[]> = {
     { sets: 3, repRange: repRange(6, 10), targetRIR: repRange(4, 5) },
     { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(3, 4) },
   ],
+  // The fourth day's engine work (odd/tasks/training-program.md L11): intervals for
+  // lasting the match. This column is the one that is not measured in repetitions —
+  // `durationSeconds` carries the work of one set and it is the only number that grows
+  // across the blocks (2 → 3 min of work, 2 → 4 sets). The load never moves: the engine
+  // reads the profile and refuses an increment for it.
+  //
+  // `repRange` stays `1–1` because three things still read it and none of them may be
+  // lied to: the gate compares `actualReps` against its bottom, the backup schema
+  // requires an integer range, and the session's set rows have no minutes field. One
+  // effort is one repetition, and one is the smallest bottom that cannot fail a set the
+  // owner actually performed. RIR stays 4–5 in every block, so an interval never becomes
+  // a test and never races the football.
+  conditioning: [
+    { sets: 2, repRange: repRange(1, 1), targetRIR: repRange(4, 5), durationSeconds: 120 },
+    { sets: 3, repRange: repRange(1, 1), targetRIR: repRange(4, 5), durationSeconds: 120 },
+    { sets: 3, repRange: repRange(1, 1), targetRIR: repRange(4, 5), durationSeconds: 180 },
+    { sets: 4, repRange: repRange(1, 1), targetRIR: repRange(4, 5), durationSeconds: 240 },
+  ],
 };
 
 /** §8's gate, in the document's order; the reason line keeps this order. */

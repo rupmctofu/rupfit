@@ -1,16 +1,17 @@
 /**
- * The starter plan — the owner's three gym days (`odd/tasks/training-program.md` S1), with
- * one prescription profile per exercise and the block table of training-science §6.
+ * The starter plan — the owner's four gym days (`odd/tasks/training-program.md` S1, L11),
+ * with one prescription profile per exercise and the block table of training-science §6.
  *
  * Three decisions shape this file, and each one is a document's, not a preference:
  *
- * 1. **Three days, one per movement family.** FR-3.1 fixes the template verbatim —
- *    `SENTADILLA / PIERNA`, `PESO MUERTO / TRACCIÓN`, `PRESS BANCA / EMPUJE` — and
- *    training-science §2 makes frequency a scheduling choice (UP), not a physiological
- *    optimum: three sessions per week is what the owner asked for and what one barbell
- *    and one pair of shoes can do. A two-day split would leave 18 weekly sets spread over
- *    too few movements; a five-day split would be a programme the document does not
- *    support and one the owner did not ask for. Three is the honest starting point.
+ * 1. **Four days, one per movement family.** FR-3.1 fixes the template verbatim —
+ *    `SENTADILLA / PIERNA`, `PESO MUERTO / TRACCIÓN`, `PRESS BANCA / EMPUJE` — and L11
+ *    adds the fourth, `FÍSICO`, which is the only day prescribed by time. training-science
+ *    §2 makes frequency a scheduling choice (UP), not a physiological optimum: what the
+ *    owner asked for, and what one barbell and one pair of shoes can do, is one session
+ *    per family. A two-day split would leave 18 weekly sets spread over too few
+ *    movements; a five-day split would be a programme the document does not support and
+ *    one the owner did not ask for.
  * 2. **Six exercises per day: the primary lift plus the five accessories of FR-3.2**, in
  *    the order the document lists them. That is exactly the shape the Entrenar and
  *    Historial artboards draw (`6 ejercicios`).
@@ -23,14 +24,17 @@
  * week the owner actually begins in: training-science §6 W1 is `2 × 10 @ 4–5 RIR` on the
  * primary lift and `2 × 12 @ 4 RIR` on the accessory, and these rows take those numbers
  * from `blockPrescription(1, role)` rather than repeating them. Volume-wise that is 4–6
- * hard sets per muscle group per week across the three sessions, which is exactly the
- * readaptation floor §4 sets ("4–6 sets per muscle group per week") and not the normal
+ * hard sets per muscle group per week across the three lifting sessions, which is exactly
+ * the readaptation floor §4 sets ("4–6 sets per muscle group per week") and not the normal
  * phase's 10–16. The engine moves the volume from block 1 to block 4 on its own; the plan
- * only has to be right for the block the owner starts in.
+ * only has to be right for the block the owner starts in. The fourth day reads its own
+ * column the same way: block 1 is `2 × 2 min @ 4–5 RIR`, and the minutes grow with the
+ * blocks while the load stays at zero.
  *
  * Rest intervals are training-science §7 (DD): `180 s` primary, `120 s` accessory
- * compound, `90 s` isolation or core. They exist to protect the prescribed effort, so
- * they are data here and editable later, never a timer policy.
+ * compound, `90 s` isolation or core. A conditioning slot rests the accessory-compound
+ * `120 s` between intervals. They exist to protect the prescribed effort, so they are data
+ * here and editable later, never a timer policy.
  *
  * The rows are the shapes `plan.save` takes (`PlanDay` with its ordered `PlanItem`s). They
  * are declared here instead of imported from `src/storage` because `src/core` may not
@@ -133,23 +137,35 @@ function preventive(exerciseId: string): SeedSlot {
 }
 
 /**
- * The rotation. `order` is the position in the cycle and nothing else: `PlanDay` stores no
- * weekday (data-model §3), and `src/features/session/start` reads the rotation from the
- * sessions that were actually trained.
+ * The fourth day's engine work (L11): prescribed by time, never by load. The prescription
+ * takes its minutes from the conditioning column of the block table rather than repeating
+ * them here, exactly as the rep-prescribed slots take their reps. The rest is the longest
+ * of the three: an interval needs the breathing back before the next one, and it is a
+ * number to read, never a timer the app starts (S6).
  */
+function conditioning(exerciseId: string): SeedSlot {
+  return slot('conditioning', exerciseId, REST_COMPOUND_S);
+}
+
 /**
- * The owner's week, as three gym days in rotation order.
+ * The owner's week, as four gym days in rotation order.
  *
  * Rupfit stores no weekday (`PlanDay` has no date), so the calendar is not data: the
- * rotation is Leg → Upper A → Upper B and the owner trains Monday, Tuesday and Friday.
- * Thursday is football, which is an activity and never a session, so no strength day can
- * land on it. Wednesday, Saturday and Sunday are rest because only three days exist.
+ * rotation is Leg → Upper A → Upper B → Físico and the owner trains Monday, Tuesday,
+ * Friday and Saturday. Thursday is football, which is an activity and never a session, so
+ * no strength day can land on it (L11).
  *
  * The order inside each day is deliberate: the strength lift while fresh, then compound
  * volume, then the preventive pair, then isolation. On leg day that puts Nordic curl after
  * the heavy work — the quality is better and the soreness arrives where it can still be
  * absorbed before Thursday — and it never puts a second eccentric hamstring movement next
  * to the Romanian deadlift.
+ *
+ * The fourth day is the conditioning one: intervals first, while the legs are fresh and
+ * the quality is the point, then the resistance work that keeps the match from hurting —
+ * short Copenhagen for the adductors, isometric soleus for the ankle and the calf, and a
+ * front plank for the trunk. Nothing there is loaded, so nothing there competes with
+ * Thursday's football for recovery.
  */
 const DAYS: readonly SeedDaySpec[] = [
   {
@@ -192,6 +208,16 @@ const DAYS: readonly SeedDaySpec[] = [
       accessory('seed-ex-extension-triceps-mancuerna'),
     ],
   },
+  {
+    key: 'fisico',
+    name: 'FÍSICO',
+    slots: [
+      conditioning('seed-ex-intervalos-cinta'),
+      preventive('seed-ex-copenhagen-corto'),
+      preventive('seed-ex-soleo-isometrico'),
+      preventive('seed-ex-plancha'),
+    ],
+  },
 ];
 
 function nameOf(exerciseId: string): string {
@@ -207,7 +233,7 @@ function nameOf(exerciseId: string): string {
 /** The block prescription of one slot, with the §7 rest interval added. */
 function prescriptionOf(slot: SeedSlot): ExercisePrescription {
   const block = blockPrescription(START_BLOCK, slot.role);
-  return {
+  const prescription: ExercisePrescription = {
     sets: block.sets,
     repRange: { ...block.repRange },
     targetRIR: { ...block.targetRIR },
@@ -216,6 +242,11 @@ function prescriptionOf(slot: SeedSlot): ExercisePrescription {
     // strength lift and a Copenhagen plank stop sharing one column.
     role: slot.role,
   };
+  // A conditioning slot is prescribed by time: the minutes travel with the prescription
+  // and are absent on every other slot, exactly as they are in the block table.
+  return block.durationSeconds === undefined
+    ? prescription
+    : { ...prescription, durationSeconds: block.durationSeconds };
 }
 
 /**

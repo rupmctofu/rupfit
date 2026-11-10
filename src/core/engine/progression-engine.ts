@@ -30,8 +30,12 @@ import { roundDownToIncrement, stepDown, stepUp } from './rounding';
  * 1.1.0 — §8's block table gained four prescription profiles and rule 6 reads the
  * exercise's own profile instead of the phase-wide role. No gate changed, no order
  * changed, but the numbers a recommendation returns did.
+ * 1.2.0 — a fifth profile, `conditioning`, is prescribed by time and never by load: the
+ * increment is read as zero for it (§6 has no weight arithmetic to perform), so a machine
+ * implement with a plate stack stops offering a heavier interval. Every other profile
+ * returns exactly the numbers 1.1.0 returned.
  */
-export const ENGINE_VERSION = '1.1.0';
+export const ENGINE_VERSION = '1.2.0';
 
 /** Products of an acceptable weight grid; a real weight is never "corrected". */
 const LOWERED_EPSILON = 1e-6;
@@ -98,7 +102,11 @@ export function recommend(input: ProgressionInput, computedAt: Date): Progressio
   // The profile travels with the prescription. The phase state's role is the older,
   // phase-wide fallback; when neither says anything the exercise is hypertrophy volume.
   const role = input.role ?? prescription.role ?? phaseState.role ?? DEFAULT_BLOCK_ROLE;
-  const increment = exercise.loadIncrementKg;
+  // A conditioning prescription raises the work, never the load. Its implement may well
+  // have a plate stack (a treadmill, a bike), and reading that increment would make the
+  // engine suggest a heavier interval — a number that means nothing. Reading it as zero
+  // is §6's bodyweight path: no weight arithmetic, and `increase` cannot move the weight.
+  const increment = role === 'conditioning' ? 0 : exercise.loadIncrementKg;
   const bottom = prescription.repRange.lowerBound;
   const top = prescription.repRange.upperBound;
   const planSets = prescription.sets;

@@ -115,11 +115,42 @@ function formatRange(lower: number, upper: number): string {
   return lower === upper ? `${lower}` : `${lower}–${upper}`;
 }
 
+/** `3 min` — the work of one timed set, in whole minutes with the Spanish comma. */
+export function formatMinutes(seconds: number): string {
+  const minutes = Math.round((Math.max(0, seconds) / 60) * 10) / 10;
+  return `${String(minutes).replace('.', ',')} min`;
+}
+
+/**
+ * The work of one set: `6–8` repetitions, or `3 min` when the block prescribes time.
+ *
+ * A conditioning block has no rep target to claim (odd/tasks/training-program.md L11), so
+ * every line that used to print `× 6–8` prints minutes for it and is unchanged for every
+ * other profile. The two are mutually exclusive by construction: `durationSeconds` only
+ * exists on a timed prescription.
+ */
+export function workOf(prescription: ExercisePrescription): string {
+  return prescription.durationSeconds === undefined
+    ? formatRange(prescription.repRange.lowerBound, prescription.repRange.upperBound)
+    : formatMinutes(prescription.durationSeconds);
+}
+
+/**
+ * `3 × 3 min` / `3 × 6` — sets and the work of one set. It is the card's compare caption,
+ * where the target reps are the engine's suggestion rather than the plan's range.
+ */
+export function setsAndWork(prescription: ExercisePrescription, targetReps: number): string {
+  const work =
+    prescription.durationSeconds === undefined
+      ? `${targetReps}`
+      : formatMinutes(prescription.durationSeconds);
+  return `${prescription.sets} × ${work}`;
+}
+
 /** `Objetivo · 3 × 10 a 3–4 RIR · descanso 180 s` (the card's muted line). */
 export function targetLine(prescription: ExercisePrescription): string {
-  const reps = formatRange(prescription.repRange.lowerBound, prescription.repRange.upperBound);
   const rir = formatRange(prescription.targetRIR.lowerBound, prescription.targetRIR.upperBound);
-  return `Objetivo · ${prescription.sets} × ${reps} a ${rir} RIR · descanso ${prescription.restSeconds} s`;
+  return `Objetivo · ${prescription.sets} × ${workOf(prescription)} a ${rir} RIR · descanso ${prescription.restSeconds} s`;
 }
 
 /**
@@ -130,6 +161,5 @@ export function targetLine(prescription: ExercisePrescription): string {
  * stays on the card's own `targetLine`, where there is width to say it in full.
  */
 export function prescriptionLine(prescription: ExercisePrescription): string {
-  const reps = formatRange(prescription.repRange.lowerBound, prescription.repRange.upperBound);
-  return `${prescription.sets} × ${reps} · descanso ${prescription.restSeconds} s`;
+  return `${prescription.sets} × ${workOf(prescription)} · descanso ${prescription.restSeconds} s`;
 }

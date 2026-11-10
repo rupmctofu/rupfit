@@ -140,8 +140,15 @@ export function isReadaptation(phase: TrainingPhase): phase is { readonly kind: 
  * - `accessory` — isolation, calves, arms: more reps, less load.
  * - `preventive` — hamstring and adductor work done for tissue tolerance, not for load:
  *   low volume, high RIR, never a target for the increment.
+ * - `conditioning` — the fourth day's engine work, prescribed **by time** rather than by
+ *   repetitions: the block raises the minutes, and the engine never raises the load.
  */
-export type BlockRole = 'strength' | 'hypertrophy' | 'accessory' | 'preventive';
+export type BlockRole =
+  | 'strength'
+  | 'hypertrophy'
+  | 'accessory'
+  | 'preventive'
+  | 'conditioning';
 
 /** The profile an undeclared exercise gets. */
 export const DEFAULT_BLOCK_ROLE: BlockRole = 'hypertrophy';
@@ -170,6 +177,12 @@ export interface BlockPrescription {
   readonly repRange: RepRange;
   /** Target reps in reserve for the block (training-science §6). */
   readonly targetRIR: RepRange;
+  /**
+   * Seconds of work in one set, when the block is prescribed by time instead of by
+   * repetitions (`conditioning`). Absent on every rep-prescribed column, so the four
+   * columns that predate it encode exactly as they did.
+   */
+  readonly durationSeconds?: number;
 }
 
 /** Gate criteria of docs/progression-engine.md §8, in the gate's own order. */

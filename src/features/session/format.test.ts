@@ -11,14 +11,17 @@ import {
   effortFromChip,
   formatDiscomfort,
   formatEffort,
+  formatMinutes,
   formatRest,
   formatVolume,
   formatWeekdayTime,
   formatWeight,
   parseWeight,
   prescriptionLine,
+  setsAndWork,
   spanishDecimals,
   targetLine,
+  workOf,
 } from './format';
 import { DEADLIFT_PRESCRIPTION, ROW_PRESCRIPTION } from './fixture';
 
@@ -125,5 +128,45 @@ describe('the hero line', () => {
 
   it('keeps a single-value range a single value', () => {
     expect(prescriptionLine(ROW_PRESCRIPTION)).toBe('2 × 12 · descanso 120 s');
+  });
+});
+
+describe('a prescription measured in minutes (L11)', () => {
+  // The conditioning profile is prescribed by time. Every line that used to print a rep
+  // range prints minutes for it, and the four other profiles are untouched — which is why
+  // every assertion here is paired with the rep-prescribed line above.
+  const INTERVAL = {
+    sets: 3,
+    repRange: { lowerBound: 1, upperBound: 1 },
+    targetRIR: { lowerBound: 4, upperBound: 5 },
+    restSeconds: 120,
+    durationSeconds: 180,
+  } as const;
+
+  it('writes whole minutes and never a decimal point', () => {
+    expect(formatMinutes(120)).toBe('2 min');
+    expect(formatMinutes(180)).toBe('3 min');
+    expect(formatMinutes(240)).toBe('4 min');
+    expect(formatMinutes(90)).toBe('1,5 min');
+  });
+
+  it('writes sets × minutes where the rep range used to be', () => {
+    expect(workOf(INTERVAL)).toBe('3 min');
+    expect(workOf(DEADLIFT_PRESCRIPTION)).toBe('10');
+  });
+
+  it('writes the hero line as series × minutes', () => {
+    expect(prescriptionLine(INTERVAL)).toBe('3 × 3 min · descanso 120 s');
+  });
+
+  it('writes the card line in minutes too, keeping the effort window and the rest', () => {
+    expect(targetLine(INTERVAL)).toBe('Objetivo · 3 × 3 min a 4–5 RIR · descanso 120 s');
+  });
+
+  it('never claims repetitions on the card’s compare caption', () => {
+    // The caption is `sets × target reps` for a rep prescription and `sets × minutes` for a
+    // timed one: no line of the card says `3 × 1` for a three-minute interval.
+    expect(setsAndWork(INTERVAL, 1)).toBe('3 × 3 min');
+    expect(setsAndWork(DEADLIFT_PRESCRIPTION, 10)).toBe('3 × 10');
   });
 });

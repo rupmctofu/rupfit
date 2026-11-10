@@ -198,6 +198,12 @@ function copyPrescription(prescription: ExercisePrescription): ExercisePrescript
     // The profile is part of the prescription: without it the session would ask the
     // engine for hypertrophy numbers for a strength lift the plan declared differently.
     ...(prescription.role === undefined ? {} : { role: prescription.role }),
+    // And so is the timed work of a conditioning set. This copy is the one the session and
+    // the engine both read, so dropping it here would turn a 3-minute interval back into a
+    // line of repetitions on the only screen that shows it.
+    ...(prescription.durationSeconds === undefined
+      ? {}
+      : { durationSeconds: prescription.durationSeconds }),
   };
 }
 

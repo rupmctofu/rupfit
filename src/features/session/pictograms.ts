@@ -201,6 +201,21 @@ export const PICTOGRAMS = {
       { k: 'slab', x: 86, y: 60, w: 8, h: 46 },
     ],
   },
+  /*
+   * L11's third lever: the top knee rests on a *low* step rather than on a bench at bench
+   * height, and the hold is short. It is drawn as its own picture because the support is
+   * lower and further from the body — a different variant, not the knee plank relabelled.
+   */
+  'copenhagen-short': {
+    head: [30, 62],
+    body: [
+      [[38, 70], [64, 80]],
+      [[40, 76], [40, 102]],
+      [[64, 80], [86, 86]],
+    ],
+    thick: [2],
+    gear: [{ k: 'slab', x: 82, y: 80, w: 18, h: 7 }],
+  },
   'calf-raise-machine': {
     head: [60, 28],
     body: [
@@ -614,6 +629,82 @@ export const PICTOGRAMS = {
       { k: 'stack', x: 90, y: 80 },
       { k: 'disc', x: 70, y: 44, r: 3 },
     ],
+  },
+
+  /* --------------------------------------------------------- conditioning */
+  /*
+   * The fourth day (odd/tasks/training-program.md L11). Three intervals and three holds,
+   * each with the gear it is actually done with: a moving belt, a fixed bike, a track
+   * line, a low step, a heel raise held against a wall, and the floor under the forearms.
+   * No picture here is borrowed from the strength work — a cardio machine is not a squat.
+   */
+  'treadmill-intervals': {
+    head: [56, 34],
+    body: [
+      [[56, 42], [56, 66]],
+      [[58, 48], [74, 56]],
+      [[54, 48], [42, 54]],
+      [[56, 66], [72, 84], [78, 98]],
+      [[56, 66], [44, 84], [34, 92]],
+    ],
+    thick: [3, 4],
+    gear: [
+      { k: 'slab', x: 20, y: 98, w: 72, h: 6 },
+      { k: 'slab', x: 94, y: 40, w: 5, h: 64 },
+      { k: 'slab', x: 26, y: 90, w: 6, h: 10 },
+    ],
+  },
+  'bike-intervals': {
+    head: [52, 32],
+    body: [
+      [[54, 40], [46, 62]],
+      [[58, 46], [76, 50]],
+      [[46, 62], [66, 66]],
+      [[66, 66], [74, 84], [66, 94]],
+    ],
+    thick: [2, 3],
+    gear: [
+      { k: 'disc', x: 34, y: 84, r: 14 },
+      { k: 'disc', x: 76, y: 84, r: 14 },
+      { k: 'slab', x: 34, y: 56, w: 16, h: 5 },
+      { k: 'slab', x: 74, y: 44, w: 5, h: 10 },
+    ],
+  },
+  'track-intervals': {
+    head: [58, 32],
+    body: [
+      [[58, 40], [54, 64]],
+      [[60, 46], [76, 40]],
+      [[56, 46], [42, 52]],
+      [[54, 64], [70, 82], [66, 100]],
+      [[54, 64], [44, 82], [30, 88]],
+    ],
+    thick: [3, 4],
+    gear: [{ k: 'line', points: [[14, 104], [106, 104]], dashed: true }],
+  },
+  'calf-raise-isometric': {
+    head: [54, 30],
+    body: [
+      [[54, 38], [54, 68]],
+      [[56, 46], [78, 48]],
+      [[54, 68], [52, 94], [46, 100]],
+      [[54, 68], [58, 94], [64, 100]],
+    ],
+    thick: [2, 3],
+    gear: [
+      { k: 'slab', x: 82, y: 20, w: 5, h: 84 },
+      { k: 'slab', x: 28, y: 102, w: 64, h: 6 },
+    ],
+  },
+  'plank-front': {
+    head: [26, 72],
+    body: [
+      [[34, 78], [70, 84]],
+      [[36, 82], [30, 100]],
+      [[44, 84], [42, 102]],
+      [[70, 84], [96, 100]],
+    ],
+    thick: [3],
   },
 } as const satisfies Record<string, Pictogram>;
 

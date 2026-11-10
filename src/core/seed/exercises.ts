@@ -88,6 +88,16 @@ const ROWS: readonly SeedExerciseRow[] = [
   { id: 'seed-ex-nordic-asistido', name: 'Nordic curl asistido', primaryMuscle: 'hamstrings', pattern: 'hinge', equipment: 'bodyweight' },
   { id: 'seed-ex-copenhagen-adaptado', name: 'Copenhagen plank adaptado', primaryMuscle: 'adductors', pattern: 'core', equipment: 'bodyweight' },
   { id: 'seed-ex-copenhagen', name: 'Copenhagen plank', primaryMuscle: 'adductors', pattern: 'core', equipment: 'bodyweight' },
+  { id: 'seed-ex-copenhagen-corto', name: 'Copenhagen plank corto', primaryMuscle: 'adductors', pattern: 'core', equipment: 'bodyweight' },
+
+  // ------------------------------------------- conditioning: the fourth gym day
+  // L11: intervals to last the match. Three implements, one job: the day prescribes the
+  // treadmill and the other two are what the owner picks when it is taken (S5), which is
+  // why all three share the pattern and the primary muscle the alternatives rule needs.
+  { id: 'seed-ex-intervalos-cinta', name: 'Intervalos en cinta de correr', primaryMuscle: 'quadriceps', pattern: 'conditioning', equipment: 'machine' },
+  { id: 'seed-ex-intervalos-bici', name: 'Intervalos en bici estática', primaryMuscle: 'quadriceps', pattern: 'conditioning', equipment: 'machine' },
+  { id: 'seed-ex-intervalos-pista', name: 'Intervalos en pista', primaryMuscle: 'quadriceps', pattern: 'conditioning', equipment: 'bodyweight' },
+  { id: 'seed-ex-soleo-isometrico', name: 'Elevación de sóleo isométrica', primaryMuscle: 'calves', pattern: 'isolation', equipment: 'bodyweight' },
 
   // ------------------------------------------------------- horizontal push
   { id: 'seed-ex-press-banca', name: 'Press banca', primaryMuscle: 'chest', pattern: 'horizontalPush', equipment: 'barbell' },
@@ -263,6 +273,52 @@ const DETAIL: Readonly<Record<string, SeedExerciseDetail>> = {
     description:
       'Tumbado de lado con el tobillo de arriba apoyado en un banco y el codo en el suelo bajo el hombro, levanta la cadera hasta alinear el cuerpo y mantenla sin que la pelvis caiga.',
     alternatives: ['seed-ex-copenhagen-adaptado'],
+  },
+  /**
+   * L11's third lever position, and the one the fourth day prescribes: the top knee on a
+   * low step and the holds short. It is the step between the adapted knee plank and the
+   * full ankle version, so it is neither of them with a different name.
+   */
+  'seed-ex-copenhagen-corto': {
+    illustration: 'copenhagen-short',
+    secondaryMuscles: ['core', 'glutes'],
+    description:
+      'Tumbado de lado con la rodilla de arriba apoyada en un escalón bajo y el codo en el suelo bajo el hombro, levanta la cadera y aguanta la línea del cuerpo unos segundos; es el paso entre el plank con la rodilla en el banco y la versión con el tobillo.',
+    alternatives: ['seed-ex-copenhagen-adaptado', 'seed-ex-copenhagen'],
+  },
+
+  // ------------------------------------------- conditioning: the fourth gym day
+  /**
+   * L11's engine work. The three rows are the same job on three implements, which is what
+   * makes them each other's alternative: the interval, not the machine, is the exercise.
+   */
+  'seed-ex-intervalos-cinta': {
+    illustration: 'treadmill-intervals',
+    secondaryMuscles: ['calves', 'hamstrings', 'glutes'],
+    description:
+      'En la cinta de correr, calienta unos minutos andando y después alterna el tiempo prescrito a un ritmo que te deje hablar con pausas cortas de trote suave; termina bajando el ritmo, nunca de golpe.',
+    alternatives: ['seed-ex-intervalos-bici', 'seed-ex-intervalos-pista'],
+  },
+  'seed-ex-intervalos-bici': {
+    illustration: 'bike-intervals',
+    secondaryMuscles: ['calves', 'hamstrings', 'glutes'],
+    description:
+      'En la bici estática, pedalea unos minutos suaves y alterna el tiempo prescrito con una resistencia que te obligue a respirar fuerte pero te deje hablar con pausas cortas, recuperando entre series.',
+    alternatives: ['seed-ex-intervalos-cinta', 'seed-ex-intervalos-pista'],
+  },
+  'seed-ex-intervalos-pista': {
+    illustration: 'track-intervals',
+    secondaryMuscles: ['calves', 'hamstrings', 'glutes'],
+    description:
+      'En la pista o en una recta llana, trota unos minutos de calentamiento y corre el tiempo prescrito a un ritmo que puedas mantener sin llegar al sprint, caminando o trotando entre series.',
+    alternatives: ['seed-ex-intervalos-cinta', 'seed-ex-intervalos-bici'],
+  },
+  /** The adductor-adjacent resistance work of the day: soleus held instead of loaded. */
+  'seed-ex-soleo-isometrico': {
+    illustration: 'calf-raise-isometric',
+    description:
+      'De pie con la punta de los pies en el borde de un escalón y las manos apoyadas en la pared, sube los talones y mantén la posición con las rodillas flexionadas el tiempo prescrito, sin dejar caer el talón.',
+    alternatives: ['seed-ex-soleo-sentado'],
   },
 
   // ------------------------------------------------- isolation: herringbone
@@ -494,6 +550,15 @@ const DETAIL: Readonly<Record<string, SeedExerciseDetail>> = {
     description:
       'De pie frente a la polea baja con la barra recta, flexiona los codos sin separarlos del torso y deja subir el peso con control.',
     alternatives: ['seed-ex-curl-biceps', 'seed-ex-curl-barra'],
+  },
+
+  // ------------------------------------------------------------------- core
+  /** L11's front plank: the fourth day's anti-extension hold. */
+  'seed-ex-plancha': {
+    illustration: 'plank-front',
+    secondaryMuscles: ['shoulders', 'glutes'],
+    description:
+      'Apoya los antebrazos en el suelo con los codos bajo los hombros, extiende las piernas y mantén el cuerpo en línea apretando glúteos y abdomen el tiempo prescrito, sin que la cadera suba ni caiga.',
   },
 };
 

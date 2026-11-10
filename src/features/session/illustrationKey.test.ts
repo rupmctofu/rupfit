@@ -54,12 +54,56 @@ describe('the artwork of the programme', () => {
     }
   });
 
+  it('draws the fourth day, and draws each of its exercises differently', () => {
+    // L11: the conditioning day is four new pictures in the same line style — the belt,
+    // the low step, the held heel raise and the floor under the forearms.
+    const day = seedPlanDays().find((candidate) => candidate.name === 'FÍSICO');
+    if (day === undefined) throw new Error('the fourth day is missing');
+
+    const keys = day.items.map((item) => {
+      const key = illustrationKeyOf(libraryRow(item.exerciseId ?? ''));
+      expect(key, item.exerciseNameSnapshot).not.toBeNull();
+      return key;
+    });
+
+    expect(keys).toEqual([
+      'treadmill-intervals',
+      'copenhagen-short',
+      'calf-raise-isometric',
+      'plank-front',
+    ]);
+    // One drawing per variant: no two items of the day share a picture.
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('gives the interval family one drawing per implement', () => {
+    // S3: the treadmill, the bike and the track are three exercises and three pictures;
+    // reusing one of them would be the wrong-variant image the rule forbids.
+    const keys = [
+      'seed-ex-intervalos-cinta',
+      'seed-ex-intervalos-bici',
+      'seed-ex-intervalos-pista',
+    ].map((id) => libraryRow(id).illustration);
+
+    expect(keys.filter((key) => key === undefined)).toHaveLength(0);
+    expect(new Set(keys).size).toBe(keys.length);
+    for (const key of keys) expect(isIllustrationKey(key)).toBe(true);
+  });
+
+  it('draws every library row that names a key, so no row points at nothing', () => {
+    for (const row of SEED_EXERCISES) {
+      if (row.illustration === undefined) continue;
+      expect(isIllustrationKey(row.illustration), row.id).toBe(true);
+    }
+  });
+
   it('gives a different drawing to two different variants of one movement', () => {
     // S3: the image must be the concrete variant, not a generic picture of the family.
     const pairs: readonly (readonly [string, string])[] = [
       ['seed-ex-sentadilla-trasera', 'seed-ex-sentadilla-frontal'],
       ['seed-ex-curl-femoral', 'seed-ex-curl-femoral-sentado'],
-      ['seed-ex-gemelos', 'seed-ex-solo-sentado'],
+      ['seed-ex-gemelos', 'seed-ex-soleo-sentado'],
+      ['seed-ex-copenhagen-adaptado', 'seed-ex-copenhagen-corto'],
       ['seed-ex-press-hombro', 'seed-ex-press-hombro-maquina'],
       ['seed-ex-dominadas', 'seed-ex-dominadas-asistidas'],
     ];
@@ -72,7 +116,7 @@ describe('the artwork of the programme', () => {
   });
 
   it('keeps every key addressable and every drawing inside its grid', () => {
-    expect(ILLUSTRATION_KEYS.length).toBeGreaterThanOrEqual(20);
+    expect(ILLUSTRATION_KEYS.length).toBeGreaterThanOrEqual(26);
     for (const key of ILLUSTRATION_KEYS) {
       const pictogram = PICTOGRAMS[key];
       expect(pictogram.body.length, key).toBeGreaterThan(0);

@@ -27,6 +27,7 @@ import { useAccountGate } from '../features/onboarding/useAccountGate';
 import { accountNameOf } from '../features/profile/account-name';
 import { useAccountName } from '../features/profile/useAccountName';
 import { refreshSeededLibrary } from '../features/onboarding/library-refresh';
+import { refreshSeededPlanDays } from '../features/onboarding/plan-refresh';
 import { registerServiceWorker } from '../pwa';
 import { Splash } from './Splash';
 import { GalleryScreen } from './gallery/GalleryScreen';
@@ -171,6 +172,19 @@ function AppShell(): React.ReactElement {
     void refreshSeededLibrary(storage).catch(() => {
       // A library refresh is not the session and not the profile: if it fails, the app
       // still opens with the rows it has, and the screen that reads them says what it can.
+    });
+  }, [storage]);
+
+  // A release can also add a whole day to the programme (L11's `FÍSICO`), and a device
+  // seeded before it would keep three gym days: the first-run flow never runs again there
+  // by design. This is the same launch refresh for days, with the same narrowness — the
+  // seeded days that are *missing* are written, an existing day is never passed to
+  // `plan.save` (it would replace the owner's items), nothing is deleted, and a current
+  // store costs one read and no write.
+  useEffect(() => {
+    void refreshSeededPlanDays(storage).catch(() => {
+      // A missing day is not the session and not the profile: the app opens with the days
+      // it has, and the next launch tries again.
     });
   }, [storage]);
 

@@ -40,6 +40,7 @@ import {
   formatDiscomfort,
   formatEffort,
   formatWeight,
+  setsAndWork,
   spanishDecimals,
   targetLine,
   type DiscomfortChip,
@@ -355,7 +356,7 @@ export function ExerciseCard(props: ExerciseCardProps): React.ReactElement {
                 label="Peso de hoy"
                 value={todayWeightKg === null ? '—' : formatWeight(todayWeightKg)}
                 unit="kg"
-                caption={`${prescription.sets} × ${targetReps}`}
+                caption={setsAndWork(prescription, targetReps)}
                 today
               />
             </div>

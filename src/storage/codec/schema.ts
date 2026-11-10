@@ -55,7 +55,7 @@ const repRangeSchema = z.object({
 });
 
 const blockRoleSchema = z
-  .enum(['strength', 'hypertrophy', 'accessory', 'preventive', 'primary'])
+  .enum(['strength', 'hypertrophy', 'accessory', 'preventive', 'conditioning', 'primary'])
   .transform((value) => (value === 'primary' ? ('hypertrophy' as const) : value));
 
 const prescriptionSchema = z.object({
@@ -65,6 +65,12 @@ const prescriptionSchema = z.object({
   restSeconds: z.number().int().min(0),
   /** Additive: prescriptions written before profiles existed simply omit it. */
   role: blockRoleSchema.optional(),
+  /**
+   * Additive: the timed work of a conditioning set. Absent on every rep-prescribed row and
+   * on every backup written before the profile existed, which is why it is optional and
+   * why the document version does not move.
+   */
+  durationSeconds: z.number().int().min(0).optional(),
 });
 
 const confidenceSchema = z.object({

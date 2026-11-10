@@ -156,3 +156,37 @@
   border-left: 2px solid var(--color-warning);
   color: var(--color-muted);
 }
+
+/* The pictogram sheet: a dense grid so the drawings can be compared as a set, not one by
+   one. Four columns at phone width, more when there is room. */
+.gallery__art-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gallery__art-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.gallery__art-cell svg {
+  width: 72px;
+  height: 72px;
+  color: var(--color-text);
+}
+
+.gallery__art-key {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  color: var(--color-muted);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
