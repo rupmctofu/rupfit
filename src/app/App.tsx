@@ -280,14 +280,24 @@ function AppShell(): React.ReactElement {
             {TABS.slice(0, 2).map((tab) => (
               <TabLink key={tab.route} tab={tab} current={tabFor(route) === tab.route} />
             ))}
-            <PrimaryAction
-              className="tabbar__train"
-              icon="play"
+            {/* The owner asked for the mark instead of a word: a lilac disc with the R in
+                the accent's own ink. The name has not disappeared, it moved to the
+                accessible label — a screen reader still hears «Tu Entreno». */}
+            <button
+              type="button"
+              className="ds-action tabbar__train"
+              aria-label={TRAIN_LABEL}
               disabled={start.busy}
               onClick={openTraining}
             >
-              {TRAIN_LABEL}
-            </PrimaryAction>
+              <img
+                className="tabbar__train-mark"
+                src={`${import.meta.env.BASE_URL}logo-mark-ink.svg`}
+                alt=""
+                width={26}
+                height={24}
+              />
+            </button>
             {TABS.slice(2).map((tab) => (
               <TabLink key={tab.route} tab={tab} current={tabFor(route) === tab.route} />
             ))}

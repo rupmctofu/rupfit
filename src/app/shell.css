@@ -100,29 +100,38 @@ body {
    component that owns it — the four destinations keep their tinted `aria-current` state,
    and no second accent fill exists in the bar. `.tabbar` in the selector keeps these
    overrides above `.ds-primary` whatever order the two stylesheets load in. */
+/* The centre of the bar is the mark, not a phrase: a lilac disc lifted off the bar with the
+   R drawn in the accent's ink. It stays a 52 px circle — above the 48 px target — so the
+   affordance survives one-handed use without a label to read. */
 .tabbar .tabbar__train {
   align-self: center;
   justify-self: center;
-  flex-direction: column;
-  gap: var(--space-1);
-  width: auto;
-  min-width: 68px;
-  /* 56 px: above the 48 px target (S4, NFR-4), and the same height the tabs reserve, so
-     the lift is the only thing that grows. */
-  min-height: var(--control-height);
-  padding: var(--space-1) var(--space-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  padding: 0;
   border-radius: var(--radius-pill);
-  font-size: var(--text-tab);
-  line-height: var(--leading-tab);
-  letter-spacing: var(--tracking-caption);
+  background: var(--color-accent);
   /* Lifted, never taller than its slot: nothing overlaps a destination. */
-  transform: translateY(-8px);
-  box-shadow: 0 6px 16px rgb(0 0 0 / 0.28);
+  transform: translateY(-10px);
+  box-shadow: 0 6px 16px rgb(0 0 0 / 0.32);
 }
 
-/* One line of ten characters, at 320 px as at 430 px: the label never wraps into two. */
-.tabbar .tabbar__train .ds-primary__label {
-  white-space: nowrap;
+.tabbar .tabbar__train:disabled {
+  background: var(--color-surface-raised);
+}
+
+.tabbar__train-mark {
+  display: block;
+  width: 26px;
+  height: auto;
+}
+
+.tabbar .tabbar__train:disabled .tabbar__train-mark {
+  opacity: 0.5;
 }
 
 /* The action's outcome, between the screen and the bar it came from. The bottom padding is
@@ -130,10 +139,4 @@ body {
 .shell__notice {
   padding: var(--space-2) var(--layout-screen-padding) var(--space-4);
   background: var(--color-bg);
-}
-
-@media (max-width: 399px) {
-  .tabbar .tabbar__train {
-    min-width: 64px;
-  }
 }
