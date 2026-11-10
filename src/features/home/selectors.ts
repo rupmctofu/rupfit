@@ -99,7 +99,6 @@ export interface HomeInput {
   readonly inProgress: WorkoutSession | undefined;
   readonly measurements: readonly BodyMeasurement[];
   readonly activities: readonly ActivityRecord[];
-  readonly installed: boolean;
   /**
    * `true` when the store opened but the data the app had written is gone. The storage
    * tier records no such marker yet (see the task report): the screen is built for the
@@ -221,9 +220,15 @@ export interface ActivityView {
   readonly empty: boolean;
 }
 
+/**
+ * The one bad news Inicio still tells: the store opened and what was in it is gone.
+ *
+ * The install advisory used to live here too. It belongs to Perfil now (S2, S5): Inicio
+ * stopped explaining the platform, and the only notice left on this screen is the one
+ * that reports a real loss.
+ */
 export interface NoticeView {
   readonly evicted: boolean;
-  readonly notInstalled: boolean;
   /** `6 nov` — the last export the app knows about, when it knows one. */
   readonly lastExport: string | null;
 }
@@ -648,10 +653,9 @@ export function homeViewOf(input: HomeInput): HomeView {
     // strength day that comes next (S6).
     activity: activityViewOf(input.activities),
     notice: {
+      // §7.8: Inicio keeps only the state that reports a loss. The install advisory is
+      // Perfil's alone now (S2, S5).
       evicted: input.lostData,
-      // §7.8: the advisory lives in Perfil, plus at most one notice on Inicio — and
-      // only once there is something to lose.
-      notInstalled: !input.installed && (recent.length > 0 || profile !== undefined),
       lastExport: input.lastExportAt === null ? null : formatShortDate(input.lastExportAt),
     },
     hasHistory: recent.length > 0,

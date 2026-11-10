@@ -140,3 +140,41 @@ body {
   padding: var(--space-2) var(--layout-screen-padding) var(--space-4);
   background: var(--color-bg);
 }
+
+/* ------------------------------------------------------------- the entry screen */
+/* The mark on the app's own canvas, centred, while the shell decides what to show. It is
+   not a spinner: there is nothing to spin for local data, and one still mark says "this is
+   Rupfit opening" without implying progress it cannot measure. */
+.splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg);
+  z-index: 10;
+}
+
+.splash__mark {
+  width: 96px;
+  height: auto;
+  animation: splash-in var(--motion-base) var(--motion-ease) both;
+}
+
+@keyframes splash-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Reduced motion keeps the mark and drops the entrance: the picture is the message. */
+@media (prefers-reduced-motion: reduce) {
+  .splash__mark {
+    animation: none;
+  }
+}

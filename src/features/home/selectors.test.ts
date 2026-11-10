@@ -200,7 +200,6 @@ function input(overrides: Partial<HomeInput> = {}): HomeInput {
     inProgress: undefined,
     measurements: [],
     activities: [],
-    installed: true,
     lostData: false,
     lastExportAt: null,
     ...overrides,
@@ -587,10 +586,10 @@ describe('homeViewOf', () => {
     expect(restDay.week?.plannedCount).toBeGreaterThan(0);
   });
 
-  it('warns once about not being installed, and only when there is something to lose', () => {
-    expect(homeViewOf(input({ installed: false })).notice.notInstalled).toBe(true);
-    expect(homeViewOf(input({ installed: false, recent: [], plan: [], profile: undefined })).notice.notInstalled).toBe(false);
-    expect(homeViewOf(input()).notice.notInstalled).toBe(false);
+  it('carries only the eviction notice: the install advisory left Inicio (S2, S5)', () => {
+    // Perfil keeps the advisory; Inicio stopped explaining the platform, so the notice
+    // carries the one thing this screen still has to say — that data was lost.
+    expect(homeViewOf(input()).notice).toEqual({ evicted: false, lastExport: null });
   });
 
   it('shows the eviction state only when the store says data was lost', () => {

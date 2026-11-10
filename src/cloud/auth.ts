@@ -51,6 +51,26 @@ export type AuthListener = (state: AuthState) => void;
 export const SIGNED_OUT: AuthState = { status: 'signed-out', email: null };
 export const NO_CLOUD: AuthState = { status: 'unconfigured', email: null };
 
+/**
+ * The account as the entry gate and the profile need it: the state, the address, and the
+ * name the provider carries, if it carries one.
+ *
+ * It is a separate shape from `AuthState` because `AuthState` is exact-equal in the
+ * account card's tests and because `user_metadata` is a provider detail: it is read here,
+ * once, and only a plain `string | null` crosses this boundary.
+ */
+export interface AccountSession {
+  readonly status: AuthStatus;
+  readonly email: string | null;
+  /** `user_metadata.name`, trimmed, when the provider has one; otherwise `null`. */
+  readonly metadataName: string | null;
+}
+
+export type AccountListener = (session: AccountSession) => void;
+
+export const NO_ACCOUNT: AccountSession = { status: 'unconfigured', email: null, metadataName: null };
+const SIGNED_OUT_ACCOUNT: AccountSession = { status: 'signed-out', email: null, metadataName: null };
+
 // --------------------------------------------------------------- sentences
 
 const NETWORK_MESSAGE =
@@ -157,6 +177,31 @@ export function authStateOf(session: Session | null): AuthState {
   return { status: 'signed-in', email: session.user.email ?? null };
 }
 
+/**
+ * The one field this module reads out of `user_metadata`, and only if it is a non-empty
+ * string: the provider's metadata is untyped, and half of it is provider bookkeeping.
+ */
+function metadataNameOf(session: Session | null): string | null {
+  const metadata: unknown = session?.user.user_metadata;
+  if (typeof metadata !== 'object' || metadata === null) return null;
+  const name = (metadata as { readonly name?: unknown }).name;
+  if (typeof name !== 'string') return null;
+  return name.trim() === '' ? null : name.trim();
+}
+
+/**
+ * The session as the entry gate reads it: the same `authStateOf` decision plus the name
+ * the provider knows, so the profile can take its own name from the account (spec S1).
+ */
+export function accountSessionOf(session: Session | null): AccountSession {
+  if (session === null) return SIGNED_OUT_ACCOUNT;
+  return {
+    status: 'signed-in',
+    email: session.user.email ?? null,
+    metadataName: metadataNameOf(session),
+  };
+}
+
 /** Whether this build has a project at all. */
 export function accountConfigured(): boolean {
   return cloudClient() !== null;
@@ -169,15 +214,38 @@ export function accountConfigured(): boolean {
  * signed-out form for an owner who is signed in.
  */
 export function subscribeToAuth(listener: AuthListener): () => void {
+  return subscribeToSessions(
+    (session) => listener(authStateOf(session)),
+    () => listener(NO_CLOUD),
+  );
+}
+
+/**
+ * The same subscription, carrying the name too: what the entry gate listens to. The first
+ * callback is the stored session (`INITIAL_SESSION`), so a launch either restores an
+ * account or knows it has none — and only then is a form allowed to appear.
+ */
+export function subscribeToAccount(listener: AccountListener): () => void {
+  return subscribeToSessions(
+    (session) => listener(accountSessionOf(session)),
+    () => listener(NO_ACCOUNT),
+  );
+}
+
+/** The one place the client is asked for a session; the two listeners only differ in shape. */
+function subscribeToSessions(
+  onSession: (session: Session | null) => void,
+  onNoProject: () => void,
+): () => void {
   const client = cloudClient();
   if (client === null) {
-    listener(NO_CLOUD);
+    onNoProject();
     return () => undefined;
   }
 
   const { data } = client.auth.onAuthStateChange((_event, session) => {
     // Deliberately synchronous: Supabase queues events while an async callback runs.
-    listener(authStateOf(session));
+    onSession(session);
   });
 
   return () => data.subscription.unsubscribe();

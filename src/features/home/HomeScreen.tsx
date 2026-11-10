@@ -7,7 +7,8 @@
  * action. The personalised name and the date stay on screen under the title, smaller
  * than the action; the last session, the body weight, the activity (the manual football
  * capture, the rows it writes and the imported count) and the empty states move below
- * it. The platform notices of §7.8 keep their tone and sit under the day, never above it.
+ * it. The one platform notice Inicio still tells is the loss of the stored data: it sits
+ * under the day, never above it. The install advisory belongs to Perfil alone (S2, S5).
  *
  * Three rules of the hierarchy, all of them the owner's words (odd/tasks/home-hierarchy):
  *
@@ -34,7 +35,6 @@ import {
   Banner,
   Card,
   Chip,
-  EmptyState,
   ErrorBanner,
   Icon,
   MetricTile,
@@ -42,6 +42,7 @@ import {
   SectionLabel,
   Sparkline,
   TextButton,
+  type IconName,
 } from '../../design-system';
 import type { StoragePort } from '../../storage';
 import { useAppServices } from '../../app/providers';
@@ -54,7 +55,6 @@ import { FOOTBALL_DURATION_MINUTES, useFootballCapture } from './football';
 import { demoFlagOf, useLocationKey } from './useHash';
 import { formatDayName } from './format';
 import { homeViewOf, HOME_SESSION_WINDOW, type ActivityEntryView, type HomeInput, type HomeView } from './selectors';
-import { isInstalled } from './platform';
 import './home.css';
 
 /** `?demo=inicio` — the review surface, resolved here until the router owns it. */
@@ -65,18 +65,6 @@ type LoadPhase = 'loading' | 'ready' | 'failed';
 interface Boot {
   readonly phase: LoadPhase;
   readonly input: HomeInput | null;
-}
-
-/** The one probe of §2.1.1, read once: the banner must not ask on every render. */
-function readInstalled(): boolean {
-  const readMedia =
-    typeof window.matchMedia === 'function'
-      ? (query: string): { readonly matches: boolean } => window.matchMedia(query)
-      : undefined;
-  return isInstalled({
-    ...(readMedia === undefined ? {} : { matchMedia: readMedia }),
-    navigator: navigator as { readonly standalone?: boolean | undefined },
-  });
 }
 
 export interface HomeEvidence {
@@ -117,7 +105,6 @@ async function readHome(
     inProgress,
     measurements,
     activities,
-    installed: readInstalled(),
     // The evicted state is a fact the *storage* tier has to supply: an empty store and a
     // first run are indistinguishable from inside IndexedDB (design-system §2.5), so the
     // marker lives outside it and arrives here as evidence. Until a caller passes one,
@@ -188,6 +175,26 @@ function WeekMeter({ view }: HomeViewOnly): React.ReactElement | null {
 }
 
 /**
+ * An empty state, said once: a glyph and the sentence, and no box.
+ *
+ * The design system's `EmptyState` carries no icon slot, and S3 asks for the glyph first
+ * wherever it is unambiguous, so the quiet note is drawn here — the same muted meta line
+ * the system uses, with the icon aligned to its first line. The icon is `aria-hidden`:
+ * the sentence is the meaning, the glyph only points at it (§9).
+ */
+function HomeNote({ icon, children }: {
+  readonly icon: IconName;
+  readonly children: React.ReactNode;
+}): React.ReactElement {
+  return (
+    <p className="home__note">
+      <Icon name={icon} size={14} className="home__note-icon" />
+      <span>{children}</span>
+    </p>
+  );
+}
+
+/**
  * The one primary action of the screen, drawn where the view says it belongs.
  *
  * It stays a single component because the same action appears inside the day's card when
@@ -244,21 +251,28 @@ function TodayBlock({
   readonly starting?: boolean | undefined;
 }): React.ReactElement {
   const today = view.today;
+  // A preview is the rotation's next day, not a stored session. The old caption said it
+  // in a sentence; a chip says the same thing in one word (S2), and it is only true
+  // while the primary action is the one that creates the day.
+  const preview = today !== null && today.state === 'preview' && view.action?.kind === 'start';
 
   if (today === null) {
     return (
       <section className="home__section">
         {view.nothingToday === 'emptyDay' ? (
           <Card>
-            <h2 className="ds-card-title">Sin ejercicios</h2>
+            <div className="home__card-head">
+              <Icon name="dumbbell" size={20} className="home__card-icon" />
+              <h2 className="ds-card-title">Sin ejercicios</h2>
+            </div>
             <p className="ds-body ds-body--muted">
               El siguiente día de tu rutina todavía no tiene ejercicios. Añádelos en Entrenar.
             </p>
           </Card>
         ) : (
-          <EmptyState>
+          <HomeNote icon="calendar">
             Todavía no hay rutina ni sesiones programadas. La plantilla de la semana está en Entrenar.
-          </EmptyState>
+          </HomeNote>
         )}
         <TodayAction view={view} onStart={onStart} onNavigate={onNavigate} starting={starting} />
       </section>
@@ -276,19 +290,14 @@ function TodayBlock({
         </h2>
       </div>
       <p className="ds-meta">{today.detail}</p>
-      {today.series === null && today.phase === null ? null : (
+      {today.series === null && today.phase === null && !preview ? null : (
         <div className="home__hero-meta">
           {today.series === null ? null : <Chip>{today.series}</Chip>}
           {today.phase === null ? null : <span className="ds-caption">{today.phase}</span>}
+          {preview ? <Chip>Vista previa</Chip> : null}
         </div>
       )}
       {today.done === null ? null : <p className="ds-body">{today.done}</p>}
-      {/* A preview is the rotation's next day, not a stored session: say so, so the card
-          never reads like something that already exists. It is only true while the
-          primary action is the one that creates it. */}
-      {today.state === 'preview' && view.action?.kind === 'start' ? (
-        <p className="ds-caption">La sesión se crea al empezar.</p>
-      ) : null}
       <TodayAction view={view} onStart={onStart} onNavigate={onNavigate} starting={starting} />
     </Card>
   );
@@ -346,7 +355,8 @@ function WeightCard({ view }: HomeViewOnly): React.ReactElement | null {
  * Two deliberate changes from the old card, both demanded by S1/S6:
  *
  * 1. The capture is here, and it writes an `ActivityRecord` — never a session. The next
- *    strength day above is untouched by it, which is why the card says so in one line.
+ *    strength day above is untouched by it; the row says that by being an activity and
+ *    nothing else, so the card no longer explains it in prose (S2).
  * 2. `N actividades importadas` used to cover every row, so a manually recorded football
  *    match would have read as an imported health sample. Manual rows are now named for
  *    what they are (`Fútbol registrado`) with their date and duration, and only the rows
@@ -434,16 +444,33 @@ function ActivitySection({
     <section className="home__section">
       <SectionLabel icon={<Icon name="heart" size={14} />}>Actividad</SectionLabel>
 
-      <Card label="Fútbol">
-        <span className="ds-card-title">Fútbol</span>
-        <p className="ds-body ds-body--muted">
-          {`${String(FOOTBALL_DURATION_MINUTES)} minutos, dos partes de 25. Se guarda como actividad: no cuenta como sesión ni cambia el orden de tus días de fuerza.`}
-        </p>
-        {onRecordFootball === undefined ? null : (
-          <TextButton icon="plus" align="start" disabled={recording} onClick={onRecordFootball}>
-            {recording ? 'Guardando…' : 'Registrar fútbol'}
-          </TextButton>
-        )}
+      {/* One compact row: the glyph, the word, the duration as a figure, the action.
+          The prose that used to sit here («50 minutos, dos partes de 25. Se guarda como
+          actividad: no cuenta como sesión…») explained a fact the row already proves —
+          the match is an activity by construction, and the rotation above never saw it
+          (S2, S6). */}
+      <Card padding="dense" label="Fútbol">
+        <div className="home__football">
+          <Icon name="clock" size={20} className="home__football-icon" />
+          <span className="ds-card-title">Fútbol</span>
+          <span className="home__football-min">
+            <span className="ds-numeral ds-numeral--metric-small">
+              {String(FOOTBALL_DURATION_MINUTES)}
+            </span>
+            <span className="ds-numeral__unit">min</span>
+          </span>
+          {onRecordFootball === undefined ? null : (
+            <TextButton
+              icon="plus"
+              align="start"
+              className="home__football-action"
+              disabled={recording}
+              onClick={onRecordFootball}
+            >
+              {recording ? 'Guardando…' : 'Registrar'}
+            </TextButton>
+          )}
+        </div>
         {/* A plain result line: no modal, no timer, and no claim about a screen that has
             not re-read yet. */}
         {footballNotice === null ? null : <p className="ds-body">{footballNotice}</p>}
@@ -472,10 +499,13 @@ function ActivitySection({
       {activity.imported === 0 ? null : (
         <Card>
           <div className="ds-row">
-            <span className="ds-body">
-              {activity.imported === 1
-                ? '1 actividad importada'
-                : `${String(activity.imported)} actividades importadas`}
+            <span className="home__imported">
+              <Icon name="watch" size={20} className="home__imported-icon" />
+              <span className="ds-body">
+                {activity.imported === 1
+                  ? '1 actividad importada'
+                  : `${String(activity.imported)} actividades importadas`}
+              </span>
             </span>
             <Chip>Sólo lectura</Chip>
           </div>
@@ -483,9 +513,9 @@ function ActivitySection({
       )}
 
       {activity.empty ? (
-        <EmptyState bare>
+        <HomeNote icon="heart">
           Todavía no hay actividad registrada. Esto no impide entrenar.
-        </EmptyState>
+        </HomeNote>
       ) : null}
     </section>
   );
@@ -539,10 +569,9 @@ export function HomeBody({
         starting={starting}
       />
 
-      {/* Everything below is secondary to the day above: why nothing opened (§7.8), the
-          store's own bad news, and the platform advisory. A failed write offers
-          `Reintentar`; a missing profile sends the owner to the tab that can fix it,
-          because a retry cannot. */}
+      {/* Everything below is secondary to the day above: why nothing opened (§7.8) and
+          the store's own bad news. A failed write offers `Reintentar`; a missing profile
+          sends the owner to the tab that can fix it, because a retry cannot. */}
       {startNotice === null ? null : startNotice.tone === 'danger' ? (
         <ErrorBanner
           message={startNotice.message}
@@ -558,9 +587,9 @@ export function HomeBody({
         />
       )}
 
-      {/* §7.8: the evicted state is the only one that is not dismissible. It keeps the
-          danger tone and its import action; it sits under the action so the day still
-          comes first. */}
+      {/* §7.8, S5: the only platform state Inicio still tells — the store opened and the
+          data is gone. The install advisory that used to sit here is Perfil's alone now
+          (S2): it explained the platform on the screen that answers «what do I do now?». */}
       {view.notice.evicted ? (
         <Banner
           tone="danger"
@@ -572,20 +601,10 @@ export function HomeBody({
         />
       ) : null}
 
-      {/* §7.8: advisory, stated once, and only when there is something to lose. Its
-          warning tone is unchanged; it sits under the day, never above it. */}
-      {view.notice.notInstalled ? (
-        <Banner
-          tone="warning"
-          title="Guarda Rupfit en la pantalla de inicio para que Safari no borre tus datos."
-          text="Compartir → Añadir a pantalla de inicio."
-        />
-      ) : null}
-
       {view.hasHistory ? null : (
-        <EmptyState bare>
+        <HomeNote icon="train">
           Todavía no hay sesiones. La primera aparecerá aquí cuando la termines.
-        </EmptyState>
+        </HomeNote>
       )}
 
       {/* The week already sits in the header, so what is left is the last session it

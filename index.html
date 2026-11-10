@@ -16,8 +16,42 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Rupfit" />
+    <!-- The launch screen (odd/tasks/account-first.md T5). It lives in the HTML, not in
+         React, because the moment it covers is the one before React exists: the mark paints
+         with the first byte of markup and `main.tsx` removes it once the app has rendered
+         its own first frame. No request, no spinner, nothing that pretends to progress. -->
+    <style>
+      #boot {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #12111b;
+        z-index: 20;
+      }
+      #boot svg {
+        width: 96px;
+        height: auto;
+        animation: boot-in 260ms cubic-bezier(0.2, 0, 0, 1) both;
+      }
+      @keyframes boot-in {
+        from { opacity: 0; transform: scale(0.96); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #boot svg { animation: none; }
+      }
+    </style>
   </head>
   <body>
+    <div id="boot" aria-hidden="true">
+      <!-- The R, drawn from the same vector as public/logo-mark.svg, inlined so the launch
+           screen costs no extra request on a cold start. -->
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="62 54.2 258.6 237.2" role="img" aria-label="Rupfit">
+        <path transform="matrix(1,0,0,-1,83.126,144.00148)" d="M0 0C2.683 22.146 .608 45.608 13.591 64.909 21.068 76.025 33.12 82.513 45.965 85.535 83.204 86.079 125.455 89.782 162.539 87.039 232.03 81.897 237.504-9.145 178.68-34.18 152.205-45.448 120.94-39.112 92.642-43.142 85.362-44.179 76.337-45.462 72-51.99 92.783-51.828 115.872-49.33 136.536-50.964 144.209-51.571 150.968-53.591 156.524-58.976 179.504-81.254 199.288-112.259 222.509-134.991L224-138H148.5C143.029-138 134.034-130.037 130.486-126.014L70.488-56.007C68.378-55.527 68.342-60.3 68.135-61.636 65.232-80.4 65.98-104.577 61.749-122.249 55.714-147.452 12.928-144.175-.973-127.473-21.125-103.263-6.157-55.453 15.474-35.974 51.991-3.089 103.851-23.581 133.476 .024 148.365 11.887 147.781 33.118 125.536 35.036 107.814 36.564 87.947 33.82 69.995 35.005 70.727 19.951 63.099 8.505 48.958 3.542 45.945 2.484 36.229 0 33.5 0Z" fill="#a892ff"/>
+      </svg>
+    </div>
     <div id="root"></div>
     <noscript>Rupfit necesita JavaScript para funcionar.</noscript>
     <script type="module" src="/src/main.tsx"></script>

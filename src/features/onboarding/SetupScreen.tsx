@@ -88,9 +88,14 @@ export interface SetupScreenProps {
   readonly gate: SetupGate;
   /** Called once the last write resolved: the shell reloads the gate and lands on Inicio. */
   readonly onDone: () => void;
+  /**
+   * El nombre de la cuenta, cuando hay una (L3). El primer arranque con sesión no pregunta
+   * el nombre: lo trae puesto. Un perfil que ya lo tiene manda, siempre.
+   */
+  readonly accountName?: string | null | undefined;
 }
 
-export function SetupScreen({ gate, onDone }: SetupScreenProps): React.ReactElement {
+export function SetupScreen({ gate, onDone, accountName }: SetupScreenProps): React.ReactElement {
   if (gate.phase === 'loading') {
     // Not a spinner (S3 forbids one for local data) and not the form: a flash of default
     // values over a store that is about to say otherwise would be a lie either way.
@@ -112,7 +117,7 @@ export function SetupScreen({ gate, onDone }: SetupScreenProps): React.ReactElem
   if (gate.offer.kind === 'setup') {
     // `noPlan` means a profile exists already (Perfil can write one on its own): the form
     // starts from the stored values and the intro says what is still missing.
-    return <SetupForm gate={gate} onDone={onDone} />;
+    return <SetupForm gate={gate} onDone={onDone} accountName={accountName} />;
   }
 
   // The only other state that reaches `#/empezar` is a store that can already train: the
@@ -122,11 +127,13 @@ export function SetupScreen({ gate, onDone }: SetupScreenProps): React.ReactElem
 
 /* ------------------------------------------------------------------- the form */
 
-function SetupForm({ gate, onDone }: SetupScreenProps): React.ReactElement {
+function SetupForm({ gate, onDone, accountName }: SetupScreenProps): React.ReactElement {
   const { storage, clock } = useAppServices();
   const stored = gate.profile;
 
-  const [name, setName] = useState(stored?.displayName ?? '');
+  // El nombre del perfil manda; si no hay perfil todavía, el de la cuenta, ya derivado
+  // (`accountNameOf`): la primera pantalla no vuelve a preguntar lo que la cuenta ya sabe.
+  const [name, setName] = useState(stored?.displayName ?? accountName ?? '');
   const [goal, setGoal] = useState<WeightGoal | null>(stored?.weightGoal ?? null);
   const [days, setDays] = useState(stored?.weeklyTrainingDays ?? 3);
   const [equipment, setEquipment] = useState<readonly Equipment[]>(

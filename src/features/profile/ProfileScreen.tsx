@@ -270,13 +270,20 @@ interface ProfileSectionProps {
 
 /** Nombre y la línea que resume el perfil: the identity card of the screen. The mark is
  *  a monogram, not a photo; the summary under the name is derived from `UserProfile`
- *  (`goalsLine`) so no decorative sentence has to be invented. */
+ *  (`goalsLine`) so no decorative sentence has to be invented.
+ *
+ *  El nombre es un dato, no un campo (spec S1, L3): llega de la cuenta al entrar y se
+ *  enseña aquí, sin entrada que lo cambie, porque ya es suyo. Solo cuando no hay nombre —
+ *  modo local, o un perfil que nunca tuvo uno — queda el campo, que es la última forma de
+ *  ponerlo. `displayName` se queda en el modelo y en la copia de seguridad. */
 function ProfileSection({
   profile,
   saveFailed,
   onWrite,
   onRetry,
 }: ProfileSectionProps): React.ReactElement {
+  const name = profile?.displayName ?? null;
+
   return (
     <section className="profile__section">
       <Card>
@@ -303,15 +310,22 @@ function ProfileSection({
               </>
             ) : (
               <>
-                <CommitField
-                  label="Nombre"
-                  hint="Opcional. Solo se usa para saludarte en Inicio."
-                  value={profile.displayName ?? ''}
-                  placeholder="Sin nombre"
-                  onCommit={(value) =>
-                    onWrite({ displayName: value.trim() === '' ? null : value.trim() })
-                  }
-                />
+                {name === null ? (
+                  <CommitField
+                    label="Nombre"
+                    hint="Opcional. Solo se usa para saludarte en Inicio."
+                    value=""
+                    placeholder="Sin nombre"
+                    onCommit={(value) =>
+                      onWrite({ displayName: value.trim() === '' ? null : value.trim() })
+                    }
+                  />
+                ) : (
+                  <>
+                    <p className="ds-card-title">{name}</p>
+                    <span className="ds-meta">El nombre viene de tu cuenta.</span>
+                  </>
+                )}
                 <p className="ds-caption">{goalsLine(profile)}</p>
               </>
             )}

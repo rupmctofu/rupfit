@@ -116,6 +116,80 @@
   min-width: 0;
 }
 
+/* A card head that carries a glyph before its word (S3): the glyph is the marker, the
+   word is the meaning, and neither one is announced twice. */
+.home__card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.home__card-icon {
+  flex: none;
+  color: var(--color-muted);
+}
+
+/* An empty state said once: a glyph and the sentence, no box. The icon aligns to the
+   baseline of the first line, so a sentence that wraps does not drag it down. */
+.home__note {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-meta);
+  line-height: var(--leading-loose);
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.home__note-icon {
+  flex: none;
+  color: var(--color-muted);
+}
+
+/* The football row (S2): glyph, word, duration as a small figure, action. It wraps at
+   320 px instead of pushing the action past the screen edge. */
+.home__football {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+
+.home__football-icon {
+  flex: none;
+  color: var(--color-muted);
+}
+
+.home__football-min {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  flex: none;
+  color: var(--color-muted);
+}
+
+.home__football-action {
+  margin-left: auto;
+}
+
+/* The imported count: the watch glyph says where those rows came from, the sentence says
+   how many. */
+.home__imported {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.home__imported-icon {
+  flex: none;
+  color: var(--color-muted);
+}
+
 /* One primary action per screen (design-system §7.1), in the thumb zone. */
 .home__primary {
   width: 100%;
