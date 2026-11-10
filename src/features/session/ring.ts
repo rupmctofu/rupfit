@@ -10,9 +10,12 @@
  * - **pending** — everything else, including an exercise left half-answered behind the
  *   current one: a segment that is not finished is not painted as finished.
  *
- * Neither the state nor the geometry relies on colour: the current segment is the thick
- * one and the screen writes `Ejercicio 3 de 8 · actual` next to it, so the ring still
- * reads in a screenshot, in high contrast mode and to a screen reader.
+ * Nothing about the ring grows any more. Every arc has one width, and the segments
+ * already reached — the answered ones and the one on screen — are painted in the light
+ * lilac accent while the ones still to come stay in the hairline colour. Colour is
+ * therefore the sighted cue, and the `ds-visually-hidden` list inside `SessionRing` is
+ * the spoken one: it names the exercise on screen and the state of every other, so the
+ * ring is never colour alone.
  *
  * Pure: a session in, numbers out. No React, no clock, no I/O.
  */
@@ -26,6 +29,13 @@ export interface RingSegment {
   readonly exerciseSessionId: string;
   readonly name: string;
   readonly state: RingSegmentState;
+  /**
+   * Whether the ring paints this segment as reached. The owner asked for the arcs to light
+   * up by position: the first one lights as soon as it is the current one and stays lit
+   * when the session moves on, whatever its sets say. A segment answered ahead of the
+   * current one is reached too, because it is answered.
+   */
+  readonly reached: boolean;
   readonly answeredSets: number;
   readonly prescribedSets: number;
 }
@@ -36,15 +46,16 @@ export const RING_CENTER = RING_VIEWBOX / 2;
 export const RING_RADIUS = 52;
 /** The gap between two segments, in path units. */
 export const RING_GAP = 4;
-/** Stroke width per state: thickness is the cue colour is not allowed to be alone. */
-export const RING_STROKE: Readonly<Record<RingSegmentState, number>> = {
-  completed: 7,
-  current: 12,
-  pending: 4,
-};
+/**
+ * One width for every segment, because thickness no longer encodes state: the ring used
+ * to thicken the current arc and the owner asked for that to stop, since an arc that
+ * grows competes with the drawing inside the circle.
+ */
+export const RING_STROKE_WIDTH = 7;
 
 /** The segments of a session, one per exercise, in prescription order. */
 export function ringSegments(session: SessionState): readonly RingSegment[] {
+  const active = session.activeIndex ?? 0;
   return session.exercises.map((exercise, index) => {
     const prescribedSets = exercise.prescription.sets;
     const answeredSets = exercise.sets.length;
@@ -56,6 +67,7 @@ export function ringSegments(session: SessionState): readonly RingSegment[] {
       exerciseSessionId: exercise.id,
       name: exercise.exerciseNameSnapshot,
       state,
+      reached: finished || index <= active,
       answeredSets,
       prescribedSets,
     };
@@ -92,7 +104,7 @@ export function ringDashes(
     segment,
     length,
     offset: -segment.index * slot,
-    strokeWidth: RING_STROKE[segment.state],
+    strokeWidth: RING_STROKE_WIDTH,
   }));
 }
 

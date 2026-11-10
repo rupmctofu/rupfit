@@ -207,12 +207,24 @@
   gap: var(--space-1);
   padding: 0 var(--layout-screen-padding);
   min-width: 0;
+  /* The hero is the swipe surface: a vertical drag still scrolls the page, a horizontal
+     one moves one exercise (see swipe.ts). */
+  touch-action: pan-y;
 }
 
+/*
+ * The ring is the screen's visual core, so it takes 90% of the viewport width: `90vw`
+ * measured against the screen, not against the padded column. The cap is what keeps that
+ * literal reading sane on a window the app is not designed for: at 1024 px, 90vw would be
+ * a 922 px circle, so it stops at a phone-sized 420 px. `aspect-ratio` keeps it round now
+ * that the size is no longer fixed at 140 px.
+ */
 .session-ring {
   position: relative;
-  width: 140px;
-  height: 140px;
+  width: 90vw;
+  max-width: 420px;
+  aspect-ratio: 1 / 1;
+  margin-inline: auto;
   flex: none;
 }
 
@@ -222,22 +234,25 @@
   height: 100%;
 }
 
-/* The three states, in cues that survive a monochrome screen: thickness first, ink
-   second. The accent stays on the pinned `Registrar serie` (§4 accent budget). */
+/* The states, in one cue the owner asked for: the light lilac accent for everything
+   already reached — lit by position, so the first arc lights when it becomes the current
+   one and stays lit as the session advances — and the hairline colour for what is still to
+   come. Nothing changes width any more: an arc that swells competes with the drawing
+   inside it. The accent text token, not the fill, so the ring stays paint and
+   `Registrar serie` keeps the one strong accent. */
 .session-ring__segment {
-  transition: stroke-width var(--motion-base) var(--motion-ease);
+  transition: stroke var(--motion-base) var(--motion-ease);
 }
 
-.session-ring__segment--completed {
-  stroke: var(--color-muted);
-}
-
-.session-ring__segment--current {
-  stroke: var(--color-text);
-}
-
+/* Order matters: `--reached` is declared after `--pending` on purpose, because a segment
+   is often both (an unanswered arc behind the current one) and the later declaration wins
+   at equal specificity. Reached paints last, so position beats set count. */
 .session-ring__segment--pending {
   stroke: var(--color-border);
+}
+
+.session-ring__segment--reached {
+  stroke: var(--color-accent-text);
 }
 
 .session-ring__center {
@@ -250,13 +265,25 @@
 
 /* Two classes deep on purpose: `illustrations.css` also sizes the SVG and the two
    stylesheets may load in either order. */
+/* Two classes deep on purpose: `illustrations.css` also sizes the SVG and the two
+   stylesheets may load in either order. The drawing sits inside the arcs, so it grows
+   with the ring instead of being pinned to 64% of a 140 px circle. */
 .session-ring .session-hero__art {
-  width: 64%;
+  width: 68%;
 }
 
+/* The implement is the fallback for a library row with no drawing key: it keeps the
+   same slot, scaled to the ring rather than frozen at 40 px. */
 .session-hero__icon {
   display: inline-flex;
   color: var(--color-muted);
+  width: 38%;
+  aspect-ratio: 1 / 1;
+}
+
+.session-hero__icon > svg {
+  width: 100%;
+  height: 100%;
 }
 
 .session-hero__text {
@@ -266,10 +293,6 @@
   gap: var(--space-1);
   min-width: 0;
   text-align: center;
-}
-
-.session-hero__step {
-  color: var(--color-muted);
 }
 
 .session-hero__name {

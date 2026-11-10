@@ -12,7 +12,7 @@ import type { ExerciseState, SessionState } from '../../core/session/model';
 import {
   RING_GAP,
   RING_RADIUS,
-  RING_STROKE,
+  RING_STROKE_WIDTH,
   ringCompletedLabel,
   ringDashes,
   ringLabel,
@@ -117,15 +117,33 @@ describe('the geometry of the ring', () => {
     expect(Math.abs(dashes[3]!.offset)).toBeLessThan(circumference);
   });
 
-  it('draws the current segment thicker than the ones it is not', () => {
+  it('lights every segment up to the one on screen, whatever its sets say', () => {
+    // The owner asked for the ring to fill by position: exercise 2 is on screen, so 1 and 2
+    // are lit even though neither has an answered set.
+    const segments = ringSegments(
+      session([exercise('a', 3, 0), exercise('b', 3, 0), exercise('c', 3, 0)], 1),
+    );
+
+    expect(segments.map((segment) => segment.reached)).toEqual([true, true, false]);
+  });
+
+  it('treats a segment answered ahead of the current one as reached', () => {
+    const segments = ringSegments(
+      session([exercise('a', 1, 0), exercise('b', 1, 0), exercise('c', 1, 1)], 0),
+    );
+
+    expect(segments.map((segment) => segment.reached)).toEqual([true, false, true]);
+  });
+
+  it('draws every segment with the same width, so no arc grows', () => {
     const segments = ringSegments(session([exercise('a', 1, 1), exercise('b', 1, 0)], 1));
     const dashes = ringDashes(segments);
-    const current = dashes.find((dash) => dash.segment.state === 'current');
-    const completed = dashes.find((dash) => dash.segment.state === 'completed');
 
-    expect(current?.strokeWidth).toBe(RING_STROKE.current);
-    expect(completed?.strokeWidth).toBe(RING_STROKE.completed);
-    expect(RING_STROKE.current).toBeGreaterThan(RING_STROKE.pending);
+    // The owner asked for the current arc to stop being the thick one: reached is shown
+    // with the lilac in the stylesheet, never with a stroke that grows.
+    for (const dash of dashes) {
+      expect(dash.strokeWidth).toBe(RING_STROKE_WIDTH);
+    }
   });
 });
 

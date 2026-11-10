@@ -60,6 +60,13 @@ const ALLOWED: AllowList = {
   'features/session/session.css': [
     // Data point: the live session's bar in the six-session strip, the one that matters.
     'background: var(--color-accent);',
+    // Active state + data point: every arc of the ring already reached, the answered ones
+    // and the one on screen. The current exercise is the active state of the sheet and the
+    // lit arcs are the progress it exists to show, read in one glance. It is the text
+    // flavour and never the fill, so `Registrar serie` still owns the one primary accent.
+    // Argued and requested by the owner: "lila clarito" for everything reached, and no
+    // arc grows any more (S2, L5).
+    'stroke: var(--color-accent-text);',
     // The demo port's selected chip follows the tinted selected-control rule (§4); the
     // demo strip is a review surface, and its pill stays consistent with `Chip`.
     'background: var(--color-accent-muted);',

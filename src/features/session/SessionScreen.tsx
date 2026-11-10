@@ -56,12 +56,9 @@ import {
 import type { StoragePort } from '../../storage';
 import { ExerciseCard, type SetDraft } from './ExerciseCard';
 import { ExerciseIllustration } from './ExerciseIllustration';
+import { swipeDirection, type SwipePoint } from './swipe';
 import { illustrationKeyOf } from './illustrationKey';
-import {
-  ringCompletedLabel,
-  ringLabel,
-  ringSegments,
-} from './ring';
+import { ringSegments } from './ring';
 import { SessionRing } from './SessionRing';
 import {
   canSubstitute,
@@ -265,6 +262,28 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
     },
     [],
   );
+
+  // The hero is also the gesture: a horizontal drag moves one exercise, exactly the move
+  // the pager chevrons make, and `goTo` already refuses to leave the session's bounds.
+  // Only the decision lives in `swipe.ts`; the drag itself is here, where `goTo` is.
+  const swipeOriginRef = useRef<SwipePoint | null>(null);
+  const onHeroPointerDown = useCallback((event: React.PointerEvent<HTMLElement>) => {
+    swipeOriginRef.current = { x: event.clientX, y: event.clientY };
+  }, []);
+  const onHeroPointerUp = useCallback(
+    (event: React.PointerEvent<HTMLElement>) => {
+      const origin = swipeOriginRef.current;
+      swipeOriginRef.current = null;
+      if (origin === null) return;
+      const direction = swipeDirection(origin, { x: event.clientX, y: event.clientY });
+      if (direction === null) return;
+      goTo((runtime.session?.activeIndex ?? 0) + (direction === 'next' ? 1 : -1));
+    },
+    [goTo, runtime.session],
+  );
+  const onHeroPointerCancel = useCallback(() => {
+    swipeOriginRef.current = null;
+  }, []);
 
   const dismissRecovery = controller.dismissRecovery;
   const dispatch = controller.dispatch;
@@ -615,7 +634,13 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
           glance, one hand, 390 px, with no scrolling at all. The paged cards below keep
           the sets, the compare tiles and the history. */}
       {terminal || exerciseOnScreen === null ? null : (
-        <section className="session-hero" aria-label="Ejercicio actual">
+        <section
+          className="session-hero"
+          aria-label="Ejercicio actual"
+          onPointerDown={onHeroPointerDown}
+          onPointerUp={onHeroPointerUp}
+          onPointerCancel={onHeroPointerCancel}
+        >
           <SessionRing segments={segments}>
             {/* S3: the drawing of this variant, or the implement. A row the library no
                 longer has shows nothing rather than somebody else's exercise. */}
@@ -632,9 +657,6 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
             )}
           </SessionRing>
           <div className="session-hero__text">
-            <p className="ds-caption session-hero__step">
-              {`${ringLabel(segments)} · ${ringCompletedLabel(segments)}`}
-            </p>
             <h2 className="session-hero__name">{exerciseOnScreen.exerciseNameSnapshot}</h2>
             <p className="session-hero__prescription">
               {prescriptionLine(exerciseOnScreen.prescription)}
@@ -695,6 +717,7 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
         <Pager
           position={(session.activeIndex ?? 0) + 1}
           total={total}
+          count={false}
           onPrevious={() => goTo((session.activeIndex ?? 0) - 1)}
           onNext={() => goTo((session.activeIndex ?? 0) + 1)}
         />

@@ -1,11 +1,11 @@
 /**
  * The segmented ring of the session (odd/tasks/training-flow.md S2, T3).
  *
- * A circle cut into one arc per exercise; the arc of the current exercise is the thick
- * one, the answered ones are drawn in the muted ink and the ones still to come in the
- * hairline colour. Colour is the third cue, never the only one: thickness, the visible
- * line `Ejercicio 3 de 8 · actual` next to it and the spoken list below all say the same
- * thing.
+ * A circle cut into one arc per exercise, every arc the same width: the segments already
+ * reached — the answered ones and the one on screen — are lit in the light lilac accent,
+ * and the ones still to come stay in the hairline colour. Colour is the sighted cue; the
+ * spoken list below is the other one, and it names the exercise on screen and the state
+ * of every segment, so the ring never depends on seeing a shade.
  *
  * The centre is a slot: the session puts the illustration of the current variant there.
  * The SVG itself is `aria-hidden` — the ring is a shape, and the sentence that carries its
@@ -43,7 +43,9 @@ export function SessionRing(props: SessionRingProps): React.ReactElement {
           {dashes.map((dash) => (
             <circle
               key={dash.segment.exerciseSessionId}
-              className={`session-ring__segment session-ring__segment--${dash.segment.state}`}
+              className={`session-ring__segment session-ring__segment--${dash.segment.state}${
+                dash.segment.reached ? ' session-ring__segment--reached' : ''
+              }`}
               cx={RING_CENTER}
               cy={RING_CENTER}
               r={RING_RADIUS}
