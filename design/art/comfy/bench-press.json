@@ -1,0 +1,54 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": { "title": "Cargar checkpoint" },
+    "inputs": { "ckpt_name": "DreamShaperXL_Turbo_v2_1.safetensors" }
+  },
+  "2": {
+    "class_type": "CLIPTextEncode",
+    "_meta": { "title": "Prompt positivo" },
+    "inputs": {
+      "clip": ["1", 1],
+      "text": "flat vector illustration, clean thick outlines, an athlete performing a flat barbell bench press, side view, lying on the bench, both hands gripping the barbell above the chest, knees bent and feet flat on the floor, one single ink colour plus light lilac, plain dark background, no text, no gradients, whole body inside the frame, exercise icon style"
+    }
+  },
+  "3": {
+    "class_type": "CLIPTextEncode",
+    "_meta": { "title": "Prompt negativo" },
+    "inputs": {
+      "clip": ["1", 1],
+      "text": "photo, photorealistic, text, watermark, gradient, extra limbs, deformed hands, cropped head, cropped feet, clutter, multiple people"
+    }
+  },
+  "4": {
+    "class_type": "EmptyLatentImage",
+    "_meta": { "title": "Lienzo cuadrado" },
+    "inputs": { "width": 1024, "height": 1024, "batch_size": 1 }
+  },
+  "5": {
+    "class_type": "KSampler",
+    "_meta": { "title": "Muestreo" },
+    "inputs": {
+      "model": ["1", 0],
+      "positive": ["2", 0],
+      "negative": ["3", 0],
+      "latent_image": ["4", 0],
+      "seed": 4711,
+      "steps": 8,
+      "cfg": 2.0,
+      "sampler_name": "dpmpp_sde",
+      "scheduler": "karras",
+      "denoise": 1.0
+    }
+  },
+  "6": {
+    "class_type": "VAEDecode",
+    "_meta": { "title": "Decodificar" },
+    "inputs": { "samples": ["5", 0], "vae": ["1", 2] }
+  },
+  "7": {
+    "class_type": "SaveImage",
+    "_meta": { "title": "Guardar" },
+    "inputs": { "images": ["6", 0], "filename_prefix": "rupfit/bench-press" }
+  }
+}
