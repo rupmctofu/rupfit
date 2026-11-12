@@ -14,9 +14,10 @@
 
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { PlanDay, UserProfile, WorkoutSession } from '../../storage';
+import type { PlanDay, StoragePort, UserProfile, WeekRecord, WorkoutSession } from '../../storage';
 import { createFakeStorage } from '../session/fake-port';
-import { HomeBody } from './HomeScreen';
+import { HomeBody, TodaySwapSheet, currentWeekOf, offDayOf, saveTodaySwap } from './HomeScreen';
+import { demoWeek, demoPort, demoRestNow } from './demo';
 import { homeViewOf, type HomeInput } from './selectors';
 import { recordFootball } from './football';
 import { NO_DELETION, type ActivityDeletionState } from './deletion';
@@ -24,6 +25,9 @@ import { NO_DELETION, type ActivityDeletionState } from './deletion';
 /** Wednesday 8 November 2023, 18:00 local. */
 const NOW = new Date(2023, 10, 8, 18, 0, 0).getTime();
 const MONDAY = new Date(2023, 10, 6, 18, 0, 0).getTime();
+/** The other two days of the same week: the match (Thursday) and the rest (Saturday). */
+const THURSDAY = new Date(2023, 10, 9, 18, 0, 0).getTime();
+const SATURDAY = new Date(2023, 10, 11, 12, 0, 0).getTime();
 
 const PROFILE: UserProfile = {
   id: 'profile-1',
@@ -79,6 +83,41 @@ const PLAN: readonly PlanDay[] = [
   },
 ];
 
+/** One of the four seeded days (L5, L7), with one exercise so the card previews it. */
+function seededDay(id: string, name: string, order: number): PlanDay {
+  return {
+    id,
+    name,
+    order,
+    items: [
+      {
+        id: `${id}-item`,
+        planDayId: id,
+        order: 0,
+        exerciseId: 'lib-1',
+        exerciseNameSnapshot: 'Sentadilla',
+        prescription: {
+          sets: 3,
+          repRange: { lowerBound: 8, upperBound: 10 },
+          targetRIR: { lowerBound: 2, upperBound: 3 },
+          restSeconds: 180,
+        },
+      },
+    ],
+  };
+}
+
+/** The plan of a real device: the four seeded days, named as `weekDaysOf` expects. */
+const WEEK_PLAN: readonly PlanDay[] = [
+  seededDay('seed-day-leg', 'PIERNA', 0),
+  seededDay('seed-day-torso-a', 'TORSO A', 1),
+  seededDay('seed-day-torso-b', 'TORSO B', 2),
+  seededDay('seed-day-fisico', 'PREPARACIÓN FÚTBOL', 3),
+];
+
+/** T3: the league week of the fixture, Thursday's match, no exchange yet. */
+const LEAGUE_WEEK: WeekRecord = { monday: '2023-11-06', match: 'league', swaps: [] };
+
 function session(
   overrides: Partial<WorkoutSession> & Pick<WorkoutSession, 'id' | 'status'>,
 ): WorkoutSession {
@@ -121,14 +160,36 @@ const DELETION: ActivityDeletionState = {
 
 /** The screen's markup for a fixture, with the actions a phone would have. */
 function render(overrides: Partial<HomeInput> = {}): string {
+  const fixture = input(overrides);
   return renderToStaticMarkup(
     <HomeBody
-      view={homeViewOf(input(overrides))}
+      view={homeViewOf(fixture)}
+      offDay={offDayOf(fixture)}
       onStart={() => undefined}
       onRecordFootball={() => undefined}
+      onSwapToday={() => undefined}
       deletion={DELETION}
     />,
   );
+}
+
+/** A port holding only the week record: what `saveTodaySwap` and `currentWeekOf` use. */
+function weekPort(record: WeekRecord | undefined): {
+  readonly port: StoragePort;
+  readonly writes: readonly WeekRecord[];
+} {
+  const writes: WeekRecord[] = [];
+  let stored = record;
+  const port = {
+    meta: {
+      readWeek: async (): Promise<WeekRecord | undefined> => stored,
+      saveWeek: async (next: WeekRecord): Promise<void> => {
+        writes.push(next);
+        stored = next;
+      },
+    },
+  } as unknown as StoragePort;
+  return { port, writes };
 }
 
 describe('Inicio renders', () => {
@@ -216,6 +277,162 @@ describe('Inicio after the purge (S2, S3)', () => {
 
     expect(markup).toContain('Vista previa');
     expect(markup).not.toContain('La sesión se crea al empezar.');
+  });
+});
+
+describe('Inicio offers to change today (T5, S6, S9)', () => {
+  it('offers the exchange of today, and the sheet lists each partner and its weekday', () => {
+    const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
+
+    // Wednesday of a league week holds the football preparation: that is today.
+    expect(markup).toContain('Preparación fútbol');
+    expect(markup).toContain('Cambiar el entreno de hoy');
+
+    const swap = homeViewOf(input({ plan: WEEK_PLAN, week: LEAGUE_WEEK })).today?.swap;
+    if (swap === null || swap === undefined) throw new Error('the week offered no exchange');
+
+    const sheet = renderToStaticMarkup(
+      <TodaySwapSheet swap={swap} onChoose={() => undefined} onClose={() => undefined} />,
+    );
+
+    // The sheet pattern of the app, not a second one (`train-sheet`, RoutineEditor).
+    expect(sheet).toContain('role="dialog"');
+    expect(sheet).toContain('aria-modal="true"');
+    expect(sheet).toContain('¿Qué toca hoy?');
+    // One row per partner: the day and its weekday, and where today's day lands (S9).
+    expect(sheet).toContain('Torso A');
+    expect(sheet).toContain('Martes');
+    expect(sheet).toContain('Se mueve a Martes');
+  });
+
+  it('writes the chosen exchange and the card then shows the exchanged week', async () => {
+    const { port, writes } = weekPort(LEAGUE_WEEK);
+    const swap = homeViewOf(input({ plan: WEEK_PLAN, week: LEAGUE_WEEK })).today?.swap;
+    const monday = swap?.options.find((option) => option.weekday === 'Lunes');
+    if (monday === undefined) throw new Error('Monday was not offered as an exchange');
+
+    expect(await saveTodaySwap(port, monday.swap)).toBe(true);
+    // Wednesday and Monday trade places: the record is the week's only memory (T5).
+    expect(writes).toEqual([{ ...LEAGUE_WEEK, swaps: [{ from: 2, to: 0 }] }]);
+
+    const markup = render({ plan: WEEK_PLAN, week: writes[0] });
+    expect(markup).toContain('Pierna');
+    // The preparation left Wednesday: the card shows the exchanged week, not both days.
+    expect(markup).not.toContain('Preparación fútbol');
+    // The exchanged week still offers the way back, so nothing was locked in.
+    expect(markup).toContain('Cambiar el entreno de hoy');
+  });
+
+  it('keeps an exchange of other weekdays instead of losing it', async () => {
+    const { port, writes } = weekPort({ ...LEAGUE_WEEK, swaps: [{ from: 0, to: 1 }] });
+
+    expect(await saveTodaySwap(port, { from: 2, to: 4 })).toBe(true);
+    // Monday and Tuesday were already exchanged, and Wednesday and Friday move no
+    // weekday twice, so the engine can hold both (applySwaps, week-plan.ts).
+    expect(writes.map((record) => record.swaps)).toEqual([
+      [
+        { from: 0, to: 1 },
+        { from: 2, to: 4 },
+      ],
+    ]);
+  });
+
+  it('writes nothing when the store has no week to change, and renders as before', async () => {
+    const { port, writes } = weekPort(undefined);
+    const fixture = input({ plan: WEEK_PLAN });
+    const markup = render({ plan: WEEK_PLAN });
+
+    expect(await saveTodaySwap(port, { from: 2, to: 0 })).toBe(false);
+    expect(writes).toEqual([]);
+    // No record: the rotation answers, and nothing of the week shows (S5).
+    expect(offDayOf(fixture)).toBeNull();
+    expect(markup).toContain('Vista previa');
+    expect(markup).not.toContain('Cambiar el entreno de hoy');
+    expect(markup).not.toContain('Hoy es el día del partido');
+    expect(markup).not.toContain('Hoy descansas');
+  });
+});
+
+describe('the match day and the rest day have their own state (T8, S1, S12)', () => {
+  it('says the match is today instead of «no exercises», and offers nothing', () => {
+    const markup = render({ now: THURSDAY, plan: WEEK_PLAN, week: LEAGUE_WEEK });
+
+    expect(markup).toContain('Hoy es el día del partido');
+    expect(markup).not.toContain('El siguiente día de tu rutina todavía no tiene ejercicios');
+    expect(markup).not.toContain('Empezar entrenamiento');
+    expect(markup).not.toContain('Cambiar el entreno de hoy');
+  });
+
+  it('says today is rest on Saturday, and does not borrow the empty-day sentence either', () => {
+    const markup = render({ now: SATURDAY, plan: WEEK_PLAN, week: LEAGUE_WEEK });
+
+    expect(markup).toContain('Hoy descansas');
+    expect(markup).not.toContain('El siguiente día de tu rutina todavía no tiene ejercicios');
+    expect(markup).not.toContain('Empezar entrenamiento');
+    // A training day of the same week is not an off day, in the league and in the cup.
+    expect(offDayOf(input({ plan: WEEK_PLAN, week: LEAGUE_WEEK }))).toBeNull();
+    expect(offDayOf(input({ plan: WEEK_PLAN, week: { ...LEAGUE_WEEK, match: 'cup' } }))).toBeNull();
+  });
+});
+
+describe('the current week gets its record on its own (S11, L5)', () => {
+  it('writes exactly one record for this week when the store has none, and the control shows', async () => {
+    const { port, writes } = weekPort(undefined);
+    const expected: WeekRecord = { monday: '2023-11-06', match: 'league', swaps: [] };
+
+    // The league is every Thursday and the cup is the exception (L5), so a week nobody
+    // has touched starts as a league week with no exchange (S11).
+    expect(await currentWeekOf(port, NOW)).toEqual(expected);
+    expect(writes).toEqual([expected]);
+
+    // A reload must not add a second record, and the record is what buys the control.
+    expect(await currentWeekOf(port, NOW)).toEqual(expected);
+    expect(writes).toHaveLength(1);
+    expect(render({ plan: WEEK_PLAN, week: expected })).toContain('Cambiar el entreno de hoy');
+  });
+
+  it('leaves a record of this week alone, the swaps included', async () => {
+    const swapped: WeekRecord = { ...LEAGUE_WEEK, swaps: [{ from: 2, to: 0 }] };
+    const { port, writes } = weekPort(swapped);
+
+    expect(await currentWeekOf(port, NOW)).toBe(swapped);
+    expect(writes).toEqual([]);
+  });
+
+  it('replaces a record from last week, because a new week starts from its template', async () => {
+    const lastWeek: WeekRecord = { ...LEAGUE_WEEK, monday: '2023-10-30', swaps: [{ from: 0, to: 1 }] };
+    const { port, writes } = weekPort(lastWeek);
+
+    expect(await currentWeekOf(port, NOW)).toEqual(LEAGUE_WEEK);
+    expect(writes).toEqual([LEAGUE_WEEK]);
+  });
+
+  it('lets the rotation answer when the record cannot be written', async () => {
+    const failing = {
+      meta: {
+        readWeek: async (): Promise<WeekRecord | undefined> => undefined,
+        saveWeek: async (): Promise<void> => Promise.reject(new Error('denied')),
+      },
+    } as unknown as StoragePort;
+
+    // S5: the screen is not a place where a storage failure shows. Without a record the
+    // rotation names the day, exactly as it did before the week existed.
+    expect(await currentWeekOf(failing, NOW)).toBeUndefined();
+    expect(render({ plan: WEEK_PLAN })).not.toContain('Cambiar el entreno de hoy');
+  });
+});
+
+describe('the demo can show the exchange (?demo=inicio)', () => {
+  it('has this week’s record and the four days the week needs, so the control appears', async () => {
+    // The scenario a reviewer opens for this state: `Sin sesión hoy`, the Wednesday the
+    // week names and no session backs.
+    const now = demoRestNow(NOW);
+    const fixture = demoWeek('rest', now);
+    const week = await demoPort(fixture).meta.readWeek();
+
+    expect(week?.monday).toBe('2023-11-06');
+    const view = homeViewOf(input({ now, plan: fixture.plan, recent: fixture.sessions, week }));
+    expect(view.today?.swap?.label).toBe('Cambiar el entreno de hoy');
   });
 });
 

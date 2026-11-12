@@ -285,3 +285,44 @@
   line-height: var(--leading-meta);
   color: var(--color-muted);
 }
+
+/* The way into the exchange of today (T5, S6): a quiet text button under the day's
+   action, on the card's own left edge. It never takes the accent fill — the primary
+   action is the only one of those (§7.1). */
+.home__swap-open {
+  align-self: flex-start;
+}
+
+/* The rows of «¿Qué toca hoy?»: one partner per row, a real button, so the 48 px target
+   and the focus ring are the system's. */
+.home__swap-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home__swap-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  width: 100%;
+  min-height: var(--target-min);
+  padding: var(--space-3);
+  text-align: left;
+  border: var(--layout-hairline) solid var(--color-border);
+  border-radius: var(--radius-control-square);
+}
+
+/* The day and its weekday on one line: the day is what the owner chooses, the weekday is
+   where it sits in the week. */
+.home__swap-day {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+}

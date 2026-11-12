@@ -22,11 +22,15 @@ import type {
   SetRecord,
   StoragePort,
   UserProfile,
+  WeekRecord,
   WorkoutSession,
 } from '../../storage';
 import type { PhaseState, RepRange } from '../../core/domain';
 import type { Clock } from '../session/controller';
 import { startOfWeek } from './selectors';
+// The demo needs this week's record, and the Monday it belongs to is the screen's own
+// rule: one implementation, so the fixture cannot disagree with what the screen writes.
+import { mondayIsoOf } from './HomeScreen';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -50,7 +54,7 @@ interface LiftSeed {
 const DAY_SEEDS: readonly { readonly id: string; readonly name: string; readonly offset: number; readonly lifts: readonly LiftSeed[] }[] = [
   {
     id: 'demo-lower',
-    name: 'SENTADILLA / PIERNA',
+    name: 'PIERNA',
     offset: 0,
     lifts: [
       { name: 'Sentadilla trasera', sets: 3, reps: { lowerBound: 8, upperBound: 10 }, restSeconds: 180, weightKg: 100, actualReps: 10, equipment: 'barbell', pattern: 'squat', muscle: 'quadriceps' },
@@ -63,7 +67,7 @@ const DAY_SEEDS: readonly { readonly id: string; readonly name: string; readonly
   },
   {
     id: 'demo-pull',
-    name: 'PESO MUERTO / TRACCIÓN',
+    name: 'TORSO A',
     offset: 2,
     lifts: [
       { name: 'Peso muerto', sets: 3, reps: { lowerBound: 6, upperBound: 8 }, restSeconds: 180, weightKg: 110, actualReps: 6, equipment: 'barbell', pattern: 'hinge', muscle: 'hamstrings' },
@@ -76,7 +80,7 @@ const DAY_SEEDS: readonly { readonly id: string; readonly name: string; readonly
   },
   {
     id: 'demo-push',
-    name: 'PRESS BANCA / EMPUJE',
+    name: 'TORSO B',
     offset: 4,
     lifts: [
       { name: 'Press banca', sets: 3, reps: { lowerBound: 6, upperBound: 8 }, restSeconds: 180, weightKg: 80, actualReps: 8, equipment: 'barbell', pattern: 'horizontalPush', muscle: 'chest' },
@@ -85,6 +89,20 @@ const DAY_SEEDS: readonly { readonly id: string; readonly name: string; readonly
       { name: 'Elevaciones laterales', sets: 2, reps: { lowerBound: 12, upperBound: 15 }, restSeconds: 60, weightKg: 8, actualReps: 15, equipment: 'dumbbell', pattern: 'isolation', muscle: 'shoulders' },
       { name: 'Extensiones de tríceps', sets: 2, reps: { lowerBound: 10, upperBound: 12 }, restSeconds: 60, weightKg: 20, actualReps: 12, equipment: 'cable', pattern: 'isolation', muscle: 'triceps' },
       { name: 'Espalda alta', sets: 2, reps: { lowerBound: 12, upperBound: 15 }, restSeconds: 60, weightKg: 30, actualReps: 15, equipment: 'machine', pattern: 'horizontalPull', muscle: 'upperBack' },
+    ],
+  },
+  {
+    // The fourth day of the programme (L7): the demo names its four days as the seed does,
+    // because the week module finds them by name (`weekDaysOf`) and a demo that cannot
+    // build a week could not show the exchange of today.
+    id: 'demo-prep',
+    name: 'PREPARACIÓN FÚTBOL',
+    offset: 2,
+    lifts: [
+      { name: 'Intervalos en pista', sets: 6, reps: { lowerBound: 1, upperBound: 1 }, restSeconds: 60, weightKg: 0, actualReps: 1, equipment: 'bodyweight', pattern: 'conditioning', muscle: 'quadriceps' },
+      { name: 'Nordic curl asistido', sets: 2, reps: { lowerBound: 8, upperBound: 10 }, restSeconds: 90, weightKg: 0, actualReps: 10, equipment: 'bodyweight', pattern: 'isolation', muscle: 'hamstrings' },
+      { name: 'Copenhagen corto', sets: 2, reps: { lowerBound: 1, upperBound: 1 }, restSeconds: 60, weightKg: 0, actualReps: 1, equipment: 'bodyweight', pattern: 'core', muscle: 'core' },
+      { name: 'Elevación de sóleo isométrica', sets: 2, reps: { lowerBound: 1, upperBound: 1 }, restSeconds: 60, weightKg: 0, actualReps: 1, equipment: 'bodyweight', pattern: 'isolation', muscle: 'calves' },
     ],
   },
 ];
@@ -267,14 +285,21 @@ export function demoNow(now: number): number {
   return at(startOfWeek(now), 2, 18);
 }
 
-/** Thursday 18:00 of the same week: the rest day of `entrenar-empty`. */
+/**
+ * Wednesday 18:00 of the same week with nothing scheduled: the `Sin sesión hoy` scenario.
+ *
+ * It is the day the week names and no session backs (S5), which is the state Inicio needs
+ * to preview a day — and therefore the only one where `Cambiar el entreno de hoy` can be
+ * looked at (S6). Thursday is the match of a league week (L5, S11), so the anchor stays on
+ * Wednesday instead of the old Thursday.
+ */
 export function demoRestNow(now: number): number {
-  return at(startOfWeek(now), 3, 18);
+  return at(startOfWeek(now), 2, 18);
 }
 
 /**
  * One week of data. `first` is an empty store (no history at all), `done` is the week
- * after Wednesday's session was finished, `rest` is a Thursday with nothing scheduled.
+ * after Wednesday's session was finished, `rest` is a Wednesday with nothing scheduled.
  */
 export function demoWeek(scenario: DemoScenario, now: number): DemoWeek {
   const weekStart = startOfWeek(now);
@@ -349,6 +374,10 @@ export function demoPort(week: DemoWeek): StoragePort {
   const base = createFakeStorage({ sessions: week.sessions, exercises: [...week.exercises], profile: week.profile });
   const measurements = [...week.measurements];
   const activities = [...week.activities];
+  // S11/L5: the demo has this week's record from the start, so the exchange of today can
+  // be looked at without a real store. It is a cell, not a disk: choosing a row moves the
+  // days in the demo and nothing else.
+  let currentWeek: WeekRecord = { monday: mondayIsoOf(week.now), match: 'league', swaps: [] };
 
   return {
     ...base,
@@ -378,6 +407,11 @@ export function demoPort(week: DemoWeek): StoragePort {
     meta: {
       ...base.meta,
       readPhaseState: () => Promise.resolve(week.phaseState),
+      readWeek: () => Promise.resolve(currentWeek),
+      saveWeek: (next: WeekRecord) => {
+        currentWeek = next;
+        return Promise.resolve();
+      },
     },
   };
 }

@@ -44,17 +44,26 @@ import {
   TextButton,
   type IconName,
 } from '../../design-system';
-import type { StoragePort } from '../../storage';
+import type { StoragePort, WeekRecord } from '../../storage';
+import type { WeekSwap } from '../../core/engine/week-plan';
 import { useAppServices } from '../../app/providers';
 import type { Clock } from '../session/controller';
 import { useStartSession, type StartNotice } from '../session/startSession';
 import { summaryHash } from '../summary/route';
+import { weekTodayOf } from '../week/week';
 import { DemoHome } from './DemoHome';
 import { ACTIVITY_DELETE_COPY, useActivityDeletion, type ActivityDeletionState } from './deletion';
 import { FOOTBALL_DURATION_MINUTES, useFootballCapture } from './football';
 import { demoFlagOf, useLocationKey } from './useHash';
 import { formatDayName } from './format';
-import { homeViewOf, HOME_SESSION_WINDOW, type ActivityEntryView, type HomeInput, type HomeView } from './selectors';
+import {
+  homeViewOf,
+  HOME_SESSION_WINDOW,
+  type ActivityEntryView,
+  type HomeInput,
+  type HomeView,
+  type TodaySwapView,
+} from './selectors';
 import './home.css';
 
 /** `?demo=inicio` — the review surface, resolved here until the router owns it. */
@@ -92,6 +101,13 @@ async function readHome(
   const inProgress = await storage.sessions.inProgress();
   const recent = await storage.sessions.recent(HOME_SESSION_WINDOW);
   const plan = await storage.plan.all();
+  // T3/T5 — the week of the match, created here when this device has none. It is read
+  // *and* ensured on the same path on purpose: a boot effect in `App.tsx` runs after the
+  // child screen's own effect (React fires child effects first), so the record could
+  // arrive after Inicio has already painted and the exchange would be missing until a
+  // reload — the exact hole this fixes. A failed write answers `undefined` and the
+  // rotation keeps naming the day (S5).
+  const week = await currentWeekOf(storage, now);
   const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
   const measurements = await storage.measurements.between(weekAgo, now);
   const activities = await storage.activities.all();
@@ -101,6 +117,7 @@ async function readHome(
     profile,
     phaseState,
     plan,
+    week,
     recent,
     inProgress,
     measurements,
@@ -112,6 +129,91 @@ async function readHome(
     lostData: evidence.lostData,
     lastExportAt: evidence.lastExportAt,
   };
+}
+
+/**
+ * T8 (S1, S12) — the match and the rest day, the two days the week names and the gym does
+ * not fill. `homeViewOf` already refuses to invent a training day for either of them, but
+ * it says the same `emptyDay` a day without exercises gives: the screen asks the week
+ * which off day it is, so the match never reads «ese día todavía no tiene ejercicios».
+ */
+export type OffDay = 'match' | 'rest';
+
+/** The match or the rest day the stored week names for today, or `null` on a training day. */
+export function offDayOf(input: HomeInput): OffDay | null {
+  if (input.week === undefined) return null;
+  const today = weekTodayOf({ now: input.now, plan: input.plan, week: input.week });
+  if (today === null) return null;
+  const kind = today.day.kind;
+  return kind === 'match' || kind === 'rest' ? kind : null;
+}
+
+/**
+ * Local `YYYY-MM-DD` of the Monday of the week that contains `at`.
+ *
+ * The same local-date convention as `features/week/week.ts` (`mondayOfWeek`), which keeps
+ * it private. `toISOString` is never used: it answers in UTC.
+ */
+export function mondayIsoOf(at: number): string {
+  const date = new Date(at);
+  const monday = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate() - ((date.getDay() + 6) % 7),
+  );
+  const pad = (value: number): string => String(value).padStart(2, '0');
+  return `${String(monday.getFullYear())}-${pad(monday.getMonth() + 1)}-${pad(monday.getDate())}`;
+}
+
+/**
+ * S11/L5 — this week's record, written once when the store has none.
+ *
+ * The league is every Thursday and the cup is the exception, so a week nobody has touched
+ * starts as `match: 'league'` with no exchange. It is a get-or-create, not a seed: a
+ * record of this week comes back untouched — a swap survives a reload — and a record from
+ * another week is replaced, because a new week starts from its own template.
+ *
+ * A store that cannot be read or written answers `undefined` and the rotation keeps naming
+ * the day (S5): the record is a convenience, never a condition for the screen to open.
+ */
+export async function currentWeekOf(
+  storage: StoragePort,
+  now: number,
+): Promise<WeekRecord | undefined> {
+  const monday = mondayIsoOf(now);
+  try {
+    const stored = await storage.meta.readWeek();
+    if (stored !== undefined && stored.monday === monday) return stored;
+    const week: WeekRecord = { monday, match: 'league', swaps: [] };
+    await storage.meta.saveWeek(week);
+    return week;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * T5 (S6, S9) — the exchange the owner chose, written into the week record, which is the
+ * week's only memory (`features/week/week.ts`). The new swap joins the ones that move
+ * other weekdays; when it collides, it replaces them, because `applySwaps` refuses to move
+ * one weekday twice and a record the engine rejects would drop the whole week.
+ *
+ * Returns `false` when the store has no week to change: nothing is written and the screen
+ * keeps the rotation's answer (S5).
+ */
+export async function saveTodaySwap(storage: StoragePort, swap: WeekSwap): Promise<boolean> {
+  const week = await storage.meta.readWeek();
+  if (week === undefined) return false;
+  const disjoint = week.swaps.every(
+    (other) =>
+      other.from !== swap.from &&
+      other.from !== swap.to &&
+      other.to !== swap.from &&
+      other.to !== swap.to,
+  );
+  const next: WeekRecord = { ...week, swaps: disjoint ? [...week.swaps, swap] : [swap] };
+  await storage.meta.saveWeek(next);
+  return true;
 }
 
 export interface HomeScreenWithPortProps {
@@ -135,6 +237,13 @@ export interface HomeProps {
   readonly onRecordFootball?: (() => void) | undefined;
   readonly recording?: boolean | undefined;
   readonly footballNotice?: string | null | undefined;
+  /**
+   * T5 — the exchange the owner chose in «¿Qué toca hoy?». Absent (the gallery, a review
+   * surface with no port): the sheet still reads, and choosing closes it without writing.
+   */
+  readonly onSwapToday?: ((swap: WeekSwap) => void) | undefined;
+  /** T8 — the match or the rest day the week names, so the card can name it too. */
+  readonly offDay?: OffDay | null | undefined;
   /**
    * The bin and its inline question (S5). Absent: the recorded rows are read-only, which
    * is what a screen with no port behind it (and the gallery) needs.
@@ -231,6 +340,58 @@ function TodayAction({
   );
 }
 
+/** The sheet's title: the owner's question, in his words. */
+const SWAP_TITLE = '¿Qué toca hoy?';
+
+/**
+ * «¿Qué toca hoy?» — the exchange, chosen from the week's own days (T5, S6).
+ *
+ * The routine sheet's pattern, not a second one: full height, `role="dialog"` with
+ * `aria-modal`, one way out. Each row is one partner, the day and its weekday, and says
+ * where today's own day goes in exchange (S9). Nothing is written here: the row hands the
+ * `WeekSwap` back to the screen, which owns the port.
+ */
+export function TodaySwapSheet({
+  swap,
+  onChoose,
+  onClose,
+}: {
+  readonly swap: TodaySwapView;
+  readonly onChoose: (swap: WeekSwap) => void;
+  readonly onClose: () => void;
+}): React.ReactElement {
+  return (
+    <div className="train-sheet" role="dialog" aria-modal="true" aria-label={SWAP_TITLE}>
+      <header className="train-sheet__top">
+        <h1 className="ds-screen-title">{SWAP_TITLE}</h1>
+        <button type="button" className="ds-action train-sheet__close" onClick={onClose}>
+          Cerrar
+        </button>
+      </header>
+      <div className="train-sheet__body">
+        <p className="ds-meta">{`Hoy toca ${swap.dayName}. Elige qué haces y el día de hoy se mueve al suyo.`}</p>
+        <ul className="home__swap-list">
+          {swap.options.map((option) => (
+            <li key={option.weekday}>
+              <button
+                type="button"
+                className="ds-action home__swap-option"
+                onClick={() => onChoose(option.swap)}
+              >
+                <span className="home__swap-day">
+                  <span className="ds-body">{option.dayName}</span>
+                  <span className="ds-caption">{option.weekday}</span>
+                </span>
+                <span className="ds-meta">{option.moves}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Today's session as one protagonist block (S3, S4).
  *
@@ -239,18 +400,28 @@ function TodayAction({
  * `Tu próxima sesión` label narrated what the title already says. What remains are the
  * facts the store can prove: the phase, the prescribed sets, the completed line, and the
  * one caption that explains why a preview is not a stored session yet.
+ *
+ * Two states T5/T8 add, both quiet: under the action, the way into the exchange of today
+ * (S6), and, on the day of the match or on a rest day, a card that names the day instead
+ * of borrowing the sentence a day without exercises gets.
  */
 function TodayBlock({
   view,
+  offDay = null,
   onStart,
   onNavigate = navigateTo,
+  onSwapToday,
   starting = false,
 }: HomeViewOnly & {
+  readonly offDay?: OffDay | null | undefined;
   readonly onStart: () => void;
   readonly onNavigate?: ((href: string) => void) | undefined;
+  readonly onSwapToday?: ((swap: WeekSwap) => void) | undefined;
   readonly starting?: boolean | undefined;
 }): React.ReactElement {
   const today = view.today;
+  const exchange = today?.swap ?? null;
+  const [choosing, setChoosing] = useState(false);
   // A preview is the rotation's next day, not a stored session. The old caption said it
   // in a sentence; a chip says the same thing in one word (S2), and it is only true
   // while the primary action is the one that creates the day.
@@ -259,7 +430,29 @@ function TodayBlock({
   if (today === null) {
     return (
       <section className="home__section">
-        {view.nothingToday === 'emptyDay' ? (
+        {/* S1, S12: the match is reported, never trained, and a rest day asks nothing of
+            the gym. Neither one is «sin ejercicios», which is about a plan day not filled. */}
+        {offDay === 'match' ? (
+          <Card>
+            <div className="home__card-head">
+              <Icon name="heart" size={20} className="home__card-icon" />
+              <h2 className="ds-card-title">Hoy es el día del partido</h2>
+            </div>
+            <p className="ds-body ds-body--muted">
+              El partido se informa en Actividad. Hoy no hay entreno.
+            </p>
+          </Card>
+        ) : offDay === 'rest' ? (
+          <Card>
+            <div className="home__card-head">
+              <Icon name="moon" size={20} className="home__card-icon" />
+              <h2 className="ds-card-title">Hoy descansas</h2>
+            </div>
+            <p className="ds-body ds-body--muted">
+              No hay entreno hoy. El descanso también es parte de la semana.
+            </p>
+          </Card>
+        ) : view.nothingToday === 'emptyDay' ? (
           <Card>
             <div className="home__card-head">
               <Icon name="dumbbell" size={20} className="home__card-icon" />
@@ -299,6 +492,25 @@ function TodayBlock({
       )}
       {today.done === null ? null : <p className="ds-body">{today.done}</p>}
       <TodayAction view={view} onStart={onStart} onNavigate={onNavigate} starting={starting} />
+      {/* S6: changing today's training is a quiet second decision, under the action that
+          starts it — the card keeps one accent fill (§7.1). Absent when the week offers
+          no partner (the match, a rest day, a stored session). */}
+      {exchange === null ? null : (
+        <TextButton align="start" className="home__swap-open" onClick={() => setChoosing(true)}>
+          {exchange.label}
+        </TextButton>
+      )}
+      {choosing && exchange !== null ? (
+        <TodaySwapSheet
+          swap={exchange}
+          onClose={() => setChoosing(false)}
+          onChoose={(swap) => {
+            // Close first: the sheet is the question, the re-read card is the answer.
+            setChoosing(false);
+            onSwapToday?.(swap);
+          }}
+        />
+      ) : null}
     </Card>
   );
 }
@@ -527,6 +739,7 @@ function ActivitySection({
  */
 export function HomeBody({
   view,
+  offDay = null,
   onStart,
   onNavigate = navigateTo,
   starting = false,
@@ -534,6 +747,7 @@ export function HomeBody({
   onRecordFootball,
   recording = false,
   footballNotice = null,
+  onSwapToday,
   deletion,
 }: HomeProps): React.ReactElement {
   const navigate = onNavigate;
@@ -564,8 +778,10 @@ export function HomeBody({
           thing on the screen after the header, and the only accent fill on it. */}
       <TodayBlock
         view={view}
+        offDay={offDay}
         onStart={onStart}
         onNavigate={navigate}
+        onSwapToday={onSwapToday}
         starting={starting}
       />
 
@@ -646,6 +862,19 @@ export function HomeScreenWithPort({
   // the owner on Inicio, on the same day.
   const refresh = useCallback(() => setAttempt((value) => value + 1), []);
   const capture = useFootballCapture({ storage, clock, onSaved: refresh });
+  // T5: the exchange is written into the week record and the screen re-reads, so the card
+  // above shows the exchanged week instead of the one it was drawn from.
+  const chooseSwap = useCallback(
+    (swap: WeekSwap) => {
+      void saveTodaySwap(storage, swap).then(
+        (written) => {
+          if (written) refresh();
+        },
+        () => undefined,
+      );
+    },
+    [storage, refresh],
+  );
   // The bin and its question live in the screen, not in the row: only one question can be
   // open at a time, and the answer survives the re-read the removal triggers.
   const deletion = useActivityDeletion({ storage, onDeleted: refresh });
@@ -684,12 +913,14 @@ export function HomeScreenWithPort({
   return (
     <HomeBody
       view={homeViewOf(boot.input)}
+      offDay={offDayOf(boot.input)}
       onStart={start.start}
       starting={start.busy}
       startNotice={start.notice}
       onRecordFootball={capture.save}
       recording={capture.busy}
       footballNotice={capture.notice}
+      onSwapToday={chooseSwap}
       deletion={deletion}
       {...(onNavigate === undefined ? {} : { onNavigate })}
     />
