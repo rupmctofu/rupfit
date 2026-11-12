@@ -639,28 +639,30 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
           onPointerCancel={onHeroPointerCancel}
         >
           <SessionRing segments={segments}>
-            {/* The centre of the circle is the material — the bar, the dumbbell, the machine —
-                not the movement. The owner reads the exercise from the name under the ring
-                and wants the ring to stay a ring with a tool inside it; the movement keeps
-                its pictogram in the cards below. A row the library no longer has shows
-                nothing rather than somebody else's kit. */}
-            {heroDetail === undefined ? null : (
-              <span className="session-hero__icon">
-                <Icon name={EQUIPMENT_ICON[heroDetail.equipment]} size={40} />
-              </span>
-            )}
+            {/* The centre of the circle is the whole question: the material, the exercise and
+                the work of today. The owner asked for all of it inside the ring, so the
+                screen that says "hoy toca esto" is one shape instead of a circle with a
+                caption under it. A row the library no longer has shows nothing rather than
+                somebody else's kit. */}
+            <div className="session-hero__center">
+              {heroDetail === undefined ? null : (
+                <span className="session-hero__icon">
+                  <Icon name={EQUIPMENT_ICON[heroDetail.equipment]} size={40} />
+                </span>
+              )}
+              <div className="session-hero__text">
+                <h2 className="session-hero__name">{exerciseOnScreen.exerciseNameSnapshot}</h2>
+                <p className="session-hero__prescription">
+                  {prescriptionLine(exerciseOnScreen.prescription)}
+                </p>
+                <p className="ds-caption session-hero__weight">
+                  {todayWeightKg === null
+                    ? 'Peso de hoy por decidir'
+                    : `Hoy ${formatWeight(todayWeightKg)} kg`}
+                </p>
+              </div>
+            </div>
           </SessionRing>
-          <div className="session-hero__text">
-            <h2 className="session-hero__name">{exerciseOnScreen.exerciseNameSnapshot}</h2>
-            <p className="session-hero__prescription">
-              {prescriptionLine(exerciseOnScreen.prescription)}
-            </p>
-            <p className="ds-caption session-hero__weight">
-              {todayWeightKg === null
-                ? 'Peso de hoy por decidir'
-                : `Hoy ${formatWeight(todayWeightKg)} kg`}
-            </p>
-          </div>
         </section>
       )}
 

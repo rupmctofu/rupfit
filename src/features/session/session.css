@@ -288,10 +288,23 @@
 
 /* The material, drawn inside the arcs and scaled to the ring rather than frozen at 40 px.
    Muted, because the accent already belongs to the ring and to `Registrar serie`. */
+/* The centre slot holds the whole question — the material, the name, today's work and
+   today's load — so its column is sized to the ring's inner circle (about 85% of the box)
+   with room to breathe, and everything inside steps down to fit a column of ~230 px. */
+.session-hero__center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  width: 74%;
+  min-width: 0;
+  text-align: center;
+}
+
 .session-hero__icon {
   display: inline-flex;
   color: var(--color-muted);
-  width: 38%;
+  width: 28%;
   aspect-ratio: 1 / 1;
 }
 
@@ -309,26 +322,34 @@
   text-align: center;
 }
 
+/* The owner asked for twice the type inside the circle, saw it and asked for the middle
+   point instead: half again on the name, and the prescribed work — "2 × 10", "3 × 12" — one
+   step below the name because it is read once and then known. Each size is scaled together
+   with its own leading, since doubling the body alone makes the lines collide. */
 .session-hero__name {
   margin: 0;
   font-family: var(--font-sans);
-  font-size: var(--text-title);
-  line-height: var(--leading-title);
+  font-size: calc(var(--text-title) * 1.5);
+  line-height: 1.2;
   letter-spacing: var(--tracking-title);
   font-weight: var(--weight-semibold);
   color: var(--color-text);
+  text-wrap: balance;
 }
 
 .session-hero__prescription {
   margin: 0;
   font-family: var(--font-numeric);
-  font-size: var(--text-meta);
-  line-height: var(--leading-meta);
+  font-size: calc(var(--text-meta) * 1.25);
+  line-height: 1.25;
   font-weight: var(--weight-medium);
   color: var(--color-text);
 }
 
-.session-hero__weight {
+/* Two classes deep: `ds-caption` sets a caption size and the step up has to win over it. */
+.session-hero__text .session-hero__weight {
+  font-size: calc(var(--text-caption) * 1.3);
+  line-height: 1.3;
   color: var(--color-muted);
 }
 
