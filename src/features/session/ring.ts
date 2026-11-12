@@ -15,7 +15,8 @@
  * lilac accent while the ones still to come stay in the hairline colour. Colour is
  * therefore the sighted cue, and the `ds-visually-hidden` list inside `SessionRing` is
  * the spoken one: it names the exercise on screen and the state of every other, so the
- * ring is never colour alone.
+ * ring is never colour alone. The current arc also breathes (CSS, `session-ring-breathe`),
+ * which is a second sighted cue for "you are here" that costs no information.
  *
  * Pure: a session in, numbers out. No React, no clock, no I/O.
  */
@@ -44,14 +45,24 @@ export interface RingSegment {
 export const RING_VIEWBOX = 120;
 export const RING_CENTER = RING_VIEWBOX / 2;
 export const RING_RADIUS = 52;
-/** The gap between two segments, in path units. */
-export const RING_GAP = 4;
+/**
+ * The gap between two segments, in path units.
+ *
+ * The arcs are drawn with a round cap, which extends each end by half a stroke, so the gap
+ * this number names is not the gap the eye sees: `RING_STROKE_WIDTH / 2` is eaten at each
+ * end. Five units leaves a visible break of about 2.5 units — a soft pause between
+ * neighbours instead of the touching beads a tighter gap would give.
+ */
+export const RING_GAP = 5;
 /**
  * One width for every segment, because thickness no longer encodes state: the ring used
  * to thicken the current arc and the owner asked for that to stop, since an arc that
  * grows competes with the drawing inside the circle.
+ *
+ * The owner then asked for a finer line, twice: at a 90vw ring this is a hairline of about
+ * 7 px on a 390 px screen — a drawn circle instead of a bar chart wrapped around the icon.
  */
-export const RING_STROKE_WIDTH = 7;
+export const RING_STROKE_WIDTH = 2.5;
 
 /** The segments of a session, one per exercise, in prescription order. */
 export function ringSegments(session: SessionState): readonly RingSegment[] {

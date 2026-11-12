@@ -251,8 +251,31 @@
   stroke: var(--color-border);
 }
 
-.session-ring__segment--reached {
-  stroke: var(--color-accent-text);
+/* No `stroke` for a reached segment here: the gradient's id belongs to the mounted ring, so
+   `SessionRing` sets the paint inline — `url(#…)` with the accent as its fallback. This
+   class stays because the state is still the thing markup asks about. */
+
+/*
+ * The arc of the current exercise breathes: three and a half seconds from full opacity down
+ * to a quarter and back, forever, while it is the one on screen. The owner asked for it
+ * faster and more pronounced than the first five-second, half-opacity take, so the arc
+ * visibly leaves and returns instead of reading as a still arc with a slow drift. Width
+ * still never changes — the breath is opacity only, so the arc keeps its place and the ring
+ * keeps its shape. It is a decoration on top of the lit colour, never the only cue: the
+ * label above the cards and the spoken list both name the exercise on screen.
+ */
+@keyframes session-ring-breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.session-ring__segment--current {
+  animation: session-ring-breathe 3.5s ease-in-out infinite;
 }
 
 .session-ring__center {
@@ -263,17 +286,8 @@
   justify-content: center;
 }
 
-/* Two classes deep on purpose: `illustrations.css` also sizes the SVG and the two
-   stylesheets may load in either order. */
-/* Two classes deep on purpose: `illustrations.css` also sizes the SVG and the two
-   stylesheets may load in either order. The drawing sits inside the arcs, so it grows
-   with the ring instead of being pinned to 64% of a 140 px circle. */
-.session-ring .session-hero__art {
-  width: 68%;
-}
-
-/* The implement is the fallback for a library row with no drawing key: it keeps the
-   same slot, scaled to the ring rather than frozen at 40 px. */
+/* The material, drawn inside the arcs and scaled to the ring rather than frozen at 40 px.
+   Muted, because the accent already belongs to the ring and to `Registrar serie`. */
 .session-hero__icon {
   display: inline-flex;
   color: var(--color-muted);
@@ -318,10 +332,15 @@
   color: var(--color-muted);
 }
 
-/* No ring transition at all when the owner asked for less motion (§6.2). */
+/* No ring transition at all when the owner asked for less motion (§6.2), and no breath:
+   the lit colour and the label still say which exercise is on screen. */
 @media (prefers-reduced-motion: reduce) {
   .session-ring__segment {
     transition: none;
+  }
+
+  .session-ring__segment--current {
+    animation: none;
   }
 }
 

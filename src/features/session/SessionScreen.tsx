@@ -55,9 +55,7 @@ import {
 } from '../../design-system';
 import type { StoragePort } from '../../storage';
 import { ExerciseCard, type SetDraft } from './ExerciseCard';
-import { ExerciseIllustration } from './ExerciseIllustration';
 import { swipeDirection, type SwipePoint } from './swipe';
-import { illustrationKeyOf } from './illustrationKey';
 import { ringSegments } from './ring';
 import { SessionRing } from './SessionRing';
 import {
@@ -428,7 +426,6 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
   // ---------------------------------------------------------------- the visual core
   const segments = ringSegments(session);
   const heroDetail = exerciseOnScreen === null ? undefined : runtime.exercises[exerciseOnScreen.id];
-  const heroIllustration = illustrationKeyOf(heroDetail);
   const swappingExercise =
     swapping === null
       ? null
@@ -642,15 +639,12 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
           onPointerCancel={onHeroPointerCancel}
         >
           <SessionRing segments={segments}>
-            {/* S3: the drawing of this variant, or the implement. A row the library no
-                longer has shows nothing rather than somebody else's exercise. */}
-            {heroIllustration !== null ? (
-              <ExerciseIllustration
-                illustration={heroIllustration}
-                label={exerciseOnScreen.exerciseNameSnapshot}
-                className="session-hero__art"
-              />
-            ) : heroDetail === undefined ? null : (
+            {/* The centre of the circle is the material — the bar, the dumbbell, the machine —
+                not the movement. The owner reads the exercise from the name under the ring
+                and wants the ring to stay a ring with a tool inside it; the movement keeps
+                its pictogram in the cards below. A row the library no longer has shows
+                nothing rather than somebody else's kit. */}
+            {heroDetail === undefined ? null : (
               <span className="session-hero__icon">
                 <Icon name={EQUIPMENT_ICON[heroDetail.equipment]} size={40} />
               </span>
