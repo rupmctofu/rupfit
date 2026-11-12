@@ -92,6 +92,10 @@
   scroll-snap-align: center;
   scroll-snap-stop: always;
   display: flex;
+  /* The card and the one-answer row (S4, S8) stack: the answers sit where the owner
+     finishes the exercise, under its set rows. */
+  flex-direction: column;
+  gap: var(--layout-stack-gap);
   /* The card hugs its content: stretching it to the sheet height left a large empty
      region under the last set row, which reads as an unfinished screen. */
   align-items: flex-start;
@@ -135,6 +139,45 @@
   flex-direction: column;
   gap: var(--space-1);
   min-width: 0;
+}
+
+/* --------------------------------------------------------- the answer of S8 */
+
+/* One row of three answers under the set rows (S4, S8): the exercise is closed with one
+   tap instead of five confirmations. A secondary surface, never a second accent fill. */
+.session-verdict {
+  width: 100%;
+  flex: none;
+}
+
+.session-verdict__answers {
+  display: flex;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.session-verdict__answer {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* §3 / S4: a 48 px target, one thumb. */
+  min-height: var(--target-min);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-control-square);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  font-weight: var(--weight-semibold);
+  text-align: center;
+}
+
+/* S3: no load on the card yet, so there is nothing to write and the row asks for it. */
+.session-verdict__note {
+  margin: 0;
+  color: var(--color-muted);
 }
 
 /* -------------------------------------------------- the last-six-sessions strip */

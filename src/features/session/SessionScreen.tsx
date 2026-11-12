@@ -22,7 +22,8 @@
  *    and the banner offers `Reintentar` (`sesion-error`).
  * 3. **Two taps per set.** The rep count is a stepper, effort and discomfort are
  *    optional chips, and the pinned `Registrar serie` of the open row is the second
- *    tap (FR-6.7).
+ *    tap (FR-6.7). The detailed path stays for whoever wants it; the fast path below is
+ *    one answer for the whole exercise (S4, S8, T6).
  *
  * The only local state is what the reducer deliberately does not own: the reps being
  * counted, the optional answers of the set in progress, and the keypad's draft weight
@@ -36,6 +37,7 @@ import {
   isSessionAnswered,
   summarise,
   type ExerciseState,
+  type SessionEvent,
 } from '../../core/session/model';
 import {
   Banner,
@@ -83,6 +85,13 @@ import {
   type DiscomfortChip,
   type EffortChip,
 } from './format';
+import {
+  availableVerdicts,
+  verdictRefusal,
+  verdictSets,
+  VERDICT_LABEL,
+  type ExerciseVerdict,
+} from './verdict';
 import { useSessionController } from './useSession';
 import { summaryHash } from '../summary/route';
 import './session.css';
@@ -147,6 +156,88 @@ function nextSlotOf(exercise: ExerciseState): number | null {
   return null;
 }
 
+/** The weight of the day for the verdict: the one the hero and the card already show. */
+function verdictWeightKg(exercise: ExerciseState): number | null {
+  return (
+    exercise.usedWeightKg ??
+    exercise.recommendedWeightKg ??
+    exercise.recommendation?.suggestedWeightKg ??
+    null
+  );
+}
+
+/**
+ * One tap of the fast path (S4, S8): the verdict's sets, written in order through the
+ * ordinary `set-confirmed` event — the same one `Registrar serie` sends, so the reducer,
+ * the port and the effects are unchanged. The caller supplies the dispatch, which keeps
+ * this a seam rather than a second write path.
+ *
+ * A slot that already has an answer is left alone: a verdict closes what is left of the
+ * exercise and never rewrites a set the owner confirmed by hand (S8).
+ */
+export async function writeVerdict(
+  dispatch: (event: SessionEvent) => Promise<unknown>,
+  exercise: ExerciseState,
+  verdict: ExerciseVerdict,
+): Promise<void> {
+  const result = verdictSets(exercise.prescription, verdictWeightKg(exercise), verdict);
+  if (!result.ok) return;
+
+  for (const set of result.sets) {
+    if (exercise.sets.some((entry) => entry.slot === set.slot)) continue;
+    await dispatch({
+      type: 'set-confirmed',
+      exerciseSessionId: exercise.id,
+      slot: set.slot,
+      weightKg: set.weightKg,
+      actualReps: set.actualReps,
+      effort: set.effort,
+      discomfort: null,
+    });
+  }
+}
+
+export interface VerdictRowProps {
+  readonly exercise: ExerciseState;
+  readonly onVerdict: (verdict: ExerciseVerdict) => void;
+}
+
+/**
+ * The fast path, placed where the owner finishes the exercise: one row of answers under
+ * the set rows (S4, S8). `Fui sobrado` is absent on a slot prescribed by time, and with no
+ * load on the card yet the row becomes the line that asks for the weight first (S3):
+ * nothing is written, and no kilos are invented.
+ */
+export function VerdictRow(props: VerdictRowProps): React.ReactElement {
+  const { exercise, onVerdict } = props;
+  const refusal = verdictRefusal(exercise.prescription, verdictWeightKg(exercise));
+
+  if (refusal !== null) {
+    return (
+      <p className="ds-caption session-verdict__note" role="status">
+        {refusal}
+      </p>
+    );
+  }
+
+  return (
+    <div className="session-verdict" role="group" aria-label="Respuesta del ejercicio">
+      <div className="session-verdict__answers">
+        {availableVerdicts(exercise.prescription).map((verdict) => (
+          <button
+            key={verdict}
+            type="button"
+            className="ds-action session-verdict__answer"
+            onClick={() => onVerdict(verdict)}
+          >
+            {VERDICT_LABEL[verdict]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function prefersReducedMotion(): boolean {
   try {
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -164,6 +255,7 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
   });
   const { runtime, now, screenState } = controller;
   const substitute = controller.substitute;
+  const machine = controller.machine;
   const session = runtime.session;
 
   const [drafts, setDrafts] = useState<Record<string, SetDraft>>({});
@@ -181,6 +273,8 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const guardRef = useRef(0);
   const settleRef = useRef<number | null>(null);
+  /** The card whose verdict is being written: a second tap must not interrupt the first. */
+  const writingRef = useRef<string | null>(null);
 
   const draftFor = useCallback(
     (exercise: ExerciseState): SetDraft => drafts[exercise.id] ?? defaultDraft(exercise),
@@ -323,6 +417,24 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
       }
     },
     [dispatch],
+  );
+
+  // `Lo hice` / `Fallé` / `Fui sobrado` (S4, S8): one tap, and the sets of the exercise
+  // are confirmed in order by the same event the pinned bar sends. The machine takes one
+  // write at a time, so the sets are awaited one after another; the guard keeps a second
+  // tap from starting a second run while the first is still writing.
+  const answerVerdict = useCallback(
+    (exercise: ExerciseState, verdict: ExerciseVerdict) => {
+      if (writingRef.current !== null) return;
+      writingRef.current = exercise.id;
+      setSwapping(null);
+      void writeVerdict((event) => machine.dispatch(event, clock.now()), exercise, verdict).finally(
+        () => {
+          writingRef.current = null;
+        },
+      );
+    },
+    [clock, machine],
   );
 
   const openKeypad = useCallback((exercise: ExerciseState) => {
@@ -705,6 +817,14 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
                 ? { onSuggestAlternative: () => openSwapping(exercise) }
                 : {})}
             />
+            {/* S4/S8: one answer per exercise, after its set rows, where the owner
+                finishes it. The other slides stay read-only, as they already do. */}
+            {terminal || index !== session.activeIndex || nextSlotOf(exercise) === null ? null : (
+              <VerdictRow
+                exercise={exercise}
+                onVerdict={(verdict) => answerVerdict(exercise, verdict)}
+              />
+            )}
           </div>
         ))}
       </div>
