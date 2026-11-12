@@ -13,23 +13,28 @@
  *    sessions that exist, not from the weekday template (`PlanDay` carries no weekday);
  *    the estimate says `aprox.`; a duration is only written when `startedAt` and an end
  *    instant are both stored. With a plan but no session today the screen offers the day
- *    the rotation names (`nextPlanDay`, session/start.ts) instead of claiming a rest day:
- *    the app has no calendar, so "nothing is scheduled" means "not started yet".
+ *    the week of the match names when this device has planned one (T4), and otherwise the
+ *    day the rotation names (`nextPlanDay`, session/start.ts): the app has no calendar, so
+ *    "nothing is scheduled" means "not started yet".
  */
 
 import type { PhaseState } from '../../core/domain';
+import type { WeekSwap } from '../../core/engine/week-plan';
 import type {
   ActivityRecord,
   BodyMeasurement,
   EpochMs,
   PlanDay,
   UserProfile,
+  WeekRecord,
   WorkoutSession,
 } from '../../storage';
 import { formatVolume, formatWeight } from '../session/format';
 import { nextPlanDay } from '../session/start';
+import { weekTodayOf, type WeekToday } from '../week/week';
 import {
   formatDayAndMonth,
+  formatDayName,
   formatDuration,
   formatEstimate,
   formatExerciseCount,
@@ -106,6 +111,12 @@ export interface HomeInput {
    */
   readonly lostData: boolean;
   readonly lastExportAt: EpochMs | null;
+  /**
+   * T3 — the stored week of the match, when this device has planned one. Optional so a
+   * store without a record (and every caller that has not adopted the week yet) keeps the
+   * rotation's answer unchanged.
+   */
+  readonly week?: WeekRecord | undefined;
 }
 
 export interface TodayView {
@@ -125,6 +136,44 @@ export interface TodayView {
   readonly done: string | null;
   /** The stored session behind the card; `null` while the day is only a preview. */
   readonly sessionId: string | null;
+  /**
+   * T5 — changing today's training, when the week of the match can offer it. `null` on a
+   * card backed by a stored session: a row that exists is never rewritten, and on a day
+   * the rotation named, because an exchange of the week needs the week to know its
+   * partner.
+   */
+  readonly swap: TodaySwapView | null;
+}
+
+/**
+ * One exchange today can make (S6, S9): the day that sits on another weekday, and where
+ * today's own day would go in return. Choosing it writes `swap` into the week record.
+ */
+export interface TodaySwapOptionView {
+  /** `Martes` — the weekday the offered day sits on now. */
+  readonly weekday: string;
+  /** `Torso A` — the day today would become. */
+  readonly dayName: string;
+  /** `Se mueve a Martes` — where the day that leaves today lands (S9). */
+  readonly moves: string;
+  /** The exchange itself: today and the chosen weekday trade places (T5). */
+  readonly swap: WeekSwap;
+}
+
+/**
+ * What the screen needs to offer "cambiar el entreno de hoy" (S6).
+ *
+ * There is no "no room" state any more: the two days exchange weekdays, so a full league
+ * or cup week still offers a choice. When the list is empty it is because today is the
+ * match or a rest day — the whole view is absent, not an empty action.
+ */
+export interface TodaySwapView {
+  /** `Cambiar el entreno de hoy` */
+  readonly label: string;
+  /** `Preparación fútbol` — the day that would leave today, as the screen names it. */
+  readonly dayName: string;
+  /** The exchange partners, in weekday order. */
+  readonly options: readonly TodaySwapOptionView[];
 }
 
 export type HomeActionKind = 'start' | 'resume' | 'summary';
@@ -433,6 +482,8 @@ function todayViewOf(
         ? `${session.status === 'completed' ? 'Sesión completada hoy' : 'Sesión guardada como parcial hoy'} · ${formatSetProgress(done, prescribed)}.`
         : null,
     sessionId: session.id,
+    // A stored row is the day: it is opened, never rewritten, so nothing is offered here.
+    swap: null,
   };
 }
 
@@ -456,13 +507,37 @@ function actionOf(today: TodayView | null, inProgress: WorkoutSession | undefine
 }
 
 /**
+ * What the preview of a plan day says about changing it (T5): the day that would leave
+ * today and every weekday it can trade places with (S6, S9). `null` when there is no plan
+ * day behind today — the match and the rest days ask nothing of the gym — and when the
+ * week offers no partner at all, so the screen never draws an action with no options.
+ */
+function swapOf(week: WeekToday): TodaySwapView | null {
+  if (week.planDay === null || week.targets.length === 0) return null;
+  return {
+    label: 'Cambiar el entreno de hoy',
+    dayName: formatDayName(week.planDay.name),
+    options: week.targets.map((target) => ({
+      weekday: target.weekday,
+      dayName: formatDayName(target.planDay.name),
+      moves: `Se mueve a ${target.weekday}`,
+      swap: target.swap,
+    })),
+  };
+}
+
+/**
  * The day the rotation names, shown before any session row exists.
  *
  * It is a preview, not a session: it carries the plan's own numbers and says `preview`,
  * so nothing downstream can mistake it for something stored. A day with no exercises is
  * not previewed — there is nothing to start, and the screen says which state it is in.
  */
-function previewDayOf(day: PlanDay | null, phaseState: PhaseState | undefined): TodayView | null {
+function previewDayOf(
+  day: PlanDay | null,
+  phaseState: PhaseState | undefined,
+  swap: TodaySwapView | null,
+): TodayView | null {
   if (day === null || day.items.length === 0) return null;
   const phase = phaseLine(phaseState);
   const prescribed = day.items.reduce((total, item) => total + item.prescription.sets, 0);
@@ -484,6 +559,7 @@ function previewDayOf(day: PlanDay | null, phaseState: PhaseState | undefined): 
     state: 'preview',
     done: null,
     sessionId: null,
+    swap,
   };
 }
 
@@ -633,9 +709,17 @@ function activityViewOf(activities: readonly ActivityRecord[]): ActivityView {
 export function homeViewOf(input: HomeInput): HomeView {
   const { now, recent, inProgress, plan, profile, phaseState } = input;
   const pool = inProgress === undefined ? recent : [...recent, inProgress];
+  // T4: the week of the match answers first, and the rotation is the fallback — for a
+  // store with no record, a record of another week, or a seeded day that is gone. A day
+  // the week calls rest or match is not the rotation's to hand over: asking for today's
+  // training on the day of the match would silence the one day the week is built around
+  // (S11).
+  const weekToday = input.week === undefined ? null : weekTodayOf({ now, plan, week: input.week });
   const today =
     todayViewOf(todaySessionOf(pool, now), phaseState) ??
-    previewDayOf(nextPlanDay(plan, recent), phaseState);
+    (weekToday === null
+      ? previewDayOf(nextPlanDay(plan, recent), phaseState, null)
+      : previewDayOf(weekToday.planDay, phaseState, swapOf(weekToday)));
 
   return {
     greeting: greeting(profile?.displayName ?? null),

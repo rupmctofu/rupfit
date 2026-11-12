@@ -152,3 +152,11 @@ alrededor del día del partido, que casi siempre es jueves y a veces martes.
   El contrato es por rol — `leg`, `upper-a`, `upper-b`, `prep` — y una sola lista sirve para
   las tres semanas. Falta reexportarlo desde `src/core/engine/index.ts`; lo hará T4, que es
   el primer consumidor.
+- **L10** (corrección de S9, detectada al implementar): T5 pedía mover el día que se deja a "otro
+  hueco libre de la semana", y en las plantillas de L7 no hay ningún hueco libre: lunes a
+  viernes están los cinco ocupados en semana de liga y en semana de copa. Tal como estaba, el
+  cambio no habría estado disponible justo las semanas en que se juega. La semántica buena es
+  la que el dueño describió: los dos días **se intercambian**, y el día que se deja ocupa el
+  día de la semana que tenía el elegido. Añadida además una quinta negativa en `applySwaps`:
+  un intercambio que ponga la pierna el día siguiente al partido se rechaza, y la interfaz ni
+  siquiera lo ofrece.

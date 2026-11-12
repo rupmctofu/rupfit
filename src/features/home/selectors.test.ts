@@ -15,6 +15,7 @@ import type {
   PlanDay,
   SetRecord,
   UserProfile,
+  WeekRecord,
   WorkoutSession,
 } from '../../storage';
 import { EFFORT } from '../../core/domain';
@@ -164,6 +165,35 @@ const STARTER_PLAN: readonly PlanDay[] = [
     ],
   },
 ];
+
+/** The four days of the seed (L5, L7), named exactly as the store holds them. */
+function seededDay(id: string, name: string, order: number): PlanDay {
+  return {
+    id,
+    name,
+    order,
+    items: [
+      {
+        id: `item-${id}`,
+        planDayId: id,
+        order: 0,
+        exerciseId: 'lib-1',
+        exerciseNameSnapshot: 'Sentadilla',
+        prescription: { sets: 2, repRange: { lowerBound: 8, upperBound: 10 }, targetRIR: { lowerBound: 2, upperBound: 3 }, restSeconds: 180 },
+      },
+    ],
+  };
+}
+
+const SEED_PLAN: readonly PlanDay[] = [
+  seededDay('seed-day-leg', 'PIERNA', 0),
+  seededDay('seed-day-torso-a', 'TORSO A', 1),
+  seededDay('seed-day-torso-b', 'TORSO B', 2),
+  seededDay('seed-day-fisico', 'PREPARACIÓN FÚTBOL', 3),
+];
+
+/** T3: the Monday of the week `NOW` falls in, with no fixture and therefore a free Friday. */
+const NO_MATCH_WEEK: WeekRecord = { monday: '2023-11-06', match: 'none', swaps: [] };
 
 function measurement(id: string, at: number, weightKg: number | null): BodyMeasurement {
   return {
@@ -354,6 +384,81 @@ describe('homeViewOf', () => {
     expect(view.today).toBeNull();
     expect(view.nothingToday).toBe('emptyDay');
     expect(view.action).toBeNull();
+  });
+
+  describe('the week of the match (T3, T4, T5)', () => {
+    it('T4 takes today from the week plan instead of the rotation (S5)', () => {
+      const view = homeViewOf(input({ recent: [], plan: SEED_PLAN, week: NO_MATCH_WEEK }));
+      // A week without a fixture: Wednesday is the football preparation day.
+      expect(view.today?.dayName).toBe('PREPARACIÓN FÚTBOL');
+      expect(view.today?.state).toBe('preview');
+      expect(view.today?.series).toBe('2 series');
+      expect(view.nothingToday).toBeNull();
+    });
+
+    it('T4 keeps the rotation answering when the store has no week record', () => {
+      const view = homeViewOf(input({ recent: [], plan: SEED_PLAN, week: undefined }));
+      expect(view.today?.dayName).toBe('PIERNA');
+      expect(view.today?.swap).toBeNull();
+    });
+
+    it('T3 ignores a record from another week and lets the rotation answer', () => {
+      const lastWeek: WeekRecord = { ...NO_MATCH_WEEK, monday: '2023-11-13' };
+      const view = homeViewOf(input({ recent: [], plan: SEED_PLAN, week: lastWeek }));
+      expect(view.today?.dayName).toBe('PIERNA');
+    });
+
+    it('T5 offers the other training days, and names where today’s day would go (S6, S9)', () => {
+      const view = homeViewOf(input({ recent: [], plan: SEED_PLAN, week: NO_MATCH_WEEK }));
+      expect(view.today?.swap).toEqual({
+        label: 'Cambiar el entreno de hoy',
+        dayName: 'Preparación fútbol',
+        options: [
+          { weekday: 'Lunes', dayName: 'Pierna', moves: 'Se mueve a Lunes', swap: { from: 2, to: 0 } },
+          { weekday: 'Martes', dayName: 'Torso A', moves: 'Se mueve a Martes', swap: { from: 2, to: 1 } },
+          { weekday: 'Jueves', dayName: 'Torso B', moves: 'Se mueve a Jueves', swap: { from: 2, to: 3 } },
+        ],
+      });
+    });
+
+    it('T5 keeps the change available in a league week, where the week is full', () => {
+      const league: WeekRecord = { ...NO_MATCH_WEEK, match: 'league' };
+      const view = homeViewOf(input({ recent: [], plan: SEED_PLAN, week: league }));
+      // Wednesday is the preparation and all five weekdays are taken; the exchange is
+      // still possible, because the two days swap places instead of needing a free slot.
+      expect(view.today?.swap?.options.map((option) => option.weekday)).toEqual([
+        'Lunes',
+        'Martes',
+        'Viernes',
+      ]);
+    });
+
+    it('S9 names the weekday the day left behind moves to', () => {
+      const view = homeViewOf(input({ recent: [], plan: SEED_PLAN, week: NO_MATCH_WEEK }));
+      const tuesday = view.today?.swap?.options.find((option) => option.weekday === 'Martes');
+      expect(tuesday).toEqual({
+        weekday: 'Martes',
+        dayName: 'Torso A',
+        moves: 'Se mueve a Martes',
+        swap: { from: 2, to: 1 },
+      });
+    });
+
+    it('T5 does not offer the swap once today already has a session row', () => {
+      const view = homeViewOf(input({ plan: SEED_PLAN, week: NO_MATCH_WEEK }));
+      // The fixture carries the session scheduled today: a stored row wins over the week
+      // and is never rewritten.
+      expect(view.today?.state).toBe('pending');
+      expect(view.today?.swap).toBeNull();
+    });
+
+    it('T3 does not hand the rotation the day of the match (S11)', () => {
+      // Thursday in a league week is the match: the week answers, and the rotation does
+      // not get to offer a strength day instead of it.
+      const league: WeekRecord = { ...NO_MATCH_WEEK, match: 'league' };
+      const view = homeViewOf(input({ now: THURSDAY, recent: [], plan: SEED_PLAN, week: league }));
+      expect(view.today).toBeNull();
+    });
   });
 
   it('does not dress an empty store up as a first session', () => {
