@@ -25,15 +25,17 @@
  */
 
 import {
+  WEEK_TEMPLATES,
   weekPlan,
   type DayOffset,
+  type MatchKind,
   type WeekDay,
   type WeekPlan,
   type WeekPlanDays,
   type WeekSwap,
 } from '../../core/engine/week-plan';
 import type { EpochMs, PlanDay, WeekRecord } from '../../storage';
-import { formatDayName } from '../home/format';
+import { formatDayName, formatWeekdayName } from '../home/format';
 
 /**
  * The four days of the seed, by role (L5, L7). `PlanDay` keeps no key, only a name, so
@@ -88,6 +90,64 @@ export function weekDaysOf(plan: readonly PlanDay[]): WeekPlanDays | null {
   const prep = idOf('prep');
   if (leg === null || upperA === null || upperB === null || prep === null) return null;
   return { leg, upperA, upperB, prep };
+}
+
+/**
+ * T3 (S7, S11) — which fixture the week has, in the owner's words, and the quiet action
+ * that flips it.
+ *
+ * The weekday is read from the template the engine stamps (L7) instead of being written
+ * again here: a day that moves in `WEEK_TEMPLATES` moves in this line too, so the copy can
+ * never disagree with the layout that is actually loaded.
+ */
+export interface WeekFixture {
+  /**
+   * `Liga · jueves` / `Copa · martes`, and `null` for a week with no fixture: there is no
+   * match day to name (S11), and a week that does not play says nothing about one.
+   */
+  readonly label: string | null;
+  /** `Esta semana jugamos copa` — what the action offers, in the owner's words (S7). */
+  readonly action: string;
+  /** What choosing the action writes into this week's record. */
+  readonly next: MatchKind;
+}
+
+/** The two fixtures the owner plays. `none` names no match and has no line of its own. */
+const FIXTURES: Readonly<
+  Record<'league' | 'cup', { readonly name: string; readonly action: string }>
+> = {
+  league: { name: 'Liga', action: 'Esta semana jugamos copa' },
+  cup: { name: 'Copa', action: 'Esta semana jugamos liga' },
+};
+
+/**
+ * `jueves` — the weekday the fixture lives on, from the L7 table. The formatter wants an
+ * instant, so it is asked about a fixed Monday plus the offset; no date of the record and
+ * no clock is read, and the answer depends on the kind of week and nothing else.
+ */
+function matchDayName(match: 'league' | 'cup'): string {
+  const offset = WEEK_TEMPLATES[match].findIndex((slot) => slot.kind === 'match');
+  return formatWeekdayName(new Date(2026, 2, 2 + offset).getTime()).toLowerCase();
+}
+
+/**
+ * The fixture of the stored week, or `null` when this device holds no record to read.
+ *
+ * The flip is league ↔ cup, and it is offered in every state a record can be in — a week
+ * with no fixture included, so the owner is never left without a way to say what he plays.
+ */
+export function weekFixtureOf(week: WeekRecord | undefined): WeekFixture | null {
+  if (week === undefined) return null;
+  const next: MatchKind = week.match === 'cup' ? 'league' : 'cup';
+  if (week.match === 'none') {
+    return { label: null, action: FIXTURES.league.action, next };
+  }
+  const fixture = FIXTURES[week.match];
+  return {
+    label: `${fixture.name} · ${matchDayName(week.match)}`,
+    action: fixture.action,
+    next,
+  };
 }
 
 /** S6/S9 — a training day today can exchange places with. */

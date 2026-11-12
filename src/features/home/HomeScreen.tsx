@@ -45,12 +45,12 @@ import {
   type IconName,
 } from '../../design-system';
 import type { StoragePort, WeekRecord } from '../../storage';
-import type { WeekSwap } from '../../core/engine/week-plan';
+import type { MatchKind, WeekSwap } from '../../core/engine/week-plan';
 import { useAppServices } from '../../app/providers';
 import type { Clock } from '../session/controller';
 import { useStartSession, type StartNotice } from '../session/startSession';
 import { summaryHash } from '../summary/route';
-import { weekTodayOf } from '../week/week';
+import { weekFixtureOf, weekTodayOf, type WeekFixture } from '../week/week';
 import { DemoHome } from './DemoHome';
 import { ACTIVITY_DELETE_COPY, useActivityDeletion, type ActivityDeletionState } from './deletion';
 import { FOOTBALL_DURATION_MINUTES, useFootballCapture } from './football';
@@ -216,6 +216,36 @@ export async function saveTodaySwap(storage: StoragePort, swap: WeekSwap): Promi
   return true;
 }
 
+/**
+ * T3 (S7, S11) — the owner says which fixture this week has, and the week is redrawn.
+ *
+ * The record is the week's only memory, so flipping the fixture is one field of it: the
+ * same get-or-create `currentWeekOf` performs, with the kind the owner chose. The bootstrap
+ * already writes `league` (L5: the league is every Thursday, the cup is the exception), so
+ * this is the loose change for the current week, never a season calendar.
+ *
+ * **The exchange list goes with the layout.** A swap exchanges two days of *this* layout —
+ * Monday and Wednesday trade in a league week for reasons a cup week does not share (L7) —
+ * so it is cleared at the same time: kept across the flip it would put a day on a weekday
+ * the new template never asked for. No stored session is rewritten: a row that exists is
+ * history, not a plan.
+ *
+ * Returns `false` when the write fails, and the caller then re-reads nothing: the card
+ * keeps the layout it was drawn from (S7) instead of showing half a cup week.
+ */
+export async function saveWeekMatch(
+  storage: StoragePort,
+  now: number,
+  match: MatchKind,
+): Promise<boolean> {
+  try {
+    await storage.meta.saveWeek({ monday: mondayIsoOf(now), match, swaps: [] });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export interface HomeScreenWithPortProps {
   readonly storage: StoragePort;
   readonly clock: Clock;
@@ -244,6 +274,13 @@ export interface HomeProps {
   readonly onSwapToday?: ((swap: WeekSwap) => void) | undefined;
   /** T8 — the match or the rest day the week names, so the card can name it too. */
   readonly offDay?: OffDay | null | undefined;
+  /**
+   * T3 — which fixture this week has and the way to flip it. Absent (a store with no
+   * record, the gallery): the card says nothing about a match (S11).
+   */
+  readonly fixture?: WeekFixture | null | undefined;
+  /** Writes the flipped fixture into this week's record. Absent: the action is not offered. */
+  readonly onFlipWeek?: ((match: MatchKind) => void) | undefined;
   /**
    * The bin and its inline question (S5). Absent: the recorded rows are read-only, which
    * is what a screen with no port behind it (and the gallery) needs.
@@ -393,6 +430,35 @@ export function TodaySwapSheet({
 }
 
 /**
+ * T3 (S7, S11) — the fixture of this week, and the quiet action that flips it.
+ *
+ * `Liga · jueves` is the week's shape in the owner's words (L5); next to it,
+ * `Esta semana jugamos copa` writes the other kind into the record so the whole week
+ * restructures. Neither takes the accent fill: the day's action is the only one (§7.1).
+ * A week with no fixture renders no line — no match day to name (S11) — but keeps the
+ * action, so the owner can always say that this one is the cup.
+ */
+function WeekFixtureLine({
+  fixture = null,
+  onFlipWeek,
+}: {
+  readonly fixture?: WeekFixture | null | undefined;
+  readonly onFlipWeek?: ((match: MatchKind) => void) | undefined;
+}): React.ReactElement | null {
+  if (fixture === null) return null;
+  return (
+    <div className="home__fixture">
+      {fixture.label === null ? null : <span className="ds-meta">{fixture.label}</span>}
+      {onFlipWeek === undefined ? null : (
+        <TextButton align="start" className="home__fixture-flip" onClick={() => onFlipWeek(fixture.next)}>
+          {fixture.action}
+        </TextButton>
+      )}
+    </div>
+  );
+}
+
+/**
  * Today's session as one protagonist block (S3, S4).
  *
  * The card holds the day, its short detail, the prescribed sets and the action that
@@ -408,15 +474,19 @@ export function TodaySwapSheet({
 function TodayBlock({
   view,
   offDay = null,
+  fixture = null,
   onStart,
   onNavigate = navigateTo,
   onSwapToday,
+  onFlipWeek,
   starting = false,
 }: HomeViewOnly & {
   readonly offDay?: OffDay | null | undefined;
+  readonly fixture?: WeekFixture | null | undefined;
   readonly onStart: () => void;
   readonly onNavigate?: ((href: string) => void) | undefined;
   readonly onSwapToday?: ((swap: WeekSwap) => void) | undefined;
+  readonly onFlipWeek?: ((match: MatchKind) => void) | undefined;
   readonly starting?: boolean | undefined;
 }): React.ReactElement {
   const today = view.today;
@@ -468,6 +538,9 @@ function TodayBlock({
           </HomeNote>
         )}
         <TodayAction view={view} onStart={onStart} onNavigate={onNavigate} starting={starting} />
+        {/* S7: the match day is exactly when the owner knows the cup is next, so the
+            fixture and its flip stay reachable on the two days the gym does not fill. */}
+        <WeekFixtureLine fixture={fixture} onFlipWeek={onFlipWeek} />
       </section>
     );
   }
@@ -511,6 +584,9 @@ function TodayBlock({
           }}
         />
       ) : null}
+      {/* Under the exchange, in the same quiet zone: both are decisions about the whole
+          week, and neither is the action the card exists for. */}
+      <WeekFixtureLine fixture={fixture} onFlipWeek={onFlipWeek} />
     </Card>
   );
 }
@@ -740,6 +816,7 @@ function ActivitySection({
 export function HomeBody({
   view,
   offDay = null,
+  fixture = null,
   onStart,
   onNavigate = navigateTo,
   starting = false,
@@ -748,6 +825,7 @@ export function HomeBody({
   recording = false,
   footballNotice = null,
   onSwapToday,
+  onFlipWeek,
   deletion,
 }: HomeProps): React.ReactElement {
   const navigate = onNavigate;
@@ -779,9 +857,11 @@ export function HomeBody({
       <TodayBlock
         view={view}
         offDay={offDay}
+        fixture={fixture}
         onStart={onStart}
         onNavigate={navigate}
         onSwapToday={onSwapToday}
+        onFlipWeek={onFlipWeek}
         starting={starting}
       />
 
@@ -878,6 +958,20 @@ export function HomeScreenWithPort({
   // The bin and its question live in the screen, not in the row: only one question can be
   // open at a time, and the answer survives the re-read the removal triggers.
   const deletion = useActivityDeletion({ storage, onDeleted: refresh });
+  // T3/S7: the fixture is a fact of the week, so the flip writes the record and the screen
+  // re-reads — the same shape the exchange has. A write that did not happen re-reads
+  // nothing, so the card never shows half a cup week.
+  const flipWeek = useCallback(
+    (match: MatchKind) => {
+      void saveWeekMatch(storage, clock.now(), match).then(
+        (written) => {
+          if (written) refresh();
+        },
+        () => undefined,
+      );
+    },
+    [storage, clock, refresh],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -914,6 +1008,7 @@ export function HomeScreenWithPort({
     <HomeBody
       view={homeViewOf(boot.input)}
       offDay={offDayOf(boot.input)}
+      fixture={weekFixtureOf(boot.input.week)}
       onStart={start.start}
       starting={start.busy}
       startNotice={start.notice}
@@ -921,6 +1016,7 @@ export function HomeScreenWithPort({
       recording={capture.busy}
       footballNotice={capture.notice}
       onSwapToday={chooseSwap}
+      onFlipWeek={flipWeek}
       deletion={deletion}
       {...(onNavigate === undefined ? {} : { onNavigate })}
     />

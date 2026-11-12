@@ -16,7 +16,8 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { PlanDay, StoragePort, UserProfile, WeekRecord, WorkoutSession } from '../../storage';
 import { createFakeStorage } from '../session/fake-port';
-import { HomeBody, TodaySwapSheet, currentWeekOf, offDayOf, saveTodaySwap } from './HomeScreen';
+import { HomeBody, TodaySwapSheet, currentWeekOf, offDayOf, saveTodaySwap, saveWeekMatch } from './HomeScreen';
+import { weekFixtureOf } from '../week/week';
 import { demoWeek, demoPort, demoRestNow } from './demo';
 import { homeViewOf, type HomeInput } from './selectors';
 import { recordFootball } from './football';
@@ -165,9 +166,11 @@ function render(overrides: Partial<HomeInput> = {}): string {
     <HomeBody
       view={homeViewOf(fixture)}
       offDay={offDayOf(fixture)}
+      fixture={weekFixtureOf(fixture.week)}
       onStart={() => undefined}
       onRecordFootball={() => undefined}
       onSwapToday={() => undefined}
+      onFlipWeek={() => undefined}
       deletion={DELETION}
     />,
   );
@@ -350,6 +353,9 @@ describe('Inicio offers to change today (T5, S6, S9)', () => {
     expect(markup).not.toContain('Cambiar el entreno de hoy');
     expect(markup).not.toContain('Hoy es el día del partido');
     expect(markup).not.toContain('Hoy descansas');
+    // T3: no record, no fixture to name and no action to flip one.
+    expect(markup).not.toContain('Liga · jueves');
+    expect(markup).not.toContain('Esta semana jugamos copa');
   });
 });
 
@@ -433,6 +439,96 @@ describe('the demo can show the exchange (?demo=inicio)', () => {
     expect(week?.monday).toBe('2023-11-06');
     const view = homeViewOf(input({ now, plan: fixture.plan, recent: fixture.sessions, week }));
     expect(view.today?.swap?.label).toBe('Cambiar el entreno de hoy');
+  });
+});
+
+describe('the week says which fixture it has (T3, S7, S11)', () => {
+  it('names the fixture of the week on the card, in the owner’s words', () => {
+    const league = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
+    expect(league).toContain('Liga · jueves');
+    // One quiet action next to it, naming the other fixture (S7).
+    expect(league).toContain('Esta semana jugamos copa');
+    expect(league).not.toContain('Copa · martes');
+
+    const cup = render({ plan: WEEK_PLAN, week: { ...LEAGUE_WEEK, match: 'cup' } });
+    expect(cup).toContain('Copa · martes');
+    expect(cup).toContain('Esta semana jugamos liga');
+    expect(cup).not.toContain('Liga · jueves');
+  });
+
+  it('says nothing about a match in a week with no fixture', () => {
+    const markup = render({ plan: WEEK_PLAN, week: { ...LEAGUE_WEEK, match: 'none' } });
+    expect(markup).not.toContain('Liga · jueves');
+    expect(markup).not.toContain('Copa · martes');
+    // The way to declare one is still there, so the owner is never stuck.
+    expect(markup).toContain('Esta semana jugamos copa');
+  });
+
+  it('flipping to the cup writes the fixture and clears the exchanges of the other layout', async () => {
+    const { port, writes } = weekPort({ ...LEAGUE_WEEK, swaps: [{ from: 2, to: 0 }] });
+
+    expect(await saveWeekMatch(port, NOW, 'cup')).toBe(true);
+    // The swap traded Monday and Wednesday of a league week; in a cup week those weekdays
+    // hold other days, so the list goes with the layout it was made on (T5, L7).
+    expect(writes).toEqual([{ monday: '2023-11-06', match: 'cup', swaps: [] }]);
+
+    // The card the re-read draws is the cup week: today is the upper body, not the
+    // preparation the league layout puts on Wednesday.
+    const markup = render({ plan: WEEK_PLAN, week: writes[0] });
+    expect(markup).toContain('Copa · martes');
+    expect(markup).toContain('Torso A');
+    expect(markup).not.toContain('Preparación fútbol');
+  });
+
+  it('restructures the week: a Thursday after the flip trains instead of hosting the match', async () => {
+    const { port, writes } = weekPort(LEAGUE_WEEK);
+    expect(await saveWeekMatch(port, NOW, 'cup')).toBe(true);
+
+    const before = render({ now: THURSDAY, plan: WEEK_PLAN, week: LEAGUE_WEEK });
+    expect(before).toContain('Hoy es el día del partido');
+
+    // L7: the cup match is Tuesday, so Thursday is the leg day of that layout.
+    const after = render({ now: THURSDAY, plan: WEEK_PLAN, week: writes[0] });
+    expect(after).toContain('Pierna');
+    expect(after).not.toContain('Hoy es el día del partido');
+    expect(after).toContain('Copa · martes');
+  });
+
+  it('flipping back restores the league layout, on Wednesday and on Thursday', async () => {
+    const cupWeek: WeekRecord = { ...LEAGUE_WEEK, match: 'cup' };
+    const { port, writes } = weekPort(cupWeek);
+
+    expect(await saveWeekMatch(port, NOW, 'league')).toBe(true);
+    expect(writes).toEqual([LEAGUE_WEEK]);
+
+    // Today, Wednesday: the cup week's upper body gives way to the preparation.
+    expect(render({ plan: WEEK_PLAN, week: cupWeek })).toContain('Torso A');
+    const today = render({ plan: WEEK_PLAN, week: writes[0] });
+    expect(today).toContain('Preparación fútbol');
+    expect(today).toContain('Liga · jueves');
+
+    // Thursday: the league match takes the day the cup week trained the legs on.
+    const thursday = render({ now: THURSDAY, plan: WEEK_PLAN, week: writes[0] });
+    expect(thursday).toContain('Hoy es el día del partido');
+    expect(thursday).not.toContain('Pierna');
+  });
+
+  it('leaves the league layout on the card when the write fails, never half a cup week', async () => {
+    const failing: StoragePort = {
+      meta: {
+        readWeek: async (): Promise<WeekRecord | undefined> => LEAGUE_WEEK,
+        saveWeek: async (): Promise<void> => Promise.reject(new Error('denied')),
+      },
+    } as unknown as StoragePort;
+
+    expect(await saveWeekMatch(failing, NOW, 'cup')).toBe(false);
+
+    // S7: a write that did not happen re-reads nothing, so the card keeps the week it was
+    // drawn from — the league day for today, not the cup's day with the league's numbers.
+    const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
+    expect(markup).toContain('Liga · jueves');
+    expect(markup).toContain('Preparación fútbol');
+    expect(markup).not.toContain('Copa · martes');
   });
 });
 

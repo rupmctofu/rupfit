@@ -10,7 +10,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PlanDay, WeekRecord } from '../../storage';
-import { weekDaysOf, weekTodayOf } from './week';
+import { weekDaysOf, weekFixtureOf, weekTodayOf } from './week';
 
 /** Monday 2 March 2026 and the Wednesday and Thursday of that same week, 18:00 local. */
 const MONDAY = new Date(2026, 2, 2, 18, 0, 0).getTime();
@@ -129,6 +129,40 @@ describe('weekTodayOf reads today from the week plan (S5, T4)', () => {
       swaps: [{ from: 3, to: 2 }],
     };
     expect(weekTodayOf({ now: THURSDAY, plan: PLAN, week: legsAfterTheCup })).toBeNull();
+  });
+});
+
+describe('weekFixtureOf says which fixture the week has (T3, S11)', () => {
+  it('names the league match on Thursday, and the way to the cup', () => {
+    // L5: the league is every Thursday, and the cup is the exception, so a league week is
+    // the one a record with no opinion describes.
+    expect(weekFixtureOf(LEAGUE)).toEqual({
+      label: 'Liga · jueves',
+      action: 'Esta semana jugamos copa',
+      next: 'cup',
+    });
+  });
+
+  it('names the cup match on Tuesday, and the way back to the league', () => {
+    expect(weekFixtureOf({ ...LEAGUE, match: 'cup' })).toEqual({
+      label: 'Copa · martes',
+      action: 'Esta semana jugamos liga',
+      next: 'league',
+    });
+  });
+
+  it('says nothing about a match in a week with no fixture, and still offers one', () => {
+    // S11 gives the week one match or none at all: a fixture-less week has no day to name,
+    // but the owner must still be able to say that this one is the cup.
+    expect(weekFixtureOf({ ...LEAGUE, match: 'none' })).toEqual({
+      label: null,
+      action: 'Esta semana jugamos copa',
+      next: 'cup',
+    });
+  });
+
+  it('has nothing to say when the store holds no week at all', () => {
+    expect(weekFixtureOf(undefined)).toBeNull();
   });
 });
 

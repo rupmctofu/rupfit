@@ -326,3 +326,18 @@
   gap: var(--space-1) var(--space-2);
   min-width: 0;
 }
+
+/* The fixture of the week (T3, S7): `Liga · jueves` and the quiet action that flips it, on
+   one line that wraps at 320 px. The line is muted and the button is the text button, so
+   neither competes with the day's action for the accent fill (§7.1). */
+.home__fixture {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+}
+
+.home__fixture-flip {
+  margin-left: auto;
+}
