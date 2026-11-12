@@ -39,6 +39,11 @@ export const META_KEYS = {
   profile: 'profile',
   phaseState: 'phaseState',
   storage: 'storage',
+  /**
+   * T3 — the week of the match: its Monday, its fixture and its swaps. A plain key in the
+   * same schemaless store, so the record needs no object store and no `DB_VERSION` bump.
+   */
+  week: 'week',
   /** The per-table "last pushed" marks (odd/tasks/cloud-sync.md T3/T4). */
   syncWatermarks: 'syncWatermarks',
 } as const;

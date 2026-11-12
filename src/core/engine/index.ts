@@ -8,3 +8,5 @@ export * from './readaptation';
 export * from './reasons';
 export * from './confidence';
 export * from './progression-engine';
+// T1's week plan, re-exported for its first consumers (T4 in `features/home`).
+export * from './week-plan';

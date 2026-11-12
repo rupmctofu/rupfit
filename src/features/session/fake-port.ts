@@ -412,6 +412,14 @@ export function createFakeStorage(options: FakeStorageOptions = {}): FakeStorage
       record('meta.saveStorageAnswer');
       unsupported('meta.saveStorageAnswer');
     },
+    async readWeek() {
+      record('meta.readWeek');
+      return undefined;
+    },
+    async saveWeek() {
+      record('meta.saveWeek');
+      unsupported('meta.saveWeek');
+    },
   };
 
   return {

@@ -10,6 +10,8 @@ import {
   DB_NAME,
   deleteSessionConfirmation,
   isStorageError,
+  META_KEYS,
+  OUTBOX_OP_PREFIX,
   type StoragePort,
 } from '../../src/storage';
 import {
@@ -674,6 +676,34 @@ describe('the queries the indexes exist for', () => {
 
     await storage.meta.saveStorageAnswer({ persisted: false, checkedAt: T0 });
     expect(await storage.meta.readStorageAnswer()).toEqual({ persisted: false, checkedAt: T0 });
+  });
+
+  it('round trips the week record of T3 and answers nothing before it is written', async () => {
+    expect(await storage.meta.readWeek()).toBeUndefined();
+
+    // The Monday of the week, its fixture and the swaps the owner made in it. The Monday
+    // of 2026-11-02 is the week the storage fixtures are anchored on (T0).
+    const week = {
+      monday: '2026-11-02',
+      match: 'league',
+      swaps: [{ from: 0, to: 1 }],
+    } as const;
+    await storage.meta.saveWeek(week);
+
+    expect(await storage.meta.readWeek()).toEqual(week);
+  });
+
+  it('writes the week record alone: no sync stamp and no queued op for it', async () => {
+    await storage.meta.saveWeek({ monday: '2026-11-02', match: 'cup', swaps: [] });
+
+    const rows = await raw.all<Record<string, unknown>>('meta');
+    const stored = rows.find((row) => row['key'] === META_KEYS.week);
+    expect(stored).toBeDefined();
+    // T3: the week of the match is this device's, like the storage answer. A restore
+    // clears `meta`, so the record dies with the restore; queuing it would ask a push
+    // to send a column the account does not have.
+    expect(stored ?? {}).not.toHaveProperty('sync');
+    expect(rows.some((row) => String(row['key']).startsWith(OUTBOX_OP_PREFIX))).toBe(false);
   });
 
   it('keeps the optional phase values absent rather than undefined', async () => {

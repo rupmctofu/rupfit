@@ -8,7 +8,15 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { WEEK_TEMPLATES, weekPlan, type MatchKind, type WeekDay } from '../src/core/engine/week-plan';
+import {
+  applySwaps,
+  WEEK_TEMPLATES,
+  weekPlan,
+  type DayOffset,
+  type MatchKind,
+  type WeekDay,
+  type WeekSlot,
+} from '../src/core/engine/week-plan';
 
 /** A Monday of March 2026, so the dates of the week are easy to read and stable forever. */
 const MONDAY = '2026-03-02';
@@ -146,6 +154,169 @@ describe('T1 weekPlan every week', () => {
     const input = { monday: '2026-03-03', match: 'league', days: DAYS } as const;
     expect(() => weekPlan(input)).toThrow(RangeError);
     expect(() => weekPlan({ ...input, monday: '2026-02-30' })).toThrow(RangeError);
+  });
+});
+
+/** One slot as a word, so a swapped table reads like the table it is. */
+function slot(slotValue: WeekSlot): string {
+  return slotValue.kind === 'training' ? `training ${slotValue.role}` : slotValue.kind;
+}
+
+function slots(template: readonly WeekSlot[]): readonly string[] {
+  return template.map(slot);
+}
+
+describe('T5 applySwaps exchanges two weekdays and leaves the other five alone (S6, S9)', () => {
+  it('T5 exchanges the training days of two weekdays, kinds and roles together', () => {
+    // Monday carries the leg day and Tuesday the upper body A day: after the swap the
+    // owner does upper body on Monday and the legs land on Tuesday. S9: the day that is
+    // left moves to another day of the week instead of disappearing.
+    const swapped = applySwaps(WEEK_TEMPLATES.league, [{ from: 0, to: 1 }]);
+    expect(slots(swapped)).toEqual([
+      'training upper-a',
+      'training leg',
+      'prep',
+      'match',
+      'training upper-b',
+      'rest',
+      'rest',
+    ]);
+  });
+
+  it('T5 swaps a training day with the preparation day, both ways', () => {
+    const swapped = applySwaps(WEEK_TEMPLATES.league, [{ from: 0, to: 2 }]);
+    expect(slots(swapped)).toEqual([
+      'prep',
+      'training upper-a',
+      'training leg',
+      'match',
+      'training upper-b',
+      'rest',
+      'rest',
+    ]);
+  });
+
+  it('T5 leaves the other five days identical, whatever it swaps', () => {
+    const swapped = applySwaps(WEEK_TEMPLATES.league, [{ from: 0, to: 1 }]);
+    for (const offset of [2, 3, 4, 5, 6] as const) {
+      expect(swapped[offset]).toEqual(WEEK_TEMPLATES.league[offset]);
+    }
+    // The dates and the weekdays never move: only the kinds and the roles do.
+    const week = weekPlan({ monday: MONDAY, match: 'league', days: DAYS, swaps: [{ from: 0, to: 1 }] });
+    expect(week.map((day) => `${day.date} ${day.weekday}`)).toEqual(
+      weekPlan({ monday: MONDAY, match: 'league', days: DAYS }).map(
+        (day) => `${day.date} ${day.weekday}`,
+      ),
+    );
+  });
+
+  it('T5 stamps the swapped week with the caller days, never reordered by the caller', () => {
+    const week = weekPlan({ monday: MONDAY, match: 'league', days: DAYS, swaps: [{ from: 0, to: 1 }] });
+    expect(week[0]?.planDayId).toBe(DAYS.upperA);
+    expect(week[1]?.planDayId).toBe(DAYS.leg);
+    expect(week[2]?.planDayId).toBe(DAYS.prep);
+  });
+
+  it('T5 applies several swaps of different weekdays in one week', () => {
+    const swapped = applySwaps(WEEK_TEMPLATES.league, [
+      { from: 0, to: 1 },
+      { from: 2, to: 4 },
+    ]);
+    expect(slots(swapped)).toEqual([
+      'training upper-a',
+      'training leg',
+      'training upper-b',
+      'match',
+      'prep',
+      'rest',
+      'rest',
+    ]);
+  });
+
+  it('T5 never mutates the template it was given', () => {
+    applySwaps(WEEK_TEMPLATES.league, [{ from: 0, to: 1 }]);
+    expect(slots(WEEK_TEMPLATES.league)).toEqual([
+      'training leg',
+      'training upper-a',
+      'prep',
+      'match',
+      'training upper-b',
+      'rest',
+      'rest',
+    ]);
+  });
+
+  it('T5 refuses a swap that is out of range', () => {
+    expect(() => applySwaps(WEEK_TEMPLATES.league, [{ from: 0, to: 7 as DayOffset }])).toThrow(
+      RangeError,
+    );
+    expect(() => applySwaps(WEEK_TEMPLATES.league, [{ from: -1 as DayOffset, to: 1 }])).toThrow(
+      RangeError,
+    );
+    expect(() => applySwaps(WEEK_TEMPLATES.league, [{ from: 1.5 as DayOffset, to: 1 }])).toThrow(
+      RangeError,
+    );
+  });
+
+  it('T5 refuses a weekday swapped with itself, and a weekday used twice', () => {
+    expect(() => applySwaps(WEEK_TEMPLATES.league, [{ from: 0, to: 0 }])).toThrow(RangeError);
+    // Not a permutation: Monday already moved to Tuesday, so Tuesday cannot move again.
+    expect(() =>
+      applySwaps(WEEK_TEMPLATES.league, [
+        { from: 0, to: 1 },
+        { from: 1, to: 2 },
+      ]),
+    ).toThrow(RangeError);
+    expect(() =>
+      applySwaps(WEEK_TEMPLATES.league, [
+        { from: 0, to: 1 },
+        { from: 0, to: 2 },
+      ]),
+    ).toThrow(RangeError);
+  });
+
+  it('T5 refuses a swap into the match or into a rest day (S11, S12)', () => {
+    // Thursday is the league match: it is reported, never trained.
+    expect(() => applySwaps(WEEK_TEMPLATES.league, [{ from: 0, to: 3 }])).toThrow(RangeError);
+    // Saturday and Sunday are rest in every kind of week.
+    expect(() => applySwaps(WEEK_TEMPLATES.league, [{ from: 0, to: 5 }])).toThrow(RangeError);
+    expect(() => applySwaps(WEEK_TEMPLATES.cup, [{ from: 3, to: 1 }])).toThrow(RangeError);
+  });
+
+  it('T5 refuses a swap that would put the leg day the day after the match (L7)', () => {
+    // Cup week: the match is Tuesday, so Wednesday is the weekday L7 protects. Sending the
+    // legs there is refused, whichever end of the exchange carries them.
+    expect(() => applySwaps(WEEK_TEMPLATES.cup, [{ from: 3, to: 2 }])).toThrow(RangeError);
+    // League week: Thursday is the match, so Friday is protected.
+    expect(() => applySwaps(WEEK_TEMPLATES.league, [{ from: 0, to: 4 }])).toThrow(RangeError);
+    // One day further out the same exchange is accepted: Thursday in the cup week.
+    expect(slots(applySwaps(WEEK_TEMPLATES.cup, [{ from: 3, to: 4 }]))).toEqual([
+      'prep',
+      'match',
+      'training upper-a',
+      'training upper-b',
+      'training leg',
+      'rest',
+      'rest',
+    ]);
+  });
+
+  it('T5 keeps the invariants of L7 through a swap', () => {
+    for (const swap of [
+      { from: 0, to: 1 },
+      { from: 0, to: 2 },
+      { from: 2, to: 4 },
+    ] as const) {
+      const swapped = applySwaps(WEEK_TEMPLATES.league, [swap]);
+      // S11: exactly one match, and it is still Thursday.
+      expect(swapped.filter((day) => day.kind === 'match')).toHaveLength(1);
+      expect(swapped[3]?.kind).toBe('match');
+      // S12: the weekend stays at rest.
+      expect(swapped[5]?.kind).toBe('rest');
+      expect(swapped[6]?.kind).toBe('rest');
+      // L7: the leg day is never the day after the match.
+      expect(swapped[4]).not.toEqual({ kind: 'training', role: 'leg' });
+    }
   });
 });
 

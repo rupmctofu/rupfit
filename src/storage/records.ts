@@ -26,6 +26,7 @@ import type {
   SessionStatus,
   StorageAnswer,
   UserProfile,
+  WeekRecord,
 } from './entities';
 
 /** §5.1, in the order the document lists them. Nine stores, no tenth (I-6). */
@@ -333,12 +334,13 @@ export interface StoredPhaseState {
 /**
  * Everything `meta` may hold. The nine-store schema is unchanged: the queue ops and the
  * push watermarks are rows in this already-existing store, keyed by a string, which is
- * why neither needs an upgrade step.
+ * why neither needs an upgrade step. The week record (T3) is the same case.
  */
 export type MetaRow =
   | { key: 'profile'; value: UserProfile; sync?: SyncMeta }
   | { key: 'phaseState'; value: StoredPhaseState; sync?: SyncMeta }
   | { key: 'storage'; value: StorageAnswer }
+  | { key: 'week'; value: WeekRecord }
   | { key: 'syncWatermarks'; value: SyncWatermarks }
   | { key: `outbox:${string}`; value: PendingSyncOp };
 

@@ -28,6 +28,7 @@ import type {
   SetRecord,
   StorageAnswer,
   UserProfile,
+  WeekRecord,
   WorkoutSession,
 } from './entities';
 import type {
@@ -400,6 +401,30 @@ export function phaseStateToMetaRow(state: PhaseState): MetaRow {
 
 export function storageAnswerToMetaRow(answer: StorageAnswer): MetaRow {
   return { key: 'storage', value: { persisted: answer.persisted, checkedAt: answer.checkedAt } };
+}
+
+/**
+ * T3 — the week record. Its swaps are copied out, so what is written is a value of its
+ * own and not an array the app tier still holds a reference to.
+ */
+export function weekRecordToMetaRow(week: WeekRecord): MetaRow {
+  return {
+    key: 'week',
+    value: {
+      monday: week.monday,
+      match: week.match,
+      swaps: week.swaps.map((swap) => ({ from: swap.from, to: swap.to })),
+    },
+  };
+}
+
+/** The week record back, copied for the same reason (§5.2: a stored row stays a row). */
+export function weekRecordFromStored(week: WeekRecord): WeekRecord {
+  return {
+    monday: week.monday,
+    match: week.match,
+    swaps: week.swaps.map((swap) => ({ from: swap.from, to: swap.to })),
+  };
 }
 
 export function phaseStateFromStored(stored: StoredPhaseState): PhaseState {

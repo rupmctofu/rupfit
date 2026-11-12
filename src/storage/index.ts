@@ -44,6 +44,7 @@ export type {
   TrainingPhase,
   UserProfile,
   Uuid,
+  WeekRecord,
   WeightGoal,
   WorkoutSession,
 } from './entities';

@@ -28,6 +28,7 @@ import type {
   RepRange,
   TrainingPhase,
 } from '../core/domain';
+import type { MatchKind, WeekSwap } from '../core/engine/week-plan';
 
 /** Milliseconds since the epoch, orderable as an IndexedDB key (§2). */
 export type EpochMs = number;
@@ -191,6 +192,21 @@ export interface PlanDay {
 export interface StorageAnswer {
   readonly persisted: boolean | null;
   readonly checkedAt: EpochMs;
+}
+
+/**
+ * T3 — the week of the match, as one single-row record: the Monday it belongs to, which
+ * fixture it has, and the days the owner swapped inside it (T5, S9).
+ *
+ * It is the week's whole memory, and it lives on this device only: a restore clears
+ * `meta`, so the record dies with the restore and no push has to carry it.
+ */
+export interface WeekRecord {
+  /** Local `YYYY-MM-DD` of the Monday, exactly as `weekPlan` wants it. */
+  readonly monday: string;
+  /** S11: Thursday in the league, Tuesday in the cup, and the league is the default. */
+  readonly match: MatchKind;
+  readonly swaps: readonly WeekSwap[];
 }
 
 /** Re-exported so features import one module for the shapes they read. */

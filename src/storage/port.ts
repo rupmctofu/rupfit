@@ -25,6 +25,7 @@ import type {
   SubstitutedFrom,
   UserProfile,
   Uuid,
+  WeekRecord,
   WorkoutSession,
 } from './entities';
 import type { StorageState } from './db';
@@ -177,6 +178,9 @@ export interface MetaRepositoryPort {
   /** Q-4: the recorded answer, probed once per launch, never prompted for. */
   readStorageAnswer(): Promise<StorageAnswer | undefined>;
   saveStorageAnswer(answer: StorageAnswer): Promise<void>;
+  /** T3: the week of the match, or `undefined` when this device has not planned one. */
+  readWeek(): Promise<WeekRecord | undefined>;
+  saveWeek(week: WeekRecord): Promise<void>;
 }
 
 /* ---------------------------------------------------------------------- sync */

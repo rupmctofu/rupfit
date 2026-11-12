@@ -8,18 +8,26 @@
  *
  * The profile and the phase state are stamped and queued like every other row
  * (odd/tasks/cloud-sync.md T3): they are single-row records, not a special case.
+ *
+ * The week of the match (T3) takes the device-local branch instead, exactly like the
+ * storage answer: a plain `put`, no stamp, no queued op. It is a plan for this phone, not
+ * history, and it is deliberately outside the backup document — a restore replaces the
+ * whole store, so the week record dies with the restore and the next week is planned
+ * again. Nothing here may be lifted into the sync path without a server column for it.
  */
 
 import { META_KEYS } from '../constants';
 import type { Database } from '../db';
 import { StorageError } from '../errors';
-import type { PhaseState, StorageAnswer, UserProfile } from '../entities';
+import type { PhaseState, StorageAnswer, UserProfile, WeekRecord } from '../entities';
 import {
   isTombstone,
   phaseStateFromStored,
   phaseStateToMetaRow,
   profileToMetaRow,
   storageAnswerToMetaRow,
+  weekRecordFromStored,
+  weekRecordToMetaRow,
 } from '../mappers';
 import type { MetaRepositoryPort, ProfileRepositoryPort } from '../port';
 import { writeStamped, type RowSyncDeps } from '../sync';
@@ -96,6 +104,24 @@ export class MetaRepository implements MetaRepositoryPort {
   async saveStorageAnswer(answer: StorageAnswer): Promise<void> {
     await this.database.write(['meta'], async (tx) => {
       await tx.objectStore('meta').put(storageAnswerToMetaRow(answer));
+    });
+  }
+
+  async readWeek(): Promise<WeekRecord | undefined> {
+    return this.database.read(['meta'], async (tx) => {
+      const row = await tx.objectStore('meta').get(META_KEYS.week);
+      return row !== undefined && row.key === 'week' ? weekRecordFromStored(row.value) : undefined;
+    });
+  }
+
+  /**
+   * T3, device-local: the same plain `put` as the storage answer. A week is a plan for
+   * this phone, so it is not stamped and not queued — and a restore, which clears `meta`,
+   * takes it with it.
+   */
+  async saveWeek(week: WeekRecord): Promise<void> {
+    await this.database.write(['meta'], async (tx) => {
+      await tx.objectStore('meta').put(weekRecordToMetaRow(week));
     });
   }
 }
