@@ -55,9 +55,11 @@ describe('the artwork of the programme', () => {
   });
 
   it('draws the fourth day, and draws each of its exercises differently', () => {
-    // L11: the conditioning day is four new pictures in the same line style — the belt,
-    // the low step, the held heel raise and the floor under the forearms.
-    const day = seedPlanDays().find((candidate) => candidate.name === 'FÍSICO');
+    // odd/tasks/match-aware-week.md L7: the fourth day is football preparation, and its
+    // five slots are five separate pictures in the same line style — the track, the held
+    // heel, the low step, the held calf raise and the floor under the forearms. The id is
+    // the identity: the day changed its name and kept this one.
+    const day = seedPlanDays().find((candidate) => candidate.id === 'seed-day-fisico');
     if (day === undefined) throw new Error('the fourth day is missing');
 
     const keys = day.items.map((item) => {
@@ -67,7 +69,8 @@ describe('the artwork of the programme', () => {
     });
 
     expect(keys).toEqual([
-      'treadmill-intervals',
+      'track-intervals',
+      'nordic-curl',
       'copenhagen-short',
       'calf-raise-isometric',
       'plank-front',

@@ -1,12 +1,15 @@
 /**
- * The starter plan — the owner's four gym days (`odd/tasks/training-program.md` S1, L11),
- * with one prescription profile per exercise and the block table of training-science §6.
+ * The starter plan — the owner's four training days (`odd/tasks/training-program.md` S1,
+ * `odd/tasks/match-aware-week.md` S1, L7), with one prescription profile per exercise and
+ * the block table of training-science §6.
  *
  * Three decisions shape this file, and each one is a document's, not a preference:
  *
  * 1. **Four days, one per movement family.** FR-3.1 fixes the template verbatim —
- *    `SENTADILLA / PIERNA`, `PESO MUERTO / TRACCIÓN`, `PRESS BANCA / EMPUJE` — and L11
- *    adds the fourth, `FÍSICO`, which is the only day prescribed by time. training-science
+ *    `SENTADILLA / PIERNA`, `PESO MUERTO / TRACCIÓN`, `PRESS BANCA / EMPUJE` — and
+ *    odd/tasks/match-aware-week.md L7 replaces the fourth, `FÍSICO`, with
+ *    `PREPARACIÓN FÚTBOL`: it is still the only day prescribed by time, and it is the day
+ *    that makes the programme about football. training-science
  *    §2 makes frequency a scheduling choice (UP), not a physiological optimum: what the
  *    owner asked for, and what one barbell and one pair of shoes can do, is one session
  *    per family. A two-day split would leave 18 weekly sets spread over too few
@@ -15,9 +18,11 @@
  * 2. **Six exercises per day: the primary lift plus the five accessories of FR-3.2**, in
  *    the order the document lists them. That is exactly the shape the Entrenar and
  *    Historial artboards draw (`6 ejercicios`).
- * 3. **No exercise is prescribed twice.** Each row uses a different library entry, which
- *    is why the pull day prescribes `Face pull` and `Espalda alta` rather than a third
- *    row variation.
+ * 3. **No exercise is prescribed twice in a day.** Each row uses a different library entry,
+ *    which is why the pull day prescribes `Face pull` and `Espalda alta` rather than a third
+ *    row variation. Across the week there is one deliberate repeat, `Nordic curl asistido`,
+ *    on leg day and on the preparation day: the hamstring adaptation is the one that needs
+ *    the frequency, and both slots are unloaded and far from failure.
  *
  * **The prescriptions are block 1 of the readaptation protocol, not a normal-phase
  * guess.** FR-4.1 starts every new user in readaptation, so the plan is written for the
@@ -137,35 +142,37 @@ function preventive(exerciseId: string): SeedSlot {
 }
 
 /**
- * The fourth day's engine work (L11): prescribed by time, never by load. The prescription
- * takes its minutes from the conditioning column of the block table rather than repeating
- * them here, exactly as the rep-prescribed slots take their reps. The rest is the longest
- * of the three: an interval needs the breathing back before the next one, and it is a
- * number to read, never a timer the app starts (S6).
+ * The fourth day's engine work: prescribed by time, never by load. The prescription takes
+ * its minutes from the conditioning column of the block table rather than repeating them
+ * here, exactly as the rep-prescribed slots take their reps. The rest is the longest of the
+ * three: an interval needs the breathing back before the next one, and it is a number to
+ * read, never a timer the app starts (S6).
  */
 function conditioning(exerciseId: string): SeedSlot {
   return slot('conditioning', exerciseId, REST_COMPOUND_S);
 }
 
 /**
- * The owner's week, as four gym days in rotation order.
- *
- * Rupfit stores no weekday (`PlanDay` has no date), so the calendar is not data: the
- * rotation is Leg → Upper A → Upper B → Físico and the owner trains Monday, Tuesday,
- * Friday and Saturday. Thursday is football, which is an activity and never a session, so
- * no strength day can land on it (L11).
+ * The owner's four training days, in rotation order: three of strength and one of football
+ * preparation (odd/tasks/match-aware-week.md S1, S12). Which weekday each one lands on is
+ * the week plan's business (`src/core/engine/week-plan.ts`), not this table's; what lives
+ * here is what each day contains.
  *
  * The order inside each day is deliberate: the strength lift while fresh, then compound
  * volume, then the preventive pair, then isolation. On leg day that puts Nordic curl after
  * the heavy work — the quality is better and the soreness arrives where it can still be
- * absorbed before Thursday — and it never puts a second eccentric hamstring movement next
+ * absorbed before the match — and it never puts a second eccentric hamstring movement next
  * to the Romanian deadlift.
  *
- * The fourth day is the conditioning one: intervals first, while the legs are fresh and
- * the quality is the point, then the resistance work that keeps the match from hurting —
- * short Copenhagen for the adductors, isometric soleus for the ankle and the calf, and a
- * front plank for the trunk. Nothing there is loaded, so nothing there competes with
- * Thursday's football for recovery.
+ * The fourth day is the last training day before the match (L7): MD-1 when the match falls
+ * on Wednesday or Monday, and never the match day itself. That is why it is activation and
+ * prevention instead of load — five short slots, no strength lift, nothing that would ask
+ * the legs to recover from a barbell while they are needed on the pitch. The intervals are
+ * the one piece of work with any quality to it, and they run on the track: the track is the
+ * surface the match is played on, so the specific version is the one that transfers, and
+ * the treadmill stays in the library as the substitute for a wet day. A front plank and the
+ * short Copenhagen keep the adductors and the trunk of a football week honest without
+ * costing recovery.
  */
 const DAYS: readonly SeedDaySpec[] = [
   {
@@ -209,10 +216,13 @@ const DAYS: readonly SeedDaySpec[] = [
     ],
   },
   {
+    // The key stays `fisico`, so the day id and every item id stay too: a session whose
+    // history points at this day keeps pointing at it after the rename.
     key: 'fisico',
-    name: 'FÍSICO',
+    name: 'PREPARACIÓN FÚTBOL',
     slots: [
-      conditioning('seed-ex-intervalos-cinta'),
+      conditioning('seed-ex-intervalos-pista'),
+      preventive('seed-ex-nordic-asistido'),
       preventive('seed-ex-copenhagen-corto'),
       preventive('seed-ex-soleo-isometrico'),
       preventive('seed-ex-plancha'),

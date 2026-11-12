@@ -1,5 +1,6 @@
 /**
- * The training programme, end to end (odd/tasks/training-program.md).
+ * The training programme, end to end (odd/tasks/training-program.md, and the fourth day as
+ * odd/tasks/match-aware-week.md L7 leaves it).
  *
  * The readaptation tests pin the engine with hand-built inputs; this file pins the path
  * the app actually takes — seed → store → session → recommendation — because the one
@@ -18,20 +19,28 @@ import { daysBefore, makeInput, makeOutcome, makeSet, NOW, readaptationPhase } f
 const DAYS = seedPlanDays();
 const ITEMS = DAYS.flatMap((day) => day.items);
 
-/** The conditioning day of L11, by name. */
-const FISICO = DAYS.find((day) => day.name === 'FÍSICO');
+/**
+ * The fourth day of L7, by id: it is the football preparation day, and it kept the id it
+ * had while it was called `FÍSICO`, so history still points here.
+ */
+const FISICO = DAYS.find((day) => day.id === 'seed-day-fisico');
 if (FISICO === undefined) throw new Error('the fourth day is missing');
 const FISICO_ITEMS = FISICO.items;
 
-/** The interval the conditioning day prescribes, and the machine it is done on. */
+/** The interval the preparation day prescribes, and the track it is run on. */
 const INTERVAL_ITEM = FISICO_ITEMS.find((item) => item.prescription.role === 'conditioning');
-if (INTERVAL_ITEM === undefined) throw new Error('the conditioning day has no interval');
+if (INTERVAL_ITEM === undefined) throw new Error('the preparation day has no interval');
 const INTERVAL = seedExerciseById(INTERVAL_ITEM.exerciseId);
 if (INTERVAL === undefined) throw new Error('the interval is not in the library');
 
-describe('S1 and L11 the plan is four gym days', () => {
-  it('ships leg, upper A, upper B and the conditioning day', () => {
-    expect(DAYS.map((day) => day.name)).toEqual(['PIERNA', 'TORSO A', 'TORSO B', 'FÍSICO']);
+describe('S1, S12 and L7 the plan is four training days', () => {
+  it('ships leg, upper A, upper B and the football preparation day', () => {
+    expect(DAYS.map((day) => day.name)).toEqual([
+      'PIERNA',
+      'TORSO A',
+      'TORSO B',
+      'PREPARACIÓN FÚTBOL',
+    ]);
   });
 
   it('comes after TORSO B in the rotation and is never a fifth strength day', () => {
@@ -111,11 +120,23 @@ describe('S3 preventive work never chases load', () => {
     expect(seedExerciseById('seed-ex-nordic-asistido')?.loadIncrementKg).toBe(0);
     expect(seedExerciseById('seed-ex-copenhagen-adaptado')?.loadIncrementKg).toBe(0);
 
+    // L7 prescribes the assisted Nordic on leg day and again on the preparation day — the
+    // hamstring adaptation is the one that earns the repeat — so there are three preventive
+    // rows here, and every one of them is unloaded and two sets far from failure.
     const preventive = ITEMS.filter((item) =>
       ['seed-ex-nordic-asistido', 'seed-ex-copenhagen-adaptado'].includes(item.exerciseId),
     );
-    expect(preventive.map((item) => item.prescription.role)).toEqual(['preventive', 'preventive']);
-    expect(preventive.map((item) => item.prescription.sets)).toEqual([2, 2]);
+    expect(preventive.map((item) => item.exerciseId)).toEqual([
+      'seed-ex-nordic-asistido',
+      'seed-ex-copenhagen-adaptado',
+      'seed-ex-nordic-asistido',
+    ]);
+    expect(preventive.map((item) => item.prescription.role)).toEqual([
+      'preventive',
+      'preventive',
+      'preventive',
+    ]);
+    expect(preventive.map((item) => item.prescription.sets)).toEqual([2, 2, 2]);
   });
 });
 
@@ -141,7 +162,8 @@ describe('S4 and S5 library content', () => {
   });
 
   it('adds the rows the fourth day needs, with a description and no wrong neighbour', () => {
-    // L11: intervals on the treadmill, on the bike and on the track, plus the short
+    // training-program L11 added these rows, and L7 is why the preparation day prescribes
+    // the track: intervals on the treadmill, on the bike and on the track, plus the short
     // Copenhagen and the held soleus. Each one exists because nothing already in the
     // library is that concrete exercise.
     const expected = [
@@ -244,8 +266,14 @@ describe('L11 the conditioning profile: prescribed by time, never by load', () =
 
   it('returns zero kilos and never an increment, though the treadmill has a plate stack', () => {
     // The treadmill is a `machine`, and a machine's step is 2.5 kg. The engine reads the
-    // profile, not the implement, and treats the interval as bodyweight work (§6).
-    expect(INTERVAL.loadIncrementKg).toBe(2.5);
+    // profile, not the implement, and treats the interval as bodyweight work (§6). L7 moved
+    // the preparation day's interval to the track and left the treadmill in the library as
+    // its wet-day substitute, so the drum with the plate stack is still what this pins.
+    const treadmill = seedExerciseById('seed-ex-intervalos-cinta');
+    if (treadmill === undefined) throw new Error('the treadmill left the library');
+    expect(treadmill.loadIncrementKg).toBe(2.5);
+    // And the interval the day actually prescribes is the unloaded one on the track.
+    expect(INTERVAL.loadIncrementKg).toBe(0);
 
     const history = [2, 5, 8, 11].map((days) =>
       makeOutcome({
@@ -259,7 +287,7 @@ describe('L11 the conditioning profile: prescribed by time, never by load', () =
 
     const recommendation = recommend(
       makeInput({
-        exercise: INTERVAL,
+        exercise: treadmill,
         prescription: INTERVAL_ITEM.prescription,
         phase: readaptationPhase(2),
         phaseState: { block: 1, passedBlocks: 0 },
@@ -275,7 +303,7 @@ describe('L11 the conditioning profile: prescribed by time, never by load', () =
       for (const phase of [readaptationPhase(block), { kind: 'normal' } as const]) {
         const result = recommend(
           makeInput({
-            exercise: INTERVAL,
+            exercise: treadmill,
             prescription: INTERVAL_ITEM.prescription,
             phase,
             phaseState: { block, passedBlocks: 0 },
@@ -314,7 +342,7 @@ describe('L11 the conditioning profile: prescribed by time, never by load', () =
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
 
-    const day = parsed.document.planDays.find((candidate) => candidate.name === 'FÍSICO');
+    const day = parsed.document.planDays.find((candidate) => candidate.id === 'seed-day-fisico');
     const interval = day?.items.find((item) => item.id === INTERVAL_ITEM.id);
     expect(interval?.prescription.durationSeconds).toBe(120);
     expect(interval?.prescription.role).toBe('conditioning');
