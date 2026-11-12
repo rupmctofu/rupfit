@@ -144,3 +144,11 @@ alrededor del día del partido, que casi siempre es jueves y a veces martes.
   dos conjuntos de reglas chocaban entre sí y el resultado no era reproducible. Se escriben
   como tabla por tipo de semana y los tests fijan los tres repartos de L7. Si mañana el dueño
   cambia un día, se edita la tabla, no el algoritmo.
+- **L9** (T1 entregado y revisado): `src/core/engine/week-plan.ts` estampa fechas sobre
+  `WEEK_TEMPLATES` y devuelve siete días con su tipo; los tests fijan los tres repartos.
+  Rechazado en revisión el contrato por posición (`fuerza 1/2/3`): la posición 1 significa
+  pierna el lunes en semana de liga y torso A el miércoles en semana de copa, así que quien
+  llamara tenía que reordenar los ids y un descuido ponía pierna el día después del partido.
+  El contrato es por rol — `leg`, `upper-a`, `upper-b`, `prep` — y una sola lista sirve para
+  las tres semanas. Falta reexportarlo desde `src/core/engine/index.ts`; lo hará T4, que es
+  el primer consumidor.
