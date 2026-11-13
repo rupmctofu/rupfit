@@ -39,6 +39,9 @@ describe('registrationDecision', () => {
 describe('serviceWorkerUrl', () => {
   it('sits at the deployed base', () => {
     expect(serviceWorkerUrl('/rupfit/')).toBe('/rupfit/sw.js');
+    // The root deployment: Vercel serves the app from `/`, so the worker is `/sw.js` with
+    // the default scope, which is the whole origin.
+    expect(serviceWorkerUrl('/')).toBe('/sw.js');
   });
 
   it('follows the base instead of hard-coding the subpath', () => {

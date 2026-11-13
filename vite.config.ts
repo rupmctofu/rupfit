@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+import { manifestFor } from './src/pwa/manifest';
 
 // Where the app is mounted is a deployment decision, not a source decision: Vercel serves
 // it from the root (`/`) and GitHub Pages from the repository subpath (`/rupfit/`). The
@@ -9,9 +10,6 @@ import { VitePWA } from 'vite-plugin-pwa';
 // is registered with the `prompt` strategy: an update never replaces the running app under
 // the owner's thumb (architecture §8).
 //
-// The icons are real files committed under `public/` (see tools/make-icons.mjs). Safari
-// installs from `apple-touch-icon.png` in index.html; Chromium and Android install from
-// these manifest entries, so the sizes and types here must match the bytes on disk.
 export default defineConfig(({ mode }) => {
   /**
    * The cloud values (ADR-0002) arrive from the environment, and Vite does not read
@@ -46,38 +44,7 @@ export default defineConfig(({ mode }) => {
         navigateFallback: `${base}index.html`,
         cleanupOutdatedCaches: true,
       },
-      manifest: {
-        name: 'Rupfit',
-        short_name: 'Rupfit',
-        description: 'Entrenamiento de fuerza con decisiones, no con hojas de cálculo.',
-        lang: 'es',
-        start_url: '/rupfit/',
-        scope: '/rupfit/',
-        display: 'standalone',
-        orientation: 'portrait',
-        background_color: '#000000',
-        theme_color: '#000000',
-        icons: [
-          {
-            src: '/rupfit/icon-192.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any',
-          },
-          {
-            src: '/rupfit/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any',
-          },
-          {
-            src: '/rupfit/icon-512-maskable.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable',
-          },
-        ],
-      },
+      manifest: manifestFor(base),
     }),
   ],
   build: {
