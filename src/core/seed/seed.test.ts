@@ -20,12 +20,12 @@ import {
 
 // Block 1 of each profile of the block table (src/core/engine/readaptation.ts), copied as
 // literals on purpose: a test that reads the table would agree with any change to it.
-const STRENGTH_REPS: RepRange = { lowerBound: 6, upperBound: 8 };
-const STRENGTH_RIR: RepRange = { lowerBound: 4, upperBound: 5 };
+const STRENGTH_REPS: RepRange = { lowerBound: 8, upperBound: 10 };
+const STRENGTH_RIR: RepRange = { lowerBound: 0, upperBound: 0 };
 const HYPERTROPHY_REPS: RepRange = { lowerBound: 8, upperBound: 10 };
-const HYPERTROPHY_RIR: RepRange = { lowerBound: 4, upperBound: 5 };
-const ACCESSORY_REPS: RepRange = { lowerBound: 10, upperBound: 12 };
-const ACCESSORY_RIR: RepRange = { lowerBound: 4, upperBound: 4 };
+const HYPERTROPHY_RIR: RepRange = { lowerBound: 0, upperBound: 0 };
+const ACCESSORY_REPS: RepRange = { lowerBound: 8, upperBound: 10 };
+const ACCESSORY_RIR: RepRange = { lowerBound: 0, upperBound: 0 };
 const PREVENTIVE_REPS: RepRange = { lowerBound: 6, upperBound: 8 };
 const PREVENTIVE_RIR: RepRange = { lowerBound: 5, upperBound: 6 };
 
@@ -265,10 +265,12 @@ describe('the starter plan', () => {
     // Five profiles, five different answers at the same block: this is the whole point of
     // odd/tasks/training-program.md S2 and L11 — a strength lift, a Copenhagen plank and a
     // treadmill interval can no longer share one row of numbers.
+    // The squat is the only lift the owner leaves one rep short of failure (S6), so it
+    // does not read the strength column's RIR even though it reads its reps.
     expect(itemByName('Sentadilla trasera').prescription).toEqual({
       sets: 3,
       repRange: STRENGTH_REPS,
-      targetRIR: STRENGTH_RIR,
+      targetRIR: { lowerBound: 1, upperBound: 1 },
       restSeconds: 180,
       role: 'strength',
     });

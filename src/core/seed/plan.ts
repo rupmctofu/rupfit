@@ -26,9 +26,10 @@
  *
  * **The prescriptions are block 1 of the readaptation protocol, not a normal-phase
  * guess.** FR-4.1 starts every new user in readaptation, so the plan is written for the
- * week the owner actually begins in: training-science §6 W1 is `2 × 10 @ 4–5 RIR` on the
- * primary lift and `2 × 12 @ 4 RIR` on the accessory, and these rows take those numbers
- * from `blockPrescription(1, role)` rather than repeating them. Volume-wise that is 4–6
+ * week the owner actually begins in. The rows still take their numbers from
+ * `blockPrescription(1, role)` rather than repeating them, but that table no longer holds
+ * §6's ladder: `odd/tasks/five-day-plan.md` S6 and S7 replace it with 8–10 repetitions to
+ * failure in every block, and the squat alone keeps 1 RIR (applied below, per exercise). Volume-wise that is 4–6
  * hard sets per muscle group per week across the three lifting sessions, which is exactly
  * the readaptation floor §4 sets ("4–6 sets per muscle group per week") and not the normal
  * phase's 10–16. The engine moves the volume from block 1 to block 4 on its own; the plan
@@ -240,13 +241,22 @@ function nameOf(exerciseId: string): string {
   return exercise.name;
 }
 
+/**
+ * The one exercise that keeps a repetition in reserve: `odd/tasks/five-day-plan.md` S6,
+ * the owner's own words ("En sentadilla dejarme un rir1 para no morir en el intento").
+ * It is a property of the exercise, so it lives in the row and not in a block column.
+ */
+const SQUAT_EXERCISE_ID = 'seed-ex-sentadilla-trasera';
+
 /** The block prescription of one slot, with the §7 rest interval added. */
 function prescriptionOf(slot: SeedSlot): ExercisePrescription {
   const block = blockPrescription(START_BLOCK, slot.role);
+  const squat = slot.exerciseId === SQUAT_EXERCISE_ID;
   const prescription: ExercisePrescription = {
     sets: block.sets,
     repRange: { ...block.repRange },
-    targetRIR: { ...block.targetRIR },
+    // The squat is the only lift the owner asked to leave one rep short of failure (S6).
+    targetRIR: squat ? { lowerBound: 1, upperBound: 1 } : { ...block.targetRIR },
     restSeconds: slot.restSeconds,
     // The profile travels with the prescription: the engine reads it per exercise, so a
     // strength lift and a Copenhagen plank stop sharing one column.

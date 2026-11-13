@@ -114,72 +114,76 @@ function setsEndingWithDiscomfort(block: number, role: BlockRole = DEFAULT_ROLE)
 }
 
 describe('§8 block prescriptions', () => {
-  it('§8 reproduces the strength block table', () => {
+  it('the strength column is 8-10 to failure in every block (five-day-plan S6, S7)', () => {
+    // odd/tasks/five-day-plan.md replaces §6's ladder for this column: the owner asked for
+    // 8-10 repetitions taken to failure, and S7 keeps that true past block 1.
     expect(blockPrescription(1, 'strength')).toEqual({
       sets: 3,
-      repRange: { lowerBound: 6, upperBound: 8 },
-      targetRIR: { lowerBound: 4, upperBound: 5 },
+      repRange: { lowerBound: 8, upperBound: 10 },
+      targetRIR: { lowerBound: 0, upperBound: 0 },
     });
     expect(blockPrescription(2, 'strength')).toEqual({
       sets: 3,
-      repRange: { lowerBound: 6, upperBound: 8 },
-      targetRIR: { lowerBound: 3, upperBound: 4 },
+      repRange: { lowerBound: 8, upperBound: 10 },
+      targetRIR: { lowerBound: 0, upperBound: 0 },
     });
     expect(blockPrescription(3, 'strength')).toEqual({
       sets: 4,
-      repRange: { lowerBound: 5, upperBound: 8 },
-      targetRIR: { lowerBound: 2, upperBound: 3 },
+      repRange: { lowerBound: 8, upperBound: 10 },
+      targetRIR: { lowerBound: 0, upperBound: 0 },
     });
     expect(blockPrescription(4, 'strength')).toEqual({
       sets: 4,
-      repRange: { lowerBound: 5, upperBound: 6 },
-      targetRIR: { lowerBound: 2, upperBound: 2 },
+      repRange: { lowerBound: 8, upperBound: 10 },
+      targetRIR: { lowerBound: 0, upperBound: 0 },
     });
   });
 
-  it('§8 reproduces the hypertrophy block table', () => {
+  it('the hypertrophy column is 8-10 to failure in every block (five-day-plan S6, S7)', () => {
     expect(blockPrescription(1, 'hypertrophy')).toEqual({
       sets: 3,
       repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 4, upperBound: 5 },
+      targetRIR: { lowerBound: 0, upperBound: 0 },
     });
     expect(blockPrescription(2, 'hypertrophy')).toEqual({
       sets: 3,
       repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 3, upperBound: 4 },
+      targetRIR: { lowerBound: 0, upperBound: 0 },
     });
     expect(blockPrescription(3, 'hypertrophy')).toEqual({
       sets: 4,
-      repRange: { lowerBound: 8, upperBound: 12 },
-      targetRIR: { lowerBound: 2, upperBound: 3 },
+      repRange: { lowerBound: 8, upperBound: 10 },
+      targetRIR: { lowerBound: 0, upperBound: 0 },
     });
     expect(blockPrescription(4, 'hypertrophy')).toEqual({
       sets: 4,
       repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 2, upperBound: 2 },
+      targetRIR: { lowerBound: 0, upperBound: 0 },
     });
   });
 
-  it('§8 reproduces the accessory block table', () => {
+  it('the accessory column is 8-10 to failure in every block (five-day-plan S6, S7)', () => {
+    // S6 says every set of the strength days, isolation included, so this column loses its
+    // higher rep ranges as well.
     expect(blockPrescription(1, 'accessory')).toEqual({
       sets: 2,
-      repRange: { lowerBound: 10, upperBound: 12 },
-      targetRIR: { lowerBound: 4, upperBound: 4 },
+      repRange: { lowerBound: 8, upperBound: 10 },
+      targetRIR: { lowerBound: 0, upperBound: 0 },
     });
     expect(blockPrescription(2, 'accessory')).toEqual({
       sets: 3,
-      repRange: { lowerBound: 10, upperBound: 12 },
-      targetRIR: { lowerBound: 3, upperBound: 3 },
+      repRange: { lowerBound: 8, upperBound: 10 },
+      targetRIR: { lowerBound: 0, upperBound: 0 },
     });
     expect(blockPrescription(3, 'accessory')).toEqual({
       sets: 3,
-      repRange: { lowerBound: 10, upperBound: 15 },
-      targetRIR: { lowerBound: 2, upperBound: 3 },
+      repRange: { lowerBound: 8, upperBound: 10 },
+      targetRIR: { lowerBound: 0, upperBound: 0 },
     });
     expect(blockPrescription(4, 'accessory')).toEqual({
       sets: 3,
-      repRange: { lowerBound: 10, upperBound: 12 },
-      targetRIR: { lowerBound: 2, upperBound: 2 },
+      repRange: { lowerBound: 8, upperBound: 10 },
+      targetRIR: { lowerBound: 0, upperBound: 0 },
     });
   });
 
@@ -211,12 +215,12 @@ describe('§8 block prescriptions', () => {
     expect(blockPrescription(1)).toEqual({
       sets: 3,
       repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 4, upperBound: 5 },
+      targetRIR: { lowerBound: 0, upperBound: 0 },
     });
     expect(blockPrescription(4)).toEqual({
       sets: 4,
       repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 2, upperBound: 2 },
+      targetRIR: { lowerBound: 0, upperBound: 0 },
     });
   });
 });
@@ -338,11 +342,11 @@ describe('§8 decisions', () => {
     expect(decision.kind).toBe('pass');
     expect(decision.block).toBe(1);
     expect(decision.prescriptionBlock).toBe(2);
-    // Block 2 of the default (hypertrophy) column: 3 × 8–10 @ 3–4 RIR.
+    // Block 2 of the default (hypertrophy) column: 3 × 8–10 @ 0 RIR (five-day-plan S7).
     expect(decision.prescription).toEqual({
       sets: 3,
       repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 3, upperBound: 4 },
+      targetRIR: { lowerBound: 0, upperBound: 0 },
     });
     expect(decision.failedCriteria).toEqual([]);
   });
@@ -357,11 +361,11 @@ describe('§8 decisions', () => {
 
     expect(decision.kind).toBe('repeat');
     expect(decision.prescriptionBlock).toBe(1);
-    // Block 1 of the default column: 3 × 8–10 @ 4–5 RIR.
+    // Block 1 of the default column: 3 × 8–10 @ 0 RIR.
     expect(decision.prescription).toEqual({
       sets: 3,
       repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 4, upperBound: 5 },
+      targetRIR: { lowerBound: 0, upperBound: 0 },
     });
   });
 
@@ -400,7 +404,7 @@ describe('§8 decisions', () => {
     expect(decision.prescription).toEqual({
       sets: 3,
       repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 4, upperBound: 5 },
+      targetRIR: { lowerBound: 0, upperBound: 0 },
     });
   });
 
@@ -446,11 +450,11 @@ describe('§8 decisions', () => {
     const decision = evaluateBlock(readaptationPhase(2), { block: 1, passedBlocks: 0, role }, history, NOW);
 
     expect(decision.kind).toBe('pass');
-    // Block 2 of the accessory column: 3 × 10–12 @ 3 RIR.
+    // Block 2 of the accessory column: 3 × 8–10 @ 0 RIR (five-day-plan S6).
     expect(decision.prescription).toEqual({
       sets: 3,
-      repRange: { lowerBound: 10, upperBound: 12 },
-      targetRIR: { lowerBound: 3, upperBound: 3 },
+      repRange: { lowerBound: 8, upperBound: 10 },
+      targetRIR: { lowerBound: 0, upperBound: 0 },
     });
   });
 });
@@ -463,8 +467,8 @@ describe('§8 per-exercise profile', () => {
     // Same block, same exercise count: the squat and the Nordic curl are not the same session.
     expect(strength).toEqual({
       sets: 3,
-      repRange: { lowerBound: 6, upperBound: 8 },
-      targetRIR: { lowerBound: 4, upperBound: 5 },
+      repRange: { lowerBound: 8, upperBound: 10 },
+      targetRIR: { lowerBound: 0, upperBound: 0 },
     });
     expect(preventive).toEqual({
       sets: 2,

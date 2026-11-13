@@ -58,7 +58,12 @@ describe('S1, S12 and L7 the plan is four training days', () => {
 });
 
 describe('S2 the prescription profile', () => {
-  it('gives the five profiles five different prescriptions', () => {
+  it('gives the five profiles four different prescriptions', () => {
+    // odd/tasks/five-day-plan.md S6/S7 collapsed two of them: strength and hypertrophy are
+    // both 8-10 to failure in every block, so only the set count told them apart before and
+    // now nothing does. The role still travels on the prescription (see the round-trip test
+    // below) and `conditioning` still refuses an increment, so the profile is not lost; what
+    // changed is that two columns are deliberately the same numbers.
     const shape = (role: BlockRole): string => JSON.stringify(blockPrescription(1, role));
 
     const shapes = new Set(
@@ -66,7 +71,8 @@ describe('S2 the prescription profile', () => {
         ['strength', 'hypertrophy', 'accessory', 'preventive', 'conditioning'] as const
       ).map(shape),
     );
-    expect(shapes.size).toBe(5);
+    expect(shapes.size).toBe(4);
+    expect(blockPrescription(1, 'strength')).toEqual(blockPrescription(1, 'hypertrophy'));
   });
 
   it('carries a profile on every plan item', () => {
@@ -93,7 +99,7 @@ describe('S2 the prescription profile', () => {
       makeOutcome({
         weightKg: 100,
         date: daysBefore(days),
-        sets: [6, 6, 6].map((reps) => makeSet(reps)),
+        sets: [8, 8, 8].map((reps) => makeSet(reps)),
       }),
     );
 
@@ -109,8 +115,9 @@ describe('S2 the prescription profile', () => {
       NOW,
     );
 
-    // Three sets of six is the strength prescription of block 1: complete sets, no
-    // failure, no discomfort, both weeks trained → the gate passes.
+    // Three sets of eight is the strength prescription of block 1 after
+    // odd/tasks/five-day-plan.md S6 (8-10 to failure): complete sets, no failure, no
+    // discomfort, both weeks trained → the gate passes.
     expect(recommendation.reason).toBe('readaptationBlockPassed');
   });
 });

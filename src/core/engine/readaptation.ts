@@ -42,28 +42,33 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
  * which the decision resolves.
  */
 const BLOCK_TABLE: Record<BlockRole, readonly BlockPrescription[]> = {
-  // The main lift of the day. Lower reps than the rest, and still conservative: block 1
-  // starts at 6–8 rather than the 5 the normal phase allows, because readaptation is the
-  // phase where a tendon meets the load again.
+  // The main lift of the day. The owner's prescription (odd/tasks/five-day-plan.md S6 and
+  // S7) replaces §6's conservative ladder here: 8–10 repetitions with every set taken to
+  // failure, in every block, so the RIR no longer walks down as the phase advances. The
+  // one exception, the squat at 1 RIR, is applied by the seed row (`plan.ts`), not by a
+  // column, because it belongs to an exercise and not to a role.
   strength: [
-    { sets: 3, repRange: repRange(6, 8), targetRIR: repRange(4, 5) },
-    { sets: 3, repRange: repRange(6, 8), targetRIR: repRange(3, 4) },
-    { sets: 4, repRange: repRange(5, 8), targetRIR: repRange(2, 3) },
-    { sets: 4, repRange: repRange(5, 6), targetRIR: repRange(2, 2) },
+    { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
+    { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
+    { sets: 4, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
+    { sets: 4, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
   ],
-  // Compound volume: the column every undeclared exercise gets.
+  // Compound volume: the column every undeclared exercise gets. Same owner's rule as
+  // `strength`: 8–10 repetitions to failure in every block (S6, S7).
   hypertrophy: [
-    { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(4, 5) },
-    { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(3, 4) },
-    { sets: 4, repRange: repRange(8, 12), targetRIR: repRange(2, 3) },
-    { sets: 4, repRange: repRange(8, 10), targetRIR: repRange(2, 2) },
+    { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
+    { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
+    { sets: 4, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
+    { sets: 4, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
   ],
-  // Isolation: calves, arms, femoral curls.
+  // Isolation: calves, arms, femoral curls. The owner asked for the same 8–10 to failure
+  // on every set of the strength days, isolation included (S6), so this column loses its
+  // higher rep ranges too.
   accessory: [
-    { sets: 2, repRange: repRange(10, 12), targetRIR: repRange(4, 4) },
-    { sets: 3, repRange: repRange(10, 12), targetRIR: repRange(3, 3) },
-    { sets: 3, repRange: repRange(10, 15), targetRIR: repRange(2, 3) },
-    { sets: 3, repRange: repRange(10, 12), targetRIR: repRange(2, 2) },
+    { sets: 2, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
+    { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
+    { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
+    { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
   ],
   // Hamstrings and adductors worked for tissue tolerance: two sets, far from failure, and
   // deliberately without a rep target that invites load chasing (Nordic, Copenhagen).
