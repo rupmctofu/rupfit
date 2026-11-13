@@ -23,13 +23,15 @@
  *   are what says "this row is mine": a rename, an added, removed or swapped exercise
  *   breaks the fingerprint, and the day stays the owner's. This is why a release that
  *   changes a seeded day must record the shape it is replacing here before shipping.
+ *   A day can have more than one historical shape (the fourth day has two: `FÍSICO` and
+ *   then `PREPARACIÓN FÚTBOL`), and any of them is enough to recognise it.
  * - **It never deletes anything.** A day the seed no longer ships stays where it is.
- * - **It writes the exercises a written day prescribes, and nothing else.** The preparation
- *   day names `Intervalos en pista`, which an old library has under the treadmill id only,
- *   and a plan row whose library row does not exist builds a session with
- *   `exerciseId: null` and no recommendation. Those missing rows are seeded first, in the
- *   same order the first-run flow uses (library before plan), and the library refresh's
- *   rule is untouched: it still only repairs rows that already exist.
+ * - **It writes the exercises a written day prescribes, and nothing else.** The mobility
+ *   day names rows an old library does not have, and a plan row whose library row does not
+ *   exist builds a session with `exerciseId: null` and no recommendation. Those missing
+ *   rows are seeded first, in the same order the first-run flow uses (library before plan),
+ *   and the library refresh's rule is untouched: it still only repairs rows that already
+ *   exist.
  * - **It is idempotent and cheap.** The steady state is one read (`plan.all`) and no write:
  *   a store that already has every seeded day, in the shape this release writes, returns
  *   immediately. Only the launch that catches up reads the library as well and writes.
@@ -61,6 +63,20 @@ interface ReplacedSeedDay extends StoredDayShape {
  * has to be recorded.
  */
 const REPLACED_SEED_DAYS: readonly ReplacedSeedDay[] = [
+  {
+    // odd/tasks/five-day-plan.md S1: the fourth day stops being football preparation and
+    // becomes mobility and core. Its L7 shape was the track interval, the assisted Nordic,
+    // the short Copenhagen, the held soleus and the front plank.
+    id: 'seed-day-fisico',
+    name: 'PREPARACIÓN FÚTBOL',
+    items: [
+      { exerciseId: 'seed-ex-intervalos-pista' },
+      { exerciseId: 'seed-ex-nordic-asistido' },
+      { exerciseId: 'seed-ex-copenhagen-corto' },
+      { exerciseId: 'seed-ex-soleo-isometrico' },
+      { exerciseId: 'seed-ex-plancha' },
+    ],
+  },
   {
     // Until odd/tasks/match-aware-week.md L7 the fourth day was `FÍSICO`: generic
     // conditioning on a treadmill, four slots, no Nordic curl.
@@ -127,10 +143,14 @@ export function outdatedSeedDays(
   replaced: readonly ReplacedSeedDay[] = REPLACED_SEED_DAYS,
 ): readonly SeedPlanDay[] {
   return seed.filter((day) => {
-    const previous = replaced.find((row) => row.id === day.id);
+    const previous = replaced.filter((row) => row.id === day.id);
     const storedDay = stored.find((row) => row.id === day.id);
 
-    return previous !== undefined && storedDay !== undefined && stillTheShape(storedDay, previous);
+    return (
+      previous.length > 0 &&
+      storedDay !== undefined &&
+      previous.some((row) => stillTheShape(storedDay, row))
+    );
   });
 }
 

@@ -120,40 +120,41 @@ describe('the seeded library', () => {
 
 describe('the starter plan', () => {
   it('is the four training days of the owner, in rotation order', () => {
-    // odd/tasks/match-aware-week.md S1 and S12: three strength days and one football
-    // preparation day, and the match is not a session. Rupfit stores no weekday, so the
-    // rotation is the four days and the calendar is the week plan's.
+    // odd/tasks/five-day-plan.md S1: three strength days and one mobility and core day,
+    // and the match is not a session. Rupfit stores no weekday, so the rotation is the
+    // four days and the calendar is the week plan's.
     expect(plan.map((day) => day.name)).toEqual([
       'PIERNA',
       'TORSO A',
       'TORSO B',
-      'PREPARACIÓN FÚTBOL',
+      'MOVILIDAD Y CORE',
     ]);
     expect(plan.map((day) => day.order)).toEqual([0, 1, 2, 3]);
   });
 
   it('starts every lifting day with its strength lift and keeps a readable number of exercises', () => {
     // Leg day is the longest on purpose: it carries the calves pair and the two
-    // preventive movements the football adaptation is built around. The preparation day
-    // has no strength lift to open with — its first slot is the interval, and that is the
-    // one day the engine prescribes by time.
+    // preventive movements the football adaptation is built around. The mobility day has
+    // no strength lift to open with — its first slot is the hip mobility — and it is the
+    // one day whose work is a prescription the block table cannot express.
     const lengths = plan.map((day) => day.items.length);
-    expect(lengths).toEqual([9, 8, 8, 5]);
+    expect(lengths).toEqual([9, 8, 8, 7]);
     for (const day of plan) {
       expect(day.items.map((item) => item.order)).toEqual(day.items.map((_, index) => index));
     }
     expect(plan[0]?.items[0]?.prescription.role).toBe('strength');
-    expect(plan[3]?.items[0]?.prescription.role).toBe('conditioning');
+    expect(plan[3]?.items[0]?.prescription.role).toBe('preventive');
     expect(plan[0]?.items[0]?.exerciseNameSnapshot).toBe('Sentadilla trasera');
     expect(plan[1]?.items[0]?.exerciseNameSnapshot).toBe('Press banca');
     expect(plan[2]?.items[0]?.exerciseNameSnapshot).toBe('Press banca inclinado');
-    expect(plan[3]?.items[0]?.exerciseNameSnapshot).toBe('Intervalos en pista');
+    expect(plan[3]?.items[0]?.exerciseNameSnapshot).toBe('Movilidad de cadera 90/90');
   });
 
   it('prescribes the session muscle by muscle and never the same exercise twice', () => {
     const leg = plan[0]?.items.map((item) => item.exerciseNameSnapshot) ?? [];
     const upperA = plan[1]?.items.map((item) => item.exerciseNameSnapshot) ?? [];
     const upperB = plan[2]?.items.map((item) => item.exerciseNameSnapshot) ?? [];
+    const mobility = plan[3]?.items.map((item) => item.exerciseNameSnapshot) ?? [];
 
     // Leg: quads and glutes through the squat and the press, hamstrings through a hinge, a
     // seated curl and the assisted Nordic, adductors through the adapted Copenhagen, and
@@ -194,60 +195,101 @@ describe('the starter plan', () => {
       'Caminata inclinada',
     ]);
 
-    // No exercise twice in a day. Across the week, `Nordic curl asistido` is the one
-    // deliberate repeat: the hamstring adaptation is trained on leg day and again on the
-    // preparation day, which is the point of prescribing it twice a week rather than once.
+    // The mobility day of S1: two hip-and-thorax drills, three core holds and the
+    // adapted Copenhagen the week already knows, closed by the same walk as the other
+    // three days. Nothing loaded and nothing to failure.
+    expect(mobility).toEqual([
+      'Movilidad de cadera 90/90',
+      'Movilidad torácica en cuadrupedia',
+      'Plancha',
+      'Plancha lateral',
+      'Bird-dog',
+      'Copenhagen plank adaptado',
+      'Caminata inclinada',
+    ]);
+
+    // No exercise twice in a day. Across the week, `Copenhagen plank adaptado` is the one
+    // deliberate repeat: the adductor adaptation is trained on leg day and again on the
+    // mobility day, which is the point of prescribing it twice a week rather than once.
+    // The walk is the other weekly repeat, and it is the same slot by design (S2).
     for (const day of plan) {
       const exerciseIds = day.items.map((item) => item.exerciseId);
       expect(new Set(exerciseIds).size, day.name).toBe(exerciseIds.length);
     }
   });
 
-  it('writes the football preparation day of L7 without moving the day it replaces', () => {
-    // odd/tasks/match-aware-week.md L7: the fourth day stops being generic conditioning on
-    // a treadmill and becomes the last training day before the match — the intervals move
-    // to the track, the surface the match is played on, and the rest is prevention. The key
-    // stays `fisico`, so the day id and the item ids stay too: a session whose history
-    // points at this day keeps pointing at it.
-    const prep = plan[3];
-    expect(prep?.id).toBe('seed-day-fisico');
-    expect(prep?.name).toBe('PREPARACIÓN FÚTBOL');
-    expect(prep?.items.map((item) => item.id)).toEqual([
+  it('writes the mobility and core day of S1 without moving the day it replaces', () => {
+    // odd/tasks/five-day-plan.md S1: the fourth day stops being football preparation and
+    // becomes mobility and core, with no load and the same twenty-minute walk the three
+    // strength days end with (S2). The key stays `fisico`, so the day id and the item ids
+    // stay too: a session whose history points at this day keeps pointing at it.
+    const mobility = plan[3];
+    expect(mobility?.id).toBe('seed-day-fisico');
+    expect(mobility?.name).toBe('MOVILIDAD Y CORE');
+    expect(mobility?.items.map((item) => item.id)).toEqual([
       'seed-item-fisico-1',
       'seed-item-fisico-2',
       'seed-item-fisico-3',
       'seed-item-fisico-4',
       'seed-item-fisico-5',
+      'seed-item-fisico-6',
+      'seed-item-fisico-7',
     ]);
-    expect(prep?.items.map((item) => item.exerciseId)).toEqual([
-      'seed-ex-intervalos-pista',
-      'seed-ex-nordic-asistido',
-      'seed-ex-copenhagen-corto',
-      'seed-ex-soleo-isometrico',
+    expect(mobility?.items.map((item) => item.exerciseId)).toEqual([
+      'seed-ex-movilidad-cadera-90-90',
+      'seed-ex-movilidad-toracica-cuadrupedia',
       'seed-ex-plancha',
+      'seed-ex-plancha-lateral',
+      'seed-ex-bird-dog',
+      'seed-ex-copenhagen-adaptado',
+      'seed-ex-caminata-inclinada',
     ]);
-    expect(prep?.items.map((item) => item.exerciseNameSnapshot)).toEqual([
-      'Intervalos en pista',
-      'Nordic curl asistido',
-      'Copenhagen plank corto',
-      'Elevación de sóleo isométrica',
+    expect(mobility?.items.map((item) => item.exerciseNameSnapshot)).toEqual([
+      'Movilidad de cadera 90/90',
+      'Movilidad torácica en cuadrupedia',
       'Plancha',
+      'Plancha lateral',
+      'Bird-dog',
+      'Copenhagen plank adaptado',
+      'Caminata inclinada',
     ]);
-    expect(prep?.items.map((item) => item.prescription.role)).toEqual([
+    // Every exercise slot is preventive and unloaded; only the walk, the day's closing
+    // cardio, carries the conditioning profile.
+    expect(mobility?.items.map((item) => item.prescription.role)).toEqual([
+      'preventive',
+      'preventive',
+      'preventive',
+      'preventive',
+      'preventive',
+      'preventive',
       'conditioning',
-      'preventive',
-      'preventive',
-      'preventive',
-      'preventive',
     ]);
-    // Prescribed by time: block 1 is two intervals of two minutes, at 4–5 RIR.
-    expect(prep?.items[0]?.prescription).toEqual({
+    // Timed holds are seconds, not fake reps: the preventive column supplies the profile
+    // and the `fixed` slot supplies the work.
+    expect(mobility?.items[2]?.prescription).toEqual({
+      sets: 3,
+      repRange: PREVENTIVE_REPS,
+      targetRIR: PREVENTIVE_RIR,
+      restSeconds: 90,
+      role: 'preventive',
+      durationSeconds: 30,
+    });
+    expect(mobility?.items[3]?.prescription).toEqual({
       sets: 2,
+      repRange: PREVENTIVE_REPS,
+      targetRIR: PREVENTIVE_RIR,
+      restSeconds: 90,
+      role: 'preventive',
+      durationSeconds: 25,
+    });
+    // And the walk is the same one-set twenty minutes the strength days carry (S2).
+    expect(mobility?.items[6]?.prescription).toEqual({
+      sets: 1,
       repRange: { lowerBound: 1, upperBound: 1 },
       targetRIR: { lowerBound: 4, upperBound: 5 },
-      restSeconds: 120,
+      restSeconds: 0,
       role: 'conditioning',
-      durationSeconds: 120,
+      durationSeconds: 1200,
     });
   });
 
@@ -306,8 +348,8 @@ describe('the starter plan', () => {
     expect(itemByName('Copenhagen plank adaptado').prescription.role).toBe('preventive');
 
     // §7: only the three documented intervals exist, and only the day's strength lifts
-    // take the 180 s one. The preparation day has neither: it prescribes no strength lift
-    // and rests its intervals the accessory-compound 120 s.
+    // take the 180 s one. The mobility day has none: it prescribes no strength lift, rests
+    // its holds the isolation 90 s and closes with the walk's zero rest (S2).
     for (const item of planItems) {
       expect([0, 90, 120, 180]).toContain(item.prescription.restSeconds);
     }
@@ -315,7 +357,8 @@ describe('the starter plan', () => {
       const long = day.items.filter((item) => item.prescription.restSeconds === 180);
       expect(long.length).toBe(day.items.filter((item) => item.prescription.role === 'strength').length);
     }
-    expect(plan[3]?.items[0]?.prescription.restSeconds).toBe(120);
+    expect(plan[3]?.items[0]?.prescription.restSeconds).toBe(90);
+    expect(plan[3]?.items.at(-1)?.prescription.restSeconds).toBe(0);
   });
 
   it('never puts the full Nordic curl before the assisted one', () => {

@@ -113,7 +113,7 @@ const WEEK_PLAN: readonly PlanDay[] = [
   seededDay('seed-day-leg', 'PIERNA', 0),
   seededDay('seed-day-torso-a', 'TORSO A', 1),
   seededDay('seed-day-torso-b', 'TORSO B', 2),
-  seededDay('seed-day-fisico', 'PREPARACIÓN FÚTBOL', 3),
+  seededDay('seed-day-fisico', 'MOVILIDAD Y CORE', 3),
 ];
 
 /** T3: the league week of the fixture, Thursday's match, no exchange yet. */
@@ -287,8 +287,8 @@ describe('Inicio offers to change today (T5, S6, S9)', () => {
   it('offers the exchange of today, and the sheet lists each partner and its weekday', () => {
     const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
 
-    // Wednesday of a league week holds the football preparation: that is today.
-    expect(markup).toContain('Preparación fútbol');
+    // Wednesday of a league week holds the mobility and core day: that is today.
+    expect(markup).toContain('Movilidad y core');
     expect(markup).toContain('Cambiar el entreno de hoy');
 
     const swap = homeViewOf(input({ plan: WEEK_PLAN, week: LEAGUE_WEEK })).today?.swap;
@@ -320,8 +320,8 @@ describe('Inicio offers to change today (T5, S6, S9)', () => {
 
     const markup = render({ plan: WEEK_PLAN, week: writes[0] });
     expect(markup).toContain('Pierna');
-    // The preparation left Wednesday: the card shows the exchanged week, not both days.
-    expect(markup).not.toContain('Preparación fútbol');
+    // The mobility day left Wednesday: the card shows the exchanged week, not both days.
+    expect(markup).not.toContain('Movilidad y core');
     // The exchanged week still offers the way back, so nothing was locked in.
     expect(markup).toContain('Cambiar el entreno de hoy');
   });
@@ -473,11 +473,11 @@ describe('the week says which fixture it has (T3, S7, S11)', () => {
     expect(writes).toEqual([{ monday: '2023-11-06', match: 'cup', swaps: [] }]);
 
     // The card the re-read draws is the cup week: today is the upper body, not the
-    // preparation the league layout puts on Wednesday.
+    // mobility day the league layout puts on Wednesday.
     const markup = render({ plan: WEEK_PLAN, week: writes[0] });
     expect(markup).toContain('Copa · martes');
     expect(markup).toContain('Torso A');
-    expect(markup).not.toContain('Preparación fútbol');
+    expect(markup).not.toContain('Movilidad y core');
   });
 
   it('restructures the week: a Thursday after the flip trains instead of hosting the match', async () => {
@@ -501,10 +501,10 @@ describe('the week says which fixture it has (T3, S7, S11)', () => {
     expect(await saveWeekMatch(port, NOW, 'league')).toBe(true);
     expect(writes).toEqual([LEAGUE_WEEK]);
 
-    // Today, Wednesday: the cup week's upper body gives way to the preparation.
+    // Today, Wednesday: the cup week's upper body gives way to the mobility day.
     expect(render({ plan: WEEK_PLAN, week: cupWeek })).toContain('Torso A');
     const today = render({ plan: WEEK_PLAN, week: writes[0] });
-    expect(today).toContain('Preparación fútbol');
+    expect(today).toContain('Movilidad y core');
     expect(today).toContain('Liga · jueves');
 
     // Thursday: the league match takes the day the cup week trained the legs on.
@@ -527,7 +527,7 @@ describe('the week says which fixture it has (T3, S7, S11)', () => {
     // drawn from — the league day for today, not the cup's day with the league's numbers.
     const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
     expect(markup).toContain('Liga · jueves');
-    expect(markup).toContain('Preparación fútbol');
+    expect(markup).toContain('Movilidad y core');
     expect(markup).not.toContain('Copa · martes');
   });
 });

@@ -90,6 +90,13 @@ const ROWS: readonly SeedExerciseRow[] = [
   { id: 'seed-ex-copenhagen', name: 'Copenhagen plank', primaryMuscle: 'adductors', pattern: 'core', equipment: 'bodyweight' },
   { id: 'seed-ex-copenhagen-corto', name: 'Copenhagen plank corto', primaryMuscle: 'adductors', pattern: 'core', equipment: 'bodyweight' },
 
+  // ---------------------- mobility: the fourth day of odd/tasks/five-day-plan.md S1
+  // The day stops being football preparation and becomes mobility and core. These two
+  // rows are the mobility half; the core half already exists (`Plancha`, `Copenhagen
+  // plank adaptado`) and the day reuses it instead of duplicating it.
+  { id: 'seed-ex-movilidad-cadera-90-90', name: 'Movilidad de cadera 90/90', primaryMuscle: 'glutes', pattern: 'core', equipment: 'bodyweight' },
+  { id: 'seed-ex-movilidad-toracica-cuadrupedia', name: 'Movilidad torácica en cuadrupedia', primaryMuscle: 'upperBack', pattern: 'core', equipment: 'bodyweight' },
+
   // ------------------------------------------- conditioning: the fourth gym day
   // L11: intervals to last the match. Three implements, one job: the day prescribes the
   // treadmill and the other two are what the owner picks when it is taken (S5), which is
@@ -155,6 +162,8 @@ const ROWS: readonly SeedExerciseRow[] = [
   // ------------------------------------------------------------------ core
   { id: 'seed-ex-crunch-polea', name: 'Crunch en polea', primaryMuscle: 'core', pattern: 'core', equipment: 'cable' },
   { id: 'seed-ex-plancha', name: 'Plancha', primaryMuscle: 'core', pattern: 'core', equipment: 'bodyweight' },
+  { id: 'seed-ex-plancha-lateral', name: 'Plancha lateral', primaryMuscle: 'core', pattern: 'core', equipment: 'bodyweight' },
+  { id: 'seed-ex-bird-dog', name: 'Bird-dog', primaryMuscle: 'core', pattern: 'core', equipment: 'bodyweight' },
   { id: 'seed-ex-elevacion-piernas', name: 'Elevación de piernas colgado', primaryMuscle: 'core', pattern: 'core', equipment: 'bodyweight' },
   { id: 'seed-ex-rueda-abdominal', name: 'Rueda abdominal', primaryMuscle: 'core', pattern: 'core', equipment: 'bodyweight' },
   { id: 'seed-ex-pallof-press', name: 'Pallof press', primaryMuscle: 'core', pattern: 'core', equipment: 'cable' },
@@ -290,6 +299,30 @@ const DETAIL: Readonly<Record<string, SeedExerciseDetail>> = {
     description:
       'Tumbado de lado con la rodilla de arriba apoyada en un escalón bajo y el codo en el suelo bajo el hombro, levanta la cadera y aguanta la línea del cuerpo unos segundos; es el paso entre el plank con la rodilla en el banco y la versión con el tobillo.',
     alternatives: ['seed-ex-copenhagen-adaptado', 'seed-ex-copenhagen'],
+  },
+
+  // -------------------------------- mobility: the fourth day of five-day-plan S1
+  /**
+   * The day's mobility half. Both rows borrow a drawing: there is no pictogram for hip or
+   * thoracic mobility yet, and inventing a key would break the "every key exists" rule of
+   * `illustrationKey.test.ts`. The closest existing picture is used and the description
+   * carries the real movement, which is the same stand-in the walk accepts until T8.
+   */
+  'seed-ex-movilidad-cadera-90-90': {
+    // Borrowed: the side-lying hip of `copenhagen-knee` is the closest body on the floor
+    // with one hip open and the other bent. The drawing is not the drill.
+    illustration: 'copenhagen-knee',
+    secondaryMuscles: ['core', 'adductors'],
+    description:
+      'Sentado en el suelo con una pierna delante y otra detrás formando dos ángulos de 90 grados, mantén el tronco alto y cambia de lado con control, sin empujarte con las manos.',
+  },
+  'seed-ex-movilidad-toracica-cuadrupedia': {
+    // Borrowed: no thoracic drawing exists. `calf-raise-isometric` is the remaining
+    // upright bodyweight picture; the caption says which part rotates.
+    illustration: 'calf-raise-isometric',
+    secondaryMuscles: ['shoulders', 'core'],
+    description:
+      'En cuadrupedia con las manos bajo los hombros y las rodillas bajo la cadera, lleva una mano a la nuca y rota el codo hacia el techo sin mover la pelvis; cambia de lado.',
   },
 
   // ------------------------------------------- conditioning: the fourth gym day
@@ -567,12 +600,30 @@ const DETAIL: Readonly<Record<string, SeedExerciseDetail>> = {
   },
 
   // ------------------------------------------------------------------- core
-  /** L11's front plank: the fourth day's anti-extension hold. */
+  /** The fourth day's anti-extension hold, now prescribed in seconds (five-day-plan S1). */
   'seed-ex-plancha': {
     illustration: 'plank-front',
     secondaryMuscles: ['shoulders', 'glutes'],
     description:
       'Apoya los antebrazos en el suelo con los codos bajo los hombros, extiende las piernas y mantén el cuerpo en línea apretando glúteos y abdomen el tiempo prescrito, sin que la cadera suba ni caiga.',
+  },
+  'seed-ex-plancha-lateral': {
+    // Borrowed: `plank-front` is the same family and the caption already says "de lado".
+    // A side-plank drawing is pending; inventing a key would point at nothing.
+    illustration: 'plank-front',
+    secondaryMuscles: ['shoulders', 'glutes', 'adductors'],
+    description:
+      'Tumbado de lado con el antebrazo apoyado y el codo bajo el hombro, junta los pies y levanta la cadera hasta alinear el cuerpo; aguanta sin dejar caer la pelvis y cambia de lado.',
+    alternatives: ['seed-ex-plancha', 'seed-ex-bird-dog'],
+  },
+  'seed-ex-bird-dog': {
+    // Borrowed: the kneeling torso of `nordic-curl` is the closest to the all-fours
+    // position. The caption says which limbs extend, and the key stays a real one.
+    illustration: 'nordic-curl',
+    secondaryMuscles: ['glutes', 'lowerBack', 'shoulders'],
+    description:
+      'En cuadrupedia con las manos bajo los hombros y las rodillas bajo la cadera, extiende a la vez un brazo y la pierna contraria sin mover la pelvis y vuelve despacio antes de cambiar.',
+    alternatives: ['seed-ex-plancha-lateral', 'seed-ex-plancha'],
   },
 };
 

@@ -1,0 +1,19 @@
+# What the build does not need and the upload should not carry.
+#
+# The first production deploy died with "Upload aborted" because the CLI was
+# shipping the whole working directory: the inspiration references, the generated
+# art, the analysis zip and the local tool caches. None of it is an input of
+# `npm run build`; all of it is hundreds of megabytes.
+node_modules
+dist
+.git
+.worktrees
+.codegraph
+.atl
+.edge-tmp
+.playwright-mcp
+supabase/.temp
+inspiration
+design/art
+tools/.tmp
+*.zip

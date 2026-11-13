@@ -103,6 +103,9 @@ export function formatEstimate(minutes: number): string {
  * The snapshot is stored in capitals (data-model §3), so the title case is a display
  * decision, and it belongs here rather than in three screens.
  */
+/** The words that join two parts of a day name and stay lowercase. */
+const CONNECTORS = new Set(['y', 'e', 'o', 'de', 'del', 'la', 'el', 'los', 'las']);
+
 export function formatDayName(name: string): string {
   return name
     .split('/')
@@ -111,6 +114,10 @@ export function formatDayName(name: string): string {
       return words
         .map((word, index) => {
           const lower = word.toLowerCase();
+          // A connector is never a label: `MOVILIDAD Y CORE` reads `Movilidad y core`, not
+          // `Movilidad Y core`. Checked before the lone-letter rule below, which would
+          // otherwise uppercase the `y`.
+          if (index > 0 && CONNECTORS.has(lower)) return lower;
           // A lone letter is a label, not a word: `TORSO A` reads `Torso A`, never
           // `Torso a`.
           if (index > 0 && word.length === 1) return word.toUpperCase();

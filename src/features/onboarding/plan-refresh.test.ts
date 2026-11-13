@@ -117,6 +117,50 @@ function seedNameOf(exerciseId: string): string {
 }
 
 /**
+ * The fourth day as the seed wrote it before odd/tasks/five-day-plan.md S1: called
+ * `PREPARACIÓN FÚTBOL`, with the track interval, the assisted Nordic, the short Copenhagen,
+ * the held soleus and the front plank.
+ *
+ * Written out from the document rather than read from the seed, because the seed no longer
+ * has it — and because a device in the wild does.
+ */
+function legacyPreparation(): PlanDay {
+  const exerciseIds = [
+    'seed-ex-intervalos-pista',
+    'seed-ex-nordic-asistido',
+    'seed-ex-copenhagen-corto',
+    'seed-ex-soleo-isometrico',
+    'seed-ex-plancha',
+  ];
+  const items: PlanItem[] = exerciseIds.map((exerciseId, order) => ({
+    id: `seed-item-fisico-${String(order + 1)}`,
+    planDayId: FISICO_ID,
+    order,
+    exerciseId,
+    exerciseNameSnapshot: seedNameOf(exerciseId),
+    prescription:
+      order === 0
+        ? {
+            sets: 2,
+            repRange: { lowerBound: 1, upperBound: 1 },
+            targetRIR: { lowerBound: 4, upperBound: 5 },
+            restSeconds: 120,
+            role: 'conditioning',
+            durationSeconds: 120,
+          }
+        : {
+            sets: 2,
+            repRange: { lowerBound: 6, upperBound: 8 },
+            targetRIR: { lowerBound: 5, upperBound: 6 },
+            restSeconds: 90,
+            role: 'preventive',
+          },
+  }));
+
+  return { id: FISICO_ID, name: 'PREPARACIÓN FÚTBOL', order: 3, items };
+}
+
+/**
  * The fourth day as the seed wrote it before odd/tasks/match-aware-week.md L7: called
  * `FÍSICO` and holding four slots of generic conditioning, intervals on the treadmill.
  *
@@ -171,13 +215,17 @@ describe('which seeded days a store is missing', () => {
 });
 
 describe('which seeded days a store holds in an earlier shape', () => {
-  it('names the day the seed changed in place, once the store has it', () => {
-    // L7 renamed the fourth day and gave it a fifth slot. A device seeded before that keeps
-    // the day it was written, and `plan.save` replaces a day's items, so the only rows this
-    // refresh may rewrite are the ones the seed wrote itself.
+  it('names every day the seed changed in place, once the store has it', () => {
+    // L7 renamed the fourth day and gave it a fifth slot, and five-day-plan S1 replaced
+    // that day again. A device seeded before either change keeps the day it was written,
+    // and `plan.save` replaces a day's items, so the only rows this refresh may rewrite
+    // are the ones the seed wrote itself.
     expect(outdatedSeedDays([...THREE_DAYS, legacyFisico()], SEED_DAYS).map((d) => d.id)).toEqual(
       [FISICO.id],
     );
+    expect(
+      outdatedSeedDays([...THREE_DAYS, legacyPreparation()], SEED_DAYS).map((d) => d.id),
+    ).toEqual([FISICO.id]);
   });
 
   it('says nothing about a current store, a missing day or a day the owner edited', () => {
@@ -257,7 +305,7 @@ describe('refreshing the seeded days on launch', () => {
     for (const day of THREE_DAYS) expect(store.written.planDays).not.toContain(day.id);
   });
 
-  it('carries the fourth day of L7 to a store that has it as `FÍSICO`', async () => {
+  it('carries the fourth day of S1 to a store that has it as `FÍSICO`', async () => {
     const mine: PlanDay = { id: 'day-mine', name: 'MI DÍA', order: 7, items: [] };
     const store = fakeStore({
       planDays: [...THREE_DAYS, legacyFisico(), mine],
@@ -266,26 +314,46 @@ describe('refreshing the seeded days on launch', () => {
 
     expect(await refreshSeededPlanDays(store.storage)).toBe(1);
 
-    // The library first, then the one day: the track intervals are not in the old library.
+    // The library first, then the one day: the mobility rows are not in the old library.
     expect(store.written.exercises).toEqual(PRESCRIBED);
     expect(store.written.planDays).toEqual([FISICO.id]);
     // The custom day is the owner's: named, never written.
     expect(store.written.planDays).not.toContain(mine.id);
     expect(store.planDays.get(mine.id)).toEqual(mine);
 
-    // The new name and the fifth slot, on the day id history already points at.
+    // The new name and the seven slots, on the day id history already points at.
     const refreshed = store.planDays.get(FISICO.id);
-    expect(refreshed?.name).toBe('PREPARACIÓN FÚTBOL');
+    expect(refreshed?.name).toBe('MOVILIDAD Y CORE');
     expect(refreshed?.items.map((item) => item.exerciseId)).toEqual(
       FISICO.items.map((item) => item.exerciseId),
     );
-    expect(refreshed?.items).toHaveLength(5);
+    expect(refreshed?.items).toHaveLength(7);
 
     // And once is enough: the second launch has nothing to do.
     const readsAfterFirst = store.reads.length;
     expect(await refreshSeededPlanDays(store.storage)).toBe(0);
     expect(store.reads.slice(readsAfterFirst)).toEqual(['plan']);
     expect(store.written.planDays).toEqual([FISICO.id]);
+  });
+
+  it('carries the mobility day to a store that still has `PREPARACIÓN FÚTBOL`', async () => {
+    // The store this release actually meets: a device seeded after L7, holding the track
+    // interval and the four preventive rows under the old name.
+    const store = fakeStore({
+      planDays: [...THREE_DAYS, legacyPreparation()],
+      exercises: SEED_EXERCISES.filter((row) => !PRESCRIBED.includes(row.id)),
+    });
+
+    expect(await refreshSeededPlanDays(store.storage)).toBe(1);
+
+    expect(store.written.exercises).toEqual(PRESCRIBED);
+    expect(store.written.planDays).toEqual([FISICO.id]);
+    const refreshed = store.planDays.get(FISICO.id);
+    expect(refreshed?.name).toBe('MOVILIDAD Y CORE');
+    expect(refreshed?.items.map((item) => item.exerciseId)).toEqual(
+      FISICO.items.map((item) => item.exerciseId),
+    );
+    expect(refreshed?.items).toHaveLength(7);
   });
 
   it('leaves the fourth day to the owner the moment they change it', async () => {

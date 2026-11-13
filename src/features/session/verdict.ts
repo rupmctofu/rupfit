@@ -47,9 +47,10 @@ export const TIMED_VERDICT_MESSAGE =
   'En un ejercicio por tiempo solo puedes responder «Lo hice» o «Fallé».';
 
 /**
- * A conditioning slot is prescribed by time instead of by repetitions
- * (odd/tasks/training-program.md L11): `durationSeconds` only exists on those, and it is
- * never present together with load work, so it is the whole test.
+ * A slot is prescribed by time when it carries `durationSeconds` instead of repetitions.
+ * That used to mean conditioning slots only (odd/tasks/training-program.md L11); since
+ * odd/tasks/five-day-plan.md S1 the planks of the mobility day are timed too, so the field
+ * is still the whole test but it is no longer a synonym for conditioning.
  */
 export function isTimed(prescription: ExercisePrescription): boolean {
   return prescription.durationSeconds !== undefined;

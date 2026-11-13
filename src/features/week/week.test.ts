@@ -47,7 +47,7 @@ const PLAN: readonly PlanDay[] = [
   planDay('seed-day-leg', 'PIERNA', 0),
   planDay('seed-day-torso-a', 'TORSO A', 1),
   planDay('seed-day-torso-b', 'TORSO B', 2),
-  planDay('seed-day-fisico', 'PREPARACIÓN FÚTBOL', 3),
+  planDay('seed-day-fisico', 'MOVILIDAD Y CORE', 3),
 ];
 
 /** T3: the league is the default, Thursday, and the record is the whole week's memory. */
@@ -71,6 +71,15 @@ describe('weekDaysOf maps the stored plan days by name', () => {
   it('T4 finds a day the owner renamed in another case, through the one formatter', () => {
     const renamed = PLAN.map((day) => (day.name === 'PIERNA' ? { ...day, name: 'Pierna' } : day));
     expect(weekDaysOf(renamed)?.leg).toBe('seed-day-leg');
+  });
+
+  it('T4 keeps reading the fourth day under the name S1 replaced', () => {
+    // A store the launch refresh has not rewritten, the demo fixture and a day the owner
+    // edited all still say `PREPARACIÓN FÚTBOL`; the role and the day id did not change.
+    const legacy = PLAN.map((day) =>
+      day.id === 'seed-day-fisico' ? { ...day, name: 'PREPARACIÓN FÚTBOL' } : day,
+    );
+    expect(weekDaysOf(legacy)?.prep).toBe('seed-day-fisico');
   });
 });
 
@@ -103,7 +112,7 @@ describe('weekTodayOf reads today from the week plan (S5, T4)', () => {
     // The targets read back from the exchanged week: Tuesday holds the leg day now.
     expect(today?.targets.map((target) => `${target.weekday} ${target.planDay.name}`)).toEqual([
       'Martes PIERNA',
-      'Miércoles PREPARACIÓN FÚTBOL',
+      'Miércoles MOVILIDAD Y CORE',
       'Viernes TORSO B',
     ]);
   });
@@ -174,7 +183,7 @@ describe('weekTodayOf offers the training days today can exchange with (S6, S9)'
     // Friday are legs the day after the match.
     expect(today?.targets.map((target) => `${target.weekday} ${target.planDay.name}`)).toEqual([
       'Martes TORSO A',
-      'Miércoles PREPARACIÓN FÚTBOL',
+      'Miércoles MOVILIDAD Y CORE',
     ]);
     expect(today?.targets.map((target) => target.swap)).toEqual([
       { from: 0, to: 1 },

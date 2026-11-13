@@ -20,26 +20,29 @@ const DAYS = seedPlanDays();
 const ITEMS = DAYS.flatMap((day) => day.items);
 
 /**
- * The fourth day of L7, by id: it is the football preparation day, and it kept the id it
- * had while it was called `FÍSICO`, so history still points here.
+ * The fourth day of five-day-plan S1, by id: it is the mobility and core day, and it kept
+ * the id it had while it was called `PREPARACIÓN FÚTBOL` and before that `FÍSICO`, so
+ * history still points here.
  */
 const FISICO = DAYS.find((day) => day.id === 'seed-day-fisico');
 if (FISICO === undefined) throw new Error('the fourth day is missing');
 const FISICO_ITEMS = FISICO.items;
 
-/** The interval the preparation day prescribes, and the track it is run on. */
-const INTERVAL_ITEM = FISICO_ITEMS.find((item) => item.prescription.role === 'conditioning');
-if (INTERVAL_ITEM === undefined) throw new Error('the preparation day has no interval');
-const INTERVAL = seedExerciseById(INTERVAL_ITEM.exerciseId);
-if (INTERVAL === undefined) throw new Error('the interval is not in the library');
+/** The twenty-minute walk the mobility day now ends with, and the machine it needs. */
+const WALK_ITEM = FISICO_ITEMS.find(
+  (item) => item.exerciseId === 'seed-ex-caminata-inclinada',
+);
+if (WALK_ITEM === undefined) throw new Error('the mobility day has no walk');
+const WALK = seedExerciseById(WALK_ITEM.exerciseId);
+if (WALK === undefined) throw new Error('the walk is not in the library');
 
-describe('S1, S12 and L7 the plan is four training days', () => {
-  it('ships leg, upper A, upper B and the football preparation day', () => {
+describe('S1 the plan is four training days', () => {
+  it('ships leg, upper A, upper B and the mobility and core day', () => {
     expect(DAYS.map((day) => day.name)).toEqual([
       'PIERNA',
       'TORSO A',
       'TORSO B',
-      'PREPARACIÓN FÚTBOL',
+      'MOVILIDAD Y CORE',
     ]);
   });
 
@@ -49,6 +52,8 @@ describe('S1, S12 and L7 the plan is four training days', () => {
     expect(roles).not.toContain('strength');
     expect(roles).not.toContain('hypertrophy');
     expect(roles).not.toContain('accessory');
+    // Every exercise slot is preventive; only the closing walk is conditioning.
+    expect(roles.filter((role) => role === 'preventive')).toHaveLength(6);
   });
 
   // Football's own guarantees (an activity row, and a rotation that does not move) are
@@ -127,16 +132,17 @@ describe('S3 preventive work never chases load', () => {
     expect(seedExerciseById('seed-ex-nordic-asistido')?.loadIncrementKg).toBe(0);
     expect(seedExerciseById('seed-ex-copenhagen-adaptado')?.loadIncrementKg).toBe(0);
 
-    // L7 prescribes the assisted Nordic on leg day and again on the preparation day — the
-    // hamstring adaptation is the one that earns the repeat — so there are three preventive
-    // rows here, and every one of them is unloaded and two sets far from failure.
+    // S1 moves the deliberate repeat from the Nordic to the adapted Copenhagen: the
+    // adductor adaptation is the one that earns it, so it is prescribed on leg day and
+    // again on the mobility day. There are three preventive rows here, and every one of
+    // them is unloaded and two sets far from failure.
     const preventive = ITEMS.filter((item) =>
       ['seed-ex-nordic-asistido', 'seed-ex-copenhagen-adaptado'].includes(item.exerciseId),
     );
     expect(preventive.map((item) => item.exerciseId)).toEqual([
       'seed-ex-nordic-asistido',
       'seed-ex-copenhagen-adaptado',
-      'seed-ex-nordic-asistido',
+      'seed-ex-copenhagen-adaptado',
     ]);
     expect(preventive.map((item) => item.prescription.role)).toEqual([
       'preventive',
@@ -168,17 +174,15 @@ describe('S4 and S5 library content', () => {
     }
   });
 
-  it('adds the rows the fourth day needs, with a description and no wrong neighbour', () => {
-    // training-program L11 added these rows, and L7 is why the preparation day prescribes
-    // the track: intervals on the treadmill, on the bike and on the track, plus the short
-    // Copenhagen and the held soleus. Each one exists because nothing already in the
-    // library is that concrete exercise.
+  it('adds the mobility rows the fourth day needs, with a description and no wrong neighbour', () => {
+    // five-day-plan S1 turns the fourth day into mobility and core. These four rows are
+    // what the library did not have; the planks and the Copenhagen reuse existing rows
+    // instead of duplicating them, and no new row takes weight.
     const expected = [
-      'seed-ex-intervalos-cinta',
-      'seed-ex-intervalos-bici',
-      'seed-ex-intervalos-pista',
-      'seed-ex-copenhagen-corto',
-      'seed-ex-soleo-isometrico',
+      'seed-ex-movilidad-cadera-90-90',
+      'seed-ex-movilidad-toracica-cuadrupedia',
+      'seed-ex-plancha-lateral',
+      'seed-ex-bird-dog',
     ];
 
     for (const id of expected) {
@@ -186,9 +190,12 @@ describe('S4 and S5 library content', () => {
       expect(row, id).toBeDefined();
       expect(row?.description, id).toBeTruthy();
       expect(row?.isCustom, id).toBe(false);
-      // S5: a busy treadmill has a real substitute, never a row of another movement.
-      expect(row?.alternatives ?? [], id).not.toHaveLength(0);
+      expect(row?.loadIncrementKg, id).toBe(0);
+      expect(row?.illustration, id).toBeTruthy();
     }
+
+    // The adapted Copenhagen is reused, not written twice.
+    expect(SEED_EXERCISES.filter((row) => row.id === 'seed-ex-copenhagen-adaptado')).toHaveLength(1);
   });
 });
 
@@ -262,40 +269,49 @@ describe('L11 the conditioning profile: prescribed by time, never by load', () =
     }
   });
 
-  it('ships the interval as a timed prescription and every other item untimed', () => {
-    expect(INTERVAL_ITEM.prescription.durationSeconds).toBe(120);
-    expect(INTERVAL_ITEM.prescription.sets).toBe(2);
+  it('ships the walk and the two planks as time, and every rep-prescribed item untimed', () => {
+    // S2 and S1: the walk is one twenty-minute set and the planks are holds of thirty and
+    // twenty-five seconds. Both are written with `durationSeconds`, so the app never turns
+    // them into fake repetitions.
+    expect(WALK_ITEM.prescription.durationSeconds).toBe(1200);
+    expect(WALK_ITEM.prescription.sets).toBe(1);
+
+    const timed = new Map(
+      FISICO_ITEMS.map((item) => [item.exerciseId, item.prescription.durationSeconds] as const),
+    );
+    expect(timed.get('seed-ex-plancha')).toBe(30);
+    expect(timed.get('seed-ex-plancha-lateral')).toBe(25);
+
+    const timedIds = new Set([
+      'seed-ex-caminata-inclinada',
+      'seed-ex-plancha',
+      'seed-ex-plancha-lateral',
+    ]);
     for (const item of ITEMS) {
-      if (item.prescription.role === 'conditioning') continue;
+      if (timedIds.has(item.exerciseId)) continue;
       expect(item.prescription.durationSeconds, item.exerciseId).toBeUndefined();
     }
   });
 
   it('returns zero kilos and never an increment, though the treadmill has a plate stack', () => {
     // The treadmill is a `machine`, and a machine's step is 2.5 kg. The engine reads the
-    // profile, not the implement, and treats the interval as bodyweight work (§6). L7 moved
-    // the preparation day's interval to the track and left the treadmill in the library as
-    // its wet-day substitute, so the drum with the plate stack is still what this pins.
-    const treadmill = seedExerciseById('seed-ex-intervalos-cinta');
-    if (treadmill === undefined) throw new Error('the treadmill left the library');
-    expect(treadmill.loadIncrementKg).toBe(2.5);
-    // And the interval the day actually prescribes is the unloaded one on the track.
-    expect(INTERVAL.loadIncrementKg).toBe(0);
+    // profile, not the implement, and treats the closing walk as unloaded work (S2).
+    expect(WALK.loadIncrementKg).toBe(2.5);
 
     const history = [2, 5, 8, 11].map((days) =>
       makeOutcome({
         weightKg: 0,
         date: daysBefore(days),
-        // Every set at the top of its (one-rep) range, at an effort that would move a
-        // loaded lift: nothing here may produce a heavier interval.
-        sets: [1, 1].map(() => makeSet(1, { effort: EFFORT.hard })),
+        // Every set performed, at an effort that would move a loaded lift: nothing here
+        // may produce a heavier walk.
+        sets: [1].map(() => makeSet(1, { effort: EFFORT.hard })),
       }),
     );
 
     const recommendation = recommend(
       makeInput({
-        exercise: treadmill,
-        prescription: INTERVAL_ITEM.prescription,
+        exercise: WALK,
+        prescription: WALK_ITEM.prescription,
         phase: readaptationPhase(2),
         phaseState: { block: 1, passedBlocks: 0 },
         history,
@@ -310,8 +326,8 @@ describe('L11 the conditioning profile: prescribed by time, never by load', () =
       for (const phase of [readaptationPhase(block), { kind: 'normal' } as const]) {
         const result = recommend(
           makeInput({
-            exercise: treadmill,
-            prescription: INTERVAL_ITEM.prescription,
+            exercise: WALK,
+            prescription: WALK_ITEM.prescription,
             phase,
             phaseState: { block, passedBlocks: 0 },
             history,
@@ -323,11 +339,11 @@ describe('L11 the conditioning profile: prescribed by time, never by load', () =
     }
   });
 
-  it('carries the minutes through the store and through the backup document', () => {
+  it('carries the seconds through the store and through the backup document', () => {
     // The blocker of T1 repeated in miniature: a profile the domain honours and the mapper
     // drops. The store round trip and the document round trip both have to keep it.
-    const stored = planItemFromRow(planItemToRow(INTERVAL_ITEM as never));
-    expect(stored.prescription.durationSeconds).toBe(120);
+    const stored = planItemFromRow(planItemToRow(WALK_ITEM as never));
+    expect(stored.prescription.durationSeconds).toBe(1200);
     expect(stored.prescription.role).toBe('conditioning');
 
     const json = serializeDocument(
@@ -350,9 +366,9 @@ describe('L11 the conditioning profile: prescribed by time, never by load', () =
     if (!parsed.ok) return;
 
     const day = parsed.document.planDays.find((candidate) => candidate.id === 'seed-day-fisico');
-    const interval = day?.items.find((item) => item.id === INTERVAL_ITEM.id);
-    expect(interval?.prescription.durationSeconds).toBe(120);
-    expect(interval?.prescription.role).toBe('conditioning');
+    const walk = day?.items.find((item) => item.id === WALK_ITEM.id);
+    expect(walk?.prescription.durationSeconds).toBe(1200);
+    expect(walk?.prescription.role).toBe('conditioning');
 
     // And a rep-prescribed item encodes with no such key, exactly as before L11.
     const torso = parsed.document.planDays.find((candidate) => candidate.name === 'TORSO A');

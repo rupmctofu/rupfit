@@ -40,12 +40,24 @@ import { formatDayName, formatWeekdayName } from '../home/format';
 /**
  * The four days of the seed, by role (L5, L7). `PlanDay` keeps no key, only a name, so
  * the names are the bridge between the stored plan and the engine's roles.
+ *
+ * `prep` was renamed by odd/tasks/five-day-plan.md S1 and kept its role and its day id, so
+ * its previous display name is still read: a store the launch refresh has not rewritten,
+ * the demo fixture and a plan the owner edited all keep their fourth day instead of losing
+ * it to a string comparison.
  */
 const ROLE_NAMES: Readonly<Record<keyof WeekPlanDays, string>> = {
   leg: 'PIERNA',
   upperA: 'TORSO A',
   upperB: 'TORSO B',
-  prep: 'PREPARACIÓN FÚTBOL',
+  prep: 'MOVILIDAD Y CORE',
+};
+
+/** Display names an earlier release used for a role that kept its id. */
+const PREVIOUS_ROLE_NAMES: Readonly<
+  Partial<Record<keyof WeekPlanDays, readonly string[]>>
+> = {
+  prep: ['PREPARACIÓN FÚTBOL'],
 };
 
 function pad(value: number): string {
@@ -81,8 +93,15 @@ export function weekDaysOf(plan: readonly PlanDay[]): WeekPlanDays | null {
   const byName = new Map<string, string>();
   for (const day of plan) byName.set(formatDayName(day.name), day.id);
 
-  const idOf = (role: keyof WeekPlanDays): string | null =>
-    byName.get(formatDayName(ROLE_NAMES[role])) ?? null;
+  const idOf = (role: keyof WeekPlanDays): string | null => {
+    const current = byName.get(formatDayName(ROLE_NAMES[role]));
+    if (current !== undefined) return current;
+    for (const previous of PREVIOUS_ROLE_NAMES[role] ?? []) {
+      const id = byName.get(formatDayName(previous));
+      if (id !== undefined) return id;
+    }
+    return null;
+  };
 
   const leg = idOf('leg');
   const upperA = idOf('upperA');

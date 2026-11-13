@@ -53,10 +53,12 @@ fallo antes de la repetición objetivo (L8).
 |----|-------|-----|------|--------|
 | T1 | S6, S7 | Prescripción fija 8–10 @ 0 RIR (sentadilla 1 RIR) en la tabla de bloques y en el seed | inline | hecho |
 | T2 | S2 | Ejercicio de caminata inclinada y su prescripción de 20 min al final de cada día de entreno | inline | hecho |
-| T3 | S1 | Cuarto día: `PREPARACIÓN FÚTBOL` pasa a `MOVILIDAD Y CORE` en el seed y en la plantilla | worker | — |
+| T3 | S1 | Cuarto día: `PREPARACIÓN FÚTBOL` pasa a `MOVILIDAD Y CORE` en el seed y en la plantilla | worker | hecho |
 | T4 | S8 | Poder anotar el fallo antes de la repetición objetivo | worker | — |
 | T5 | S4, S5 | Vista de semana con estado por día y selector de día, sobre lo que ya existe en Entrenar | worker | — |
 | T6 | S3 | Ajustar la estimación de duración para que la sesión cuadre en ~60 min con el cardio | inline | — |
+| T9 | S1 | Pictogramas propios para movilidad de cadera, torácica, plancha lateral y bird-dog | — | — |
+| T10 | S1 | Retirar el alias de nombre antiguo de `week.ts` cuando demo y selectors dejen de usarlo | — | — |
 | T8 | S2 | Pictograma propio para la caminata (hoy usa el de los intervalos en cinta) | — | — |
 | T7 | S6, S7 | Llevar la excepción de la sentadilla al motor (hoy se pierde al avanzar de bloque) y actualizar `docs/training-science.md` §6 y `docs/progression-engine.md` §8 | inline | — |
 
@@ -92,6 +94,17 @@ que tengo que entrenar para que la décima rep sea la ultima que puedo hacer y q
 una onceava, haría fallo. Por lo tanto creo que si debería ser importante poder anotar que he
 fallado antes de la 10». Consecuencia: `setAtFailure` no se quita; se añade el registro del
 fallo temprano.
+
+L12 (worker + arquitecto, T3 entregada): cuarto día `MOVILIDAD Y CORE` con los siete slots
+aprobados, sin carga, y la caminata al final; id `seed-day-fisico` intacto. El worker añadió
+las cuatro filas nuevas con descripciones en `DETAIL`, actualizó `ROLE_NAMES`, registró la
+forma antigua en `REPLACED_SEED_DAYS` y arregló los tests que fijaban el día viejo (1042 en
+verde). Dos correcciones del arquitecto sobre su entrega: (a) las cuatro series de repeticiones
+no eran literales —leían la columna `preventive` (2 × 6–8)—, así que `fixed` ahora acepta
+`repRange` y el día prescribe 2 × 8, 2 × 10 y 2 × 6 tal como se aprobó; (b) el nombre se
+mostraba «Movilidad Y core» por la regla de la letra suelta, corregido con una lista de
+conectores en `format.ts`. Pendiente: cuatro pictogramas prestados (T9) y el alias de nombre
+antiguo en `week.ts` (T10).
 
 L10 (dueño, corrección): «no se puede poner 1x20min?». Sí: `durationSeconds` es un número
 libre, el límite de 240 s estaba solo en los valores de la columna de intervalos. T2 se hizo

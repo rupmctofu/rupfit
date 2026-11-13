@@ -54,11 +54,13 @@ describe('the artwork of the programme', () => {
     }
   });
 
-  it('draws the fourth day, and draws each of its exercises differently', () => {
-    // odd/tasks/match-aware-week.md L7: the fourth day is football preparation, and its
-    // five slots are five separate pictures in the same line style — the track, the held
-    // heel, the low step, the held calf raise and the floor under the forearms. The id is
-    // the identity: the day changed its name and kept this one.
+  it('draws the fourth day, with a borrowed picture where its own art does not exist', () => {
+    // odd/tasks/five-day-plan.md S1: the fourth day is mobility and core. There is no
+    // drawing yet for hip mobility, thoracic mobility, the side plank or the bird-dog, so
+    // each of those borrows the closest existing key instead of inventing one that would
+    // point at nothing. The borrows are declared in `DETAIL` of the seed; this test keeps
+    // the mapping honest and keeps every item drawn. The id is the identity: the day
+    // changed its name and kept this one.
     const day = seedPlanDays().find((candidate) => candidate.id === 'seed-day-fisico');
     if (day === undefined) throw new Error('the fourth day is missing');
 
@@ -69,14 +71,17 @@ describe('the artwork of the programme', () => {
     });
 
     expect(keys).toEqual([
-      'track-intervals',
-      'nordic-curl',
-      'copenhagen-short',
-      'calf-raise-isometric',
-      'plank-front',
+      'copenhagen-knee', // hip mobility: borrowed from the side-lying hip
+      'calf-raise-isometric', // thoracic mobility: borrowed, no torso drawing exists
+      'plank-front', // front plank: the same family's own picture
+      'plank-front', // side plank: borrowed until it has its own drawing
+      'nordic-curl', // bird-dog: borrowed from the kneeling torso
+      'copenhagen-knee', // adapted Copenhagen: its own picture
+      'treadmill-intervals', // the walk: borrowed until T8 draws it
     ]);
-    // One drawing per variant: no two items of the day share a picture.
-    expect(new Set(keys).size).toBe(keys.length);
+    // The borrows are why this day may repeat a key; every key still exists, which is
+    // what the session needs to draw something. Own-art variants stay unique elsewhere.
+    for (const key of keys) expect(isIllustrationKey(key ?? undefined)).toBe(true);
   });
 
   it('gives the interval family one drawing per implement', () => {

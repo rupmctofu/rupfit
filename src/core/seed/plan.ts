@@ -7,22 +7,24 @@
  *
  * 1. **Four days, one per movement family.** FR-3.1 fixes the template verbatim —
  *    `SENTADILLA / PIERNA`, `PESO MUERTO / TRACCIÓN`, `PRESS BANCA / EMPUJE` — and
- *    odd/tasks/match-aware-week.md L7 replaces the fourth, `FÍSICO`, with
- *    `PREPARACIÓN FÚTBOL`: it is still the only day prescribed by time, and it is the day
- *    that makes the programme about football. training-science
- *    §2 makes frequency a scheduling choice (UP), not a physiological optimum: what the
- *    owner asked for, and what one barbell and one pair of shoes can do, is one session
- *    per family. A two-day split would leave 18 weekly sets spread over too few
- *    movements; a five-day split would be a programme the document does not support and
- *    one the owner did not ask for.
+ *    odd/tasks/five-day-plan.md S1 replaces the fourth, `PREPARACIÓN FÚTBOL`, with
+ *    `MOVILIDAD Y CORE`: the match day has no session (L7), so the fourth day keeps the
+ *    week's fourth slot and gives it back as mobility and core without load. The day id
+ *    stays `seed-day-fisico`, which is what stored plans and history point at.
+ *    training-science §2 makes frequency a scheduling choice (UP), not a physiological
+ *    optimum: what the owner asked for, and what one barbell and one pair of shoes can do,
+ *    is one session per family. A two-day split would leave 18 weekly sets spread over
+ *    too few movements; a five-day split would be a programme the document does not
+ *    support and one the owner did not ask for.
  * 2. **Six exercises per day: the primary lift plus the five accessories of FR-3.2**, in
  *    the order the document lists them. That is exactly the shape the Entrenar and
- *    Historial artboards draw (`6 ejercicios`).
+ *    Historial artboards draw (`6 ejercicios`). The fourth day is the exception the
+ *    feature document writes out: six unloaded slots and the twenty-minute walk.
  * 3. **No exercise is prescribed twice in a day.** Each row uses a different library entry,
  *    which is why the pull day prescribes `Face pull` and `Espalda alta` rather than a third
- *    row variation. Across the week there is one deliberate repeat, `Nordic curl asistido`,
- *    on leg day and on the preparation day: the hamstring adaptation is the one that needs
- *    the frequency, and both slots are unloaded and far from failure.
+ *    row variation. Across the week there is one deliberate repeat, `Copenhagen plank
+ *    adaptado`, on leg day and on the mobility day: the adductor adaptation is the one
+ *    that needs the frequency, and both slots are unloaded and far from failure.
  *
  * **The prescriptions are block 1 of the readaptation protocol, not a normal-phase
  * guess.** FR-4.1 starts every new user in readaptation, so the plan is written for the
@@ -34,8 +36,10 @@
  * the readaptation floor §4 sets ("4–6 sets per muscle group per week") and not the normal
  * phase's 10–16. The engine moves the volume from block 1 to block 4 on its own; the plan
  * only has to be right for the block the owner starts in. The fourth day reads its own
- * column the same way: block 1 is `2 × 2 min @ 4–5 RIR`, and the minutes grow with the
- * blocks while the load stays at zero.
+ * column the same way: block 1 is `2 × 6–8`, and the reps grow with the blocks while the
+ * load stays at zero. The two planks and the walk are the exception: their work is time,
+ * so they carry a `fixed` slot (`3 × 30 s`, `2 × 25 s`, `1 × 20:00`) instead of reading a
+ * rep ladder that would turn a hold into fake repetitions.
  *
  * Rest intervals are training-science §7 (DD): `180 s` primary, `120 s` accessory
  * compound, `90 s` isolation or core. A conditioning slot rests the accessory-compound
@@ -48,7 +52,7 @@
  * rows are assignable without a cast, and `seed.test.ts` pins that.
  */
 
-import type { ExercisePrescription, BlockRole, PhaseState } from '../domain';
+import type { ExercisePrescription, BlockRole, PhaseState, RepRange } from '../domain';
 import { blockPrescription } from '../engine/readaptation';
 import { SEED_EXERCISES, seedExerciseById } from './exercises';
 
@@ -99,11 +103,16 @@ interface SeedSlot {
   readonly role: BlockRole;
   readonly restSeconds: number;
   /**
-   * A prescription the block table cannot express, written out in full. The only user is
-   * the twenty-minute walk of `odd/tasks/five-day-plan.md` S2: one continuous set, which
-   * is a `durationSeconds` of 1200 and not a column of intervals that stops at 240.
+   * A prescription the block table cannot express, written out in full. Two users: the
+   * twenty-minute walk of `odd/tasks/five-day-plan.md` S2 (one continuous set, which is a
+   * `durationSeconds` of 1200 and not a column of intervals that stops at 240) and the
+   * timed holds of S1, whose seconds are work and not repetitions.
    */
-  readonly fixed?: { readonly sets: number; readonly durationSeconds: number };
+  readonly fixed?: {
+    readonly sets: number;
+    readonly durationSeconds?: number;
+    readonly repRange?: RepRange;
+  };
 }
 
 interface SeedDaySpec {
@@ -149,14 +158,33 @@ function preventive(exerciseId: string): SeedSlot {
 }
 
 /**
- * The fourth day's engine work: prescribed by time, never by load. The prescription takes
- * its minutes from the conditioning column of the block table rather than repeating them
- * here, exactly as the rep-prescribed slots take their reps. The rest is the longest of the
- * three: an interval needs the breathing back before the next one, and it is a number to
- * read, never a timer the app starts (S6).
+ * A timed hold: a plank is prescribed in seconds, and the `preventive` column only knows
+ * repetitions. The profile stays `preventive` (unloaded, far from failure) and the `fixed`
+ * block replaces its rep count with time, exactly as the walk replaces the conditioning
+ * ladder with one twenty-minute set.
  */
-function conditioning(exerciseId: string): SeedSlot {
-  return slot('conditioning', exerciseId, REST_COMPOUND_S);
+/**
+ * A slot the block table cannot express in repetitions: the mobility day's own numbers
+ * (`odd/tasks/five-day-plan.md` S1, the list the owner approved). Sets and reps travel
+ * together; the effort stays the preventive column's, because nothing on that day is
+ * prescribed near failure.
+ */
+function reps(exerciseId: string, sets: number, low: number, high: number): SeedSlot {
+  return {
+    exerciseId,
+    role: 'preventive',
+    restSeconds: REST_ISOLATION_S,
+    fixed: { sets, repRange: { lowerBound: low, upperBound: high } },
+  };
+}
+
+function hold(exerciseId: string, sets: number, durationSeconds: number): SeedSlot {
+  return {
+    exerciseId,
+    role: 'preventive',
+    restSeconds: REST_ISOLATION_S,
+    fixed: { sets, durationSeconds },
+  };
 }
 
 /**
@@ -174,10 +202,10 @@ function walk(exerciseId: string): SeedSlot {
 }
 
 /**
- * The owner's four training days, in rotation order: three of strength and one of football
- * preparation (odd/tasks/match-aware-week.md S1, S12). Which weekday each one lands on is
- * the week plan's business (`src/core/engine/week-plan.ts`), not this table's; what lives
- * here is what each day contains.
+ * The owner's four training days, in rotation order: three of strength and one of mobility
+ * and core (odd/tasks/five-day-plan.md S1). Which weekday each one lands on is the week
+ * plan's business (`src/core/engine/week-plan.ts`), not this table's; what lives here is
+ * what each day contains.
  *
  * The order inside each day is deliberate: the strength lift while fresh, then compound
  * volume, then the preventive pair, then isolation. On leg day that puts Nordic curl after
@@ -185,15 +213,12 @@ function walk(exerciseId: string): SeedSlot {
  * absorbed before the match — and it never puts a second eccentric hamstring movement next
  * to the Romanian deadlift.
  *
- * The fourth day is the last training day before the match (L7): MD-1 when the match falls
- * on Wednesday or Monday, and never the match day itself. That is why it is activation and
- * prevention instead of load — five short slots, no strength lift, nothing that would ask
- * the legs to recover from a barbell while they are needed on the pitch. The intervals are
- * the one piece of work with any quality to it, and they run on the track: the track is the
- * surface the match is played on, so the specific version is the one that transfers, and
- * the treadmill stays in the library as the substitute for a wet day. A front plank and the
- * short Copenhagen keep the adductors and the trunk of a football week honest without
- * costing recovery.
+ * The fourth day is the last training day of the week (L7): MD-1 when the match falls on
+ * Wednesday or Monday, and never the match day itself. S1 gives it no load at all: hip and
+ * thoracic mobility, two planks, bird-dog, the adapted Copenhagen the week already knows,
+ * and the same twenty-minute inclined walk the strength days end with. Nothing here asks
+ * the legs to recover from a barbell while they are needed on the pitch, and nothing is
+ * prescribed to failure.
  */
 const DAYS: readonly SeedDaySpec[] = [
   {
@@ -243,13 +268,15 @@ const DAYS: readonly SeedDaySpec[] = [
     // The key stays `fisico`, so the day id and every item id stay too: a session whose
     // history points at this day keeps pointing at it after the rename.
     key: 'fisico',
-    name: 'PREPARACIÓN FÚTBOL',
+    name: 'MOVILIDAD Y CORE',
     slots: [
-      conditioning('seed-ex-intervalos-pista'),
-      preventive('seed-ex-nordic-asistido'),
-      preventive('seed-ex-copenhagen-corto'),
-      preventive('seed-ex-soleo-isometrico'),
-      preventive('seed-ex-plancha'),
+      reps('seed-ex-movilidad-cadera-90-90', 2, 8, 8),
+      reps('seed-ex-movilidad-toracica-cuadrupedia', 2, 8, 8),
+      hold('seed-ex-plancha', 3, 30),
+      hold('seed-ex-plancha-lateral', 2, 25),
+      reps('seed-ex-bird-dog', 2, 10, 10),
+      reps('seed-ex-copenhagen-adaptado', 2, 6, 6),
+      walk('seed-ex-caminata-inclinada'),
     ],
   },
 ];
@@ -277,7 +304,7 @@ function prescriptionOf(slot: SeedSlot): ExercisePrescription {
   const squat = slot.exerciseId === SQUAT_EXERCISE_ID;
   const prescription: ExercisePrescription = {
     sets: slot.fixed?.sets ?? block.sets,
-    repRange: { ...block.repRange },
+    repRange: slot.fixed?.repRange === undefined ? { ...block.repRange } : { ...slot.fixed.repRange },
     // The squat is the only lift the owner asked to leave one rep short of failure (S6).
     targetRIR: squat ? { lowerBound: 1, upperBound: 1 } : { ...block.targetRIR },
     restSeconds: slot.restSeconds,

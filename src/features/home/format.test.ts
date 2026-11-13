@@ -83,6 +83,8 @@ describe('day names', () => {
     expect(formatDayName('SENTADILLA / PIERNA')).toBe('Sentadilla / Pierna');
     expect(formatDayName('PESO MUERTO / TRACCIÓN')).toBe('Peso muerto / Tracción');
     expect(formatDayName('MOVILIDAD')).toBe('Movilidad');
+    // The fourth day of odd/tasks/five-day-plan.md S1: the connector stays lowercase.
+    expect(formatDayName('MOVILIDAD Y CORE')).toBe('Movilidad y core');
     // The owner's split names the halves by letter, and the letter stays a letter.
     expect(formatDayName('TORSO A')).toBe('Torso A');
     expect(formatDayName('TORSO B')).toBe('Torso B');
