@@ -98,6 +98,12 @@ interface SeedSlot {
   /** Which column of the block table prescribes this exercise (§6). */
   readonly role: BlockRole;
   readonly restSeconds: number;
+  /**
+   * A prescription the block table cannot express, written out in full. The only user is
+   * the twenty-minute walk of `odd/tasks/five-day-plan.md` S2: one continuous set, which
+   * is a `durationSeconds` of 1200 and not a column of intervals that stops at 240.
+   */
+  readonly fixed?: { readonly sets: number; readonly durationSeconds: number };
 }
 
 interface SeedDaySpec {
@@ -154,6 +160,20 @@ function conditioning(exerciseId: string): SeedSlot {
 }
 
 /**
+ * The twenty minutes of inclined walking the owner puts after every session
+ * (odd/tasks/five-day-plan.md S2). One set that lasts the whole block and no rest, because
+ * a walk is not a ladder of intervals: the app shows `1 serie x 20:00`, not `5 x 4:00`.
+ */
+function walk(exerciseId: string): SeedSlot {
+  return {
+    exerciseId,
+    role: 'conditioning',
+    restSeconds: 0,
+    fixed: { sets: 1, durationSeconds: 1200 },
+  };
+}
+
+/**
  * The owner's four training days, in rotation order: three of strength and one of football
  * preparation (odd/tasks/match-aware-week.md S1, S12). Which weekday each one lands on is
  * the week plan's business (`src/core/engine/week-plan.ts`), not this table's; what lives
@@ -188,6 +208,7 @@ const DAYS: readonly SeedDaySpec[] = [
       preventive('seed-ex-copenhagen-adaptado'),
       accessory('seed-ex-gemelos'),
       accessory('seed-ex-soleo-sentado'),
+      walk('seed-ex-caminata-inclinada'),
     ],
   },
   {
@@ -201,6 +222,7 @@ const DAYS: readonly SeedDaySpec[] = [
       accessory('seed-ex-elevaciones-laterales'),
       accessory('seed-ex-curl-barra'),
       accessory('seed-ex-extensiones-triceps'),
+      walk('seed-ex-caminata-inclinada'),
     ],
   },
   {
@@ -214,6 +236,7 @@ const DAYS: readonly SeedDaySpec[] = [
       accessory('seed-ex-face-pull'),
       accessory('seed-ex-curl-polea'),
       accessory('seed-ex-extension-triceps-mancuerna'),
+      walk('seed-ex-caminata-inclinada'),
     ],
   },
   {
@@ -253,7 +276,7 @@ function prescriptionOf(slot: SeedSlot): ExercisePrescription {
   const block = blockPrescription(START_BLOCK, slot.role);
   const squat = slot.exerciseId === SQUAT_EXERCISE_ID;
   const prescription: ExercisePrescription = {
-    sets: block.sets,
+    sets: slot.fixed?.sets ?? block.sets,
     repRange: { ...block.repRange },
     // The squat is the only lift the owner asked to leave one rep short of failure (S6).
     targetRIR: squat ? { lowerBound: 1, upperBound: 1 } : { ...block.targetRIR },
@@ -263,10 +286,13 @@ function prescriptionOf(slot: SeedSlot): ExercisePrescription {
     role: slot.role,
   };
   // A conditioning slot is prescribed by time: the minutes travel with the prescription
-  // and are absent on every other slot, exactly as they are in the block table.
-  return block.durationSeconds === undefined
+  // and are absent on every other slot, exactly as they are in the block table. A slot
+  // that carries its own `fixed` block wins over the column, which is how the walk gets
+  // its twenty minutes in one set.
+  const durationSeconds = slot.fixed?.durationSeconds ?? block.durationSeconds;
+  return durationSeconds === undefined
     ? prescription
-    : { ...prescription, durationSeconds: block.durationSeconds };
+    : { ...prescription, durationSeconds };
 }
 
 /**

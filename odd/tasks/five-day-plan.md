@@ -52,11 +52,12 @@ fallo antes de la repetición objetivo (L8).
 | ID | Specs | Qué | Ruta | Commit |
 |----|-------|-----|------|--------|
 | T1 | S6, S7 | Prescripción fija 8–10 @ 0 RIR (sentadilla 1 RIR) en la tabla de bloques y en el seed | inline | hecho |
-| T2 | S2 | Ejercicio de caminata inclinada y su prescripción de 20 min al final de cada día de entreno | inline | — |
+| T2 | S2 | Ejercicio de caminata inclinada y su prescripción de 20 min al final de cada día de entreno | inline | hecho |
 | T3 | S1 | Cuarto día: `PREPARACIÓN FÚTBOL` pasa a `MOVILIDAD Y CORE` en el seed y en la plantilla | worker | — |
 | T4 | S8 | Poder anotar el fallo antes de la repetición objetivo | worker | — |
 | T5 | S4, S5 | Vista de semana con estado por día y selector de día, sobre lo que ya existe en Entrenar | worker | — |
 | T6 | S3 | Ajustar la estimación de duración para que la sesión cuadre en ~60 min con el cardio | inline | — |
+| T8 | S2 | Pictograma propio para la caminata (hoy usa el de los intervalos en cinta) | — | — |
 | T7 | S6, S7 | Llevar la excepción de la sentadilla al motor (hoy se pierde al avanzar de bloque) y actualizar `docs/training-science.md` §6 y `docs/progression-engine.md` §8 | inline | — |
 
 ## Log
@@ -91,6 +92,17 @@ que tengo que entrenar para que la décima rep sea la ultima que puedo hacer y q
 una onceava, haría fallo. Por lo tanto creo que si debería ser importante poder anotar que he
 fallado antes de la 10». Consecuencia: `setAtFailure` no se quita; se añade el registro del
 fallo temprano.
+
+L10 (dueño, corrección): «no se puede poner 1x20min?». Sí: `durationSeconds` es un número
+libre, el límite de 240 s estaba solo en los valores de la columna de intervalos. T2 se hizo
+como **1 serie de 1200 s con descanso 0**, no como 5 × 4 min ni con un campo nuevo. El dueño
+tenía razón y la disyuntiva que planteé era falsa.
+
+L11 (arquitecto, T2 entregada): `seed-ex-caminata-inclinada` en la biblioteca (patrón
+`conditioning`, cinta, descripción con 10-12% y 5-6 km/h) y un slot `walk()` al final de los
+tres días de fuerza, con `fixed: { sets: 1, durationSeconds: 1200 }` y `restSeconds: 0`.
+Suite completa en verde (1037). El pictograma es prestado del intervalo en cinta hasta que
+tenga el suyo (T8).
 
 L9 (arquitecto, T1 entregada): tabla de bloques cambiada a 8–10 @ 0 RIR en `strength`,
 `hypertrophy` y `accessory`; la sentadilla recibe 1 RIR desde su fila del seed

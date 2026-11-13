@@ -97,6 +97,11 @@ const ROWS: readonly SeedExerciseRow[] = [
   { id: 'seed-ex-intervalos-cinta', name: 'Intervalos en cinta de correr', primaryMuscle: 'quadriceps', pattern: 'conditioning', equipment: 'machine' },
   { id: 'seed-ex-intervalos-bici', name: 'Intervalos en bici estática', primaryMuscle: 'quadriceps', pattern: 'conditioning', equipment: 'machine' },
   { id: 'seed-ex-intervalos-pista', name: 'Intervalos en pista', primaryMuscle: 'quadriceps', pattern: 'conditioning', equipment: 'bodyweight' },
+  // The twenty minutes the owner walks after every session (odd/tasks/five-day-plan.md
+  // S2): "caminar con prisa en pendiente", 5-6 km/h. Same pattern as the intervals
+  // because it is the same family - work measured in time, not in repetitions - and the
+  // treadmill is the equipment it needs.
+  { id: 'seed-ex-caminata-inclinada', name: 'Caminata inclinada', primaryMuscle: 'quadriceps', pattern: 'conditioning', equipment: 'machine' },
   { id: 'seed-ex-soleo-isometrico', name: 'Elevación de sóleo isométrica', primaryMuscle: 'calves', pattern: 'isolation', equipment: 'bodyweight' },
 
   // ------------------------------------------------------- horizontal push
@@ -305,6 +310,15 @@ const DETAIL: Readonly<Record<string, SeedExerciseDetail>> = {
     description:
       'En la bici estática, pedalea unos minutos suaves y alterna el tiempo prescrito con una resistencia que te obligue a respirar fuerte pero te deje hablar con pausas cortas, recuperando entre series.',
     alternatives: ['seed-ex-intervalos-cinta', 'seed-ex-intervalos-pista'],
+  },
+  'seed-ex-caminata-inclinada': {
+    // Stand-in until the walk has a drawing of its own (T8 of the feature document): it is
+    // the same treadmill the intervals use, and the prescription line already says what
+    // makes it different. Borrowing a picture is not the same as borrowing a prescription.
+    illustration: 'treadmill-intervals',
+    secondaryMuscles: ['calves', 'glutes', 'hamstrings'],
+    description:
+      'Cinta en pendiente del 10-12% a 5-6 km/h, caminando con prisa y sin agarrarte a las barandillas: veinte minutos seguidos y sin descanso, al final de la sesión.',
   },
   'seed-ex-intervalos-pista': {
     illustration: 'track-intervals',

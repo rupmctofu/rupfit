@@ -138,7 +138,7 @@ describe('the starter plan', () => {
     // has no strength lift to open with — its first slot is the interval, and that is the
     // one day the engine prescribes by time.
     const lengths = plan.map((day) => day.items.length);
-    expect(lengths).toEqual([8, 7, 7, 5]);
+    expect(lengths).toEqual([9, 8, 8, 5]);
     for (const day of plan) {
       expect(day.items.map((item) => item.order)).toEqual(day.items.map((_, index) => index));
     }
@@ -168,6 +168,7 @@ describe('the starter plan', () => {
       'Copenhagen plank adaptado',
       'Elevación de gemelos de pie en máquina',
       'Elevación de sóleo sentado',
+      'Caminata inclinada',
     ]);
 
     // Upper A: a horizontal strength lift, then volume for back, lats and shoulders, then
@@ -180,6 +181,7 @@ describe('the starter plan', () => {
       'Elevaciones laterales',
       'Curl de bíceps con barra',
       'Extensiones de tríceps',
+      'Caminata inclinada',
     ]);
     expect(upperB).toEqual([
       'Press banca inclinado',
@@ -189,6 +191,7 @@ describe('the starter plan', () => {
       'Face pull',
       'Curl en polea',
       'Extensión de tríceps sobre la cabeza',
+      'Caminata inclinada',
     ]);
 
     // No exercise twice in a day. Across the week, `Nordic curl asistido` is the one
@@ -306,7 +309,7 @@ describe('the starter plan', () => {
     // take the 180 s one. The preparation day has neither: it prescribes no strength lift
     // and rests its intervals the accessory-compound 120 s.
     for (const item of planItems) {
-      expect([90, 120, 180]).toContain(item.prescription.restSeconds);
+      expect([0, 90, 120, 180]).toContain(item.prescription.restSeconds);
     }
     for (const day of plan) {
       const long = day.items.filter((item) => item.prescription.restSeconds === 180);
