@@ -2,9 +2,12 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// GitHub Pages serves this repository from a subpath, so the base is fixed here and
-// nowhere else. The service worker is registered with the `prompt` strategy: an update
-// never replaces the running app under the owner's thumb (architecture §8).
+// Where the app is mounted is a deployment decision, not a source decision: Vercel serves
+// it from the root (`/`) and GitHub Pages from the repository subpath (`/rupfit/`). The
+// base comes from `APP_BASE_PATH` and defaults to the root, which is what a build with no
+// configuration should produce; `pages.yml` sets the subpath explicitly. The service worker
+// is registered with the `prompt` strategy: an update never replaces the running app under
+// the owner's thumb (architecture §8).
 //
 // The icons are real files committed under `public/` (see tools/make-icons.mjs). Safari
 // installs from `apple-touch-icon.png` in index.html; Chromium and Android install from
@@ -19,13 +22,19 @@ export default defineConfig(({ mode }) => {
    * them. Absent values become empty strings, so an install without a project still builds.
    */
   const env = loadEnv(mode, process.cwd(), 'VITE_');
+  /**
+   * `/` unless a deployment says otherwise. Not a `VITE_` variable on purpose: this is read
+   * by the config at build time, not by the bundle at runtime, so it must not be inlined
+   * into the client.
+   */
+  const base = process.env.APP_BASE_PATH ?? '/';
   const cloud = {
     'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(env.VITE_SUPABASE_URL ?? ''),
     'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(env.VITE_SUPABASE_ANON_KEY ?? ''),
   };
 
   return {
-  base: '/rupfit/',
+  base,
   define: cloud,
   plugins: [
     react(),
@@ -34,7 +43,7 @@ export default defineConfig(({ mode }) => {
       injectRegister: false,
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-        navigateFallback: '/rupfit/index.html',
+        navigateFallback: `${base}index.html`,
         cleanupOutdatedCaches: true,
       },
       manifest: {

@@ -58,7 +58,7 @@ jobs:
         run: npm run typecheck
 
       # `npm run build` repeats the typecheck and then runs `vite build`, emitting `dist`
-      # with the `/rupfit/` base, the manifest and the precached icons.
+      # with the `/rupfit/` base (set below), the manifest and the precached icons.
       #
       # The two cloud values are inlined into the bundle by Vite at build time, so the
       # workflow has to see them or the deployed app ships without an account. Both are
@@ -69,6 +69,8 @@ jobs:
       - name: Build
         run: npm run build
         env:
+          # Pages serves from the repository subpath; Vercel leaves this unset and gets `/`.
+          APP_BASE_PATH: /rupfit/
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 

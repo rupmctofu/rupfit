@@ -66,13 +66,28 @@ npm run dev        # http://localhost:5173 — the shell; no service worker, no 
 npm test           # Vitest: engine, storage and screen suites
 npm run typecheck  # both project references, --noEmit
 npm run build      # typecheck, then the bundle and the precache manifest
-npm run preview    # http://localhost:4173/rupfit/ — the build, service worker included
+npm run preview    # http://localhost:4173/ — the build, service worker included
 ```
 
 The install path needs HTTPS and a service worker. That leaves `npm run preview`
-(localhost is a secure context) and the published GitHub Pages URL; the dev server
-has neither, so it can never install the app and its behaviour says nothing about the
-installed one.
+(localhost is a secure context) and a published URL; the dev server has neither, so it
+can never install the app and its behaviour says nothing about the installed one.
+
+## Where it is deployed
+
+Two targets, and the source does not choose between them: `APP_BASE_PATH` does.
+
+- **Vercel** serves it from the root. Import the repository, and Vercel reads
+  `vercel.json` (build command, `dist`, the SPA rewrite and the cache headers that keep
+  `sw.js` from being cached for a year). Set `VITE_SUPABASE_URL` and
+  `VITE_SUPABASE_ANON_KEY` in the project's environment variables; both are public by
+  design, because RLS is the boundary and not the key's secrecy.
+- **GitHub Pages** serves it from `/rupfit/`. `.github/workflows/pages.yml` sets
+  `APP_BASE_PATH: /rupfit/` on the build step, and that is the only difference.
+
+`APP_BASE_PATH` defaults to `/`, so a build with no configuration is the Vercel one. The
+service worker's `navigateFallback` follows the same base, which is why the two targets
+cannot drift apart.
 
 ## Why the native plan was dropped
 
