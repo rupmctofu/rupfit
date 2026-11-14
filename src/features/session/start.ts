@@ -22,6 +22,7 @@
  */
 
 import type {
+  BlockRole,
   ExerciseOutcome,
   PhaseState,
   ProgressionRecommendation,
@@ -29,7 +30,11 @@ import type {
   TrainingPhase,
 } from '../../core/domain';
 import { recommend } from '../../core/engine/progression-engine';
-import { MAX_READAPTATION_WEEK } from '../../core/engine/readaptation';
+import {
+  advanceProgramme,
+  isReadaptationFinished,
+  MAX_READAPTATION_WEEK,
+} from '../../core/engine/readaptation';
 import type {
   Exercise,
   ExercisePrescription,
@@ -129,10 +134,24 @@ function setOutcomeOf(set: ExerciseSession['sets'][number]): SetOutcome {
  *   falling back to the frozen recommendation's suggestion. The engine compares the two
  *   in rule 7 and must not be fed a recomputed number (I-2).
  * - **Newest first**, which is the order the engine reads.
+ *
+ * `block` narrows the result to the sessions trained in that block (S4, T7): every stored
+ * session carries the phase it was built in, and the block is that phase's week. §7 reads
+ * the whole career, §8's gate reads only the block being trained — the weeks that already
+ * paid for an advance stop being evidence the moment the block moves.
  */
-export function progressionHistoryOf(sessions: readonly WorkoutSession[]): ProgressionHistory {
+export function progressionHistoryOf(
+  sessions: readonly WorkoutSession[],
+  options: { readonly block?: number } = {},
+): ProgressionHistory {
+  const block = options.block;
   const oldestFirst = sessions
     .filter((session) => isClosed(session.status))
+    .filter(
+      (session) =>
+        block === undefined ||
+        (session.phase.kind === 'readaptation' && session.phase.week === block),
+    )
     .sort((left, right) => left.scheduledDate - right.scheduledDate);
 
   const collected: Record<string, ExerciseOutcome[]> = {};
@@ -174,13 +193,64 @@ export function progressionHistoryOf(sessions: readonly WorkoutSession[]): Progr
  * keeps no separate week counter, so the block travels as the week — the number the
  * readaptation table compares, and the one Inicio already labels `semana N de 4`.
  * No stored phase state means the programme has not started: normal rules apply.
+ *
+ * S4/T7: once the last block has been passed, readaptation is over and the normal rules
+ * resume. It is the exit §8 describes (`advanceToNormal`) and the only reason the store
+ * still holds a phase state after readaptation: the four blocks, all passed.
  */
 export function phaseOf(phaseState: PhaseState | undefined): TrainingPhase {
   if (phaseState === undefined) return { kind: 'normal' };
+  if (isReadaptationFinished(phaseState)) return { kind: 'normal' };
   return {
     kind: 'readaptation',
     week: Math.min(Math.max(Math.trunc(phaseState.block), 1), MAX_READAPTATION_WEEK),
   };
+}
+
+/** One exercise of the session that just closed, as the programme decision sees it. */
+export interface PhaseCandidate {
+  readonly exerciseId: string | null;
+  readonly role?: BlockRole;
+}
+
+export interface PhaseAdvanceInput {
+  readonly phaseState: PhaseState | undefined;
+  /** The exercises of the closing session: the lifts whose gate decides the block. */
+  readonly candidates: readonly PhaseCandidate[];
+  /** The stored sessions: the gate is measured over the block's own weeks only (T7). */
+  readonly sessions: readonly WorkoutSession[];
+  /** The instant the session closed; the gate's two weekly windows hang from it. */
+  readonly now: EpochMs;
+}
+
+/**
+ * S4/T7: the `PhaseState` a closing session earns, or `null` when it earns nothing.
+ *
+ * Pure, and deliberately so: the controller reads the stored phase state and the sessions,
+ * asks this, and writes exactly what comes back. Nothing is written when the programme has
+ * not started (`undefined`), when readaptation is already over, or when the gate does not
+ * pass — a session that does not pass leaves the block exactly where it was.
+ */
+export function phaseAdvance(input: PhaseAdvanceInput): PhaseState | null {
+  const state = input.phaseState;
+  if (state === undefined) return null;
+
+  const phase = phaseOf(state);
+  if (phase.kind !== 'readaptation') return null;
+
+  // The block's own weeks: the sessions the block advanced on cannot earn the next advance.
+  const history = progressionHistoryOf(input.sessions, { block: phase.week });
+
+  const lifts = input.candidates.flatMap((candidate) => {
+    if (candidate.exerciseId === null) return [];
+    const lift = history[candidate.exerciseId] ?? [];
+    if (lift.length === 0) return [];
+    return [
+      candidate.role === undefined ? { history: lift } : { history: lift, role: candidate.role },
+    ];
+  });
+
+  return advanceProgramme(state, lifts, new Date(input.now));
 }
 
 /** Rule 6 is the only reader of `phaseState`, and `{ block: 1, passedBlocks: 0 }` is neutral. */
@@ -213,6 +283,12 @@ export interface BuildSessionInput {
   /** The exercise library, archived rows included: a plan item may name one. */
   readonly library: readonly Exercise[];
   readonly history: ProgressionHistory;
+  /**
+   * The same history narrowed to the block being trained (S4, T7): §8's gate measures a
+   * block over its own weeks, so the weeks that earned the previous advance are not
+   * evidence for this one. Omitted = the caller has no phases to hand and `history` is used.
+   */
+  readonly blockHistory?: ProgressionHistory | undefined;
   readonly profile: UserProfile;
   readonly phaseState: PhaseState | undefined;
   /** The injected instant: the session's date and the recommendation's `computedAt`. */
@@ -277,6 +353,9 @@ export function buildSession(input: BuildSessionInput): BuiltSession {
             phase,
             phaseState,
             history: input.history[row.id] ?? [],
+            ...(input.blockHistory === undefined
+              ? {}
+              : { blockHistory: input.blockHistory[row.id] ?? [] }),
             // `UserProfile` carries no calibration weight, so a first-time exercise gets
             // the engine's §5 case 2: "elige un peso", never a confident guess (FR-5.5).
             coldStart: null,
@@ -424,12 +503,20 @@ export function planStart(input: StartInput): StartPlan {
     return { kind: 'blocked', refusal: 'noProfile', message: START_COPY.noProfile };
   }
 
+  // §8's gate reads the block being trained (S4, T7), so the engine also gets the history
+  // narrowed to it. With no phase state the programme has not started and there is no block
+  // to narrow to; `undefined` lets the engine fall back to the whole career.
+  const phase = phaseOf(input.phaseState);
+
   return {
     kind: 'create',
     built: buildSession({
       day,
       library: input.library,
       history: progressionHistoryOf(input.sessions),
+      ...(phase.kind === 'readaptation'
+        ? { blockHistory: progressionHistoryOf(input.sessions, { block: phase.week }) }
+        : {}),
       profile: input.profile,
       phaseState: input.phaseState,
       now: input.now,

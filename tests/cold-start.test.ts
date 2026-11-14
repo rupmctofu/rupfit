@@ -132,6 +132,7 @@ describe('§5 cold start: no usable history', () => {
   });
 
   it('§12 the engine reports its rules version', () => {
-    expect(ENGINE_VERSION).toBe('1.2.0');
+    // 1.3.0: §8's gate measures a block over its own weeks (S4, T7).
+    expect(ENGINE_VERSION).toBe('1.3.0');
   });
 });

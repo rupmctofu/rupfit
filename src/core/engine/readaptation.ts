@@ -32,14 +32,39 @@ const REQUIRED_SESSIONS_PER_WEEK = 2;
 export const MAX_READAPTATION_WEEK = 8;
 
 /** §8: block 5+ is impossible. */
-const LAST_BLOCK = 4;
+export const LAST_BLOCK = 4;
+
+/**
+ * §8 criterion 4 counts "two of the three scheduled sessions" a week. The three is what
+ * training-science §6 schedules for a full-body programme; the plan is a split, and L7's
+ * templates train each lift on one day of the week, so the frequency this gate is measured
+ * against for a lift is one. The criteria are unchanged — what changes is the input they
+ * compare: with three, no lift is ever trained twice a week, the gate can never pass and
+ * the block would never move (the defect T7 closes). A caller that knows better sets
+ * `ProgrammeLift.sessionsPerWeek`.
+ */
+export const LIFT_SESSIONS_PER_WEEK = 1;
+
+/**
+ * The state §8's gate reads for **one lift**: the frequency compared is the lift's own.
+ *
+ * A stored `scheduledSessionsPerWeek` still wins — it is the caller's explicit number — and
+ * the split's one is what an unset state means for a lift. The criteria do not change; only
+ * the week they are measured against.
+ */
+export function liftGate(state: PhaseState, sessionsPerWeek?: number): PhaseState {
+  return {
+    ...state,
+    scheduledSessionsPerWeek: sessionsPerWeek ?? state.scheduledSessionsPerWeek ?? LIFT_SESSIONS_PER_WEEK,
+  };
+}
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
- * Block prescriptions of §8 / training-science §6. Index 0 is block 1. The `Hold`
- * row of the document is not a block: it means "repeat the last passed block",
- * which the decision resolves.
+ * Block prescriptions of §8 / training-science §6. Index 0 is block 1. The document's
+ * `Hold` row is not a block: a repeated block keeps its own prescription, which is the
+ * block the phase state stores (T7 made that number real, so there is nothing to infer).
  */
 const BLOCK_TABLE: Record<BlockRole, readonly BlockPrescription[]> = {
   // The main lift of the day. The owner's prescription (odd/tasks/five-day-plan.md S6 and
@@ -240,15 +265,95 @@ export function evaluateBlock(
     };
   }
 
-  // "Hold: last passed block". With no passed block yet, block 1 is the volume
-  // that is repeated; the cap freezes exactly this prescription.
-  const heldBlock = clampBlock(Math.max(state.passedBlocks, 1));
-
+  // `repeat` of §8's table. Before T7 the block was never stored, so the row had to infer
+  // the block from `passedBlocks` and could only step back to the last one passed; a block
+  // in progress is trained at its own volume, not one block behind it.
   return {
     kind: currentWeek >= MAX_READAPTATION_WEEK ? 'capReached' : 'repeat',
     block,
-    prescriptionBlock: heldBlock,
-    prescription: blockPrescription(heldBlock, role),
+    prescriptionBlock: block,
+    prescription: blockPrescription(block, role),
     failedCriteria,
   };
+}
+
+/** §8: readaptation is over once the last block has been passed (T-29's exit). */
+export function isReadaptationFinished(state: PhaseState): boolean {
+  return state.passedBlocks >= LAST_BLOCK;
+}
+
+/** One lift of the plan, with the history the gate reads for it (§2, S4/T7). */
+export interface ProgrammeLift {
+  /** The exercise's own column of the block table; the phase role applies when absent. */
+  readonly role?: BlockRole;
+  /** How many sessions a week this lift is scheduled for. Defaults to the split's one. */
+  readonly sessionsPerWeek?: number;
+  /**
+   * The lift's outcomes **in the block being trained**: the caller narrows the history by
+   * the block each session was trained in, and that is what stops a block that already
+   * moved from being passed again on the weeks it already spent.
+   */
+  readonly history: readonly ExerciseOutcome[];
+}
+
+/**
+ * §8 at programme level (S4, T7): the block the *phase* trains, after a session closed.
+ *
+ * `evaluateBlock` decides for one lift; a block is trained by all of them, so the
+ * programme moves only when every lift the gate can judge passes it. A lift with no
+ * session in the previous week cannot be judged yet — `insufficientWeeks` is "no
+ * evidence", not "you failed" — and judging it would freeze the block for good the week
+ * an exercise is added. Everything else answers `null`: a repeat, the cap, no lifts, or a
+ * state already at the end. Nothing moves backwards and nothing passes `LAST_BLOCK`.
+ */
+export function advanceProgramme(
+  state: PhaseState,
+  lifts: readonly ProgrammeLift[],
+  now: Date,
+): PhaseState | null {
+  const block = clampBlock(state.block);
+
+  // §8 T-29: the last block passed is the end of readaptation, not a fifth block.
+  if (isReadaptationFinished(state)) return null;
+
+  const phase: TrainingPhase = {
+    kind: 'readaptation',
+    week: Math.min(Math.max(Math.trunc(state.block), 1), MAX_READAPTATION_WEEK),
+  };
+  let judged = 0;
+
+  for (const lift of lifts) {
+    const previousWeek = sessionsBetween(
+      lift.history,
+      now.getTime() - 2 * WEEK_MS,
+      now.getTime() - WEEK_MS,
+    );
+    if (previousWeek.length === 0) continue;
+
+    judged += 1;
+
+    const decision = evaluateBlock(
+      phase,
+      liftGate({ ...state, block }, lift.sessionsPerWeek),
+      lift.history,
+      now,
+      lift.role,
+    );
+
+    // `capReached` freezes readaptation and `repeat` keeps the block: neither advances.
+    if (decision.kind !== 'pass' && decision.kind !== 'advanceToNormal') return null;
+  }
+
+  if (judged === 0) return null;
+
+  const next: PhaseState = {
+    ...state,
+    block: block >= LAST_BLOCK ? LAST_BLOCK : block + 1,
+    passedBlocks: Math.min(LAST_BLOCK, Math.max(state.passedBlocks, block)),
+  };
+
+  // Nothing to say: the same state again would be a write for nothing (idempotence).
+  if (next.block === state.block && next.passedBlocks === state.passedBlocks) return null;
+
+  return next;
 }

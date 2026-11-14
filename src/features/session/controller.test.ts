@@ -8,8 +8,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { EFFORT } from '../../core/domain';
+import { EFFORT, type PhaseState } from '../../core/domain';
 import { isSessionAnswered, remainingSets, type SessionState } from '../../core/session/model';
+import type { WorkoutSession } from '../../storage';
 import {
   createSessionMachine,
   screenStateOf,
@@ -23,12 +24,14 @@ import { createFakeStorage, type FakeStorage } from './fake-port';
 import {
   BARBELL_ROW,
   currentSession,
+  DAY,
   DEADLIFT,
   DEMO_NOW,
   pastSessions,
   PROFILE,
   RDL,
   sessionFixture,
+  type CurrentSessionSpec,
 } from './fixture';
 
 const NOW = DEMO_NOW;
@@ -336,7 +339,10 @@ describe('finishing', () => {
 
     const next = await machine.dispatch({ type: 'session-finished', outcome: 'partial' }, NOW);
 
-    expect(storage.calls).toEqual(['sessions.finish']);
+    // S4/T7: the close also asks the programme whether the block moves — one write for the
+    // session, then the phase state and the history the gate reads. Nothing is written:
+    // this port stores no phase state, so the programme has not started.
+    expect(storage.calls).toEqual(['sessions.finish', 'meta.readPhaseState', 'sessions.recent']);
     expect(activeSession(next).status).toBe('partial');
   });
 
@@ -577,5 +583,207 @@ describe('isSessionAnswered', () => {
       storage: createFakeStorage({ ...sessionFixture(NOW, { allAnswered: true, status: 'inProgress' }) }),
     });
     expect(isSessionAnswered(activeSession(runtime))).toBe(true);
+  });
+});
+
+/**
+ * S4 / T7: closing a session evaluates the readaptation block and, when the gate passes,
+ * writes the next `PhaseState` once. The decision is the engine's (`advanceProgramme`);
+ * what these tests pin is the write: one, only on a pass, and never twice.
+ */
+describe('el bloque avanza al cerrar la sesión (S4, T7)', () => {
+  /**
+   * `fake-port` refuses `meta.savePhaseState` because nothing wrote it before T7. The
+   * first writer is this task, so the phase state is kept in memory here instead of
+   * widening a file outside the task's surface.
+   */
+  function phaseStore(
+    seed: Parameters<typeof createFakeStorage>[0],
+    phaseState: PhaseState | undefined,
+  ): { storage: FakeStorage; writes: PhaseState[] } {
+    const storage = createFakeStorage(seed);
+    const writes: PhaseState[] = [];
+    let current = phaseState;
+    storage.meta.readPhaseState = () => Promise.resolve(current);
+    storage.meta.savePhaseState = (state) => {
+      writes.push(state);
+      current = state;
+      return Promise.resolve();
+    };
+    return { storage, writes };
+  }
+
+  /** The fixture's store with `history` behind today's session, all stamped `block`. */
+  function phaseSeed(
+    history: readonly WorkoutSession[],
+    spec: CurrentSessionSpec = {},
+    block = 1,
+  ): Parameters<typeof createFakeStorage>[0] {
+    const fixture = sessionFixture(NOW, spec);
+    const today = fixture.sessions.at(-1);
+    return {
+      ...fixture,
+      sessions: trainedIn(block, [...history, ...(today === undefined ? [] : [today])]),
+    };
+  }
+
+  /**
+   * Every stored session stamped with the block it was trained in: the demo fixture says
+   * week 2, and §8 measures a block over the weeks of that block.
+   */
+  function trainedIn(block: number, sessions: readonly WorkoutSession[]): readonly WorkoutSession[] {
+    const phase = { kind: 'readaptation', week: block } as const;
+    return sessions.map((session) => ({ ...session, phase }));
+  }
+
+  /** The same two weeks, with the newest session taken to failure in its last set. */
+  function withAFailure(sessions: readonly WorkoutSession[]): readonly WorkoutSession[] {
+    return sessions.map((session, index) =>
+      index !== sessions.length - 1
+        ? session
+        : {
+            ...session,
+            exercises: session.exercises.map((exercise) => ({
+              ...exercise,
+              sets: exercise.sets.map((set, slot) =>
+                slot === exercise.sets.length - 1 ? { ...set, effort: EFFORT.failure } : set,
+              ),
+            })),
+          },
+    );
+  }
+
+  async function closedAt(store: ReturnType<typeof phaseStore>, outcome: 'completed' | 'partial') {
+    const machine = createSessionMachine({ storage: store.storage, clock: clockAt(NOW), journal: journalSpy() });
+    await machine.boot();
+    const runtime = await machine.dispatch({ type: 'session-finished', outcome }, NOW);
+    return { machine, runtime };
+  }
+
+  it('escribe el bloque siguiente una vez, tanto al completar como al dejar la sesión a medias', async () => {
+    const complete = phaseStore(phaseSeed(pastSessions(NOW), { allAnswered: true, status: 'inProgress' }), {
+      block: 1,
+      passedBlocks: 0,
+    });
+    const { runtime } = await closedAt(complete, 'completed');
+
+    expect(runtime.error).toBeNull();
+    expect(complete.writes).toEqual([{ block: 2, passedBlocks: 1 }]);
+
+    // A partial session trained most of the day and is evidence too (§2).
+    const partial = phaseStore(
+      phaseSeed(pastSessions(NOW), { confirmedSets: 3, decision: { kind: 'accepted' } }),
+      { block: 1, passedBlocks: 0 },
+    );
+    await closedAt(partial, 'partial');
+
+    expect(partial.writes).toEqual([{ block: 2, passedBlocks: 1 }]);
+  });
+
+  it('volver a cerrar la misma sesión no mueve el bloque dos veces', async () => {
+    const store = phaseStore(phaseSeed(pastSessions(NOW), { allAnswered: true, status: 'inProgress' }), {
+      block: 1,
+      passedBlocks: 0,
+    });
+    const { machine } = await closedAt(store, 'completed');
+
+    const again = await machine.dispatch({ type: 'session-finished', outcome: 'completed' }, NOW);
+
+    expect(again.rejection).toBe('La sesión ya está cerrada.');
+    expect(store.writes).toHaveLength(1);
+    expect(await store.storage.meta.readPhaseState()).toEqual({ block: 2, passedBlocks: 1 });
+  });
+
+  it('una sesión que no pasa la puerta no escribe nada', async () => {
+    const store = phaseStore(
+      phaseSeed(withAFailure(pastSessions(NOW)), { allAnswered: true, status: 'inProgress' }),
+      { block: 1, passedBlocks: 0 },
+    );
+
+    await closedAt(store, 'completed');
+
+    expect(store.writes).toEqual([]);
+  });
+
+  it('fuera de readaptación no escribe nada: sin programa, o con los cuatro bloques hechos', async () => {
+    const seed = phaseSeed(pastSessions(NOW), { allAnswered: true, status: 'inProgress' });
+
+    const fresh = phaseStore(seed, undefined);
+    await closedAt(fresh, 'completed');
+
+    const finished = phaseStore(seed, { block: 4, passedBlocks: 4 });
+    await closedAt(finished, 'completed');
+
+    expect([...fresh.writes, ...finished.writes]).toEqual([]);
+  });
+});
+
+/**
+ * S4 / T7, the calendar case: the weeks that earned the advance stay in the lift's history,
+ * so the next close must not advance again. Each session is stamped with the block it was
+ * trained in (`WorkoutSession.phase`), and §8 measures a block over its own weeks.
+ */
+describe('el bloque no vuelve a avanzar con las semanas ya gastadas (S4, T7)', () => {
+  function phaseStore(
+    seed: Parameters<typeof createFakeStorage>[0],
+    phaseState: PhaseState | undefined,
+  ): { storage: FakeStorage; writes: PhaseState[] } {
+    const storage = createFakeStorage(seed);
+    const writes: PhaseState[] = [];
+    let current = phaseState;
+    storage.meta.readPhaseState = () => Promise.resolve(current);
+    storage.meta.savePhaseState = (state) => {
+      writes.push(state);
+      current = state;
+      return Promise.resolve();
+    };
+    return { storage, writes };
+  }
+
+  const inBlock = (block: number, session: WorkoutSession): WorkoutSession => ({
+    ...session,
+    phase: { kind: 'readaptation', week: block },
+  });
+
+  it('la sesión siguiente al avance no gana otro incremento', async () => {
+    const fixture = sessionFixture(NOW, { allAnswered: true, status: 'inProgress' });
+    const closing = fixture.sessions.at(-1);
+    if (closing === undefined) throw new Error('the fixture has no session');
+
+    const first = phaseStore(
+      {
+        ...fixture,
+        sessions: [...pastSessions(NOW), closing].map((session) => inBlock(1, session)),
+      },
+      { block: 1, passedBlocks: 0 },
+    );
+    const machine = createSessionMachine({ storage: first.storage, clock: clockAt(NOW), journal: journalSpy() });
+    await machine.boot();
+    await machine.dispatch({ type: 'session-finished', outcome: 'completed' }, NOW);
+
+    expect(first.writes).toEqual([{ block: 2, passedBlocks: 1 }]);
+
+    // Two days later: block 2's first session. The two weeks behind it were trained in
+    // block 1, so block 2 has no weeks of its own yet and nothing is written.
+    const later = phaseStore(
+      {
+        exercises: fixture.exercises,
+        profile: fixture.profile,
+        sessions: [
+          ...first.storage.stored(),
+          inBlock(2, currentSession(NOW + 2 * DAY, { confirmedSets: 3, decision: { kind: 'accepted' } })),
+        ],
+      },
+      { block: 2, passedBlocks: 1 },
+    );
+    const second = createSessionMachine({
+      storage: later.storage,
+      clock: clockAt(NOW + 2 * DAY),
+      journal: journalSpy(),
+    });
+    await second.boot();
+    await second.dispatch({ type: 'session-finished', outcome: 'partial' }, NOW + 2 * DAY);
+
+    expect(later.writes).toEqual([]);
   });
 });

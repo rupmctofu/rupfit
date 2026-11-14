@@ -22,7 +22,7 @@ import {
   type SetOutcome,
 } from '../domain';
 import { assessConfidence } from './confidence';
-import { evaluateBlock, MAX_READAPTATION_WEEK } from './readaptation';
+import { evaluateBlock, liftGate, MAX_READAPTATION_WEEK } from './readaptation';
 import { roundDownToIncrement, stepDown, stepUp } from './rounding';
 
 /**
@@ -34,11 +34,35 @@ import { roundDownToIncrement, stepDown, stepUp } from './rounding';
  * increment is read as zero for it (§6 has no weight arithmetic to perform), so a machine
  * implement with a plate stack stops offering a heavier interval. Every other profile
  * returns exactly the numbers 1.1.0 returned.
+ * 1.3.0 — §8 measures a block over **its own** weeks (S4, T7). Rule 6 now reads
+ * `input.blockHistory` when the caller can narrow the history to the block each session was
+ * trained in, so the weeks that earned an advance stop paying again on the next session —
+ * without it, persisting the advance added one increment per session for ever, which is the
+ * calendar moving the load instead of the verdict. A repeated or capped block also
+ * prescribes the block being trained instead of stepping back to `passedBlocks`: the block
+ * is stored now, so the document's "Hold: last passed block" row is obsolete. §7's order
+ * and the four gate criteria are unchanged.
  */
-export const ENGINE_VERSION = '1.2.0';
+export const ENGINE_VERSION = '1.3.0';
 
 /** Products of an acceptable weight grid; a real weight is never "corrected". */
 const LOWERED_EPSILON = 1e-6;
+
+/**
+ * `ProgressionInput` plus the one narrowing the block gate needs (S4, T7): the same
+ * outcomes, restricted to the sessions trained in the block `phaseState` is on.
+ *
+ * The two views exist because they answer different questions. §7's per-exercise rules
+ * read the whole career — a weight is consolidated across blocks, and a miss two blocks ago
+ * still counts. §8's gate asks whether *this* block has completed its two weeks, so the
+ * weeks that already paid for a previous advance are not evidence for this one. The caller
+ * is the only one that can tell them apart: the stored session carries the phase it was
+ * built in. Without the field the gate reads `history`, which is right for a caller that has
+ * no phases to hand (a pure test) and wrong for the app — the app always narrows.
+ */
+export interface EngineInput extends ProgressionInput {
+  readonly blockHistory?: readonly ExerciseOutcome[];
+}
 
 interface RecommendationFields {
   readonly suggestedWeightKg: number | null;
@@ -97,7 +121,7 @@ function hardestEffort(sets: readonly SetOutcome[]): Effort | null {
  * `recommend` — §7 decision order, first match wins. `computedAt` is the injected
  * instant; the engine never reads a clock.
  */
-export function recommend(input: ProgressionInput, computedAt: Date): ProgressionRecommendation {
+export function recommend(input: EngineInput, computedAt: Date): ProgressionRecommendation {
   const { exercise, prescription, phase, phaseState } = input;
   // The profile travels with the prescription. The phase state's role is the older,
   // phase-wide fallback; when neither says anything the exercise is hypertrophy volume.
@@ -242,7 +266,16 @@ export function recommend(input: ProgressionInput, computedAt: Date): Progressio
 
   // Rule 6: the readaptation block table governs load and volume.
   if (phase.kind === 'readaptation') {
-    const decision = evaluateBlock(phase, phaseState, usable, computedAt, role);
+    // The block's own weeks (S4/T7): the evidence that advanced the previous block is not
+    // evidence for this one, so a block that already moved cannot pay a second increment.
+    // And the frequency criterion 4 compares is this lift's, not the plan's gym days.
+    const decision = evaluateBlock(
+      phase,
+      liftGate(phaseState),
+      input.blockHistory ?? usable,
+      computedAt,
+      role,
+    );
     const prescriptionForRepeat = decision.prescription;
     const week = Math.min(Math.max(Math.trunc(phase.week), 1), MAX_READAPTATION_WEEK);
 

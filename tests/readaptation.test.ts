@@ -10,7 +10,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { blockPrescription, evaluateBlock, recommend } from '../src/core/engine';
+import {
+  advanceProgramme,
+  blockPrescription,
+  evaluateBlock,
+  isReadaptationFinished,
+  recommend,
+} from '../src/core/engine';
 import { DEFAULT_BLOCK_ROLE } from '../src/core/domain';
 import type {
   BlockDecision,
@@ -351,17 +357,19 @@ describe('§8 decisions', () => {
     expect(decision.failedCriteria).toEqual([]);
   });
 
-  it('§8 a repeated block keeps the prescription of the last passed block (Hold row)', () => {
+  it('§8 a repeated block prescribes the block it is training (T7 replaced the Hold row)', () => {
     const decision = evaluateBlock(
-      readaptationPhase(4),
+      readaptationPhase(2),
       { block: 2, passedBlocks: 1 },
       [prescribedSession(2, 3), prescribedSession(2, 9), prescribedSession(2, 12)],
       NOW,
     );
 
     expect(decision.kind).toBe('repeat');
-    expect(decision.prescriptionBlock).toBe(1);
-    // Block 1 of the default column: 3 × 8–10 @ 0 RIR.
+    // The block is stored now, so the prescription names it instead of stepping back to the
+    // last passed one — a block in progress is trained at its own volume, not behind it.
+    expect(decision.prescriptionBlock).toBe(2);
+    // Block 2 of the default column: 3 × 8–10 @ 0 RIR.
     expect(decision.prescription).toEqual({
       sets: 3,
       repRange: { lowerBound: 8, upperBound: 10 },
@@ -400,7 +408,8 @@ describe('§8 decisions', () => {
     const decision = evaluateBlock(readaptationPhase(8), { block: 2, passedBlocks: 1 }, history, NOW);
 
     expect(decision.kind).toBe('capReached');
-    expect(decision.prescriptionBlock).toBe(1);
+    // The frozen prescription is the block being trained (T7: it is persisted now).
+    expect(decision.prescriptionBlock).toBe(2);
     expect(decision.prescription).toEqual({
       sets: 3,
       repRange: { lowerBound: 8, upperBound: 10 },
@@ -415,7 +424,8 @@ describe('§8 decisions', () => {
   });
 
   it('§8 a week counter beyond the cap still reports the cap, not a later block', () => {
-    const history = [prescribedSession(2, 3), prescribedSession(2, 9), prescribedSession(2, 12)];
+    // This block's own week is missing, so the gate is unmet and the cap is what answers.
+    const history = [prescribedSession(2, 9), prescribedSession(2, 12)];
 
     const decision = evaluateBlock(readaptationPhase(9), { block: 2, passedBlocks: 1 }, history, NOW);
     const recommendation = recommend(
@@ -537,8 +547,9 @@ describe('§7 rule 6: readaptation inside the recommendation', () => {
     expect(recommendation.reasonContext.next).toBe(102.5);
   });
 
-  it('T-27 an unmet block 2 repeats with the last passed block volume and the same weight', () => {
-    const history = [prescribedSession(2, 3), prescribedSession(2, 9), prescribedSession(2, 12)];
+  it('T-27 an unmet block 2 repeats with its own volume and the same weight', () => {
+    // One of the block's two weeks was trained; the other was not, and §8 repeats the block.
+    const history = [prescribedSession(2, 9), prescribedSession(2, 12)];
 
     const recommendation = recommend(
       makeInput({
@@ -551,7 +562,7 @@ describe('§7 rule 6: readaptation inside the recommendation', () => {
 
     expect(recommendation.action).toBe('hold');
     expect(recommendation.suggestedWeightKg).toBe(100);
-    // The Hold row: block 1's volume, 3 × 8–10.
+    // Block 2's own volume, 3 × 8–10: the block being trained, not an earlier one.
     expect(recommendation.suggestedSets).toBe(3);
     expect(recommendation.suggestedTargetReps).toBe(8);
     expect(recommendation.reason).toBe('readaptationBlockNotPassed');
@@ -560,7 +571,7 @@ describe('§7 rule 6: readaptation inside the recommendation', () => {
   });
 
   it('§8 no increase inside a block: repeating never moves the weight', () => {
-    const history = [prescribedSession(2, 3), prescribedSession(2, 9), prescribedSession(2, 12)];
+    const history = [prescribedSession(2, 9), prescribedSession(2, 12)];
     const input = makeInput({
       phase: readaptationPhase(3),
       phaseState: { block: 2, passedBlocks: 1 },
@@ -574,7 +585,8 @@ describe('§7 rule 6: readaptation inside the recommendation', () => {
   });
 
   it('T-28 the cap holds the weight and reports readaptationCapReached', () => {
-    const history = [prescribedSession(2, 3), prescribedSession(2, 9), prescribedSession(2, 12)];
+    // The block's current week was not trained: the criteria are unmet, so week 8 caps.
+    const history = [prescribedSession(2, 9), prescribedSession(2, 12)];
 
     const recommendation = recommend(
       makeInput({
@@ -650,5 +662,155 @@ describe('§7 rule 6: readaptation inside the recommendation', () => {
     expect(recommendation.reasonContext.failedCriteria).toEqual(['incompleteSets']);
     expect(recommendation.suggestedSets).toBe(3);
     expect(recommendation.suggestedWeightKg).toBe(100);
+  });
+});
+
+/**
+ * T7, §8 at programme level: the block is what the *phase* trains, so the decision that
+ * moves it is one `PhaseState` or nothing — never a suggestion. `advanceProgramme` is the
+ * pure half; the write belongs to the controller, which is where a session closes.
+ */
+describe('§8 the programme advances after a session (T7)', () => {
+  function lift(history: readonly ExerciseOutcome[], role?: BlockRole) {
+    return role === undefined ? { history } : { history, role };
+  }
+
+  /** Two weeks of evidence with a set taken to failure in the newest session. */
+  const FAILING = [
+    makeOutcome({ weightKg: 100, date: daysBefore(3), sets: setsEndingAtFailure(1) }),
+    prescribedSession(1, 9),
+  ];
+
+  it('§8 two qualifying weeks of the lift move the block one step', () => {
+    const next = advanceProgramme({ block: 1, passedBlocks: 0 }, [lift(blockOnePassingHistory())], NOW);
+
+    expect(next).toEqual({ block: 2, passedBlocks: 1 });
+  });
+
+  it('§8 a set at failure in the window writes nothing', () => {
+    expect(advanceProgramme({ block: 1, passedBlocks: 0 }, [lift(FAILING)], NOW)).toBeNull();
+  });
+
+  it('§8 a discomfort in the window writes nothing', () => {
+    const sore = [
+      makeOutcome({ weightKg: 100, date: daysBefore(3), sets: setsEndingWithDiscomfort(1) }),
+      prescribedSession(1, 9),
+    ];
+
+    expect(advanceProgramme({ block: 1, passedBlocks: 0 }, [lift(sore)], NOW)).toBeNull();
+  });
+
+  it('§8 too few sessions write nothing: one week of evidence is not a pass', () => {
+    const oneWeek = [prescribedSession(1, 2), prescribedSession(1, 5)];
+
+    expect(advanceProgramme({ block: 1, passedBlocks: 0 }, [lift(oneWeek)], NOW)).toBeNull();
+    expect(advanceProgramme({ block: 1, passedBlocks: 0 }, [lift([])], NOW)).toBeNull();
+    expect(advanceProgramme({ block: 1, passedBlocks: 0 }, [], NOW)).toBeNull();
+  });
+
+  it('§8 one lift failing the gate holds the whole programme back', () => {
+    expect(
+      advanceProgramme({ block: 1, passedBlocks: 0 }, [lift(blockOnePassingHistory()), lift(FAILING)], NOW),
+    ).toBeNull();
+  });
+
+  it('§8 a lift with no two weeks yet is not judged, so it cannot freeze the programme', () => {
+    // A lift the owner added this week has one week of evidence: judging it would report
+    // `insufficientWeeks` for ever and the block would never move again.
+    const next = advanceProgramme(
+      { block: 1, passedBlocks: 0 },
+      [lift(blockOnePassingHistory()), lift([prescribedSession(1, 2)], 'accessory')],
+      NOW,
+    );
+
+    expect(next).toEqual({ block: 2, passedBlocks: 1 });
+  });
+
+  it('§8 each lift is judged against its own profile', () => {
+    // Two sets of six: enough for the preventive block 1, one set short of a strength one.
+    const preventive = TWO_WEEKS.map((daysAgo) =>
+      blockSession({ daysAgo, sets: 2, reps: 6, effort: EFFORT.easy }),
+    );
+
+    expect(advanceProgramme({ block: 1, passedBlocks: 0 }, [lift(preventive, 'strength')], NOW)).toBeNull();
+    expect(advanceProgramme({ block: 1, passedBlocks: 0 }, [lift(preventive, 'preventive')], NOW)).toEqual({
+      block: 2,
+      passedBlocks: 1,
+    });
+  });
+
+  it('§8 the last block is a reached state: never a fifth block, and never twice', () => {
+    const reached = advanceProgramme({ block: 4, passedBlocks: 3 }, [lift(passingHistory(4))], NOW);
+    expect(reached).toEqual({ block: 4, passedBlocks: 4 });
+
+    // Read the exit as done, not as an error: nothing left to write (T-29).
+    expect(advanceProgramme({ block: 4, passedBlocks: 4 }, [lift(passingHistory(4))], NOW)).toBeNull();
+    expect(isReadaptationFinished({ block: 4, passedBlocks: 4 })).toBe(true);
+    expect(isReadaptationFinished({ block: 4, passedBlocks: 3 })).toBe(false);
+  });
+
+  it('§8 never backwards: a repeated block leaves the state exactly as it was', () => {
+    const state = { block: 3, passedBlocks: 2 };
+    // The previous week was trained, this one was not: the gate repeats the block.
+    const history = [prescribedSession(3, 9), prescribedSession(3, 12)];
+
+    expect(advanceProgramme(state, [lift(history)], NOW)).toBeNull();
+    expect(state).toEqual({ block: 3, passedBlocks: 2 });
+  });
+});
+
+/**
+ * T7's second half: the gate measures a block over **its own** weeks. The evidence that
+ * earned the advance belongs to the block it was trained in, so replaying it from the new
+ * block must not report that block as passed — otherwise every session adds one increment
+ * while the owner answers `Lo hice`, which is the calendar driving the load and not S4's
+ * verdict. The narrowing is the caller's job (the stored session knows the phase it was
+ * built in); what these tests pin is that the gate honours it.
+ */
+describe('§8 the gate measures the block it is training', () => {
+  function lift(history: readonly ExerciseOutcome[]) {
+    return { history };
+  }
+
+  it('§8 the weeks that earned block 2 are not block 2 evidence', () => {
+    const earned = blockOnePassingHistory();
+
+    // Seen from block 1 those weeks are the pass; nothing else changed.
+    expect(evaluateBlock(readaptationPhase(1), { block: 1, passedBlocks: 0 }, earned, NOW).kind).toBe('pass');
+
+    // From block 2 the same outcomes are not evidence of block 2, and a block started a
+    // session ago has none: it repeats, holding the load.
+    expect(evaluateBlock(readaptationPhase(2), { block: 2, passedBlocks: 1 }, [], NOW).kind).toBe('repeat');
+    expect(
+      advanceProgramme({ block: 2, passedBlocks: 1 }, [lift([])], NOW),
+    ).toBeNull();
+  });
+
+  it('§8 a repeated block prescribes the block it is training, not the last one passed', () => {
+    // The block is persisted now (T7): there is nothing left to infer from `passedBlocks`.
+    const decision = evaluateBlock(
+      readaptationPhase(3),
+      { block: 3, passedBlocks: 2 },
+      [prescribedSession(3, 9), prescribedSession(3, 12)],
+      NOW,
+    );
+
+    expect(decision.kind).toBe('repeat');
+    expect(decision.prescriptionBlock).toBe(3);
+    // Block 3 of the hypertrophy column: 4 × 8–10 (five-day-plan S7).
+    expect(decision.prescription).toEqual({
+      sets: 4,
+      repRange: { lowerBound: 8, upperBound: 10 },
+      targetRIR: { lowerBound: 0, upperBound: 0 },
+    });
+  });
+
+  it('§8 the cap freezes the block being trained, not an earlier one', () => {
+    const history = [prescribedSession(2, 9), prescribedSession(2, 12)];
+
+    const decision = evaluateBlock(readaptationPhase(8), { block: 2, passedBlocks: 1 }, history, NOW);
+
+    expect(decision.kind).toBe('capReached');
+    expect(decision.prescriptionBlock).toBe(2);
   });
 });

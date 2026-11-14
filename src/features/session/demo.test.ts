@@ -102,7 +102,9 @@ describe('the demo never reaches IndexedDB', () => {
 
     // The recorded calls live in this process: the demo port is the fake, not the
     // IndexedDB adapter, and its `stored()` view shows the write it made.
-    expect(run.storage.calls).toEqual(['sessions.finish']);
+    // S4/T7: the close also asks the programme whether the block moves, which reads the
+    // phase state and the history from the same in-memory port and writes nothing here.
+    expect(run.storage.calls).toEqual(['sessions.finish', 'meta.readPhaseState', 'sessions.recent']);
     expect(run.storage.stored().find((session) => session.id === 'session-demo')?.status).toBe('partial');
   });
 

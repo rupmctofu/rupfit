@@ -176,12 +176,10 @@ function scenarios(): Record<ReasonCode, ProgressionInput> {
       sets: [makeSet(10, { effort: EFFORT.easy })],
     }),
   );
+  // A block whose current week was not trained at all: §8's criterion 4 is unmet, so week 8
+  // caps instead of passing. (Since 1.3.0 the gate is measured against a lift's own weekly
+  // frequency, so "one missed session" means a week without it, not one of three gym days.)
   const oneMissedSession = [
-    makeOutcome({
-      weightKg: 100,
-      date: daysBefore(3),
-      sets: [makeSet(10, { effort: EFFORT.easy }), makeSet(10, { effort: EFFORT.easy }), makeSet(10, { effort: EFFORT.easy })],
-    }),
     makeOutcome({
       weightKg: 100,
       date: daysBefore(9),

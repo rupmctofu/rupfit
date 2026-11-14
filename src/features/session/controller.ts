@@ -18,7 +18,7 @@
  * injected `Clock` is used only for the boot reads and the history window.
  */
 
-import type { Equipment, Exercise } from '../../core/domain';
+import type { Equipment, Exercise, PhaseState } from '../../core/domain';
 import {
   createSession,
   isSessionAnswered,
@@ -34,6 +34,10 @@ import {
 } from '../../core/session/model';
 import type { SetRecord, StoragePort, SubstitutedFrom, WorkoutSession } from '../../storage';
 import { canSubstitute, SUBSTITUTION_REFUSED } from './substitution';
+// S4/T7: the block a closing session earns. `start.ts` narrows the history to the block
+// each session was trained in; the two modules already reach into each other for
+// `startOfDay`, and both only *call* across, never during module evaluation.
+import { phaseAdvance } from './start';
 
 /** The one clock the session screen is allowed to read. */
 export interface Clock {
@@ -142,6 +146,9 @@ const EMPTY_RUNTIME: SessionRuntime = {
 };
 
 /* ------------------------------------------------------- storage → reducer input */
+
+/** T7: the readaptation write failed; the session close is retried as a whole. */
+const PHASE_FAILURE = 'No se pudo actualizar el bloque de entrenamiento. Inténtalo otra vez.';
 
 function plainRecommendation(
   recommendation: WorkoutSession['exercises'][number]['recommendation'],
@@ -304,6 +311,8 @@ export function createSessionMachine(deps: SessionDeps): SessionMachine {
   let busy = false;
   /** Exercise sessions whose load decision is already on disk (I-8: written once). */
   let decided = new Set<string>();
+  /** Sessions whose phase advance is already on disk: closing one twice cannot move it. */
+  let advanced = new Set<string>();
 
   const publish = (next: Partial<SessionRuntime>): SessionRuntime => {
     runtime = { ...runtime, ...next };
@@ -401,8 +410,11 @@ export function createSessionMachine(deps: SessionDeps): SessionMachine {
   }
 
   /** Runs the effect descriptors in the order the reducer produced them. */
-  async function runEffects(transition: { readonly effects: readonly SessionEffect[] }): Promise<string | null> {
-    for (const effect of transition.effects) {
+  async function runEffects(
+    state: SessionState,
+    effects: readonly SessionEffect[],
+  ): Promise<string | null> {
+    for (const effect of effects) {
       switch (effect.type) {
         case 'persist-set': {
           const needsDecision = effect.decision !== null && !decided.has(effect.exerciseSessionId);
@@ -437,6 +449,12 @@ export function createSessionMachine(deps: SessionDeps): SessionMachine {
           } catch {
             return 'No se pudo cerrar la sesión. Inténtalo otra vez.';
           }
+          // S4/T7: the verdict of the session is what moves the block, and the block is
+          // what the *next* session is prescribed from. Abandoning is not evidence (§2),
+          // so only a completed or partial session is evaluated.
+          if (effect.status === 'abandoned') break;
+          const phaseFailure = await advancePhaseAfter(state, effect.endedAt);
+          if (phaseFailure !== null) return phaseFailure;
           break;
         }
         case 'advance-exercise':
@@ -454,6 +472,50 @@ export function createSessionMachine(deps: SessionDeps): SessionMachine {
     return null;
   }
 
+  /**
+   * S4/T7: writes the next readaptation block once, after the session is closed.
+   *
+   * The session is already stored when this runs, so the history the gate reads includes
+   * the sets the owner just confirmed: the verdict of *this* session is what moves the
+   * block. `advanced` is the I-8 guard of this write — one `PhaseState` per closed session,
+   * so re-closing one cannot advance twice — and it is only set after the write resolved,
+   * which leaves `Reintentar` able to try again.
+   */
+  async function advancePhaseAfter(state: SessionState, at: EpochMs): Promise<string | null> {
+    if (advanced.has(state.id)) return null;
+
+    let next: PhaseState | null;
+    try {
+      const [phaseState, recent] = await Promise.all([
+        storage.meta.readPhaseState(),
+        storage.sessions.recent(HISTORY_SESSIONS),
+      ]);
+      next = phaseAdvance({
+        phaseState,
+        candidates: state.exercises.map((exercise) => ({
+          exerciseId: exercise.exerciseId,
+          ...(exercise.prescription.role === undefined ? {} : { role: exercise.prescription.role }),
+        })),
+        sessions: recent,
+        now: at,
+      });
+    } catch {
+      return PHASE_FAILURE;
+    }
+
+    // No pass, no programme, or already done: nothing is written at all.
+    if (next === null) return null;
+
+    try {
+      await storage.meta.savePhaseState(next);
+    } catch {
+      return PHASE_FAILURE;
+    }
+
+    advanced = new Set([...advanced, state.id]);
+    return null;
+  }
+
   async function dispatch(event: SessionEvent, now: EpochMs): Promise<SessionRuntime> {
     const current = runtime;
     if (current.session === null || busy) return current;
@@ -466,7 +528,7 @@ export function createSessionMachine(deps: SessionDeps): SessionMachine {
       }
 
       if (transition.effects.length > 0) {
-        const failure = await runEffects(transition);
+        const failure = await runEffects(transition.state, transition.effects);
         if (failure !== null) {
           pending = event;
           return publish({ error: failure, rejection: null });
