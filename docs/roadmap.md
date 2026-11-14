@@ -415,6 +415,12 @@ Exit gate:
 
 These are gaps between the plan above and the code in the repository, not new scope.
 They are written down so the next work unit starts from the code and not from the plan.
+The list was read again against the branch `feature/pwa-platform`, where the match-aware
+week (`odd/tasks/match-aware-week.md` T1–T7) shipped: the week is planned from a table
+(`src/core/engine/week-plan.ts`), `Inicio` answers today from the stored week and falls
+back to the rotation, the session takes one verdict per exercise (`2306472`), and
+`08456f0` moves the block once and only on the verdict. What that work did not ship is
+items 7 to 9.
 
 1. **Editing the routine.** `Entrenar` reads the plan and nothing in the app writes
    one: there is no editor screen and nothing saves a plan back. The stores and
@@ -429,10 +435,11 @@ They are written down so the next work unit starts from the code and not from th
    `progress/format.ts` already names `src/core` as their shared home. Until they move,
    the Spanish decimal and unit rules are pinned by two test files that can drift
    apart.
-4. **No seeded exercise library.** F3 lists `src/core/seed`, at least 40 exercises with
-   a coverage test. It does not exist: `Entrenar` shows what the store holds, so a fresh
-   install has nothing to suggest. F7 also lists weekly volume *per muscle*; the built
-   aggregates report volume and hard sets per week, without the muscle split.
+4. **Weekly volume per muscle.** F7 lists it; the built aggregates report volume and hard
+   sets per week, without the muscle split. The other half of this item shipped and is
+   struck out of the plan, not of the code: `src/core/seed` holds the library
+   (`exercises.ts`), the four-day plan (`plan.ts`) and its coverage test, and a fresh
+   install trains from it since `8831a62`.
 5. **Device verification needs a published URL.** Every manual item in F4, F5 and F6,
    and the §6 acceptance in F7, waits on an app installed from an HTTPS URL. The Pages
    workflow exists and is not enabled (`7acd7a3`); publishing it and running the
@@ -440,6 +447,26 @@ They are written down so the next work unit starts from the code and not from th
 6. **No `docs/environment.md`.** F0 requires it, and §1 says every manual check produces
    a dated line in it. It does not exist, so by this document's own rule every manual
    check listed above is unperformed.
+7. **The match is reported, not tied to the week.** `Inicio` writes one manual football
+   `ActivityRecord` dated from the clock (`footballRecordOf`,
+   `src/features/home/football.ts`), and the week now names the match and the rest day
+   (`offDayOf`, `f4e9acf`) — but a match reported on the Tuesday of a cup week and one
+   reported on a Thursday are the same row, dated today. `odd/tasks/match-aware-week.md`
+   T8 asked for the activity to be aligned with the week's match day; only the naming half
+   shipped.
+8. **The cup calendar is not read.** `odd/tasks/match-aware-week.md` S10 and T10. The
+   federation's calendar hangs off `cegarraf.gespic.com` as a Joomla component that wants a
+   POST form (`filter[matchday]`, `filter[team]`) with a session; its team lists arrive
+   empty in the HTML and it sends no CORS headers, and the WordPress hub above it has no
+   API. Reading it needs a server of our own that parses HTML — a new place where the truth
+   lives, which FR-16.1 and FR-16.2 deliberately do not have — so the fixture of the week stays
+   a manual flip (FR-3.8) and the adapter waits behind a port.
+9. **The remaining engine work.** Two gaps, both `odd/tasks/five-day-plan.md` T7: the
+   squat's 1 RIR exception is written by the seed plan row and not by the block table, so a
+   block advance prescribes 0 RIR on it again — `evaluateBlock` rebuilds the prescription
+   from `BLOCK_TABLE`; and `docs/progression-engine.md` §8 still prints
+   `training-science.md` §6's numbers for the three columns whose blocks the owner
+   re-decided to 8–10 at 0 RIR.
 
 ---
 

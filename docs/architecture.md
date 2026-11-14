@@ -261,13 +261,25 @@ A feature folder may not import another feature folder. Shared UI lives in
 
 **The pure group today.** The group exists as real directories, not as a planned
 prefix: `src/core/domain` (value types, entities, invariants) and `src/core/engine`
-(`recommend`, `evaluateBlock`, rounding, reason codes, confidence), with
+(`recommend`, `evaluateBlock`, the block advance, rounding, reason codes, confidence,
+and the week planner), with
 `src/index.ts` as the barrel that re-exports both. The statistical and session
 aggregates of the layout in §5 join them as siblings under `src/core/`, and the
 boundary script lists them by name. Reorganising files *within* `src/core/` needs no
 ADR as long as the row above still holds: no import under `src/core/**` may reach
 `react`, a DOM global, `src/storage`, `src/features`, `src/app` or `src/pwa`, and no
 file there may touch `fetch`, `Date.now()` or randomness.
+
+**The week planner is the second pure decision.** `src/core/engine/week-plan.ts` owns
+the three accepted layouts (`WEEK_TEMPLATES`), `weekPlan` — seven dated days from a
+Monday and the caller's own days, keyed by role — and `applySwaps`, which applies this
+week's exchanges and refuses the five that would move a day somewhere it may not go. It
+reads no clock, no store and no locale: a day is a local `YYYY-MM-DD` built from local
+getters, never `toISOString`, which would answer in UTC. The two local-date helpers it
+needs also exist in `src/features/progress`, and the app tier sits above `src/core`, so
+they are repeated rather than imported upwards. `weekPlan` decides nothing about weight,
+exercise or which day is today: today, and the stored week it comes from, belong to the
+app tier (`src/features/week/week.ts`, §7).
 
 **Why `src/core` is a folder and not a separate workspace package:** one install,
 one build, nothing published, no resolution aliases. A workspace would add
@@ -279,6 +291,7 @@ The engine stays a pure function:
 
 ```ts
 export function recommend(input: ProgressionInput): ProgressionRecommendation;
+export function weekPlan(input: WeekPlanInput): WeekPlan;
 ```
 
 Same input, same output: no clock, no I/O, no randomness, no `Date.now()`. Time and
@@ -299,7 +312,7 @@ src/
   index.ts                  # public barrel: re-exports core/domain and core/engine
   core/
     domain/                 # value types, entities, invariants
-    engine/                 # recommend(), evaluateBlock(), rounding, reason codes
+    engine/                 # recommend(), evaluateBlock(), the week plan, rounding, reason codes
     statistics/             # volume, hard sets, e1RM, records, weekly aggregates
     session/                # session state machine, transitions, crash recovery
     ports/                  # Repository, Clock, IdProvider, StorageInfo interfaces
@@ -311,7 +324,7 @@ src/
     repositories/           # ExerciseRepository, SessionRepository, ProfileRepository, ...
     codec/                  # backup document, zod schemas, import validation
   features/
-    home/ train/ session/ progress/ profile/
+    home/ train/ session/ week/ progress/ profile/
   design-system/
     tokens.ts  components/
   pwa/
@@ -410,6 +423,26 @@ export interface IdProvider { next(): Uuid }
   cascade (I-1).
 - Statistics never write. They are pure functions over records read through
   indexes, computed on demand.
+- **One single-row record takes the device-local branch.** The week of the match is one
+  `meta` row under the fixed key `'week'` — the Monday, the fixture and that week's
+  exchanges (`data-model.md` §5.1). It is reached through `storage.meta.readWeek` /
+  `saveWeek` (`MetaRepository`, `src/storage/repositories/profile.ts`) and written with a
+  plain `put`: no sync stamp, no queued op, and no entry in the sync table list, so there
+  is nothing to push and no server table to hold it. A `restore` clears `meta`, so the
+  record dies with it and `Inicio` plans the next week on first open. A feature never
+  writes it directly: it asks `src/features/week/week.ts` what today is, and the screen
+  writes the two commands that own the row — the fixture flip (`saveWeekMatch`) and the
+  exchange (`saveTodaySwap`) — both in `src/features/home/HomeScreen.tsx`.
+
+**The week module is the app tier's read side.** `src/features/week/week.ts` takes the
+stored record, the plan and the injected instant, and answers two questions with no
+React and no port: `weekTodayOf` — which day today is, or `null` — and `weekFixtureOf`
+— which fixture the week has, and the action that flips it. It finds the four stored
+days by name (`weekDaysOf`), because a stored `PlanDay` carries a name and an id but no
+role, and answers `null` instead of guessing when one of them is gone. Every `null` means the same thing: the week cannot
+speak for today, and `homeViewOf` falls back to the rotation (`nextPlanDay`), so the
+record is a convenience and never a condition for the screen to open. The pure planner
+never sees the store, and the store never sees a date.
 
 Details of the schema, keys, indexes, migration steps and the backup document are in
 `docs/data-model.md` §5 and §9.

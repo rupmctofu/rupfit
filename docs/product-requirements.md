@@ -119,21 +119,29 @@ Consequences the requirements below depend on:
 
 ### FR-3 Routine and schedule — MVP
 
-- **FR-3.1 MUST** ship the owner's three gym days. Superseded on 2026-11-09 by
-  `odd/tasks/training-program.md` (his own training needs, not a template for others):
+- **FR-3.1 MUST** ship the owner's four training days inside Monday to Friday, and the
+  match as a fifth day that is only reported (S1, S12). The layout depends on the week's
+  fixture (S11):
 
-  | Day | Name | Strength lift | Football |
+  | Weekday | League week (`jueves`) | Cup week (`martes`) | No fixture |
   | --- | --- | --- | --- |
-  | Monday | `PIERNA` | Sentadilla trasera (+ peso muerto rumano) | — |
-  | Tuesday | `TORSO A` | Press banca | — |
-  | Thursday | — | — | Match, ~50 min, recorded as an activity |
-  | Friday | `TORSO B` | Press banca inclinado | — |
+  | Monday | `PIERNA` | `MOVILIDAD Y CORE` | `PIERNA` |
+  | Tuesday | `TORSO A` | Match | `TORSO A` |
+  | Wednesday | `MOVILIDAD Y CORE` | `TORSO A` | `MOVILIDAD Y CORE` |
+  | Thursday | Match | `PIERNA` | `TORSO B` |
+  | Friday | `TORSO B` | `TORSO B` | rest |
+  | Saturday | rest | rest | rest |
+  | Sunday | rest | rest | rest |
 
-  Rupfit stores no weekday (`data-model.md §3`), so the three days are a rotation and the
-  calendar lives with the owner. Football is an `ActivityRecord`, never a session, and it
-  never moves the rotation. Wednesday, Saturday and Sunday are rest because only three gym
-  days exist.
-
+  Exactly one match a week, never two: Thursday in the league, Tuesday in the cup, and a
+  cup week has no league match. Saturday and Sunday are rest. In a league week the legs
+  are as far from the match as the window allows and the fourth day is the last training
+  day before it; in a cup week the legs move to the Thursday, never to the Wednesday
+  after the match. The layouts are a table (`WEEK_TEMPLATES` in
+  `src/core/engine/week-plan.ts`), not the result of rules derived from priorities:
+  changing a day means editing the table. `PlanDay` still stores no weekday — the weekday
+  comes from the template and the Monday of the week — so a layout change moves a session
+  without rewriting a stored day.
 - **FR-3.2 MUST** ship these accessories per day, editable and reorderable, each with its
   own prescription profile (`progression-engine.md §8`):
   *Pierna* — prensa (hypertrophy), curl femoral sentado (accessory), nordic curl asistido
@@ -152,13 +160,28 @@ Consequences the requirements below depend on:
   data: each exercise names 1–3 substitutes with the same movement pattern and primary
   muscle, the detail screen lists them with their equipment, and each keeps its own
   progression — substituting never transfers a load.
-- **FR-3.4 MUST** support scheduling by calendar date with the weekday template as
-  a default, not as a hard-coded day name.
+- **FR-3.4** *Superseded 2026-11-09 (S6, S12):* the weekday is no longer a default laid
+  over a date-based schedule — it is the layout itself (FR-3.1). Each day of the week is
+  stamped with the date of its own Monday to Sunday, and training outside that template is
+  a change of today (FR-3.7), not a second calendar entry.
 - **FR-3.5 MUST** track progression history and recommendations for accessory
   exercises exactly as for primary lifts. Primary lifts differ only in emphasis in
   the UI (FR-6.4), never in engine treatment.
 - **FR-3.6 SHOULD** support skipping a day without breaking the weekly pattern, and
   offer to train the skipped day on the next available date.
+- **FR-3.7 MUST** let the owner change today's training without planning anything (S6):
+  he picks another training day of this week and **the two days exchange weekdays** — the
+  day he leaves takes the weekday of the one he chose (S9). The exchange needs no free
+  slot, which is what makes it available on the weeks he actually plays, where Monday to
+  Friday are all taken. The match and the rest days are never offered, and neither is an
+  exchange that would load the legs the day after the match. The exchange is stored in
+  the week record and lasts that week: next week is drawn again from its own layout.
+- **FR-3.8 MUST** record the week's fixture in one action on `Inicio` and redraw the week
+  from it: `Liga · jueves` or `Copa · martes` (S7, S11), with the league as the default of
+  a week nobody has touched. The fixture is per week and not a season calendar — the cup
+  weeks are marked one by one, which is what makes the manual change enough while the
+  federation's calendar cannot be read (S10). A change of fixture clears that
+  week's exchanges, because they were made against the layout being replaced.
 
 ### FR-4 Readaptation phase — MVP
 
@@ -170,8 +193,13 @@ Consequences the requirements below depend on:
   prescribe training to failure during the phase.
 - **FR-4.4 MUST** gate each week's progression on the exit criteria, not on the
   calendar: complete all target reps, perceived effort at or below the target RIR,
-  no reported discomfort, and at least 2 of 3 sessions attended, sustained across
-  two consecutive weeks.
+  no reported discomfort, and at least two of three scheduled sessions attended,
+  sustained across two consecutive weeks. *Refined 2026-11-09:* the frequency the
+  attendance criterion is measured against is the lift's, not the programme's — three
+  days is a full-body programme, and every lift in this split trains on one weekday a
+  week, so one session per week is what the criterion asks of it
+  (`progression-engine.md` §8). Measured against three, no lift could ever pass and the
+  block would never move.
 - **FR-4.5 MUST** extend the phase beyond four weeks while criteria are unmet, up
   to a hard cap of eight weeks, then hold the last week's prescription and surface
   a review prompt instead of silently advancing.
@@ -195,6 +223,12 @@ Consequences the requirements below depend on:
 - **FR-5.6 MUST NOT** treat a voluntarily reduced weight as a failure, and
   **MUST NOT** infer failure from a load drop alone.
 - **FR-5.7 MUST** allow the weight to be edited between sets of the same exercise.
+- **FR-5.8 MUST** let the load follow the answer and not the calendar (S4): the next
+  session's recommendation is computed from the sets a verdict stored, so the weight only
+  moves when the verdicts say it should. Inside readaptation this is stricter, not
+  looser — one increment per block, and only when §8's gate passes over the block's own
+  weeks (`progression-engine.md` §8.1) — so answering `Lo hice` week after week never adds
+  kilos by itself.
 
 ### FR-6 Workout execution — MVP
 
@@ -228,6 +262,18 @@ Consequences the requirements below depend on:
 - **FR-7.4 MUST** allow correcting a logged set after the fact, including from the
   session summary.
 - **FR-7.5 MUST** mark a set as completed only on explicit confirmation.
+- **FR-7.6 MUST** let the owner answer an exercise **once**: one verdict per exercise,
+  not one per set, with three answers — `Lo hice`, `Fallé`, `Fui sobrado` (S4, S8).
+  This is the normal path, not the only one: the sets are still recorded, one per
+  prescribed slot, and per-set confirmation stays as the correction (FR-7.8).
+- **FR-7.7 MUST** write the verdict as the exercise's prescribed set list: the load
+  already on the card, the bottom of the range on every set for `Lo hice`, the last set
+  one rep short of it and marked as a failure for `Fallé`, and the top of the range marked
+  easy for `Fui sobrado` (`src/features/session/verdict.ts`). A verdict never invents a
+  load: with nothing suggested, the row asks for the weight first, and a slot prescribed
+  by time accepts only `Lo hice` or `Fallé`.
+- **FR-7.8 MUST** keep per-set confirmation as the correction path: a verdict fills what
+  is left of the exercise and never rewrites a set the owner confirmed by hand.
 
 ### FR-8 Rest timer — MVP
 
@@ -318,8 +364,8 @@ session works identically without them.
   **Implemented 2026-11-09** for the owner's Thursday football: `Inicio` records one
   manual `ActivityRecord` (`kind: 'other'`, 50 min, `provenance: 'manual'`, no kcal, no
   `externalSampleId`), the activity section labels it as recorded rather than imported,
-  and the strength rotation is untouched — a match is never a session and never a reason
-  to reorder the three gym days.
+  and the strength week is untouched — a match is never a session and never a reason
+  to reorder the four training days.
 
 ### FR-14 Apple Health — OUT (explicitly rejected for the MVP)
 
@@ -449,6 +495,8 @@ the installed Home Screen app:
 | 6 | Watch as data channel vs. HealthKit as data channel | Both channels are out. HealthKit is unreachable from a web page and a watchOS app cannot exchange messages with a PWA; the only remaining external input is a Shortcuts-authored import document that travels through the normal import path | Health and watch sections of `architecture.md`; this file FR-14, FR-15 |
 | 7 | Native iOS shell vs. zero recurring cost and no re-signing | The PWA wins: installable from Safari, standalone, developed on Windows, nothing expires. Cost accepted: no haptics, no HealthKit, no watch companion, no background execution, storage that can be evicted | `architecture.md`, `design-system.md` §2 |
 | 8 | "Zero third-party runtime dependencies" vs. React, `idb` and `zod` on the stack | **Owner decision:** the requirement is amended, not reinterpreted. NFR-8 now ships a closed runtime list of exactly `react`, `react-dom`, `idb`, `zod`; nothing else may be added without an ADR and an owner gate | This file, NFR-8; `architecture.md` §3.3 |
+| 9 | The match as a fifth training day (S1) vs. a day that has to live somewhere in the week | Four training days inside Monday to Friday; the match is reported as an `ActivityRecord` and never becomes a session, so it cannot move a strength day | This file, FR-3.1, FR-13.5 |
+| 10 | "Se mueve a otro día de la semana" (S9) vs. layouts that fill Monday to Friday | The two days exchange weekdays. There is no free slot to move into, and an exchange that would load the legs the day after the match is refused and never offered | This file, FR-3.7; `src/core/engine/week-plan.ts` |
 
 ## 8. Open decisions and the default applied
 

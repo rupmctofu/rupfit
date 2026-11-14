@@ -60,6 +60,34 @@ export interface ColdStartInput {
 }
 ```
 
+The engine's own input adds one field, and it is the narrowing §8 needs:
+
+```ts
+// src/core/engine/progression-engine.ts
+
+export interface EngineInput extends ProgressionInput {
+  /** The same outcomes, restricted to the sessions trained in the block `phaseState`
+   *  is on. Absent means the caller cannot tell, and §8 reads `history`. */
+  readonly blockHistory?: readonly ExerciseOutcome[];
+}
+```
+
+**Two views of the history, because they answer different questions.** §7's
+per-exercise rules read the whole career: a weight is consolidated across blocks and
+a miss two blocks ago still counts. §8's gate asks whether *this* block has completed
+its two weeks, so the weeks that already paid for an advance are not evidence for the
+next one. Rule 6 hands `input.blockHistory ?? usable` to `evaluateBlock`; the `??` is
+what keeps a caller with no phases to hand readable, and it is not the app's path —
+the app always narrows.
+
+The narrowing belongs to the caller because only the caller knows which block a
+session was trained in. `progressionHistoryOf(sessions, { block })` in
+`src/features/session/start.ts` filters the stored sessions by the phase each one
+carries (`WorkoutSession.phase`, `data-model.md` §3); `buildSession` hands the result
+to each exercise's `recommend`, and `phaseAdvance` hands it to `advanceProgramme`.
+Without it, persisting the block advance adds one increment per session for ever,
+which is the calendar moving the load instead of the verdict (S4).
+
 The two phase types are plain tagged objects too, so the engine branches on `kind`
 and never on a class:
 
@@ -71,8 +99,8 @@ export type TrainingPhase =
 export interface PhaseState {
   readonly block: number;                     // block currently trained: 1..4
   readonly passedBlocks: number;              // blocks already passed: 0..4
-  readonly role?: BlockRole;                  // 'primary' | 'accessory', default 'primary'
-  readonly scheduledSessionsPerWeek?: number; // default 3 (training-science §6)
+  readonly role?: BlockRole;                  // legacy fallback; the prescription's role wins
+  readonly scheduledSessionsPerWeek?: number; // 3 when unset (§8); the app's liftGate resolves 1
 }
 ```
 
@@ -277,13 +305,22 @@ export function evaluateBlock(
 `evaluateBlock(phase, state, history, now, profile?)` also takes the exercise's profile
 when the caller knows it (rule 6 does); without it the phase state's role applies.
 
+The `history` it is handed is the block's own weeks (§2), not the whole career:
+`evaluateBlock` slices the two weekly windows out of what it receives
+(`sessionsBetween`, which also drops an abandoned session) and decides nothing about
+which weeks belong to the block — that is the caller's narrowing. The window that is
+empty answers differently on purpose (`evaluateWeek`): no session in the older week is
+`insufficientWeeks`, "not covered yet"; no session in the current week is
+`missedSessions`, "not done".
+
 `BlockDecision` is a plain object: `kind` is `'pass'`, `'repeat'`, `'advanceToNormal'`
 or `'capReached'`; `prescriptionBlock` and `prescription` name the block that
 applies next (`null` when normal rules resume), and `failedCriteria` lists the
 unmet criteria for the reason line. `now` is injected so the two weekly windows are
 deterministic — the engine still owns no clock.
 
-Block prescriptions (from `training-science.md` §6), **four profiles since 1.1.0**:
+Block prescriptions (from `training-science.md` §6), **four repetition profiles since
+1.1.0**, plus the `conditioning` column 1.2.0 added:
 
 | Block | `strength` | `hypertrophy` | `accessory` | `preventive` |
 | --- | --- | --- | --- | --- |
@@ -291,13 +328,37 @@ Block prescriptions (from `training-science.md` §6), **four profiles since 1.1.
 | 2 | 3 × 6–8 @ 3–4 | 3 × 8–10 @ 3–4 | 3 × 10–12 @ 3 | 2 × 6–8 @ 5 |
 | 3 | 4 × 5–8 @ 2–3 | 4 × 8–12 @ 2–3 | 3 × 10–15 @ 2–3 | 3 × 6–10 @ 4–5 |
 | 4 | 4 × 5–6 @ 2 | 4 × 8–10 @ 2 | 3 × 10–12 @ 2 | 3 × 8–10 @ 3–4 |
-| Hold | last passed block | last passed block | last passed block | last passed block |
+| Repeated or capped | the block being trained | the block being trained | the block being trained | the block being trained |
+
+A repeated block and a block at the cap prescribe **the block being trained**, not the
+last one passed: `blockPrescription(block, role)` is read with the stored block, so
+`repeat` and `capReached` both return `prescriptionBlock: block` and the volume the
+owner is actually training at. Before 1.3.0 that row had to infer the block from
+`passedBlocks` and could only step back to the last one passed, which trained the
+block one step behind itself.
+
+The `conditioning` column is not measured in repetitions: `durationSeconds` carries the
+work of one set and it is the only number that grows across the blocks — 2 sets of
+120 s, 3 of 120 s, 3 of 180 s, 4 of 240 s, at RIR 4–5 in every block. Its load never
+moves, and rule 6 reads its increment as zero (§6).
 
 The profile of an exercise travels inside its `ExercisePrescription.role`
 (`data-model.md §3`), so rule 6 reads the column the plan declared for *that* exercise;
 `PhaseState.role` is the older phase-wide fallback and `hypertrophy` the default. The
 gate is unchanged, but it now compares an exercise's sets with its own prescription —
-which is why a strength lift doing 3 × 6 passes and a hypertrophy one needs 3 × 8–10.
+which is why the `preventive` two sets of six of the hamstring work passes block 1
+while a `strength` lift needs three sets of eight in the same block
+(`tests/readaptation.test.ts`).
+
+**Status of the numbers above.** They are `training-science.md` §6's, and `BLOCK_TABLE`
+no longer holds them for three of the four repetition columns: `strength`,
+`hypertrophy` and `accessory` prescribe 3–4 × 8–10 at 0 RIR in every block (3, 3, 4 and
+4 sets; `accessory` 2, 3, 3 and 3), the owner's own decision in
+`odd/tasks/five-day-plan.md` S6 and S7. The columns are stale in their numbers, not in
+their meaning, and nothing in §8's gate or in §7's order depends on which numbers they
+hold. Correcting this table and carrying the squat's 1 RIR exception into the engine
+belong to `odd/tasks/five-day-plan.md` T7, which is open; `preventive` is the one
+column that still reads as printed here.
 
 Gate (all four must hold across two consecutive weeks):
 
@@ -307,12 +368,44 @@ Gate (all four must hold across two consecutive weeks):
    4–5 RIR, so "effort ≤ target RIR" cannot be compared literally; the failure
    bucket is the only set the domain can call "at failure".
 3. No `mild` or `pain` discomfort anywhere in the block.
-4. At least two of the three scheduled sessions performed.
+4. At least `min(REQUIRED_SESSIONS_PER_WEEK, max(frequency, 1))` sessions performed
+   in each of the two weeks: two of three for a programme that schedules three, and
+   one for a lift in this split, which the templates train on one weekday a week.
+   The frequency compared is the **lift's**, never the plan's gym days:
+   `LIFT_SESSIONS_PER_WEEK` is 1, and `liftGate(state, sessionsPerWeek)` resolves it as
+   the caller's `ProgrammeLift.sessionsPerWeek`, then the stored
+   `PhaseState.scheduledSessionsPerWeek`, then the split's one. Measured against the
+   programme's three, no lift is ever trained twice a week, so the criterion could
+   never hold and the block could never move — a gate that can never pass is not a
+   stricter gate, it is a broken one.
 
 Load inside readaptation: no increase within a block; exactly one increment between
 blocks, and only after a `pass` decision. Block 5+ is impossible: at the end of
 block 4 the decision is `advanceToNormal`; if the cap (8 weeks) is reached first,
 the decision is `capReached` and the prescription freezes.
+
+### 8.1 The programme advances, not the exercise
+
+`evaluateBlock` decides for one lift; a block is trained by all of them, so the block
+moves at programme level: `advanceProgramme(state, lifts, now)` in
+`src/core/engine/readaptation.ts` returns the next `PhaseState` or `null`, and it is
+the only thing that moves `block`.
+
+- **Every judgeable lift must pass.** One lift failing holds the whole programme where
+  it is: the block is one number for the session, not one per exercise.
+- **A lift with no session in the previous week is not judged.** It has no evidence
+  yet, and reading `insufficientWeeks` as a failure would freeze the block for good the
+  week an exercise is added.
+- **Nothing moves backwards and nothing passes block 4.** `block` goes up by one at
+  most, `passedBlocks` becomes the greater of itself and the block being closed, and a
+  state that would come back unchanged returns `null` instead of writing.
+- **The end is a state, not a fifth block.** `isReadaptationFinished` reads
+  `passedBlocks >= LAST_BLOCK` (4), and from there `phaseOf` answers `normal`: §7's
+  ordinary rules resume and no block is prescribed again.
+- **The write happens once per closed session.** `advancePhaseAfter` in
+  `src/features/session/controller.ts` reads the phase state and the recent sessions,
+  asks `phaseAdvance` (`src/features/session/start.ts`) and writes what comes back;
+  only an increment is written, and an abandoned session is not evidence (§2).
 
 ---
 
@@ -404,13 +497,16 @@ increment 2.5 kg.
 | T-23 | Bodyweight, below range | increment 0, `5/5/5` | `hold`, reps 6, no weight arithmetic |
 | T-24 | Abandoned session in history | last session has 0 confirmed sets | it is ignored; the previous real session drives the result |
 | T-25 | Partial session with 1 set | sets `10` only | evaluated on that set; `allAtTop` true → `increase` |
-| T-26 | Readaptation block 1, gate passed | week 1, all criteria met | `increase` 102.5 (one increment), `suggestedSets` 3 (block 2), `suggestedTargetReps` 10, reason `readaptationBlockPassed` (corrected row: it read `hold` at the same weight, which §4 and §8 forbid — a passed block moves exactly one increment) |
-| T-27 | Readaptation block 2, criteria unmet | one session missed | `hold`, sets stay 2, reason `readaptationBlockNotPassed` |
-| T-28 | Readaptation cap | week 8, gate not passed | `hold`, reason `readaptationCapReached`, no advance |
+| T-26 | Readaptation block 1, gate passed | week 1, all criteria met | `increase` 102.5 (one increment), `suggestedSets` 3 (block 2), `suggestedTargetReps` 8 (block 2's own `repRange.lowerBound`, not the top of it), reason `readaptationBlockPassed` (corrected row: it read `hold` at the same weight, which §4 and §8 forbid — a passed block moves exactly one increment) |
+| T-27 | Readaptation block 2, criteria unmet | the block's previous week trained and its current week not (`missedSessions`), judged over the block's own weeks (§2) | `hold` at the same weight, `suggestedSets` 3 and `suggestedTargetReps` 8 from block 2's own prescription — the block being trained, not the last one passed — reason `readaptationBlockNotPassed` |
+| T-28 | Readaptation cap | week 8, gate not passed | `hold` at the same weight, the trained block's prescription (3 and 8 of block 2), reason `readaptationCapReached` with `weeks` 8, and no advance: `advanceProgramme` writes `null` |
 | T-29 | Readaptation exit | block 4 passed | `evaluateBlock` returns `BlockDecision.kind` `advanceToNormal`; the recommendation for that session is `action: 'increase'` with reason `readaptationBlockPassed`, and the next call uses normal rules |
 | T-30 | Unknown effort everywhere, below range | `5/5/5/5`, effort `null` | `hold` 100, reps 6 (rule 5 fires before effort matters) |
 | T-31 | Dumbbell increment 2 kg | 20 kg all top | `increase` 22.0 |
 | T-32 | Machine increment 5 kg | 60 kg all top | `increase` 65.0 |
+| T-33 | A block just started, nothing trained in it | the weeks that earned the advance are in `history` and `blockHistory` is empty | `hold` 100, sets 3, reps 8, reason `readaptationBlockNotPassed`: the weeks that paid for block 1 are not evidence of block 2 (§2) |
+| T-34 | The block's own two weeks, both `fui sobrado` | one session a week for two weeks inside the block | `increase` 102.5, reason `readaptationBlockPassed` — the lift's frequency is the one session a week of the split, and both weeks count |
+| T-35 | A lift with one week of evidence | `advanceProgramme` with a lift trained in the current week only | it is not judged (§8.1): alone it answers `null`, and beside a passing lift the passing one still moves the block |
 
 ### 11.2 Property tests
 
@@ -442,7 +538,22 @@ would hide a leak in the boundary.
 
 ## 12. Versioning the rules
 
-`ENGINE_VERSION` is `1.0.0`. Any change to §7 order, §8 gates or §6 rounding bumps it,
+`ENGINE_VERSION` is `1.3.0` (`src/core/engine/progression-engine.ts`, asserted in
+`tests/cold-start.test.ts`). Any change to §7 order, §8 gates or §6 rounding bumps it,
 and the change must include: the affected scenario rows updated in §11.1, a note in
 `docs/training-science.md` §10 if the training rule changed, and a changelog entry
-in this file's git history. A rule change without a test change is a defect.
+in this file. A rule change without a test change is a defect.
+
+The bumps so far, and exactly what each one changed:
+
+| Version | What changed |
+| --- | --- |
+| 1.1.0 | §8's table gained four prescription profiles, and rule 6 reads the exercise's own profile (`prescription.role`) instead of the phase-wide role. No gate changed, no order changed; the numbers a recommendation returns did |
+| 1.2.0 | A fifth profile, `conditioning`, prescribed by time and never by load: rule 6 reads its increment as zero, so no heavier interval is ever suggested. Every other profile returns what 1.1.0 returned |
+| 1.3.0 | §8 measures a block over **its own** weeks (§2): rule 6 passes `input.blockHistory ?? usable` to `evaluateBlock`, so the weeks that already earned an advance stop paying on the next session. A repeated or capped block prescribes the block being trained instead of stepping back to `passedBlocks`, and criterion 4 is measured against the lift's frequency (`liftGate`, one session a week in this split) instead of the programme's three |
+
+§7's order and the four gate criteria are the same in all three: what 1.3.0 changed is
+the evidence the gate reads and the frequency it compares that evidence against, not the
+criteria themselves or the training rule behind them — so `training-science.md` §10 has
+no note to add for it. Without the narrowing, persisting the advance added one increment
+per session for ever, which is the calendar moving the load (S4).

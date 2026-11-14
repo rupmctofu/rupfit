@@ -205,7 +205,7 @@ export interface WorkoutSession {
   readonly scheduledDate: EpochMs;
   readonly startedAt: EpochMs | null;
   readonly endedAt: EpochMs | null;
-  readonly phase: TrainingPhase;
+  readonly phase: TrainingPhase;          // the phase it was built in: §8's block evidence
   readonly status: SessionStatus;
   readonly exercises: readonly ExerciseSession[];
 }
@@ -243,6 +243,29 @@ export interface ActivityRecord {
   /** Dedupe key for imports (I-11). Null for manual rows. */
   readonly externalSampleId: string | null;
 }
+
+/** Which fixture the week has (S11): one match a week, Thursday in the league,
+ *  Tuesday in the cup, and a week that does not play has none. */
+export type MatchKind = 'league' | 'cup' | 'none';
+
+/** Weekday of the week, Monday first: 0 is Monday and 6 is Sunday. */
+export type DayOffset = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+/** Two weekdays that exchange what they hold (S6, S9). The weekdays never move; what
+ *  moves is which of the plan's days fills each one. */
+export interface WeekSwap {
+  readonly from: DayOffset;
+  readonly to: DayOffset;
+}
+
+/** This phone's plan for one week: the single-row record of §5.1. */
+export interface WeekRecord {
+  /** Local `YYYY-MM-DD` of the Monday, the form `weekPlan` wants. */
+  readonly monday: string;
+  readonly match: MatchKind;
+  /** The exchanges the owner made inside this week, and only this week. */
+  readonly swaps: readonly WeekSwap[];
+}
 ```
 
 `MassUnit` conversion lives in the UI layer. Storage is always kilograms as a
@@ -251,6 +274,25 @@ export interface ActivityRecord {
 `suggestedWeightKg` is `number | null`, matching `docs/progression-engine.md` §3 and
 §5: with no history and no calibration the app says "elige un peso" instead of
 inventing a number.
+
+**`WeekRecord` is a plan, not evidence.** It is the week's whole memory: the Monday it
+belongs to, which fixture it has, and the exchanges made inside it. Nothing else in
+it is derived — the seven days are stamped from that record by `weekPlan`
+(`src/core/engine/week-plan.ts`), so a stored swap survives a reload and a record of
+another week says nothing about today. It lives on this device only (§5.1, §9).
+
+`MatchKind`, `WeekSwap` and `DayOffset` are core value types — they belong to the week
+planner, which decides the layout — and the entity that stores them is storage-facing
+(`src/storage/entities.ts`, with the rest of §3): the engine never reads a week, only the
+app tier does (`architecture.md` §7).
+
+**`WorkoutSession.phase` is what makes §8's gate measurable.** It was always stored —
+the phase a session was built in — and since the block advance is persisted it is also
+the key that narrows a lift's history to the block being trained:
+`progressionHistoryOf(sessions, { block })` in `src/features/session/start.ts` keeps
+the sessions whose `phase.week` is the stored block, and §8's gate reads only those
+(`progression-engine.md` §2, §8). The field is not recomputed from current data
+(principle 2): a session closed in block 2 stays block-2 evidence.
 
 ---
 
@@ -283,7 +325,7 @@ under fixed string keys.
 
 | Store | Key path | Purpose |
 | --- | --- | --- |
-| `meta` | `key` (`'profile'`, `'phaseState'`, `'storage'`) | single-row state and storage-persistence answer |
+| `meta` | `key` (`'profile'`, `'phaseState'`, `'storage'`, `'week'`) | single-row state, the storage-persistence answer and this week's plan |
 | `exercises` | `id` | the library, seeded plus custom |
 | `planDays` | `id` | weekday template days |
 | `planItems` | `id` | ordered items of a day |
@@ -327,6 +369,17 @@ free:
   unique, and rows without `externalSampleId` are simply not in the index — so
   manual activities can share a store with imported ones without colliding. That is
   the mechanism behind I-11, not a database constraint.
+- **One `meta` row takes the device-local branch.** `meta` holds the week of the match
+  under the fixed key `'week'`, one row: the Monday, the match kind and that week's
+  exchanges (`WeekRecord`, §3). It is written with a plain `put` —
+  `MetaRepository.saveWeek` in `src/storage/repositories/profile.ts` — exactly like the
+  storage answer: no sync stamp, no queued op, and no entry in the sync table list
+  (`src/cloud/types.ts`), so there is no server table for it and nothing to push. Two
+  consequences follow and both are intended: the record is not in the backup document
+  (§9), and a `restore` clears `meta` (§9), so the week dies with the restore and
+  `Inicio` plans the next one on first open (`currentWeekOf`,
+  `src/features/home/HomeScreen.tsx`). A week is a plan for one phone, not history: it
+  must never be lifted into the sync path without a server column for it.
 
 ### 5.2 Records are flat, and the mappers are the boundary
 
@@ -575,6 +628,14 @@ Rules:
 - Export never includes anything beyond the domain: no storage internals, no
   IndexedDB rows, no device identifiers. Rows that arrived through the import path
   carry `externalSampleId` so re-import can dedupe (I-11).
+- **The week record is deliberately outside the document.** `meta.week` (§5.1) is a plan
+  for one phone, not training evidence, so it is not exported and not restored. A
+  `restore` clears every store, `meta` included, and writes back only the profile and
+  the phase state; the week that follows a restore is planned again from the template of
+  its own Monday, which is what `currentWeekOf` does for any week it holds no record of.
+  No session, set or
+  frozen recommendation depends on the week record, so nothing is lost by leaving it
+  out.
 - **Validation before writing.** The document is parsed with the `zod` schema derived
   from the domain types. An invalid document changes nothing and reports the first
   failure with its path (`sessions[3].exercises[0].sets[1].effort`), not a generic

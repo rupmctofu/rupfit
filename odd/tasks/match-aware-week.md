@@ -59,32 +59,48 @@ alrededor del día del partido, que casi siempre es jueves y a veces martes.
   plantillas son datos, no el resultado de reglas deducidas: cada una fija qué toca cada día
   de lunes a domingo, y el módulo solo estampa fechas, valida que los siete días están una
   vez y deja que el llamante pase los ids de sus días. Specs: S1, S5, S6, S7, S11, S12.
-  Route: worker.
+  Route: worker. Estado: hecho — `1517df0` (`src/core/engine/week-plan.ts`,
+  `tests/week-plan.test.ts`).
 - **T2** — Cuarto día de preparación para el fútbol en la semilla (hoy `FÍSICO` a tiempo):
   contenido, orden y por qué ese día va donde va respecto al partido. Specs: S1, S6.
-  Route: worker.
+  Route: worker. Estado: hecho — `96d3bd3`; el día se rehizo después como `MOVILIDAD Y
+  CORE` en `63c0a4c` (`odd/tasks/five-day-plan.md` S1).
 - **T3** — El día del partido como dato de la semana: jueves de liga por defecto, martes en
   semana de copa; las semanas de copa se marcan una vez por temporada (son pocas y no
   cambian) y hay un cambio suelto para la semana en curso. Persistido, con una acción en
-  Inicio. Sin scraping. Specs: S7, S11. Route: worker.
+  Inicio. Sin scraping. Specs: S7, S11. Route: worker. Estado: hecho — `e86f433` (el
+  registro en `meta`) y `92a1893` (la acción de Inicio y la semana de copa); la lectura en
+  el arranque de Inicio entra en `f4e9acf`.
 - **T4** — "Hoy toca esto": el entreno del día sale del planificador, no de la rotación por
-  historial, y cerrar la semana reestructura. Specs: S5, S7. Route: worker.
+  historial, y cerrar la semana reestructura. Specs: S5, S7. Route: worker. Estado: hecho —
+  `ca5b9f2` (la semana contesta primero y la rotación queda de respaldo) y `f4e9acf` (Inicio
+  lee el registro y se lo pasa).
 - **T5** — Cambiar el día de hoy: elegir otro tipo de entreno y recolocar el que se deja en
-  otro hueco libre de la semana. Specs: S6, S9. Route: worker.
+  otro hueco libre de la semana. Specs: S6, S9. Route: worker. Estado: hecho — `e86f433`
+  (`applySwaps` y las cinco negativas), `ca5b9f2` (los días con los que se puede
+  intercambiar) y `f4e9acf` (la acción en la tarjeta). La semántica es la de L10: los dos
+  días se intercambian.
 - **T6** — Flujo de sesión con veredicto por ejercicio: sugerencia ya puesta, sin pedir peso,
   y una sola respuesta al terminar cada ejercicio (`lo hice` / `fallé` / `fui sobrado`).
-  Specs: S2, S3, S4, S8. Route: worker.
+  Specs: S2, S3, S4, S8. Route: worker. Estado: hecho — `2306472`
+  (`src/features/session/verdict.ts`).
 - **T7** — Motor: del veredicto al ajuste de la semana siguiente (subir, bajar, más
   repeticiones, menos) sobre las reglas existentes de `progression-engine.ts`. Specs: S4.
-  Route: worker.
+  Route: worker. Estado: hecho — `08456f0` (el bloque avanza una vez, sobre las semanas del
+  propio bloque, y solo si el veredicto lo gana; motor en 1.3.0).
 - **T8** — El partido informado: actividad de fútbol alineada con el día de partido de la
-  semana, sin crear sesión. Specs: S1. Route: inline.
+  semana, sin crear sesión. Specs: S1. Route: inline. Estado: parcial — `f4e9acf` nombra el
+  día del partido y el de descanso (`offDayOf`), y la actividad sigue sin crear sesión,
+  pero se fecha con el reloj (`footballRecordOf`) y no con el día de partido de la semana.
+  Abierto en `docs/roadmap.md` §3.
 - **T9** — Documentación y memoria: `docs/progression-engine.md`, `docs/data-model.md`,
   `docs/product-requirements.md`, `docs/roadmap.md`, y la decisión en Engram. Specs: todas.
-  Route: inline.
+  Route: inline. Estado: en curso — sin commit propio todavía; lo empuja el padre con el
+  resto de este cambio.
 - **T10** — Adaptador de calendario desde cegarraf (bloqueado por S10: el componente Joomla
   no expone feed, exige POST con sesión y no manda CORS; haría falta un proxy propio que
-  parsee HTML). Specs: S10. Route: worker. Estado: pendiente de decisión.
+  parsee HTML). Specs: S10. Route: worker. Estado: pendiente de decisión, sin commit;
+  registrado como trabajo abierto en `docs/roadmap.md` §3.
 
 ## Log
 
