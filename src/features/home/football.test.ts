@@ -18,11 +18,14 @@ import {
   FOOTBALL_DURATION_SECONDS,
   footballRecordOf,
   recordFootball,
+  reportMatch,
 } from './football';
 import { startOfDay } from './selectors';
 
 /** Wednesday 8 November 2023, 18:00 local: a Thursday match reported the day before. */
 const NOW = new Date(2023, 10, 8, 18, 0, 0).getTime();
+/** The match of that week: Thursday 9 November 2023, 18:00 local. */
+const MATCH_DAY = new Date(2023, 10, 9, 18, 0, 0).getTime();
 
 describe('footballRecordOf', () => {
   it('records an other/manual activity of 50 minutes, with no health datum', () => {
@@ -104,5 +107,54 @@ describe('recordFootball', () => {
     });
 
     expect(outcome).toBe('failed');
+  });
+});
+
+/**
+ * T8 (S1, S11) — the match of the day, reported and never trained.
+ *
+ * The row *is* the week's memory of it, so these three cases are the whole contract: the
+ * report writes the same football activity as the loose row, a second attempt writes
+ * nothing, and a row from another day is not this week's match.
+ */
+describe('reportMatch', () => {
+  const clock = { now: () => MATCH_DAY };
+  const deps = (storage: StoragePort, id: string) => ({ storage, clock, newId: () => id });
+
+  it('writes the same football activity, and never a session', async () => {
+    const storage = createFakeStorage();
+
+    expect(await reportMatch(deps(storage, 'match-1'))).toBe('saved');
+
+    // Same kind, same duration, same shape as the loose capture: no new entity (T8).
+    expect(await storage.activities.all()).toEqual([footballRecordOf(MATCH_DAY, 'match-1')]);
+    expect(storage.calls.filter((call) => call.startsWith('sessions.'))).toEqual([]);
+  });
+
+  it('writes nothing on a second attempt, because the row already says it was reported', async () => {
+    const storage = createFakeStorage();
+
+    expect(await reportMatch(deps(storage, 'match-1'))).toBe('saved');
+    expect(await reportMatch(deps(storage, 'match-2'))).toBe('already');
+
+    expect(await storage.activities.all()).toHaveLength(1);
+  });
+
+  it('does not take a football row from another day for the match of this day', async () => {
+    const storage = createFakeStorage();
+    await storage.activities.save(footballRecordOf(NOW, 'wednesday'));
+
+    expect(await reportMatch(deps(storage, 'match-1'))).toBe('saved');
+    expect(await storage.activities.all()).toHaveLength(2);
+  });
+
+  it('reports a refused write instead of throwing at the screen', async () => {
+    const base = createFakeStorage();
+    const storage: StoragePort = {
+      ...base,
+      activities: { ...base.activities, save: () => Promise.reject(new Error('quota')) },
+    };
+
+    expect(await reportMatch({ storage, clock })).toBe('failed');
   });
 });

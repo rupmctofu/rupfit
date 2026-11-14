@@ -16,11 +16,11 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { PlanDay, StoragePort, UserProfile, WeekRecord, WorkoutSession } from '../../storage';
 import { createFakeStorage } from '../session/fake-port';
-import { HomeBody, TodaySwapSheet, currentWeekOf, offDayOf, saveTodaySwap, saveWeekMatch } from './HomeScreen';
+import { HomeBody, TodaySwapSheet, currentWeekOf, matchReportedOf, offDayOf, saveTodaySwap, saveWeekMatch } from './HomeScreen';
 import { weekFixtureOf } from '../week/week';
 import { demoWeek, demoPort, demoRestNow } from './demo';
-import { homeViewOf, type HomeInput } from './selectors';
-import { recordFootball } from './football';
+import { homeViewOf, startOfDay, type HomeInput } from './selectors';
+import { recordFootball, reportMatch } from './football';
 import { NO_DELETION, type ActivityDeletionState } from './deletion';
 
 /** Wednesday 8 November 2023, 18:00 local. */
@@ -166,9 +166,11 @@ function render(overrides: Partial<HomeInput> = {}): string {
     <HomeBody
       view={homeViewOf(fixture)}
       offDay={offDayOf(fixture)}
+      matchReported={matchReportedOf(fixture)}
       fixture={weekFixtureOf(fixture.week)}
       onStart={() => undefined}
       onRecordFootball={() => undefined}
+      onReportMatch={() => undefined}
       onSwapToday={() => undefined}
       onFlipWeek={() => undefined}
       deletion={DELETION}
@@ -375,9 +377,80 @@ describe('the match day and the rest day have their own state (T8, S1, S12)', ()
     expect(markup).toContain('Hoy descansas');
     expect(markup).not.toContain('El siguiente día de tu rutina todavía no tiene ejercicios');
     expect(markup).not.toContain('Empezar entrenamiento');
+    // T8: a rest day has nothing to report, so the match's action is not offered on it.
+    expect(markup).not.toContain('Informar el partido');
     // A training day of the same week is not an off day, in the league and in the cup.
     expect(offDayOf(input({ plan: WEEK_PLAN, week: LEAGUE_WEEK }))).toBeNull();
     expect(offDayOf(input({ plan: WEEK_PLAN, week: { ...LEAGUE_WEEK, match: 'cup' } }))).toBeNull();
+  });
+});
+
+describe('the match is reported, never trained (T8, S1)', () => {
+  const matchClock = { now: () => THURSDAY };
+  const report = (storage: StoragePort, id: string) => ({ storage, clock: matchClock, newId: () => id });
+
+  it('offers the report on the match day, and no way to start a training', () => {
+    const markup = render({ now: THURSDAY, plan: WEEK_PLAN, week: LEAGUE_WEEK });
+
+    expect(markup).toContain('Hoy es el día del partido');
+    // S1: the fifth day of the week is informed, in the owner's words.
+    expect(markup).toContain('Informar el partido');
+    expect(markup).not.toContain('Empezar entrenamiento');
+  });
+
+  it('writes exactly one activity, and the card then shows the day is done', async () => {
+    const storage = createFakeStorage();
+
+    expect(await reportMatch(report(storage, 'match-1'))).toBe('saved');
+
+    const activities = await storage.activities.all();
+    expect(activities).toHaveLength(1);
+    // The row the app already writes for football: same kind, same duration, same shape.
+    expect(activities[0]).toMatchObject({
+      id: 'match-1',
+      date: startOfDay(THURSDAY),
+      kind: 'other',
+      durationSeconds: 50 * 60,
+      provenance: 'manual',
+    });
+    // And no session: a match is reported with an activity (T8).
+    expect(storage.calls.filter((call) => call.startsWith('sessions.'))).toEqual([]);
+
+    const markup = render({ now: THURSDAY, plan: WEEK_PLAN, week: LEAGUE_WEEK, activities });
+    expect(markup).toContain('Partido informado');
+    expect(markup).not.toContain('Informar el partido');
+  });
+
+  it('writes nothing on a second attempt, and the week keeps saying it is done', async () => {
+    const storage = createFakeStorage();
+    expect(await reportMatch(report(storage, 'match-1'))).toBe('saved');
+    const activities = await storage.activities.all();
+
+    // The week reads the row instead of keeping a flag, so a second visit offers nothing.
+    const week = { now: THURSDAY, plan: WEEK_PLAN, week: LEAGUE_WEEK, activities };
+    expect(matchReportedOf(input(week))).toBe(true);
+    // And a write that arrives anyway finds the day reported and adds no second row.
+    expect(await reportMatch(report(storage, 'match-2'))).toBe('already');
+    expect(await storage.activities.all()).toHaveLength(1);
+  });
+
+  it('does not take a football activity from another day for the match of this week', async () => {
+    const storage = createFakeStorage();
+    // Today is Wednesday and the match is Thursday: the loose row is not this week's match.
+    expect(await reportMatch({ storage, clock: { now: () => NOW }, newId: () => 'football-1' })).toBe(
+      'saved',
+    );
+    const activities = await storage.activities.all();
+
+    const week = { now: THURSDAY, plan: WEEK_PLAN, week: LEAGUE_WEEK, activities };
+    expect(matchReportedOf(input(week))).toBe(false);
+    const markup = render(week);
+    expect(markup).toContain('Informar el partido');
+    expect(markup).not.toContain('Partido informado');
+
+    // The other day kept its own row, and Thursday still gets its own: one match a week.
+    expect(await reportMatch(report(storage, 'match-1'))).toBe('saved');
+    expect(await storage.activities.all()).toHaveLength(2);
   });
 });
 

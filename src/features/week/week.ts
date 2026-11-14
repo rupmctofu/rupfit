@@ -21,6 +21,10 @@
  *    two days trade weekdays. What is offered is therefore never the match (S11), never a
  *    rest day (S12) and never a day the legs cannot take (L7).
  *
+ * T8 adds one answer and no state: the day of the match carries whether it has already
+ * been reported (S1), read from the football row the report writes — the same row the app
+ * already stores, so no new entity, no new table and no change to the stored sessions.
+ *
  * Pure: no React, no port, no clock. `now` is injected, exactly as the selectors do it.
  */
 
@@ -34,7 +38,7 @@ import {
   type WeekPlanDays,
   type WeekSwap,
 } from '../../core/engine/week-plan';
-import type { EpochMs, PlanDay, WeekRecord } from '../../storage';
+import type { ActivityRecord, EpochMs, PlanDay, WeekRecord } from '../../storage';
 import { formatDayName, formatWeekdayName } from '../home/format';
 
 /**
@@ -191,6 +195,11 @@ export interface WeekToday {
    * A training day always has at least one, so the change is never offered as impossible.
    */
   readonly targets: readonly WeekSwapTarget[];
+  /**
+   * T8 (S1) — on the day of the match, whether it has already been reported. `false` on
+   * every other day: a training day and a rest day have nothing to report.
+   */
+  readonly matchReported: boolean;
 }
 
 export interface WeekTodayInput {
@@ -198,6 +207,31 @@ export interface WeekTodayInput {
   readonly plan: readonly PlanDay[];
   /** The stored week record, or `undefined` when this device has not planned one. */
   readonly week: WeekRecord | undefined;
+  /**
+   * T8 — the recorded activities. The match keeps no flag of its own: the football row
+   * the report writes is its whole memory, so the week reads it from here.
+   */
+  readonly activities?: readonly ActivityRecord[] | undefined;
+}
+
+/**
+ * T8 (S1) — a football row: a manual `other` activity, the shape
+ * `features/home/football.ts` writes. An import or a cardio sample is not a match.
+ */
+export function isFootballRow(row: ActivityRecord): boolean {
+  return row.kind === 'other' && row.provenance === 'manual';
+}
+
+/**
+ * T8 (S1) — whether the match of the local day that contains `at` has been reported.
+ *
+ * The day matters: a football activity recorded on Wednesday says nothing about the
+ * match of Thursday, and the week is only asking about its own match day. Nothing is
+ * written to remember this — no new entity and no new table (T8).
+ */
+export function reportedMatchOf(rows: readonly ActivityRecord[], at: EpochMs): boolean {
+  const day = localDayOf(at);
+  return rows.some((row) => isFootballRow(row) && localDayOf(row.date) === day);
 }
 
 /**
@@ -273,6 +307,15 @@ export function weekTodayOf(input: WeekTodayInput): WeekToday | null {
   // S6 only offers to change a training day: the match is reported (S1) and a rest day
   // asks nothing of the gym.
   const trainable = day.kind === 'training' || day.kind === 'prep';
+  // S1: the match is reported, never trained and never exchanged, so the only thing the
+  // week can add about it is whether the owner has already informed it.
+  const matchReported =
+    day.kind === 'match' && reportedMatchOf(input.activities ?? [], input.now);
 
-  return { day, planDay, targets: trainable ? targetsOf(week, offset, input.plan, days) : [] };
+  return {
+    day,
+    planDay,
+    targets: trainable ? targetsOf(week, offset, input.plan, days) : [],
+    matchReported,
+  };
 }

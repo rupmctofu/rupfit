@@ -50,7 +50,7 @@ import { useAppServices } from '../../app/providers';
 import type { Clock } from '../session/controller';
 import { useStartSession, type StartNotice } from '../session/startSession';
 import { summaryHash } from '../summary/route';
-import { weekFixtureOf, weekTodayOf, type WeekFixture } from '../week/week';
+import { weekFixtureOf, weekTodayOf, type WeekFixture, type WeekToday } from '../week/week';
 import { DemoHome } from './DemoHome';
 import { ACTIVITY_DELETE_COPY, useActivityDeletion, type ActivityDeletionState } from './deletion';
 import { FOOTBALL_DURATION_MINUTES, useFootballCapture } from './football';
@@ -141,11 +141,30 @@ export type OffDay = 'match' | 'rest';
 
 /** The match or the rest day the stored week names for today, or `null` on a training day. */
 export function offDayOf(input: HomeInput): OffDay | null {
-  if (input.week === undefined) return null;
-  const today = weekTodayOf({ now: input.now, plan: input.plan, week: input.week });
-  if (today === null) return null;
-  const kind = today.day.kind;
+  const kind = todayOf(input)?.day.kind;
   return kind === 'match' || kind === 'rest' ? kind : null;
+}
+
+/**
+ * T8 (S1) — whether the match of this week has already been reported.
+ *
+ * A read, never a second store: the football row of today's date is the week's whole
+ * memory of it (`reportedMatchOf`), so a second visit does not offer the report again and
+ * nothing can double-write the day (T8).
+ */
+export function matchReportedOf(input: HomeInput): boolean {
+  return todayOf(input)?.matchReported ?? false;
+}
+
+/** Today as the stored week names it, or `null` when the rotation answers (T4). */
+function todayOf(input: HomeInput): WeekToday | null {
+  if (input.week === undefined) return null;
+  return weekTodayOf({
+    now: input.now,
+    plan: input.plan,
+    week: input.week,
+    activities: input.activities,
+  });
 }
 
 /**
@@ -274,6 +293,16 @@ export interface HomeProps {
   readonly onSwapToday?: ((swap: WeekSwap) => void) | undefined;
   /** T8 — the match or the rest day the week names, so the card can name it too. */
   readonly offDay?: OffDay | null | undefined;
+  /** T8 — the match of this week has already been reported: the day is done (S1). */
+  readonly matchReported?: boolean | undefined;
+  /**
+   * T8 — reports the match of the day. Absent (a screen with no port, the gallery): the
+   * day still names itself and offers nothing.
+   */
+  readonly onReportMatch?: (() => void) | undefined;
+  readonly reporting?: boolean | undefined;
+  /** The failure line of the last report; `null` until one fails. */
+  readonly reportNotice?: string | null | undefined;
   /**
    * T3 — which fixture this week has and the way to flip it. Absent (a store with no
    * record, the gallery): the card says nothing about a match (S11).
@@ -474,18 +503,26 @@ function WeekFixtureLine({
 function TodayBlock({
   view,
   offDay = null,
+  matchReported = false,
   fixture = null,
   onStart,
   onNavigate = navigateTo,
   onSwapToday,
+  onReportMatch,
+  reporting = false,
+  reportNotice = null,
   onFlipWeek,
   starting = false,
 }: HomeViewOnly & {
   readonly offDay?: OffDay | null | undefined;
+  readonly matchReported?: boolean | undefined;
   readonly fixture?: WeekFixture | null | undefined;
   readonly onStart: () => void;
   readonly onNavigate?: ((href: string) => void) | undefined;
   readonly onSwapToday?: ((swap: WeekSwap) => void) | undefined;
+  readonly onReportMatch?: (() => void) | undefined;
+  readonly reporting?: boolean | undefined;
+  readonly reportNotice?: string | null | undefined;
   readonly onFlipWeek?: ((match: MatchKind) => void) | undefined;
   readonly starting?: boolean | undefined;
 }): React.ReactElement {
@@ -508,9 +545,29 @@ function TodayBlock({
               <Icon name="heart" size={20} className="home__card-icon" />
               <h2 className="ds-card-title">Hoy es el día del partido</h2>
             </div>
-            <p className="ds-body ds-body--muted">
-              El partido se informa en Actividad. Hoy no hay entreno.
-            </p>
+            {/* S1: the fifth day of the week is informed, not trained. Once it has been
+                informed there is nothing left to do on it, and the card says so instead
+                of offering the action again (T8). */}
+            {matchReported ? (
+              <p className="ds-body ds-body--muted">Partido informado. Hoy no hay entreno.</p>
+            ) : (
+              <>
+                <p className="ds-body ds-body--muted">
+                  Hoy se juega: el partido se informa, no se entrena. Dímelo cuando lo hayas jugado.
+                </p>
+                {onReportMatch === undefined ? null : (
+                  <PrimaryAction
+                    icon="check"
+                    className="home__primary"
+                    disabled={reporting}
+                    onClick={onReportMatch}
+                  >
+                    {reporting ? 'Informando…' : 'Informar el partido'}
+                  </PrimaryAction>
+                )}
+                {reportNotice === null ? null : <p className="ds-body">{reportNotice}</p>}
+              </>
+            )}
           </Card>
         ) : offDay === 'rest' ? (
           <Card>
@@ -816,6 +873,7 @@ function ActivitySection({
 export function HomeBody({
   view,
   offDay = null,
+  matchReported = false,
   fixture = null,
   onStart,
   onNavigate = navigateTo,
@@ -824,6 +882,9 @@ export function HomeBody({
   onRecordFootball,
   recording = false,
   footballNotice = null,
+  onReportMatch,
+  reporting = false,
+  reportNotice = null,
   onSwapToday,
   onFlipWeek,
   deletion,
@@ -857,10 +918,14 @@ export function HomeBody({
       <TodayBlock
         view={view}
         offDay={offDay}
+        matchReported={matchReported}
         fixture={fixture}
         onStart={onStart}
         onNavigate={navigate}
         onSwapToday={onSwapToday}
+        onReportMatch={onReportMatch}
+        reporting={reporting}
+        reportNotice={reportNotice}
         onFlipWeek={onFlipWeek}
         starting={starting}
       />
@@ -942,6 +1007,10 @@ export function HomeScreenWithPort({
   // the owner on Inicio, on the same day.
   const refresh = useCallback(() => setAttempt((value) => value + 1), []);
   const capture = useFootballCapture({ storage, clock, onSaved: refresh });
+  // T8/S1: the report of the match, on the day the week calls the match. It is a second
+  // instance of the same capture, guarded (`reportMatch`), so the day is informed once
+  // and the screen re-reads into the done state instead of offering it again.
+  const report = useFootballCapture({ storage, clock, onSaved: refresh, match: true });
   // T5: the exchange is written into the week record and the screen re-reads, so the card
   // above shows the exchanged week instead of the one it was drawn from.
   const chooseSwap = useCallback(
@@ -1008,6 +1077,7 @@ export function HomeScreenWithPort({
     <HomeBody
       view={homeViewOf(boot.input)}
       offDay={offDayOf(boot.input)}
+      matchReported={matchReportedOf(boot.input)}
       fixture={weekFixtureOf(boot.input.week)}
       onStart={start.start}
       starting={start.busy}
@@ -1015,6 +1085,9 @@ export function HomeScreenWithPort({
       onRecordFootball={capture.save}
       recording={capture.busy}
       footballNotice={capture.notice}
+      onReportMatch={report.save}
+      reporting={report.busy}
+      reportNotice={report.notice}
       onSwapToday={chooseSwap}
       onFlipWeek={flipWeek}
       deletion={deletion}
