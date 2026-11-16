@@ -511,20 +511,113 @@
   flex: 1 1 auto;
 }
 
-/* The split bar cannot hold both labels on one line at 390 px: the quiet exit was clipped
-   by the pinned `Registrar serie` (`Terminar la sesió…`). The primary action takes the
-   whole line and the exit sits under it, right-aligned, so neither label is truncated and
-   only the primary keeps the accent. */
-.session__actions--stack {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--space-1);
+/* ------------------------------------------------------------- the way out (T1) */
+
+/*
+ * The one top control opens a sheet over everything the session owns — the cards, the
+ * sticky bottom bar and the keypad — so the way out is never behind the action bar. The
+ * shade and the sheet are two fixed layers above them: 1 is the bar, 2 the keypad.
+ *
+ * No colour literal here: the shade is the sheet's own background at reduced opacity, and
+ * the sheet is the raised surface plus the 1 px top hairline the design-system gives every
+ * sheet (§6.2).
+ */
+.session-exit__shade {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  background: var(--color-bg);
+  opacity: 0.72;
 }
 
-.session__finish {
-  align-self: center;
-  white-space: nowrap;
+.session-exit {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  /* The sheet is the only thing that scrolls while it is open. */
+  overscroll-behavior: contain;
+}
+
+.session-exit__sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  max-height: 80dvh;
+  overflow-y: auto;
+  /* The bottom inset is the sheet's, so neither action sits under the home bar. */
+  padding: var(--space-3) var(--layout-screen-padding) calc(var(--space-3) + var(--safe-bottom));
+  border-top: var(--layout-hairline) solid var(--color-border);
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  background: var(--color-surface);
+  color: var(--color-text);
+  overscroll-behavior: contain;
+}
+
+/* Focus is moved into the sheet when it opens: the ring has to show that it landed. */
+.session-exit__sheet:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.session-exit__grab {
+  display: block;
+  width: var(--space-8);
+  height: var(--radius-track);
+  margin: 0 auto;
+  border-radius: var(--radius-track-thin);
+  background: var(--color-border);
+}
+
+.session-exit__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.session-exit__head > h2 {
+  min-width: 0;
+  margin: 0;
+}
+
+/* The two named actions of S3, one per line: two words to choose between, never a guess. */
+.session-exit__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.session-exit__action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  /* §3 / S4: a 48 px target, one thumb. */
+  min-height: var(--target-min);
+  padding: var(--space-2) var(--space-3);
+  border: var(--layout-hairline) solid var(--color-border);
+  border-radius: var(--radius-control-square);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  font-weight: var(--weight-semibold);
+  text-align: center;
+}
+
+.session-exit__question {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.session-exit__question p {
+  margin: 0;
 }
 
 /* The quieter of two competing actions (§7.1): a pill, never a second accent fill. */
@@ -618,6 +711,7 @@
   .session__slide,
   .session__bar,
   .session__keypad,
+  .session-exit__sheet,
   .session__demo {
     padding-left: var(--layout-screen-padding-compact);
     padding-right: var(--layout-screen-padding-compact);

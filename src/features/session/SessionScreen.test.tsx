@@ -15,9 +15,29 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { EFFORT, type ExercisePrescription } from '../../core/domain';
+import { summarise } from '../../core/session/model';
 import type { ExerciseState, SessionEvent, SessionState } from '../../core/session/model';
 import type { SetRecord, WorkoutSession } from '../../storage';
-import { CorrectionHint, VerdictRow, writeCorrection, writeVerdict } from './SessionScreen';
+import {
+  canFinishSession,
+  CorrectionHint,
+  EXIT_CONTROL_LABEL,
+  EXIT_FINISH_LABEL,
+  EXIT_LEAVE_LABEL,
+  exitActionsFor,
+  exitOffer,
+  finishEvent,
+  finishStepFor,
+  SessionExit,
+  VerdictRow,
+  writeCorrection,
+  writeVerdict,
+  type SessionExitProps,
+} from './SessionScreen';
+// The project has no DOM to mount the screen in, and the bottom bar is markup the screen
+// builds for itself: S6 is checked where it is written, the way `tests/accent-budget.test.ts`
+// checks the stylesheets. `?raw` is the toolchain's own reader and needs no dependency.
+import screenSource from './SessionScreen.tsx?raw';
 import { ExerciseCard } from './ExerciseCard';
 import { createSessionMachine, type SessionMachine } from './controller';
 import { createFakeStorage, type FakeStorage } from './fake-port';
@@ -428,5 +448,220 @@ describe('saving a correction (S6)', () => {
     expect(result.refusal).toBe('Esa serie todavía no está registrada.');
     expect(sent).toEqual([]);
     expect(storage.calls).toEqual([]);
+  });
+});
+
+/* ------------------------------------------------------------- the way out (T1) */
+
+/** The exit control and its sheet, with everything closed: each test opens what it needs. */
+const SHEET: SessionExitProps = {
+  open: false,
+  step: 'actions',
+  canFinish: true,
+  setsConfirmed: 0,
+  onOpen: () => undefined,
+  onClose: () => undefined,
+  onLeave: () => undefined,
+  onFinish: () => undefined,
+  onConfirm: () => undefined,
+};
+
+describe('the exit control (S2, S3)', () => {
+  it('is one named control that says it opens something, and draws no sheet until it opens', () => {
+    // RED (T1): the top bar held a control named `Salir de la sesión` that left without
+    // asking, and no sheet at all — there was no second thing to say.
+    const markup = renderToStaticMarkup(<SessionExit {...SHEET} />);
+
+    expect(markup).toContain('session__exit');
+    expect(markup).toContain(`aria-label="${EXIT_CONTROL_LABEL}"`);
+    expect(markup).toContain('aria-haspopup="dialog"');
+    expect(markup).toContain('aria-expanded="false"');
+    // Nothing is drawn over the session until the owner asks for it.
+    expect(markup).not.toContain('role="dialog"');
+  });
+
+  it('offers both named actions in the undecided session, in the sheet the day sheet uses', () => {
+    // RED (T1): `Terminar la sesión` only existed in the bottom bar's non-decision
+    // branches, so this state — no decision, not a single set — had no visible way out.
+    return booted().then(({ session }) => {
+      expect(session.exercises[0]?.decision).toBe(null);
+      const offer = exitOffer(canFinishSession(session));
+
+      // Two actions, both named, in the words the app already uses.
+      expect(offer.map((action) => action.label)).toEqual([
+        'Salir y seguir luego',
+        'Terminar la sesión',
+      ]);
+      expect(EXIT_LEAVE_LABEL).toBe('Salir y seguir luego');
+      expect(EXIT_FINISH_LABEL).toBe('Terminar la sesión');
+
+      const markup = renderToStaticMarkup(<SessionExit {...SHEET} open />);
+
+      expect(markup).toContain('role="dialog"');
+      expect(markup).toContain('aria-modal="true"');
+      // The day sheet's own contract: focus moves into the sheet when it opens.
+      expect(markup).toContain('tabindex="-1"');
+      expect(markup).toContain('Salir y seguir luego');
+      expect(markup).toContain('Terminar la sesión');
+    });
+  });
+
+  it('keeps the close in the sheet in every state, and drops it when there is nothing to close', () => {
+    // S2: reachable with no sets (above), mid-exercise, and after the walk at the end.
+    expect(canFinishSession(null)).toBe(false);
+    const offers = (canFinish: boolean): readonly string[] =>
+      exitOffer(canFinish).map((action) => action.label);
+
+    expect(offers(true)).toEqual(['Salir y seguir luego', 'Terminar la sesión']);
+    // A settled session has nothing left to close; the way out is still there.
+    expect(offers(false)).toEqual(['Salir y seguir luego']);
+
+    // And the sheet draws exactly what it offers: no close row on the settled screen.
+    const settledMarkup = renderToStaticMarkup(
+      <SessionExit {...SHEET} open canFinish={false} />,
+    );
+    expect(settledMarkup).toContain('Salir y seguir luego');
+    expect(settledMarkup).not.toContain('Terminar la sesión');
+    // And the line above them does not promise a close it no longer offers.
+    expect(settledMarkup).not.toContain('cerrarla con lo que lleves');
+    expect(settledMarkup).toContain('ya está cerrada');
+  });
+});
+
+describe('salir y seguir luego (S3)', () => {
+  it('leaves the session open, resumable, and writes nothing at all', async () => {
+    // RED (T1): the exit ran the host's callback straight from the top bar. It still does
+    // — but now through the named action, and the test says the session survives it.
+    const { machine, storage, session } = await booted([storedSet(1, 55, 4)]);
+    storage.reset();
+    let left = 0;
+
+    exitActionsFor({
+      session,
+      dispatch: (event) => machine.dispatch(event, NOW),
+      onExit: () => {
+        left += 1;
+      },
+    }).leave();
+
+    expect(left).toBe(1);
+    // Nothing was written and nothing was dispatched: the session is where it was.
+    expect(storage.calls).toEqual([]);
+    expect(machine.runtime().session?.status).toBe('inProgress');
+    // Resumable: the stored row is still open, so `sessions.inProgress()` finds it.
+    expect(storage.stored()[0]?.status).toBe('inProgress');
+    expect(storage.stored()[0]?.endedAt).toBe(null);
+    expect(machine.runtime().rejection).toBe(null);
+  });
+});
+
+describe('terminar la sesión (S4)', () => {
+  it('writes what was confirmed, then closes with the outcome the table derives', async () => {
+    // RED (T1): the close lived in a bottom bar branch, so nothing could reach it in the
+    // undecided state; and there was no seam proving what a close writes.
+    const { machine, storage, session } = await booted([storedSet(1, 55, 4), storedSet(2, 60, 6)]);
+    storage.reset();
+
+    // The event is the table's own, with the outcome read from what the session answered.
+    expect(finishEvent(session)).toEqual({ type: 'session-finished', outcome: 'partial' });
+
+    await exitActionsFor({
+      session,
+      dispatch: (event) => machine.dispatch(event, NOW),
+      onExit: () => undefined,
+    }).finish();
+
+    // One close, and no invented set: the two confirmed rows are exactly what was there.
+    expect(storage.calls.filter((call) => call === 'sessions.finish')).toHaveLength(1);
+    expect(storage.calls).not.toContain('sessions.confirmSet');
+
+    const stored = storage.stored()[0];
+    expect(stored?.status).toBe('partial');
+    expect(stored?.endedAt).toBe(NOW);
+    expect(stored?.exercises[0]?.sets.map((set) => set.weightKg)).toEqual([55, 60]);
+
+    const settled = machine.runtime().session;
+    if (settled === null) throw new Error('the close lost the session');
+    expect(settled.status).toBe('partial');
+    const total = summarise(settled);
+    expect(total.setsConfirmed).toBe(2);
+    expect(total.volumeKg).toBe(55 * 4 + 60 * 6);
+    expect(total.setsConfirmed).toBe(2);
+  });
+
+  it('closes a session with no sets without inventing one, and reports what the table does', async () => {
+    // The measured answer of the transition table, not a new rule (S4): a session with no
+    // confirmed set is `scheduled`, and `session-finished` is refused from there with
+    // `notStarted`. Nothing is written; the screen shows the table's own sentence.
+    const { machine, storage, session } = await booted();
+    storage.reset();
+
+    await exitActionsFor({
+      session,
+      dispatch: (event) => machine.dispatch(event, NOW),
+      onExit: () => undefined,
+    }).finish();
+
+    expect(storage.calls).toEqual([]);
+    const runtime = machine.runtime();
+    expect(runtime.session?.status).toBe('scheduled');
+    expect(runtime.session?.exercises[0]?.sets).toEqual([]);
+    expect(runtime.session?.exercises[0]?.decision).toBe(null);
+    expect(runtime.rejection).toBe('La sesión no se ha empezado: no hay ninguna serie confirmada.');
+  });
+});
+
+describe('the question before closing (S5)', () => {
+  it('asks once with work logged, and closes on a single tap with nothing logged', async () => {
+    // RED (T1): with sets confirmed the sheet asked nothing; with nothing logged the
+    // bottom bar still offered no close at all.
+    const empty = await booted();
+    const withWork = await booted([storedSet(1, 55, 4)]);
+
+    expect(finishStepFor(empty.session)).toBe('close');
+    expect(finishStepFor(withWork.session)).toBe('confirm');
+
+    const markup = renderToStaticMarkup(
+      <SessionExit {...SHEET} open step="confirm" setsConfirmed={1} />,
+    );
+
+    // One dialog, not a modal over a modal: the question is inside the sheet.
+    expect(markup.match(/role="dialog"/g)).toHaveLength(1);
+    expect(markup).toContain('¿Terminar la sesión?');
+    expect(markup).toContain('1 serie');
+    expect(markup).toContain('Terminar la sesión');
+    // And a way to change his mind, in the words the app already uses.
+    expect(markup).toContain('Cancelar');
+
+    // The question counts what is at stake, in the owner's words: one set, then several.
+    const plural = renderToStaticMarkup(
+      <SessionExit {...SHEET} open step="confirm" setsConfirmed={3} />,
+    );
+    expect(plural).toContain('3 series');
+  });
+});
+
+describe('the bottom bar keeps its single job (S6)', () => {
+  /** The bar's own block: from its declaration to the end of the function that fills it. */
+  function bottomBarSource(source: string): string {
+    const start = source.indexOf('const bottomBar = ((): React.ReactElement => {');
+    const end = source.indexOf('  })();', start);
+    if (start < 0 || end < 0) {
+      throw new Error('the bottom bar moved: this probe can no longer read it');
+    }
+    return source.slice(start, end);
+  }
+
+  it('holds no way to finish the session, and no second row under its action', () => {
+    const bar = bottomBarSource(screenSource);
+
+    // The probe is reading the real bar, not an empty string.
+    expect(bar).toContain('Registrar serie');
+    // S6: closing the session lives in the exit sheet and nowhere else. The recovery
+    // branch's `Descartar y guardar parcial` is not this: it dismisses the resume banner.
+    expect(bar).not.toContain('Terminar la sesión');
+    expect(bar).not.toContain('EXIT_FINISH_LABEL');
+    // And nothing is stacked under the bar's one action any more.
+    expect(bar).not.toContain('session__actions--stack');
   });
 });

@@ -13,6 +13,15 @@
  * The prescribed rest of the exercise stays visible as the card's text line
  * (`descanso 180 s`, `targetLine`), because it is information, not a gate.
  *
+ * **Getting out** (odd/tasks/finish-session.md S2–S6) is the one control at the top of the
+ * screen, and it says both things it can do: `Salir y seguir luego` leaves the session open
+ * and resumable, `Terminar la sesión` closes it with what is written. The sheet it opens is
+ * reachable in every state — undecided, not a single set, mid-exercise, after the walk —
+ * because it does not depend on the bottom bar being free. The bottom bar keeps its single
+ * job (the load decision, or `Registrar serie`, or `Siguiente`) and holds no third way out.
+ * Closing asks once only when there is something to lose, and the status it reaches is the
+ * transition table's answer (`finishEvent`), never a rule invented here.
+ *
  * Three rules hold the file together:
  *
  * 1. **Nothing here touches storage or the clock.** The controller does both; `now`
@@ -325,6 +334,252 @@ function prefersReducedMotion(): boolean {
   }
 }
 
+/* -------------------------------------------------------------- the way out (T1) */
+
+/**
+ * S3: the exit is one control that says both things it can do, in the words the app
+ * already uses — `Salir de la sesión`, the name the top control had, and `Terminar la
+ * sesión`, the label the bottom bar used to hold.
+ */
+export const EXIT_LEAVE_LABEL = 'Salir y seguir luego';
+export const EXIT_FINISH_LABEL = 'Terminar la sesión';
+/** The control's own name: one control, and it announces both outcomes before it opens. */
+export const EXIT_CONTROL_LABEL = 'Salir de la sesión o terminarla';
+
+/** Where the sheet is: the two named actions, or the one question before closing. */
+export type SheetStep = 'actions' | 'confirm';
+/** S5: what `Terminar la sesión` does the moment it is chosen. */
+export type FinishStep = 'confirm' | 'close';
+
+export interface ExitAction {
+  readonly id: 'leave' | 'finish';
+  readonly label: string;
+}
+
+/** A session is still open while the transition table has not settled it (§7). */
+export function canFinishSession(session: SessionState | null): boolean {
+  if (session === null) return false;
+  return (
+    session.status !== 'completed' &&
+    session.status !== 'partial' &&
+    session.status !== 'abandoned'
+  );
+}
+
+/**
+ * S2/S3: what the exit offers right now. Leaving is always there — it is the way out of a
+ * screen opened by accident — and closing is there whenever a session is still open,
+ * including with no weight decided and not a single set logged. Nothing but a settled
+ * session hides an action (S2): whether the close asks first is `finishStepFor`'s business
+ * (S5), never the offer's.
+ */
+export function exitOffer(canFinish: boolean): readonly ExitAction[] {
+  return canFinish
+    ? [
+        { id: 'leave', label: EXIT_LEAVE_LABEL },
+        { id: 'finish', label: EXIT_FINISH_LABEL },
+      ]
+    : [{ id: 'leave', label: EXIT_LEAVE_LABEL }];
+}
+
+/**
+ * S5: closing asks once only when there is something written to lose. A session with no
+ * confirmed set has nothing the question could protect, so one tap is the whole gesture.
+ */
+export function finishStepFor(session: SessionState): FinishStep {
+  return summarise(session).setsConfirmed > 0 ? 'confirm' : 'close';
+}
+
+/**
+ * S4: the close is the transition table's own event, with the outcome read from what the
+ * session actually answered. No second rule lives here, and the table is what decides
+ * whether a close is possible at all: a session with nothing confirmed is still
+ * `scheduled`, and `session-finished` is refused from there (`notStarted`), so the screen
+ * shows that sentence instead of inventing a status the table does not have.
+ */
+export function finishEvent(session: SessionState): SessionEvent {
+  return {
+    type: 'session-finished',
+    outcome: isSessionAnswered(session) ? 'completed' : 'partial',
+  };
+}
+
+export interface ExitActions {
+  /** `Salir y seguir luego`: the host navigates away and the session stays resumable. */
+  readonly leave: () => void;
+  /** `Terminar la sesión`: one dispatch of the table's event, through the controller. */
+  readonly finish: () => Promise<void>;
+}
+
+/**
+ * S3/S4: the two named actions as the screen wires them — the host's own callback for the
+ * way out, and the controller's own event for the close. Nothing here writes, so leaving
+ * can never lose a set; nothing here invents, so closing can never add one.
+ */
+export function exitActionsFor(input: {
+  readonly session: SessionState | null;
+  readonly dispatch: (event: SessionEvent) => Promise<unknown> | void;
+  readonly onExit: () => void;
+}): ExitActions {
+  return {
+    leave: () => input.onExit(),
+    finish: async () => {
+      if (input.session === null) return;
+      await input.dispatch(finishEvent(input.session));
+    },
+  };
+}
+
+export interface SessionExitProps {
+  readonly open: boolean;
+  readonly step: SheetStep;
+  /** Confirmed sets of the open session: S5's only input, and the question's own number. */
+  readonly setsConfirmed: number;
+  /** False when there is nothing to close: no session yet, or one the table settled. */
+  readonly canFinish: boolean;
+  readonly onOpen: () => void;
+  readonly onClose: () => void;
+  readonly onLeave: () => void;
+  /** `Terminar la sesión` among the two actions: the offer's own row. */
+  readonly onFinish: () => void;
+  /** `Terminar la sesión` in the question, once the owner has already chosen to close. */
+  readonly onConfirm: () => void;
+}
+
+/**
+ * S2/S3: the one top control and the sheet it opens, built like the day sheet — a
+ * `role="dialog"` with `aria-modal`, focus moved into it when it opens (and when the
+ * question replaces the two actions), Tab cycling inside it, Escape closing it, and the
+ * focus going back to the control that opened it when it closes. S5: the question is a
+ * group inside the same sheet, never a second dialog over a set.
+ */
+export function SessionExit(props: SessionExitProps): React.ReactElement {
+  const { open, step, setsConfirmed, canFinish, onOpen, onClose, onLeave, onFinish, onConfirm } =
+    props;
+  const trigger = useRef<HTMLButtonElement | null>(null);
+  const sheet = useRef<HTMLDivElement | null>(null);
+  const wasOpen = useRef(false);
+  const asking = step === 'confirm';
+  const sets = `${String(setsConfirmed)} ${setsConfirmed === 1 ? 'serie' : 'series'}`;
+
+  // The day sheet's own focus behaviour, plus the way back: closing returns the keyboard
+  // to the control that opened the sheet instead of leaving it loose on the card.
+  useEffect(() => {
+    if (open) {
+      wasOpen.current = true;
+      sheet.current?.focus();
+      return;
+    }
+    if (!wasOpen.current) return;
+    wasOpen.current = false;
+    trigger.current?.focus();
+  }, [open, step]);
+
+  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      onClose();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    // The trap: the sheet is a dialog over a session that is still visible, so Tab must
+    // not walk out of it into the cards behind.
+    const focusable = Array.from(
+      event.currentTarget.querySelectorAll<HTMLElement>('button, [href], [tabindex="0"]'),
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (first === undefined || last === undefined) return;
+    if (
+      event.shiftKey &&
+      (document.activeElement === first || document.activeElement === event.currentTarget)
+    ) {
+      event.preventDefault();
+      last.focus();
+      return;
+    }
+    if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        ref={trigger}
+        className="ds-action session__exit"
+        onClick={onOpen}
+        aria-label={EXIT_CONTROL_LABEL}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+      >
+        <Icon name="chevronDown" size={22} />
+      </button>
+
+      {open ? (
+        <>
+          {/* The shade is the thumb's shortcut out, never the only one: `Cerrar` and
+              Escape are the accessible half of the same gesture. */}
+          <div className="session-exit__shade" aria-hidden="true" onClick={onClose} />
+          <div className="session-exit">
+            <div
+              className="session-exit__sheet"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Salir de la sesión"
+              tabIndex={-1}
+              ref={sheet}
+              onKeyDown={onKeyDown}
+            >
+              <span className="session-exit__grab" aria-hidden="true" />
+              <div className="session-exit__head">
+                <h2 className="ds-card-title">Salir de la sesión</h2>
+                <TextButton onClick={onClose}>Cerrar</TextButton>
+              </div>
+
+              {asking ? (
+                <div
+                  className="session-exit__question"
+                  role="group"
+                  aria-label="Confirmar el cierre de la sesión"
+                >
+                  <p className="ds-body">{`¿Terminar la sesión? Se guarda lo que llevas: ${sets}.`}</p>
+                  <div className="session-exit__actions">
+                    <PrimaryAction onClick={onConfirm}>{EXIT_FINISH_LABEL}</PrimaryAction>
+                    <TextButton onClick={onClose}>Cancelar</TextButton>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="ds-meta">
+                    {canFinish
+                      ? 'Puedes dejarla abierta y seguir otro día, o cerrarla con lo que lleves.'
+                      : 'Esta sesión ya está cerrada: salir te deja en Inicio.'}
+                  </p>
+                  <div className="session-exit__actions">
+                    {exitOffer(canFinish).map((action) => (
+                      <button
+                        key={action.id}
+                        type="button"
+                        className="ds-action session-exit__action"
+                        onClick={action.id === 'leave' ? onLeave : onFinish}
+                      >
+                        {action.label}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </>
+      ) : null}
+    </>
+  );
+}
+
 export function SessionScreen(props: SessionScreenProps): React.ReactElement {
   const { storage, clock, journal, onExit, onOpenSummary, topSlot, onReady } = props;
   const controller = useSessionController({
@@ -358,6 +613,14 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
    * instead of a picker that promises nothing.
    */
   const [swapping, setSwapping] = useState<{ readonly exerciseSessionId: string } | null>(null);
+  /**
+   * The exit sheet (S2, S3): closed until the top control is tapped, and on the two named
+   * actions until closing is chosen with something to lose (S5).
+   */
+  const [exit, setExit] = useState<{ readonly open: boolean; readonly step: SheetStep }>({
+    open: false,
+    step: 'actions',
+  });
   const [library, setLibrary] = useState<readonly Exercise[]>([]);
   const trackRef = useRef<HTMLDivElement | null>(null);
   const guardRef = useRef(0);
@@ -468,6 +731,48 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
 
   const dismissRecovery = controller.dismissRecovery;
   const dispatch = controller.dispatch;
+
+  /* ------------------------------------------------------------ the way out (S2–S6) */
+
+  const exitActions = useMemo(
+    () => exitActionsFor({ session, dispatch, onExit }),
+    [dispatch, onExit, session],
+  );
+
+  const openExit = useCallback(() => {
+    setExit({ open: true, step: 'actions' });
+  }, []);
+
+  const closeExit = useCallback(() => {
+    setExit({ open: false, step: 'actions' });
+  }, []);
+
+  /** `Salir y seguir luego`: the host leaves and the session stays open and resumable. */
+  const leaveSession = useCallback(() => {
+    setExit({ open: false, step: 'actions' });
+    exitActions.leave();
+  }, [exitActions]);
+
+  /** `Terminar la sesión`, confirmed or on its own: the table's event, then the sheet goes. */
+  const closeAndFinish = useCallback(() => {
+    setExit({ open: false, step: 'actions' });
+    void exitActions.finish();
+  }, [exitActions]);
+
+  /**
+   * S5: closing with sets confirmed asks once; with nothing logged the single tap closes.
+   * The close is `finishEvent`, so a session with no confirmed set is refused by the
+   * transition table and the screen shows the table's own sentence instead of a status it
+   * does not have.
+   */
+  const chooseFinish = useCallback(() => {
+    if (session === null) return;
+    if (finishStepFor(session) === 'confirm') {
+      setExit({ open: true, step: 'confirm' });
+      return;
+    }
+    closeAndFinish();
+  }, [closeAndFinish, session]);
 
   const readyRef = useRef(false);
   useEffect(() => {
@@ -664,9 +969,17 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
 
   const topBar = (
     <header className="session__top">
-      <button type="button" className="ds-action session__exit" onClick={onExit} aria-label="Salir de la sesión">
-        <Icon name="chevronDown" size={22} />
-      </button>
+      <SessionExit
+        open={exit.open}
+        step={exit.step}
+        canFinish={canFinishSession(session)}
+        setsConfirmed={session === null ? 0 : summarise(session).setsConfirmed}
+        onOpen={openExit}
+        onClose={closeExit}
+        onLeave={leaveSession}
+        onFinish={chooseFinish}
+        onConfirm={closeAndFinish}
+      />
       <span className="session__when">{formatWeekdayTime(now)}</span>
       <span className="session__top-spacer" aria-hidden="true" />
     </header>
@@ -734,15 +1047,9 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
     substitute(swapping.exerciseSessionId, picked);
   };
 
-  // `Terminar la sesión` is the sheet's quiet exit in every state that is not the
-  // pinned confirm: the outcome is derived from what was answered, never from a second tap.
-  const finishSession = (): void => {
-    dispatch({
-      type: 'session-finished',
-      outcome: isSessionAnswered(session) ? 'completed' : 'partial',
-    });
-  };
-
+  // `Terminar la sesión` lives in the top control's sheet now (S2, S3): the bottom bar
+  // keeps its single job, and the close is reachable in every state, not only in the
+  // branches where the bar happens to be free.
   const recoveryNotice = ((): React.ReactElement | null => {
     if (screenState !== 'resumed' && screenState !== 'recovered') return null;
     const position = slot ?? lastSlot;
@@ -852,20 +1159,18 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
     // the pinned bar, where the thumb already is, instead of at the end of a row that
     // has to hold `Serie n`, the rep stepper, the weight and the button at 390 px. The
     // row keeps the weight and the reps; the bar registers them — before and after a
-    // confirmed set alike, so nothing has to be dismissed before the next one.
+    // confirmed set alike, so nothing has to be dismissed before the next one. It is the
+    // bar's only action: closing the session is the top control's job (S2, S6).
     if (exerciseOnScreen !== null && slot !== null) {
       const draft = draftFor(exerciseOnScreen);
       return (
-        <div className="session__actions session__actions--stack">
+        <div className="session__actions">
           <PrimaryAction onClick={() => confirmSet(exerciseOnScreen)}>
             Registrar serie
             <span className="ds-visually-hidden">
               {` ${String(slot)} de ${String(lastSlot)}, ${String(draft.reps)} repeticiones`}
             </span>
           </PrimaryAction>
-          <TextButton onClick={finishSession} className="session__finish">
-            Terminar la sesión
-          </TextButton>
         </div>
       );
     }
@@ -873,7 +1178,6 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
     const isLast = (session.activeIndex ?? 0) + 1 >= total;
     return (
       <div className="session__actions session__actions--split">
-        <TextButton onClick={finishSession}>Terminar la sesión</TextButton>
         {/* Navigating to the next exercise is not the primary action: the pinned
             `Registrar serie` owns the accent, and two accent fills in one viewport is
             exactly the budget the design contract forbids. */}
