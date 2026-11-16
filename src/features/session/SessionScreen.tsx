@@ -28,6 +28,14 @@
  * The only local state is what the reducer deliberately does not own: the reps being
  * counted, the optional answers of the set in progress, and the keypad's draft weight
  * (editable between sets, FR-5.7).
+ *
+ * **Correcting a set** (odd/tasks/edit-set.md S1–S6) is the same screen one level deeper:
+ * a 500 ms press on a confirmed row opens that row in place (`SetEditor`), the answers ride
+ * on the same `SetDraft` the active row uses, the kilos borrow the one pinned keypad, and
+ * the pinned bar swaps `Registrar serie` for `Guardar` / `Cancelar`. `Guardar` writes once
+ * through the machine the sheet already writes through — one `persist-set` event for one
+ * set — and `Cancelar` writes nothing at all. No new control per row appears anywhere: the
+ * only visible change on an untouched screen is one quiet line under the sets (S4).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -38,6 +46,7 @@ import {
   summarise,
   type ExerciseState,
   type SessionEvent,
+  type SessionState,
 } from '../../core/session/model';
 import {
   Banner,
@@ -57,6 +66,13 @@ import {
 } from '../../design-system';
 import type { StoragePort } from '../../storage';
 import { ExerciseCard, type SetDraft } from './ExerciseCard';
+import {
+  CORRECTION_HINT,
+  correctSet,
+  isCorrectable,
+  showsCorrectionHint,
+  type SetCorrection,
+} from './editSet';
 import { swipeDirection, type SwipePoint } from './swipe';
 import { ringSegments } from './ring';
 import { SessionRing } from './SessionRing';
@@ -76,6 +92,8 @@ import {
 import {
   discomfortFromChip,
   effortFromChip,
+  formatDiscomfort,
+  formatEffort,
   formatRest,
   formatVolume,
   formatWeekdayTime,
@@ -197,6 +215,50 @@ export async function writeVerdict(
   }
 }
 
+/** `Guardar`, in one function: the rule first, then exactly one write. */
+export interface CorrectionWriteResult {
+  readonly written: boolean;
+  /** Spanish, when the rule refused: nothing was dispatched at all. */
+  readonly refusal: string | null;
+}
+
+/**
+ * S6: `Guardar` is one write of the session. The correction is validated by the pure rule
+ * (T1) — the same one the editor is opened with — and then sent as the single
+ * `set-corrected` event the reducer understands, which the machine turns into the one
+ * `persist-set` write the store receives. `Cancelar` never reaches this function.
+ */
+export async function writeCorrection(
+  dispatch: (event: SessionEvent) => Promise<unknown>,
+  session: SessionState,
+  exerciseSessionId: string,
+  slot: number,
+  correction: SetCorrection,
+): Promise<CorrectionWriteResult> {
+  const outcome = correctSet(session, exerciseSessionId, slot, correction);
+  if (!outcome.ok) return { written: false, refusal: outcome.message };
+
+  await dispatch({
+    type: 'set-corrected',
+    exerciseSessionId,
+    slot,
+    weightKg: correction.weightKg,
+    actualReps: correction.actualReps,
+    effort: correction.effort,
+    discomfort: correction.discomfort,
+  });
+
+  return { written: true, refusal: null };
+}
+
+/**
+ * S4: one quiet line, and it is not a control. It lives under the set list of the card on
+ * screen while something is done and nothing is being edited.
+ */
+export function CorrectionHint(): React.ReactElement {
+  return <p className="ds-caption session__correction-hint">{CORRECTION_HINT}</p>;
+}
+
 export interface VerdictRowProps {
   readonly exercise: ExerciseState;
   readonly onVerdict: (verdict: ExerciseVerdict) => void;
@@ -238,6 +300,23 @@ export function VerdictRow(props: VerdictRowProps): React.ReactElement {
   );
 }
 
+/** The confirmed set the screen has open in its editor, and the answers it is holding. */
+interface EditingSetState {
+  readonly exerciseSessionId: string;
+  readonly slot: number;
+  readonly draft: SetDraft;
+}
+
+/** The draft of the editor, in the words the store takes: the chips are the UI's. */
+function correctionOf(draft: SetDraft): SetCorrection {
+  return {
+    weightKg: draft.weightKg,
+    actualReps: draft.reps,
+    effort: effortFromChip(draft.effort) as Effort | null,
+    discomfort: discomfortFromChip(draft.discomfort) as Discomfort | null,
+  };
+}
+
 function prefersReducedMotion(): boolean {
   try {
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -259,9 +338,19 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
   const session = runtime.session;
 
   const [drafts, setDrafts] = useState<Record<string, SetDraft>>({});
-  const [keypad, setKeypad] = useState<{ readonly exerciseSessionId: string; readonly value: string } | null>(
-    null,
-  );
+  /**
+   * The confirmed set that is open in its editor (S2), if any. One at a time, and it is
+   * the only thing on the card that answers while it is open.
+   */
+  const [editing, setEditing] = useState<EditingSetState | null>(null);
+  /** A refusal of the rule, shown next to the editor instead of an edit. */
+  const [editRefusal, setEditRefusal] = useState<string | null>(null);
+  const [keypad, setKeypad] = useState<{
+    readonly exerciseSessionId: string;
+    readonly value: string;
+    /** Which draft the pad is feeding: the next set's weight, or the correction. */
+    readonly target: 'draft' | 'correction';
+  } | null>(null);
   /**
    * `Sugerir otro ejercicio` (S4): the exercise session being swapped and the library the
    * alternatives are read from. The library is read on demand — the session only knows the
@@ -438,14 +527,102 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
   );
 
   const openKeypad = useCallback((exercise: ExerciseState) => {
-    setKeypad({ exerciseSessionId: exercise.id, value: formatWeight(draftFor(exercise).weightKg) });
+    setKeypad({
+      exerciseSessionId: exercise.id,
+      value: formatWeight(draftFor(exercise).weightKg),
+      target: 'draft',
+    });
   }, [draftFor]);
+
+  /* ------------------------------------------------------- correcting a set (S2–S6) */
+
+  /**
+   * The 500 ms press landed: open that row in place. The gate is the same pure rule the
+   * save uses, so a row can never open an editor whose `Guardar` would be refused (S5) and
+   * an unanswered slot can never be "corrected" (S6).
+   */
+  const openCorrection = useCallback(
+    (exercise: ExerciseState, slot: number) => {
+      if (session === null || !isCorrectable(session, exercise.id, slot)) return;
+      const entry = exercise.sets.find((candidate) => candidate.slot === slot);
+      if (entry === undefined || entry.status !== 'confirmed') return;
+
+      setSwapping(null);
+      setKeypad(null);
+      setEditRefusal(null);
+      setEditing({
+        exerciseSessionId: exercise.id,
+        slot,
+        draft: {
+          weightKg: entry.set.weightKg,
+          reps: entry.set.actualReps,
+          effort: formatEffort(entry.set.effort),
+          discomfort: formatDiscomfort(entry.set.discomfort),
+          showDiscomfort: entry.set.discomfort !== null,
+        },
+      });
+    },
+    [session],
+  );
+
+  const patchCorrection = useCallback((patch: Partial<SetDraft>) => {
+    setEditing((current) =>
+      current === null ? null : { ...current, draft: { ...current.draft, ...patch } },
+    );
+  }, []);
+
+  /** `Cancelar`: nothing was written, and the row is the confirmed row it always was. */
+  const cancelCorrection = useCallback(() => {
+    setEditing(null);
+    setKeypad(null);
+    setEditRefusal(null);
+  }, []);
+
+  const openCorrectionKeypad = useCallback(() => {
+    if (editing === null) return;
+    setKeypad({
+      exerciseSessionId: editing.exerciseSessionId,
+      value: formatWeight(editing.draft.weightKg),
+      target: 'correction',
+    });
+  }, [editing]);
+
+  /**
+   * `Guardar` (S6): one write, and the editor closes once the rule let it through. A failed
+   * write is the sheet's ordinary failure: the row keeps what it had and the banner says so.
+   */
+  const saveCorrection = useCallback(() => {
+    if (editing === null || session === null) return;
+    const { exerciseSessionId, slot, draft } = editing;
+    setKeypad(null);
+
+    void writeCorrection(
+      (event) => machine.dispatch(event, clock.now()),
+      session,
+      exerciseSessionId,
+      slot,
+      correctionOf(draft),
+    ).then((result) => {
+      if (result.refusal !== null) {
+        setEditRefusal(result.refusal);
+        return;
+      }
+      setEditRefusal(null);
+      setEditing(null);
+    });
+  }, [clock, editing, machine, session]);
 
   const submitKeypad = useCallback(() => {
     if (keypad === null || session === null) return;
     const kg = parseWeight(keypad.value);
     setKeypad(null);
     if (kg === null) return;
+    // The pad is one pad: while a correction is open it feeds the correction's kilos and
+    // nothing else, so the sheet never shows two weight pads (S2).
+    if (keypad.target === 'correction') {
+      patchCorrection({ weightKg: kg });
+      return;
+    }
     const exercise = session.exercises.find((candidate) => candidate.id === keypad.exerciseSessionId);
     if (exercise === undefined) return;
     if (exercise.decision === null) {
@@ -456,7 +633,7 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
     // FR-5.7: the decision is written once (I-8); between sets the weight is a draft
     // that travels with the next confirmed set.
     patchDraft(exercise, { weightKg: kg });
-  }, [dispatch, keypad, patchDraft, session]);
+  }, [dispatch, keypad, patchCorrection, patchDraft, session]);
 
   const stepWeight = useCallback(
     (exercise: ExerciseState, direction: number) => {
@@ -605,6 +782,18 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
   })();
 
   const bottomBar = ((): React.ReactElement => {
+    // A correction owns the pinned bar while it is open: `Guardar` and `Cancelar` are where
+    // the thumb already is, and `Registrar serie` is gone — a mis-tap there would write a
+    // new set over a half-corrected one.
+    if (editing !== null) {
+      return (
+        <div className="session__actions session__actions--split">
+          <TextButton onClick={cancelCorrection}>Cancelar</TextButton>
+          <PrimaryAction onClick={saveCorrection}>Guardar</PrimaryAction>
+        </div>
+      );
+    }
+
     if (terminal) {
       return (
         <div className="session__actions session__actions--split">
@@ -792,7 +981,9 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
                 null
               }
               draft={draftFor(exercise)}
-              interactive={!terminal && index === session.activeIndex}
+              // While one row is open in its editor the card answers for that row only
+              // (S2): nothing else on it can be confirmed by accident.
+              interactive={!terminal && index === session.activeIndex && editing === null}
               // The hero above already names the exercise, its prescription and the weight
               // of the day; the card starts at the chips when it is on screen.
               heroShown
@@ -806,6 +997,24 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
               onWeightStep={(direction) => stepWeight(exercise, direction)}
               onSkipRemaining={() => skipRemaining(exercise)}
               substitutedFromName={runtime.substitutions[exercise.id]?.exerciseNameSnapshot}
+              {...(!terminal && index === session.activeIndex && editing === null
+                ? { onCorrectSet: (slot: number) => openCorrection(exercise, slot) }
+                : {})}
+              {...(editing !== null && editing.exerciseSessionId === exercise.id
+                ? {
+                    editing: {
+                      slot: editing.slot,
+                      draft: editing.draft,
+                      onRepsChange: (reps: number) => patchCorrection({ reps }),
+                      onEffortChange: (effort: EffortChip | null) =>
+                        patchCorrection({ effort }),
+                      onDiscomfortChange: (discomfort: DiscomfortChip | null) =>
+                        patchCorrection({ discomfort }),
+                      onShowDiscomfort: () => patchCorrection({ showDiscomfort: true }),
+                      onEditWeight: openCorrectionKeypad,
+                    },
+                  }
+                : {})}
               {...(!terminal &&
               index === session.activeIndex &&
               canSubstitute(exercise, true) &&
@@ -817,9 +1026,23 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
                 ? { onSuggestAlternative: () => openSwapping(exercise) }
                 : {})}
             />
+            {/* S4: one quiet line under the set list, while a set is done and nothing is
+                being edited. It teaches the gesture once and adds no control (S2). */}
+            {index === session.activeIndex && showsCorrectionHint(session, editing !== null) ? (
+              <CorrectionHint />
+            ) : null}
+            {/* The rule refused the correction, in the owner's words, next to the row. */}
+            {editing === null || editRefusal === null ? null : (
+              <p className="ds-caption session-verdict__note" role="status">
+                {editRefusal}
+              </p>
+            )}
             {/* S4/S8: one answer per exercise, after its set rows, where the owner
                 finishes it. The other slides stay read-only, as they already do. */}
-            {terminal || index !== session.activeIndex || nextSlotOf(exercise) === null ? null : (
+            {terminal ||
+            index !== session.activeIndex ||
+            editing !== null ||
+            nextSlotOf(exercise) === null ? null : (
               <VerdictRow
                 exercise={exercise}
                 onVerdict={(verdict) => answerVerdict(exercise, verdict)}
@@ -867,7 +1090,9 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
           <Card>
             <WeightKeypad
               value={keypad.value}
-              onChange={(value) => setKeypad({ exerciseSessionId: keypad.exerciseSessionId, value })}
+              onChange={(value) =>
+                setKeypad({ ...keypad, value })
+              }
               onSubmit={submitKeypad}
               label="Peso en kilogramos"
               hint="Ajusta con la coma decimal"

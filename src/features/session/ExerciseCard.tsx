@@ -17,8 +17,15 @@
  * (`Registrar serie`). The row has no confirm of its own: that button is the bar's, in
  * every state, so the screen never shows two accent fills and nothing has to be
  * dismissed between sets.
+ *
+ * A **confirmed** row can be held for 500 ms to be corrected (odd/tasks/edit-set.md S2).
+ * The gesture is read by `HoldableRow` below, which wraps the row and adds no control of
+ * its own; the rule lives in `editSet.ts`. While one row is open in the editor the card is
+ * read-only (`interactive` false): the row being corrected is the only thing that answers,
+ * and the sheet never shows two weight pads at once.
  */
 
+import { useCallback, useEffect, useRef } from 'react';
 import type { Exercise, ExercisePrescription } from '../../core/domain';
 import type { ExerciseState, SetEntry } from '../../core/session/model';
 import { formatReason } from '../../core/engine/reasons';
@@ -28,6 +35,7 @@ import {
   Chip,
   CompareTile,
   SectionLabel,
+  SetEditor,
   SetRow,
   TextButton,
   WeightSummary,
@@ -36,6 +44,14 @@ import {
 } from '../../design-system';
 import type { HistoryPoint } from './controller';
 import { substitutionNote } from './substitution';
+import {
+  LONG_PRESS_MS,
+  pressCancelled,
+  pressHeld,
+  pressMoved,
+  pressStarted,
+  type PressGesture,
+} from './editSet';
 import {
   formatDiscomfort,
   formatEffort,
@@ -53,6 +69,18 @@ export interface SetDraft {
   readonly effort: EffortChip | null;
   readonly discomfort: DiscomfortChip | null;
   readonly showDiscomfort: boolean;
+}
+
+/** The confirmed set the card has open in its editor, and what each answer writes. */
+export interface EditingSet {
+  /** The prescription slot (`Serie n`): the correction never changes it. */
+  readonly slot: number;
+  readonly draft: SetDraft;
+  readonly onRepsChange: (reps: number) => void;
+  readonly onEffortChange: (effort: EffortChip | null) => void;
+  readonly onDiscomfortChange: (discomfort: DiscomfortChip | null) => void;
+  readonly onShowDiscomfort: () => void;
+  readonly onEditWeight: () => void;
 }
 
 export interface ExerciseCardProps {
@@ -85,6 +113,14 @@ export interface ExerciseCardProps {
   readonly onEditWeight: () => void;
   readonly onSkipRemaining: () => void;
   readonly onWeightStep: (delta: number) => void;
+  /**
+   * S2: a confirmed row of this card can be held to be corrected. Absent when the session
+   * is closed, when this card is not the one on screen, or while another correction is
+   * open — the row never promises a gesture that would be refused.
+   */
+  readonly onCorrectSet?: ((slot: number) => void) | undefined;
+  /** The set this card has open in the editor, if any. */
+  readonly editing?: EditingSet | undefined;
 }
 
 const EQUIPMENT_LABEL: Record<Exercise['equipment'], string> = {
@@ -146,6 +182,71 @@ function pastBest(history: readonly HistoryPoint[]): number {
   return history.reduce((best, point) => (point.today ? best : Math.max(best, point.weightKg)), 0);
 }
 
+/**
+ * S2: a confirmed row, held still for 500 ms, opens its editor. The wrapper adds no box
+ * (`display: contents`), so the row it wraps keeps its place in the list, and it never
+ * calls `preventDefault` and never touches `touch-action`: the sheet still scrolls, the
+ * track still swipes, and either of those ends the press — the browser sends `pointerup`
+ * or `pointercancel` and the timer goes with it. A plain tap therefore writes nothing.
+ */
+function HoldableRow({
+  children,
+  onLongPress,
+}: {
+  readonly children: React.ReactNode;
+  readonly onLongPress: () => void;
+}): React.ReactElement {
+  const gesture = useRef<PressGesture | null>(null);
+  const timer = useRef<number | null>(null);
+
+  const stop = useCallback(() => {
+    if (timer.current !== null) {
+      window.clearTimeout(timer.current);
+      timer.current = null;
+    }
+    gesture.current = null;
+  }, []);
+
+  // Unmounting mid-press (a card swiped away, the session closing) fires nothing.
+  useEffect(() => stop, [stop]);
+
+  const onPointerDown = (event: React.PointerEvent<HTMLDivElement>): void => {
+    // One press at a time: a second finger is not this gesture.
+    stop();
+    gesture.current = pressStarted({ x: event.clientX, y: event.clientY }, Date.now());
+    timer.current = window.setTimeout(() => {
+      timer.current = null;
+      const held = pressHeld(gesture.current, Date.now());
+      gesture.current = null;
+      if (held) onLongPress();
+    }, LONG_PRESS_MS);
+  };
+
+  const onPointerMove = (event: React.PointerEvent<HTMLDivElement>): void => {
+    if (gesture.current === null) return;
+    const moved = pressMoved(gesture.current, { x: event.clientX, y: event.clientY });
+    gesture.current = moved;
+    // Past the slop the sheet is scrolling or the track is swiping: not this press.
+    if (moved.cancelled) stop();
+  };
+
+  const onPointerUp = (): void => stop();
+  const onPointerCancel = (): void => stop();
+
+  return (
+    <div
+      className="session-card__hold"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
+      onContextMenu={(event) => event.preventDefault()}
+    >
+      {children}
+    </div>
+  );
+}
+
 function setRowFor(
   slot: number,
   entry: SetEntry | undefined,
@@ -155,7 +256,31 @@ function setRowFor(
   best: number,
 ): React.ReactElement {
   if (entry !== undefined && entry.status === 'confirmed') {
-    return (
+    const editing = props.editing?.slot === slot ? props.editing : undefined;
+
+    // The row being corrected shows the editor in its own place: the same `Serie n`, the
+    // same position, and its neighbours are not renumbered by a pixel.
+    if (editing !== undefined) {
+      return (
+        <SetEditor
+          key={slot}
+          index={slot}
+          targetReps={entry.set.targetReps}
+          weightLabel={`${formatWeight(editing.draft.weightKg)} kg`}
+          reps={editing.draft.reps}
+          effort={editing.draft.effort}
+          discomfort={editing.draft.discomfort}
+          showDiscomfort={editing.draft.showDiscomfort}
+          onRepsChange={editing.onRepsChange}
+          onEffortChange={editing.onEffortChange}
+          onDiscomfortChange={editing.onDiscomfortChange}
+          onShowDiscomfort={editing.onShowDiscomfort}
+          onEditWeight={editing.onEditWeight}
+        />
+      );
+    }
+
+    const row = (
       <SetRow
         key={slot}
         index={slot}
@@ -166,7 +291,16 @@ function setRowFor(
         effort={formatEffort(entry.set.effort)}
         discomfort={formatDiscomfort(entry.set.discomfort)}
         record={best > 0 && entry.set.weightKg > best}
+        {...(props.onCorrectSet === undefined ? {} : { onActivate: () => props.onCorrectSet?.(slot) })}
       />
+    );
+
+    if (props.onCorrectSet === undefined) return row;
+    const onCorrectSet = props.onCorrectSet;
+    return (
+      <HoldableRow key={slot} onLongPress={() => onCorrectSet(slot)}>
+        {row}
+      </HoldableRow>
     );
   }
 
@@ -290,7 +424,7 @@ export function ExerciseCard(props: ExerciseCardProps): React.ReactElement {
   // `Confirmar` and the chips state. It comes back while the weight is still to be decided
   // (no set row can be open then) and again once every set of the exercise is answered.
   // Only the render is decided here: the bars keep being computed the same way.
-  const showHistoryStrip = activeSlot === null;
+  const showHistoryStrip = activeSlot === null && props.editing === undefined;
 
   const slots: number[] = [];
   for (let slot = 1; slot <= prescription.sets; slot += 1) slots.push(slot);

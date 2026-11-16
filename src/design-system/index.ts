@@ -41,8 +41,14 @@ export { Numeral } from './components/Numeral';
 export type { StepperProps, StepperShape } from './components/Stepper';
 export { Stepper } from './components/Stepper';
 
-export type { Discomfort, Effort, SetRowProps, SetState } from './components/SetRow';
-export { DISCOMFORT_OPTIONS, EFFORT_OPTIONS, SetRow } from './components/SetRow';
+export type {
+  Discomfort,
+  Effort,
+  SetEditorProps,
+  SetRowProps,
+  SetState,
+} from './components/SetRow';
+export { DISCOMFORT_OPTIONS, EFFORT_OPTIONS, SetEditor, SetRow } from './components/SetRow';
 
 export type {
   LoadDecisionBarProps,

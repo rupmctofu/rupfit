@@ -26,6 +26,16 @@
    * Scrolling the sheet lets the hero travel away and gives the card the whole screen.
    */
   overflow-y: auto;
+  /*
+   * One axis, both axes: `overflow-y: auto` with `overflow-x` left `visible` computes to
+   * `auto`, so the sheet became a horizontal scroller too. The browser reports
+   * `overflowX: auto` on `.session`, and any child a pixel wider than the box turns that
+   * into a real side-scroll into empty background — and the horizontal gesture stops
+   * belonging to the exercise track alone. The sheet scrolls down and only down; the
+   * track keeps the horizontal axis (`.session__track`, `overflow-x: auto`) and does not
+   * chain to the sheet, because of its own `overscroll-behavior-x: contain`.
+   */
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -281,10 +291,16 @@
  * strip fell to 127 px against a 596 px card, and on a real iPhone with the safe areas the
  * owner was left with a band too thin to even find: «no puedo deslizar hacia abajo». Tying
  * the ring to the height gives the card back its half of the screen.
+ *
+ * The `100%` term is the sheet's width guard: `90vw` is measured against the screen while
+ * the ring sits in a column that already spent 20 px of it on each side, so on the target
+ * 390 px phone the circle came out a pixel wider than the column it lives in. `100%` is
+ * that column, so no width the screen can have makes the ring — or anything under it —
+ * widen the sheet into a sideways scroll.
  */
 .session-ring {
   position: relative;
-  width: min(90vw, 420px, 34dvh);
+  width: min(90vw, 420px, 34dvh, 100%);
   max-width: 420px;
   aspect-ratio: 1 / 1;
   margin-inline: auto;
@@ -606,4 +622,26 @@
     padding-left: var(--layout-screen-padding-compact);
     padding-right: var(--layout-screen-padding-compact);
   }
+}
+
+/* ------------------------------------------------- the one line of the correction */
+
+/*
+ * S4: «Mantén una serie para corregirla». It is a caption, not a call to action: no fill,
+ * no border, no accent, nothing that competes with `Registrar serie` — and it goes away the
+ * moment there is something to correct. It sits under the set list of the card on screen.
+ */
+.session__correction-hint {
+  margin: 0;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+/*
+ * A confirmed row that can be held (S2) is wrapped in a box that adds nothing to the
+ * layout: `display: contents` keeps the row exactly where it was, and pointer events still
+ * bubble through the wrapper to the timer that reads the press.
+ */
+.session-card__hold {
+  display: contents;
 }

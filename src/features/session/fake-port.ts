@@ -148,6 +148,30 @@ export function createFakeStorage(options: FakeStorageOptions = {}): FakeStorage
       if (exercise === undefined) {
         throw new Error(`fake storage: ${exerciseSessionId} is not part of ${sessionId}`);
       }
+
+      // The same two paths the repository has (odd/tasks/edit-set.md S3, S6): the very same
+      // set (same id) already stored at that index is rewritten in place, and anything else
+      // must extend the list by exactly one. The id comes from the stored row, exactly as
+      // the transaction does it, so a test cannot pass with a correction that re-keys a set.
+      const stored = exercise.sets.find((row) => row.index === set.index && row.id === set.id);
+      if (stored !== undefined) {
+        const rewritten = { ...set, id: stored.id };
+        replace({
+          ...session,
+          exercises: session.exercises.map((candidate) =>
+            candidate.id === exerciseSessionId
+              ? {
+                  ...candidate,
+                  sets: candidate.sets.map((row) =>
+                    row.index === rewritten.index ? rewritten : row,
+                  ),
+                }
+              : candidate,
+          ),
+        });
+        return find(sessionId);
+      }
+
       const last = exercise.sets.reduce((highest, row) => Math.max(highest, row.index), 0);
       if (set.index !== last + 1) {
         throw new Error(`fake storage: set index ${set.index} does not extend the list`);

@@ -113,6 +113,22 @@ export interface SessionRepositoryPort {
   /**
    * I-12: one transaction over `sets`, `exerciseSessions` and `sessions`, resolving
    * on `complete`. Transitions to `inProgress` on the first set, guarded by I-9.
+   *
+   * Two paths, and the identity of the set decides between them:
+   *
+   * - **append**: no stored row carries this set's id. `set.index` must be the next slot of
+   *   the list; the row is added, the exercise session takes `usedWeightKg`, and a
+   *   `scheduled` session becomes `inProgress`.
+   * - **rewrite**: this set is already stored, at this index. Its row is written again with
+   *   the new answers, keeping its own id, index and instant, and nothing else in the
+   *   aggregate moves: a corrected set does not re-decide the load (I-8), does not restart
+   *   the session and does not renumber.
+   *
+   * Refused, in one transaction and without writing: an index below the first slot or one
+   * that does not extend the list when no stored row has the id (`invalidIndex`), a new set
+   * at an index that is already taken (also `invalidIndex`), a stored id sent at a different
+   * index (`duplicate`), and a session or exercise session that is no longer open
+   * (`invalidTransition`).
    */
   confirmSet(sessionId: Uuid, exerciseSessionId: Uuid, set: SetRecord): Promise<WorkoutSession>;
   /** I-8: writes the decision once and stores `loadDeltaKg` with it. */

@@ -139,6 +139,24 @@ export class SessionRepository implements SessionRepositoryPort {
     });
   }
 
+  /**
+   * The one writer of a set row (§5.4, I-12, I-9).
+   *
+   * Two paths, one transaction, and every guard inside it:
+   *
+   * - **append** — the ordinary `Registrar serie`: the index must extend the stored list by
+   *   exactly one, and an id that is already stored is refused (`duplicate`).
+   * - **rewrite** — a correction (odd/tasks/edit-set.md S3, S6): this very set (same id) is
+   *   already stored at this index, so the row is written again in place, keeping its own
+   *   id, index and instant. Only the `sets` store is touched: not the session's status or
+   *   `startedAt`, and not the exercise session's decision or the load it was decided at
+   *   (I-8). Correcting is evidence upkeep, not a second start.
+   *
+   * The paths cannot be confused, because identity decides and the index is checked twice:
+   * a set that is not stored under that id is an append and is refused unless it extends the
+   * list, so a correction can never move a set into a new slot; and a new set at an occupied
+   * index is refused, so an append can never overwrite one.
+   */
   async confirmSet(
     sessionId: Uuid,
     exerciseSessionId: Uuid,
@@ -187,6 +205,43 @@ export class SessionRepository implements SessionRepositoryPort {
         (highest, row) => Math.max(highest, row.index),
         SET_INDEX_START - 1,
       );
+
+      if (set.index < SET_INDEX_START) {
+        throw new StorageError(
+          'invalidIndex',
+          `Set index ${set.index} is below the first slot; a set is ${SET_INDEX_START}-based.`,
+          { actual: set.index, first: SET_INDEX_START },
+        );
+      }
+
+      // A correction of a set that is already stored: same id, same index. It is the set's
+      // own row that is written again, and nothing else in the aggregate moves.
+      //
+      // Identity is what separates this from a second confirmation of the same slot: a
+      // different id at an occupied index is still refused below, exactly as it was before
+      // corrections existed (`tests/storage/repositories.test.ts` pins that).
+      const rewrite = existingSets.find((row) => row.index === set.index && row.id === set.id);
+      if (rewrite !== undefined) {
+        await writeStamped({
+          ...this.sync,
+          tx,
+          table: 'sets',
+          key: rewrite.id,
+          // The row keeps its own identity: a correction of the answers cannot renumber or
+          // re-key a set that history already points at.
+          row: setToRow({ ...set, id: rewrite.id }, exerciseSessionId, sessionId),
+        });
+
+        const corrected = await loadSession(tx, sessionId);
+        if (corrected === null) {
+          throw new StorageError(
+            'failed',
+            `Session ${sessionId} disappeared during its own write.`,
+          );
+        }
+        return corrected;
+      }
+
       if (set.index !== lastIndex + 1) {
         throw new StorageError(
           'invalidIndex',
