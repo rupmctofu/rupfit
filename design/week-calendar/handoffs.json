@@ -3,13 +3,14 @@
   "chosen": "02-agenda-semanal.html",
   "handoffs": {
     "02-agenda-semanal.html": {
-      "status": "in_progress",
+      "status": "implemented",
       "queued": false,
       "sentAt": "2026-11-16T09:07:11.027Z",
-      "startedAt": "2026-11-16T09:08:32.577Z",
-      "implementedAt": null,
+      "startedAt": "2026-11-16T10:12:29.447Z",
+      "implementedAt": "2026-11-16T10:55:05.813Z",
       "feature": "odd/tasks/week-calendar.md",
-      "note": "Implementando la agenda de siete renglones en Inicio: arrastre entre días, días cerrados bloqueados y hoja para cambiar el entreno."
+      "note": "Agenda implementada y verificada: siete renglones (de lunes a viernes, fin de semana solo si lleva entreno), arrastre con candado en lo hecho, hoja para cambiar el entreno del día y guardado en la nube.",
+      "previewUrl": "http://localhost:5173/rupfit/"
     }
   }
 }
