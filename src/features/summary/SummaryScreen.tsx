@@ -109,7 +109,7 @@ export function SummaryScreen({
       <div className="summary__scroll">
         <header className="summary__head">
           <p className="ds-section-label">{view.eyebrow}</p>
-          <h1 className="summary__title">{view.title}</h1>
+          <h1 className="ds-display-title">{view.title}</h1>
         </header>
 
         {error === undefined || error === null ? null : <ErrorBanner message={error} onRetry={onRetry} />}

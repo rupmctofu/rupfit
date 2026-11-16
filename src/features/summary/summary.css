@@ -50,22 +50,10 @@
 }
 
 /*
- * The achievement (T10, S1): the sheet's title at the display role — the one place in the
- * app a finished thing is stated at 40 px. `--text-display` exists for exactly this and no
- * other screen has spent it yet; `balance` keeps `Sesión completada` from leaving a lone
- * word on the second line at 320 px, and `anywhere` is the floor under a long translation.
+ * The achievement (T10, S1): the sheet's title at the display role, the shared
+ * `.ds-display-title` — `Sesión completada` thus reads at the same 40 px as the name of
+ * every tab screen, which is what makes the sheet feel like the end of one.
  */
-.summary__title {
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: var(--text-display);
-  line-height: var(--leading-display);
-  letter-spacing: var(--tracking-display);
-  font-weight: var(--weight-bold);
-  color: var(--color-text);
-  text-wrap: balance;
-  overflow-wrap: anywhere;
-}
 
 .summary__bar {
   flex: none;

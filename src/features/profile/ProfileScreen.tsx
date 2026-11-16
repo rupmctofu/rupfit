@@ -195,7 +195,7 @@ export function ProfileScreen(): React.ReactElement {
 
   return (
     <div className="profile">
-      <h1 className="ds-screen-title">Perfil</h1>
+      <h1 className="ds-display-title">Perfil</h1>
 
       {/* §7.8: the evicted state is the only platform state that is not dismissible. */}
       {state === 'evicted' && data.marker !== null ? (

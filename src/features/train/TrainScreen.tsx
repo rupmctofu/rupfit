@@ -128,7 +128,7 @@ export function TrainBody(props: TrainBodyProps): React.ReactElement {
           Ejercicios is the tab the owner opens to decide what he trains, so it names
           itself once and lets the cards below carry the weight. */}
       <header className="train__head">
-        <h1 className="train__title">Ejercicios</h1>
+        <h1 className="ds-display-title">Ejercicios</h1>
         <p className="ds-meta">{view.weekLabel}</p>
       </header>
 

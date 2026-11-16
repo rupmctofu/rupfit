@@ -294,7 +294,7 @@ function ProgressTab({
   if (state.status === 'error') {
     return (
       <div className="progress">
-        <h1 className="ds-screen-title">Historial</h1>
+        <h1 className="ds-display-title">Historial</h1>
         <ErrorBanner message={state.message} onRetry={retry} />
       </div>
     );
@@ -304,7 +304,7 @@ function ProgressTab({
     // Local data: no spinner, no skeleton, no empty chart (§3 of the task brief).
     return (
       <div className="progress">
-        <h1 className="ds-screen-title">Historial</h1>
+        <h1 className="ds-display-title">Historial</h1>
       </div>
     );
   }
@@ -352,7 +352,7 @@ function ProgressTab({
   return (
     <div className="progress">
       <header className="progress__top">
-        <h1 className="ds-screen-title">Historial</h1>
+        <h1 className="ds-display-title">Historial</h1>
         <Segmented
           label="Vista del historial"
           options={PANELS}

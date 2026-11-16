@@ -24,6 +24,26 @@ html {
   overflow-wrap: anywhere;
 }
 
+/*
+ * The screen's own name at the top of the scale (§5, `--text-display`): one role for every
+ * tab screen, so Historial, Ejercicios, Perfil and Resumen cannot drift apart again. A
+ * nested flow (onboarding, the routine editor) keeps `ds-screen-title` instead — it is a
+ * step inside a screen, not the screen. `balance` keeps a two-word title from leaving a
+ * lone word on the second line at 320 px, and `anywhere` is the floor under a long
+ * translation.
+ */
+.ds-display-title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-display);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
 .ds-card-title {
   margin: 0;
   font-family: var(--font-sans);

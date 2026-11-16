@@ -36,20 +36,10 @@
 }
 
 /*
- * The screen's own name at the top of the scale (T3's `--text-display`, 40 px): Ejercicios
- * is the screen where the owner decides what he trains, and the scale's first role is
- * exactly "a screen's own title, and nothing else". Every card below stays under it.
+ * The screen's own name is `.ds-display-title` (foundation.css): the scale's first role is
+ * exactly "a screen's own title, and nothing else", and one role for every tab screen
+ * keeps them from drifting apart. Every card below stays under it.
  */
-.train__title {
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: var(--text-display);
-  line-height: var(--leading-display);
-  letter-spacing: var(--tracking-display);
-  font-weight: var(--weight-bold);
-  color: var(--color-text);
-  overflow-wrap: anywhere;
-}
 
 .train__section {
   display: flex;
