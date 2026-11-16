@@ -55,9 +55,9 @@ cambia es que el reparto deja de ser intocable.
 - **T3** — S1, S4, S6, S10: `src/features/week/agenda.ts` puro — siete días con fecha, hecho por día del plan dentro de la semana, aviso de piernas tras el partido, reparto por defecto sacado de las plantillas y la única operación de colocación. **Hecha** en `1372993`; 53 pruebas en `src/features/week`, 1121 en total.
 - **T4** — S1-S3, S9: la agenda de siete renglones en Inicio — arrastre por captura de puntero, candado en los días hechos, balón en el partido, hoja «¿qué entrenas este día?», bloque de «sin día esta semana» y guardado del reparto. **Hecha** en `80bc8da`; +12 pruebas, 4 de la hoja vieja retiradas con el mecanismo que cubrían, 1130 en total. La rebanada es grande (≈1.270 líneas nuevas en dos archivos): es un módulo nuevo y una pantalla, y partirla no dejaba un árbol coherente.
 - **T5** — S1: empezar la sesión del día elegido desde su renglón. **Hecha** dentro de T4: `Empezar` vive en el renglón de hoy y llama a `start.start(planDayId)`.
-- **T6** — S1-S10: verificación independiente, README y `docs/`, y el cierre de la feature. Route: verify. En curso.
+- **T6** — S1-S10: verificación independiente, README y `docs/`, y el cierre de la feature. **Hecha**: verificación en `773eda2..80bc8da` con un bloqueante real (la tarjeta del día), corregido en `6edaa31`; README y cierre en `98dc130`.
 - **T7** — Composición corporal (Evolt), feature aparte: `odd/tasks/body-composition.md` cuando arranque. El dueño la aprobó después de T1; no entra en este documento más allá de esta línea.
-- **T8** — S11: la agenda de lunes a viernes, con el fin de semana apareciendo solo si tiene algo. Route: worker, en la misma superficie que T6, así que va después de esa ronda y nunca a la vez.
+- **T8** — S11: la agenda de lunes a viernes, con el fin de semana apareciendo solo si lleva un entreno. **Hecha** en `bce8129`.
 
 ## Log
 
