@@ -67,7 +67,7 @@ export function BasicsSections(): React.ReactElement {
 
       <Section
         name="PrimaryAction"
-        note="56 px, ancho completo, relleno de acento. Una sola por pantalla (§7.1). El estado pulsado es :active, así que no tiene forma estática; «loading» no existe porque ninguna acción espera a la red."
+        note="56 px, ancho completo, relleno de acento y etiqueta en negrita: la única acción de acento de la pantalla (§7.1). El estado pulsado es :active, así que no tiene forma estática; «loading» no existe porque ninguna acción espera a la red."
       >
         <Demo state="Activo con icono">
           <PrimaryAction icon="play" onClick={noop}>
@@ -86,7 +86,7 @@ export function BasicsSections(): React.ReactElement {
 
       <Section
         name="TextButton"
-        note="La acción secundaria en texto de acento. Su área táctil de 48 px sale del padding, nunca de un contenedor que mueva el diseño."
+        note="La acción secundaria: nunca rellena, y con el acento solo cuando la palabra no basta. Su área táctil de 48 px sale del padding, nunca de un contenedor que mueva el diseño."
       >
         <Demo state="Activo">
           <TextButton onClick={noop}>Cambiar</TextButton>
@@ -94,6 +94,16 @@ export function BasicsSections(): React.ReactElement {
         <Demo state="Con icono">
           <TextButton icon="plus" onClick={noop}>
             Añadir
+          </TextButton>
+        </Demo>
+        <Demo state="tone=accent (el énfasis raro)">
+          <TextButton tone="accent" onClick={noop}>
+            Ver el bloque
+          </TextButton>
+        </Demo>
+        <Demo state="tone=danger (fila destructiva)">
+          <TextButton tone="danger" onClick={noop}>
+            Borrar la rutina
           </TextButton>
         </Demo>
         <Demo state="Alineado al inicio (sobre una fila)">
@@ -110,7 +120,7 @@ export function BasicsSections(): React.ReactElement {
 
       <Section
         name="Card"
-        note="Superficie con borde de un píxel, sin sombra y nunca anidada. El padding es un token y la altura no está fijada: con texto grande la tarjeta crece en vez de recortar."
+        note="Superficie: un escalón de tono sobre el fondo y una línea de un píxel (--color-hairline). Sin sombra y nunca anidada. Cuatro densidades con el mismo ritmo; la altura no está fijada, así que con texto grande la tarjeta crece en vez de recortar."
       >
         <Demo state="padding=default">
           <Card>
@@ -160,7 +170,7 @@ export function BasicsSections(): React.ReactElement {
 
       <Section
         name="Chip"
-        note="Siempre lleva una palabra: el color nunca es el único portador del significado. Como control es un botón real con aria-pressed y 48 px de área táctil alrededor de la píldora de 26 px."
+        note="Siempre lleva una palabra: el color nunca es el único portador del significado. Un chip neutro es un escalón de tono; los tonos semánticos son un tinte de su propio tono con su borde, así que se distinguen en una fila sin depender del matiz. Como control es un botón real con aria-pressed y 48 px de área táctil alrededor de la píldora de 26 px."
       >
         <Demo state="Variante estática, todos los tonos">
           <div className="gallery-chips">
@@ -216,7 +226,7 @@ export function BasicsSections(): React.ReactElement {
 
       <Section
         name="Numeral"
-        note="Cifras tabulares en tres tamaños y tres tonos; la unidad va más pequeña y la coma decimal llega ya puesta en el texto."
+        note="Cifras tabulares en tres tamaños y tres tonos; la unidad va más pequeña y la coma decimal llega ya puesta en el texto. Los dos papeles grandes de la sesión no son tamaños de este componente: el peso de la barra (--text-numeral-load) y las repeticiones que se registran (--text-numeral-reps) los gastan WeightSummary y Stepper, más abajo en esta página."
       >
         <Demo state="size=metric (44 px)">
           <Numeral size="metric" value="9.120" unit="kg" />

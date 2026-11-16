@@ -3,13 +3,11 @@
  * declares, at real size, on the real device.
  *
  * It is not one of the eight screens and it is not a route in the tab bar: it is
- * reachable only by `#/galeria`, so the four tabs stay four. It holds exactly one
- * piece of state — the skin — because the owner has to compare both on the phone;
- * everything else is literal props and `noop`, with no storage, no fetch and no
- * import from `src/storage`, `src/features` or `src/pwa`.
+ * reachable only by `#/galeria`, so the four tabs stay four. It holds no state at all:
+ * every section is literal props and `noop`, with no storage, no fetch and no import
+ * from `src/storage`, `src/features` or `src/pwa`.
  */
 
-import { useEffect, useState } from 'react';
 import { BasicsSections } from './BasicsSections';
 import { ChartSections } from './ChartSections';
 import { DataSections } from './DataSections';
@@ -17,9 +15,6 @@ import { FeedbackSections } from './FeedbackSections';
 import { ArtSections } from './ArtSections';
 import { SessionSections } from './SessionSections';
 import './gallery.css';
-
-/** Skin B is the default of the artboard and the owner's reference; A is the orange one. */
-type Skin = 'b' | 'a';
 
 /**
  * A cheap, honest build stamp: the mode the bundle was built in plus the date the
@@ -41,18 +36,6 @@ function buildStamp(): string {
 }
 
 export function GalleryScreen(): React.ReactElement {
-  const [skin, setSkin] = useState<Skin>('b');
-
-  // The only state of the page, and the only thing it writes outside its own tree.
-  // Leaving the route removes the attribute so the app keeps the default skin.
-  useEffect(() => {
-    const root = document.documentElement;
-    root.setAttribute('data-skin', skin);
-    return () => {
-      root.removeAttribute('data-skin');
-    };
-  }, [skin]);
-
   return (
     <div className="gallery">
       <header className="gallery__header">
@@ -67,28 +50,13 @@ export function GalleryScreen(): React.ReactElement {
           no lee datos y no forma parte de la app instalada.
         </p>
 
-        <div className="gallery__skin" role="group" aria-label="Skin del sistema de diseño">
-          <button
-            type="button"
-            className="gallery-skin"
-            aria-pressed={skin === 'b'}
-            onClick={() => setSkin('b')}
-          >
-            Skin B · lima
-          </button>
-          <button
-            type="button"
-            className="gallery-skin"
-            aria-pressed={skin === 'a'}
-            onClick={() => setSkin('a')}
-          >
-            Skin A · naranja
-          </button>
-        </div>
         <p className="ds-caption">
-          Skin B es el valor por defecto (tarjetas de 16 px, controles en píldora); Skin A es la
-          variante naranja (tarjetas de 12 px, controles de 10 px). La elección no se guarda: al
-          recargar vuelve a Skin B. El tema claro u oscuro lo decide el ajuste del iPhone.
+          Un solo acento violeta (#a892ff), tarjetas de 16 px, controles en píldora y fondo
+          oscuro: no hay una segunda paleta ni un selector que la cambie.
+        </p>
+        <p className="ds-caption">
+          El tema es oscuro y no hay otro en uso: el bloque <code>data-theme="light"</code> sigue
+          en los tokens, pero nada lo activa y ningún ajuste del iPhone cambia la paleta.
         </p>
 
         <p className="ds-caption">{buildStamp()}</p>

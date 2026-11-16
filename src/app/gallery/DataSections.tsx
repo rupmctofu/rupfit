@@ -88,7 +88,7 @@ export function DataSections(): React.ReactElement {
 
       <Section
         name="CompareTile"
-        note="Última vez frente a peso de hoy. La variante «today» es la única superficie accent-muted del sistema."
+        note="Última vez frente a peso de hoy. La variante «today» es la única superficie accent-muted del sistema: fondo teñido, borde de acento y su etiqueta en peso fuerte, para que la elegida se reconozca también sin el color."
       >
         <Demo state="Las dos variantes juntas">
           <Pair>
@@ -103,7 +103,7 @@ export function DataSections(): React.ReactElement {
 
       <Section
         name="Stepper"
-        note="Las repeticiones se incrementan, nunca se escriben: no hay input numérico, ni teclado del sistema, ni cursor encima de la sesión."
+        note="Las repeticiones se incrementan, nunca se escriben: no hay input numérico, ni teclado del sistema, ni cursor encima de la sesión. La cifra entre las teclas es el numeral de la sesión (44 px, tabular) y reserva dos dígitos de ancho, así que 8 → 10 no mueve ninguna tecla."
       >
         <Demo state="shape=square (fila de serie)">
           <Stepper label="Repeticiones" value={8} min={0} max={99} unit="reps" onChange={noop} />

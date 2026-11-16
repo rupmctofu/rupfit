@@ -27,46 +27,6 @@
   font-size: inherit;
 }
 
-/* The skin switch: 48 px targets, the same pill radius as every other control. */
-.gallery__skin {
-  display: flex;
-  gap: var(--space-2);
-  margin-top: var(--space-1);
-}
-
-.gallery .gallery-skin {
-  flex: 1 1 0;
-  min-width: 0;
-  min-height: var(--target-min);
-  padding: 0 var(--space-3);
-  border: var(--layout-hairline) solid var(--color-border);
-  border-radius: var(--radius-control);
-  background: var(--color-surface);
-  font-family: var(--font-sans);
-  font-size: var(--text-meta);
-  line-height: var(--leading-meta);
-  font-weight: var(--weight-semibold);
-  color: var(--color-text);
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  cursor: pointer;
-}
-
-.gallery .gallery-skin[aria-pressed='true'] {
-  border-color: transparent;
-  background: var(--color-accent);
-  color: var(--color-accent-ink);
-}
-
-.gallery .gallery-skin:active {
-  opacity: 0.85;
-}
-
-.gallery .gallery-skin:focus-visible {
-  outline: var(--focus-ring-width) solid var(--color-focus-ring);
-  outline-offset: var(--focus-ring-offset);
-}
-
 /* The only way back to the app: this route is not one of the four tabs. */
 .gallery .gallery__back {
   display: inline-flex;
@@ -88,7 +48,7 @@
   gap: var(--space-3);
   min-width: 0;
   padding-top: var(--space-4);
-  border-top: var(--layout-hairline) solid var(--color-border);
+  border-top: var(--layout-hairline) solid var(--color-hairline);
 }
 
 .gallery-demos {

@@ -1,16 +1,13 @@
 /*
  * The session screen's parts: the set row in its five states, the weight decision,
- * its collapsed summary, our own keypad, the rest bar and the pager.
+ * its collapsed summary, our own keypad, and the pager.
  *
- * Every count, duration and weight is a literal from the artboard's renders. The
- * rest bar receives its labels from the caller by design (§6.4): it never reads the
- * clock, so here it simply receives fixed ones.
+ * Every count, duration and weight is a literal from the artboard's renders.
  */
 
 import {
   LoadDecisionBar,
   Pager,
-  RestTimerBar,
   SetRow,
   WeightKeypad,
   WeightSummary,
@@ -22,10 +19,10 @@ export function SessionSections(): React.ReactElement {
     <>
       <Section
         name="SetRow"
-        note="SERIE n, repeticiones objetivo, esfuerzo opcional, molestia opcional y un único objetivo de confirmación. Dos toques confirman; el esfuerzo y la molestia nunca bloquean. Una serie sin responder se ve sin responder, no con un valor por defecto."
+        note="SERIE n, el peso de la serie, repeticiones objetivo, esfuerzo opcional, molestia opcional y un único objetivo de confirmación. La cifra es el numeral de la fila (28 px cuando es un resultado, 22 px cuando todavía es un objetivo; tabular en los dos casos): se lee a un brazo de distancia. Los cinco estados se distinguen por la forma y el peso, no solo por el color: pendiente es un anillo vacío con la cifra en tinta secundaria y un paso más pequeña; en curso sube de tono, el índice pasa a acento y las repeticiones se registran en el stepper; confirmada va en tinta plena a 28 px con la marca de éxito rellena; corregida lleva la misma marca dibujada como anillo de acento; saltada tacha su cifra. Dos toques confirman; el esfuerzo y la molestia nunca bloquean."
       >
         <Demo state="pending (con objetivo de confirmación)">
-          <SetRow index={1} targetReps={10} state="pending" onConfirm={noop} />
+          <SetRow index={1} targetReps={10} weightLabel="92,5 kg" state="pending" onConfirm={noop} />
         </Demo>
         <Demo state="pending sin acción (degradado a lectura)">
           <SetRow index={1} targetReps={10} state="pending" />
@@ -36,6 +33,7 @@ export function SessionSections(): React.ReactElement {
             targetReps={10}
             state="active"
             reps={8}
+            weightLabel="92,5 kg"
             onRepsChange={noop}
             onConfirm={noop}
             onEffortChange={noop}
@@ -66,6 +64,7 @@ export function SessionSections(): React.ReactElement {
             targetReps={10}
             state="confirmed"
             reps={10}
+            weightLabel="92,5 kg"
             effort="duro"
             discomfort="molestia"
             onConfirm={noop}
@@ -94,13 +93,20 @@ export function SessionSections(): React.ReactElement {
             targetReps={10}
             state="corrected"
             reps={8}
+            weightLabel="92,5 kg"
             effort="fácil"
             onConfirm={noop}
           />
         </Demo>
         <Demo state="skipped">
-          <SetRow index={7} targetReps={10} state="skipped" />
+          <SetRow index={7} targetReps={10} state="skipped" weightLabel="92,5 kg" />
         </Demo>
+        <Note>
+          Una fila confirmada con peso, esfuerzo, molestia y RÉCORD no cabe en una línea en la
+          tarjeta de la sesión (269 px de columna a 390 px): la fila hace `flex-wrap`, así que
+          sus chips y su marca bajan a una segunda línea en vez de empujar la tarjeta más allá
+          del móvil.
+        </Note>
       </Section>
 
       <Section
@@ -129,7 +135,7 @@ export function SessionSections(): React.ReactElement {
 
       <Section
         name="WeightSummary"
-        note="La barra después de decidir: el peso una vez, dos teclas de 48 px para ajustarlo y la línea del objetivo con «Cambiar»."
+        note="La barra después de decidir: el peso una vez — el numeral más grande de la sesión (60 px, tabular) —, dos teclas de 48 px para ajustarlo y la línea del objetivo con «Cambiar»."
       >
         <Demo state="Con objetivo y edición">
           <WeightSummary
@@ -179,43 +185,6 @@ export function SessionSections(): React.ReactElement {
           Esta página no guarda estado, así que el teclado no puede demostrar la escritura en
           vivo: `value` es una prop y cada tecla llama a un `onChange` que aquí no hace nada.
         </Note>
-      </Section>
-
-      <Section
-        name="RestTimerBar"
-        note="60 px de contenido más el área segura, tiempo en cifras tabulares, «+15 s», «Saltar» y una línea de progreso de 2 px. El componente no lleva temporizador: recibe las etiquetas ya calculadas desde confirmedAt (§6.4)."
-      >
-        <Demo state="running (a mitad del descanso)">
-          <RestTimerBar
-            state="running"
-            remainingLabel="1:45"
-            progress={0.38}
-            accessibleLabel="Descanso, quedan 1 minuto 45 segundos"
-            onExtend={noop}
-            onSkip={noop}
-          />
-        </Demo>
-        <Demo state="overrun (terminado con «hace 1:12»)">
-          <RestTimerBar
-            state="finished"
-            remainingLabel="0:00"
-            progress={1}
-            overrunLabel="hace 1:12"
-            accessibleLabel="Descanso terminado, hace 1 minuto 12 segundos"
-            onExtend={noop}
-            onSkip={noop}
-            onDismiss={noop}
-          />
-        </Demo>
-        <Demo state="finished sin etiqueta de exceso">
-          <RestTimerBar
-            state="finished"
-            remainingLabel="0:00"
-            progress={1}
-            accessibleLabel="Descanso terminado"
-            onDismiss={noop}
-          />
-        </Demo>
       </Section>
 
       <Section

@@ -32,7 +32,7 @@ export function FeedbackSections(): React.ReactElement {
 
       <Section
         name="Banner"
-        note="Aviso en línea con tono, acción opcional y divulgación opcional. Aquí viven los tres estados de plataforma: datos borrados (danger), app no instalada (warning) y versión nueva (warning)."
+        note="Aviso en línea con tono, acción opcional y divulgación opcional. El tono es la superficie teñida (un 7 %) más un borde de su propio matiz; `info` se queda en la superficie elevada lisa. Aquí viven los tres estados de plataforma: datos borrados (danger), app no instalada (warning) y versión nueva (warning)."
       >
         <Demo state="tone=info">
           <Banner
