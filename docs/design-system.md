@@ -5,7 +5,10 @@
 > snapshot live in `design/system.md` and `src/design-system/tokens.css`; the palette, theme
 > default and artboard references in this older spec are historical and superseded for
 > appearance only. Training behavior, data provenance, accessibility, offline operation,
-> safe areas and timer invariants below remain binding.
+> safe areas and the component contracts that still ship remain binding. The rest timer
+> and its bar (§6.4, §7.5) do not ship: S5 forbids rest timers, so every remaining
+> reference below to `Descanso`, the rest bar and rest-end feedback is history
+> (`odd/tasks/dark-premium-redesign.md`, L3 and T4b).
 
 Status: this document is the original product design specification; see the current
 visual snapshot above for shipped appearance.
@@ -74,9 +77,9 @@ table wins and this one is corrected.
 | System text styles / Dynamic Type as a free property | No SF text styles. `-apple-system` gives us SF Pro glyphs, not `largeTitle` semantics, and the iOS text-size setting does not scale arbitrarily sized text | Own `rem`-based scale that scales with the browser's text size and per-site zoom (§5) |
 | Swift Charts | No chart library, and one is excluded by ADR-006 rather than merely unavailable | Charts are hand-drawn inline SVG with a text alternative (§7.7) |
 | System controls (stepper, keypad, picker, switch) | We draw them. `<input type="number">` and the OS keyboard are unusable in a gym | Custom 48 px steppers and one designed keypad (§7.3, §7.4) |
-| Background timers and background execution | Page timers are throttled and suspended when the app is backgrounded or the screen locks; the app cannot run while the user is in another app | The rest timer is **derived from `confirmedAt`**, never accumulated, and recomputed on `visibilitychange` (§6.4) |
+| Background timers and background execution | Page timers are throttled and suspended when the app is backgrounded or the screen locks; the app cannot run while the user is in another app | The rest timer was **derived from `confirmedAt`**, never accumulated, and recomputed on `visibilitychange` (§6.4). It has since been removed (T4b) |
 | Screen stays on during a session | Screen Wake Lock exists (Safari 16.4+) but can be refused, dropped or unavailable | The design accepts a sleeping screen: every number is correct on return (§6.5) |
-| Notifications without permission | Web Push requires an installed app, a permission grant and a push service; it cannot serve as an offline alarm | The rest timer never depends on a notification (§7.5) |
+| Notifications without permission | Web Push requires an installed app, a permission grant and a push service; it cannot serve as an offline alarm | The rest timer never depended on a notification, and no timer ships to need one (§7.5) |
 | Persistent storage (`navigator.storage.persist()`) | Not implemented in WebKit; iOS can evict the storage of a site it considers unused | Backup is a product feature, and eviction has its own UI state (FR-16.3, §7.8) |
 | Background sync | Not available for this use case; the app has no network path at all (S3) | Everything writes to IndexedDB synchronously on confirmation (FR-6.5) |
 
@@ -108,7 +111,7 @@ pixel ratio 3):
 | Region | Budget | Rule |
 | --- | --- | --- |
 | Top (dynamic island + status area) | `env(safe-area-inset-top)` ≈ 59 px | Nothing legible sits inside it. Screen titles are padded below it; scrolled content passes *under* it only behind an opaque surface. |
-| Bottom (home indicator) | `env(safe-area-inset-bottom)` ≈ 34 px | The rest bar and the primary action sit **above** it. The bar's own height is content; its padding grows by the inset. |
+| Bottom (home indicator) | `env(safe-area-inset-bottom)` ≈ 34 px | The primary action and the bottom bar sit **above** it. The bar's own height is content; its padding grows by the inset. The rest bar that used to sit here was removed (T4b, §7.5). |
 | Sides (landscape, and the notch in landscape) | `env(safe-area-inset-left/right)` | Horizontal screen padding uses `max(20px, env(safe-area-inset-left))`. Landscape is not a supported training orientation but must not clip. |
 
 ```css
@@ -190,8 +193,8 @@ consequences that are visible in the UI, not just in the storage layer:
 - Primary actions: 56 px tall, full width, `--radius-control` (10 px).
 - Content is bottom-anchored where the action matters: the primary action sits in
   the thumb zone, not at the top.
-- Safe areas respected; the rest timer bar is a bottom overlay above the home
-  indicator, never under it (§2.3).
+- Safe areas respected; the bottom bar is an overlay above the home indicator,
+  never under it (§2.3). The rest bar that used to close the session is gone (T4b).
 - Supported sizes: 375 × 667 through ~440 × 956 CSS px. Layout is a single column
   that breathes with width; no fixed pixel layouts. The reference device is
   393 × 852.
@@ -216,10 +219,11 @@ consequences that are visible in the UI, not just in the storage layer:
 │  [ ◀ ]  Ejercicio 2 de 6  [ ▶ ]│  48 px targets, always visible
 ├───────────────────────────────┤
 │  ██ Aceptar 102,5 kg ███████  │  primary action, 56 px
-├───────────────────────────────┤
-│  Descanso 1:45  +15s  Saltar  │  rest bar, 60 px + safe-area padding
 └───────────────────────────────┘
 ```
+
+The rest bar that used to close this layout (`Descanso 1:45  +15s  Saltar`, 60 px) is
+not part of it: removed in T4b, recorded in §7.5.
 
 ---
 
@@ -234,7 +238,7 @@ is a full peer, not an afterthought. Only **one** accent hue exists.
 | --- | --- | --- |
 | `bg.base` | `#0B0C0E` | App background |
 | `bg.surface` | `#14161A` | Cards |
-| `bg.raised` | `#1C1F25` | Sheets, timer bar, pressed states |
+| `bg.raised` | `#1C1F25` | Sheets, pressed states |
 | `stroke.hairline` | `#2A2E36` | 1 px separators, card borders |
 | `text.primary` | `#F2F4F7` | Headings, weights, numbers |
 | `text.secondary` | `#A2A9B4` | Labels, reasons, metadata |
@@ -301,9 +305,9 @@ Chart series (max 4, distinguishable for deuteranopia): `#F26B3A`, `#4C9AFF`,
 - **Badly lit gym.** The screen is read at 1.5 m with glare from overhead lighting
   and a possible screen protector. Therefore: no gradients (they read as smudges),
   no text below 12 px, no meaning carried by a 1 px line alone, and no large
-  white-on-black flashes at rest-timer end — a bright full-bleed flash is painful
-  at night and unreadable in daylight. The finished rest state is a colour change
-  of the bar plus two words (§7.5).
+  white-on-black flashes: a bright full-bleed flash is painful at night and
+  unreadable in daylight. A finished state is a colour change plus two words, never
+  a flash (§7.5).
 - Hairlines are `1px` = 3 device px. Sub-pixel borders (`0.5px`) are forbidden:
   they round inconsistently across the snapping grid and produce dotted separators.
 - `@media (prefers-contrast: more)` promotes `text.secondary` to `text.primary`
@@ -342,7 +346,7 @@ which is the whole point of expressing the scale this way.
 | --- | --- | --- | --- |
 | Screen title | 34 / 40 | `2rem` | One per screen |
 | Card title (exercise name) | 22 / 28 | `1.3rem` | Wraps, never shrinks to illegible |
-| Metric (weight, timer) | 44 / 48 | `2.6rem` | Tabular figures, no locale guessing |
+| Metric (weight, reps) | 44 / 48 | `2.6rem` | Tabular figures, no locale guessing |
 | Section label | 13 / 18 | `0.76rem` | Uppercase, `text.secondary`, tracking 0.5 px |
 | Body | 17 / 22 | `1rem` | Reasons, descriptions |
 | Meta | 15 / 20 | `0.88rem` | "Sesión anterior · 100 kg × 6" |
@@ -354,7 +358,7 @@ the scaling mechanism is ours.
 
 ### 5.2 Numbers
 
-`font-variant-numeric: tabular-nums` on every weight, rep count and timer. This is
+`font-variant-numeric: tabular-nums` on every weight and rep count. This is
 the replacement for the native monospaced-digit behaviour: a change from 100 to
 102,5 must not move the layout by a pixel. Digits are never letter-spaced, and
 decimal separators come from the locale (comma in Spanish), rendered as text, not
@@ -375,7 +379,7 @@ as a formatted number we re-parse.
     or the phase explanation. Those must be readable; they wrap.
   - `overflow-wrap: anywhere` on exercise names (user-created names can be one long
     token).
-  - `white-space: nowrap` only on values that cannot wrap (a timer, a weight) —
+  - `white-space: nowrap` only on values that cannot wrap (a weight, a rep count) —
     never on a label next to one.
   - No font below 12 px at the default text size, ever.
 - Worst case (largest text size, 200 % zoom, landscape) is a design review item:
@@ -406,7 +410,7 @@ appears in a component (§12).
 
 ### 6.2 Elevation and motion
 
-- Elevation: none except sheets and the rest bar, which use `bg.raised` plus a
+- Elevation: none except sheets, which use `bg.raised` plus a
   1 px top hairline. No box shadows in the content area.
 - Motion: 180 ms ease-out for state changes, 260 ms for card paging.
   **Confirming a set is instant** — no animation may delay the confirmation, and
@@ -420,23 +424,26 @@ appears in a component (§12).
 ### 6.3 Feedback without haptics
 
 There is no haptic feedback on iOS WebKit (§2.2). The native plan used `.light` on
-set confirm, `.success` on a PR and `.warning` at rest end; all three are replaced
-by design, not by hope:
+set confirm, `.success` on a PR and `.warning` at rest end; set confirm and the PR are
+replaced by design, not by hope, and the rest end no longer exists (T4b, §7.5):
 
 | Moment | Replacement |
 | --- | --- |
-| Set confirmed | The row changes in three ways at once: the word `COMPLETADA`, a check glyph, and the row surface moving to `bg.raised` with a `success` left border. The rest bar appears in the same frame. No dependence on a flash. |
+| Set confirmed | The row changes in three ways at once: the word `COMPLETADA`, a check glyph, and the row surface moving to `bg.raised` with a `success` left border. No dependence on a flash. |
 | Personal record | `RÉCORD` as a word in the summary line of the set, in `success`, plus the same row treatment. Record detection is never a sound-only event. |
-| Rest ended | The bar holds a persistent state (§7.5): colour change, the words `DESCANSO TERMINADO`, and the elapsed time since it ended. It stays until the next set starts or the user dismisses it. |
+| ~~Rest ended~~ | **No rest moment exists.** The bar and its persistent finished state were removed (T4b, §7.5), because S5 forbids rest timers. The rule survives for whatever replaces it: a finished state is a persistent colour change plus words, never a flash. |
 | Anything destructive | Requires a confirmed press-and-hold or a two-step confirmation with the consequence written out; never a bar vibration to signal danger. |
 
-Sound is **additive and optional**: a short tone at rest end, played through Web
-Audio only after the audio context has been unlocked by a tap in the session
-(iOS starts every audio context suspended, and the ringer switch mutes it
-regardless). The app therefore assumes silence. Sound is never required to know
-that rest ended, and no requirement may depend on it (FR-8.2).
+**No sound ships.** The rest-end tone described in the original rule went with the bar
+(T4b), and `src/` contains no audio code. The rule itself is kept because it still
+governs anything added later: sound may only be additive and optional, never required
+(FR-8.2), and the app assumes silence.
 
 ### 6.4 The rest timer is derived, not accumulated
+
+**Removed (T4b).** No rest timer ships: the owner's S5 forbids rest timers, and the
+decision is recorded in `odd/tasks/dark-premium-redesign.md` (L3, T4b). The rule below
+is kept as the record of the constraint it was written for; no code implements it.
 
 Page timers are throttled in the background and stopped when the screen locks. The
 timer therefore renders `now - confirmedAt` (with extensions as stored offsets) and
@@ -459,7 +466,7 @@ an enhancement, in this order:
    the lock when the page is hidden.
 3. If the API is missing, the request rejects, or the lock is dropped (low power
    mode, thermal state, the user leaving the app), nothing else changes and nothing
-   is announced: the timer is timestamp-derived (§6.4), the set rows are already
+   is announced: no countdown exists (§6.4), the set rows are already
    persisted, and the only cost is that the screen may sleep and the user has to
    wake it.
 4. The wake lock is never presented as a guarantee. No requirement, no acceptance
@@ -535,6 +542,11 @@ component; no native control is used.
   the weight remains changeable between sets (FR-5.7).
 
 ### 7.5 `RestTimerBar`
+
+**Removed (T4b).** This component does not ship: the owner's S5 forbids rest timers, and
+the decision is recorded in `odd/tasks/dark-premium-redesign.md` (L3, T4b). The heading
+and the specification below stay as the record; the section number is kept so existing
+cross-references still resolve.
 
 - 60 px content height above the home indicator (plus safe-area padding, §2.3):
   remaining time (tabular, 22 px), `+15 s`, `Saltar`, and a 2 px progress line.
@@ -612,7 +624,7 @@ component; no native control is used.
 | --- | --- | --- |
 | Inicio | greeting, the week Monday to Friday with each day's state in words, start or change a workout, one line of the last session's kilograms, the fixture of the week | no history, a week with no match, a weekend that carries a workout, no session yet, storage evicted |
 | Entrenar | weekday template, session list, routine management entry | empty plan day, no sessions yet |
-| Sesión | paged exercise cards, decision bar, rest bar, progress (`2 de 6`) | first time, resumed after the app was killed or the page was discarded from memory, resumed after the screen slept, finished, partial |
+| Sesión | paged exercise cards, decision bar, progress (`2 de 6`) | first time, resumed after the app was killed or the page was discarded from memory, resumed after the screen slept, finished, partial |
 | Resumen | duration, sets vs prescribed, volume, PRs, per-exercise read-out | no PR, partial session |
 | Historial | session list → read-out | empty |
 | Progreso | per-exercise strength chart, PRs, weekly volume, body weight | no data, single data point |
@@ -665,7 +677,7 @@ Every screen is judged against these, in this order:
 4. Does a wrong tap cause a harmless, undoable result?
 5. Does a sweaty or chalky tap on a 48 px target register first time?
 6. Does anything require typing mid-set? (Answer must be no.)
-7. Does it survive the screen sleeping or the user switching apps mid-rest?
+7. Does it survive the screen sleeping or the user switching apps mid-session?
 8. After a reload, does the screen show the same state it showed before it?
 
 ---

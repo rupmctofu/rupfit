@@ -1,6 +1,13 @@
 # Rupfit design system
 
-A source-grounded snapshot of the shipped UI system after adopting the owner's light-lavender/violet reference. Source palette values are read from `src/design-system/tokens.css`; they are not pixel-sampled claims. Theme selection, skin comparison and default mode follow that file. Use app tokens as the implementation source of truth.
+A source-grounded snapshot of the shipped UI system after adopting the owner's light-lavender/violet reference. Source palette values are read from `src/design-system/tokens.css`; they are not pixel-sampled claims. Theme selection, colours and default mode follow that file, and there is no skin comparison. Use app tokens as the implementation source of truth.
+
+> **This snapshot is stale in places (T13).** It has no generator script in the
+> repository — `tools/` holds icon and art helpers, nothing that emits this file — so it
+> is edited by hand. It predates the T2–T4b token work: the dark surfaces, the chart
+> series and the typography below disagree with `src/design-system/tokens.css`, and the
+> token file wins. The rest bar it used to list has been removed and no `data-skin`
+> comparison exists (T4b). Regenerating the whole snapshot is not part of T13.
 
 ## Sources
 
@@ -76,7 +83,7 @@ No font weight above 600. Keep numeric columns tabular and units visually subord
 - 4 px base grid: `--space-1..8` = 4, 8, 12, 16, 20, 24, 28, 32 px.
 - Screen gutter 20 px (16 px below 375 px); default card padding 20 px; dense card padding 14 px; hairline 1 px.
 - Card radius 16 px; sheet radius 16 px; controls are pills (`999 px`) or square controls (`12 px`); track radius 4 px / thin track 2 px.
-- Touch target 48 px minimum; primary action 56 px; compact control 44 px; rest bar content 60 px.
+- Touch target 48 px minimum; primary action 56 px; compact control 44 px.
 - Motion: 180 ms fast, 260 ms base, `cubic-bezier(.2, 0, 0, 1)`; reduce nonessential motion to 0 ms when requested.
 - Safe-area tokens: `--safe-top/-bottom/-left/-right`; bottom inset belongs inside persistent controls.
 
@@ -90,7 +97,7 @@ No font weight above 600. Keep numeric columns tabular and units visually subord
 | `Chip` | Labels the state; selected options use a lavender tint, not a filled accent pill. |
 | `DataRow` | Full-width semantic row; title, subtitle, meaningful status/value, chevron as applicable. |
 | `Stepper` / `WeightEntry` | 48 px targets; exact discrete values, no imprecise slider for load. |
-| `SetRow` / `RestTimerBar` | Weight and reps stay visible together; rest is tied to the confirmed set. |
+| `SetRow` | Weight and reps stay visible together; confirming a set writes it and starts no timer. The `RestTimerBar` that used to follow the confirmed set was removed (T4b, S5). |
 | `ChartFrame` / `LineChart` / `BarChart` | Actual data only, visible time window/labels, accessible summary/table; no invented empty trend. |
 | `EmptyState` | One sentence and one useful action; no dashed wireframe border. |
 | Icons | Existing 24×24 inline SVG set, 1.8 px stroke; do not substitute emoji/Unicode. |

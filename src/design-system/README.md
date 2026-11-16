@@ -33,12 +33,17 @@ import `foundation.css` themselves, so no other wiring is needed.
 
 ## Tokens (`tokens.css`)
 
-Two skins, both from the artboard: **skin B is the default** (`<html>` with no
-attribute: lime accent, pill controls, 16 px cards — the artboard's own selection and
-the owner's reference) and **skin A** is `<html data-skin="a">` (orange accent,
-12 px cards, 10 px controls — the `skin-a/` renders). Dark is the default theme;
-light is a peer, selected by `prefers-color-scheme` and overridden by
-`:root[data-theme="dark"|"light"]`. `color-scheme` is declared per theme.
+**One skin ships.** The shipped token file has a single accent, the violet
+`--color-accent: #a892ff` (S3), and no stylesheet keys off a skin attribute: the
+orange comparison skin (`data-skin="a"`, 12 px cards, 10 px controls) was removed in
+the clean-up (T4b, L3), together with the lime skin-B accent it was compared with.
+Read `src/design-system/tokens.css` and `design/system.md` for every colour value;
+the tables below are the historical skin-B/skin-A measurement kept as a record, not
+a description of what ships.
+
+Dark is the product default; light is a peer opted into with
+`:root[data-theme="light"]`. The OS preference never flips the approved interface on
+its own, and `color-scheme` is declared per theme.
 
 ### Colour
 
@@ -145,7 +150,7 @@ size and page zoom (§5.1). `-webkit-text-size-adjust` stays at `100%`.
 | `--radius-pill` / `--radius-track` / `--radius-track-thin` / `--radius-photo` | 999 / 4 / 2 / 16 px | artboard |
 | `--target-min` | 48 px | §3, S4 |
 | `--control-height` / `-compact` | 56 px / 44 px | §3, §7.1 |
-| `--rest-bar-content-height` | 60 px | §7.5 |
+| `--rest-bar-content-height` | 60 px | §7.5 — **unexercised**: the rest bar was removed (T4b), so no stylesheet reads it |
 | `--icon-size` / `-sm` / `--icon-stroke` | 20 / 14 / 1.8 | artboard icon set |
 | `--bar-height` / `--progress-line-height` | 8 / 2 px | artboard `.bar`, `.rest .line` |
 
@@ -192,7 +197,7 @@ elements, every one has an accessible name, and every interactive target is at l
 | `LoadDecisionBar` | `Aceptar {{kg}}` / `Repetir {{kgPrevio}}` / `Otro peso`, three equal one-tap actions. |
 | `WeightSummary` | The bar after a decision: the weight once, two 48 px keys to nudge it, the target line and `Cambiar`. |
 | `WeightKeypad` | Our 4 × 3 pad of 48 px keys with a comma, a backspace and `Listo`; digits also work from a hardware keyboard. |
-| `RestTimerBar` | 60 px rest bar derived from the caller's `confirmedAt`: remaining time, `+15 s`, `Saltar`, 2 px progress line, `DESCANSO TERMINADO` state. |
+| ~~`RestTimerBar`~~ | **Removed** (T4b). The 60 px rest bar (`confirmedAt`-derived countdown, `+15 s`, `Saltar`, `DESCANSO TERMINADO`) is not exported and does not ship: the owner's S5 forbids rest timers (`odd/tasks/dark-premium-redesign.md`, L3), and the spec records §7.5 of `docs/design-system.md` as history. |
 | `EmptyState` | What is missing in one sentence plus the one action that fixes it. `tone="quiet"` (a surface step, never the accent), `tone="primary"` (the screen's only accent fill, at most one per screen) and `bare` for a sentence without a box. No dashed border: that is wireframe language. |
 | `Banner` | Inline, non-blocking notice with a tone, an optional action and an optional disclosure; the home of the three platform states. |
 | `ErrorBanner` | `No se pudo guardar la serie 2…` + `Reintentar`; `role="status"`, never an alert or a modal. |
@@ -211,19 +216,28 @@ machine (T4). Likewise no component formats a number: values arrive as strings w
 the Spanish comma already in them.
 
 Copy is Spanish and matches the artboard word for word where the artboard has a
-word: `Descanso`, `+15 s`, `Saltar`, `DESCANSO TERMINADO`, `Aceptar`, `Repetir`,
-`Otro peso`, `Listo`, `Confirmar`, `sin esfuerzo`, `fácil · correcto · duro · fallo`,
-`molestia · dolor`, `RÉCORD`, `Peso de hoy`, `Cambiar`, `Reintentar`, `Hecho`.
+word: `Aceptar`, `Repetir`, `Otro peso`, `Listo`, `Confirmar`, `sin esfuerzo`,
+`fácil · correcto · duro · fallo`, `molestia · dolor`, `RÉCORD`, `Peso de hoy`,
+`Cambiar`, `Reintentar`, `Hecho`. The rest bar's strings (`+15 s`, `DESCANSO
+TERMINADO`) went with the component (T4b); `Descanso` survives only where it names a
+rest day in the week, not a timer.
 
 ---
 
 ## Disagreements, and how they were resolved
 
+> These are decision records, kept as written. D1, D5, D8, D10, D14 and the contrast
+> table above resolved disagreements between the old spec, the artboard and the
+> two-skin mechanism; **both skins are now gone**, so read every "skin A" / "skin B" /
+> lime statement below as history of the superseded direction, not as shipped
+> behaviour (T4b, L3). One violet accent ships, in `tokens.css`.
+
 **D1 — Accent hue.** §4 fixes one accent hue, `#F26B3A`, with a measured table. The
 artboard's default skin (also the owner's reference, and the one every render outside
 `skin-a/` uses) is lime `#B8F34A`. → Skin B (lime) is the default and skin A (orange)
 ships as `data-skin="a"`; both are in the artboard, so nothing is invented. §4's
-contrast numbers describe skin A only, hence the measured table above.
+contrast numbers describe skin A only, hence the measured table above. (Both skins were
+later removed — T4b; one violet accent ships.)
 
 **D2 — Dark neutrals.** §4 `#0B0C0E / #14161A / #1C1F25 / #2A2E36 / #F2F4F7 /
 #A2A9B4 / #7C8899` vs artboard `#101214 / #171A1D / #22262A / #303438 / #F0F1EB /
@@ -298,9 +312,10 @@ and needs a one-line change when it is.
 ## Measured versus provisional
 
 **Measured** (read from the artboard's CSS or the 786 × 1704 renders, or computed):
-every colour; every type size, leading and tracking; every radius and padding; card,
-control and rest-bar heights; icon size and stroke; the two skins; the contrast
-table above.
+every colour; every type size, leading and tracking; every radius and padding; card
+and control heights; icon size and stroke; the contrast table above. (The two skins and
+the rest-bar height that this list used to carry are part of the same record: neither
+ships today.)
 
 **Provisional** (documented as uncertain, to be closed by an owner decision or a
 device observation):
