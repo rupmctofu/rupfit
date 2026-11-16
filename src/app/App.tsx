@@ -397,6 +397,21 @@ function AppShell(): React.ReactElement {
  * — Perfil used to be the only place that registered, and a fresh install was not
  * covered until it was opened. Prompt, never automatic `skipWaiting` (architecture §8).
  */
+/**
+ * Landscape is not a layout this app has (S12 of the landscape note): the session sheet,
+ * the agenda and the weight pad are all built for a tall screen, and the manifest's
+ * `orientation: portrait` is a request iOS does not always honour once the app is on the
+ * Home Screen. CSS cannot lock the device, so the app says what it needs instead of
+ * drawing a broken screen: one opaque layer, only on a short landscape viewport.
+ */
+function RotateNotice(): React.ReactElement {
+  return (
+    <div className="shell__rotate" role="status">
+      <p className="shell__rotate-text">Gira el móvil: Rupfit se usa en vertical.</p>
+    </div>
+  );
+}
+
 export function App(): React.ReactElement {
   useEffect(() => {
     registerServiceWorker();
@@ -404,6 +419,7 @@ export function App(): React.ReactElement {
 
   return (
     <AppProvider>
+      <RotateNotice />
       <AppShell />
     </AppProvider>
   );

@@ -29,6 +29,41 @@ body {
   padding-top: var(--safe-top);
 }
 
+/*
+ * The landscape notice. The manifest asks for `orientation: portrait`, but iOS does not
+ * always honour it for an app already on the Home Screen, and no CSS can turn a phone.
+ * So on a short landscape viewport — a phone on its side, never a desktop window — one
+ * opaque layer says what the app needs, and the layout behind it is never seen. Hidden
+ * everywhere else, so nothing changes in portrait.
+ */
+.shell__rotate {
+  display: none;
+}
+
+@media (orientation: landscape) and (max-height: 540px) {
+  .shell__rotate {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-6);
+    background: var(--color-bg);
+  }
+
+  .shell__rotate-text {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: var(--text-card-title);
+    line-height: var(--leading-card-title);
+    font-weight: var(--weight-semibold);
+    color: var(--color-text);
+    text-align: center;
+    text-wrap: balance;
+  }
+}
+
 .shell__main {
   flex: 1;
   overflow-y: auto;
