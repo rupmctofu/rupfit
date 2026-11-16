@@ -185,7 +185,7 @@ function render(overrides: Partial<HomeInput> = {}): string {
   return renderToStaticMarkup(
     <HomeBody
       view={view}
-      agendaWeek={agendaWeekViewOf(fixture, view.action)}
+      agendaWeek={agendaWeekViewOf(fixture, view)}
       offDay={offDayOf(fixture)}
       matchReported={matchReportedOf(fixture)}
       fixture={weekFixtureOf(fixture.week)}
@@ -264,12 +264,19 @@ describe('Inicio renders', () => {
   });
 
   it('draws the session in progress with the action that returns to its sets', () => {
-    const open = session({ id: 'open', status: 'inProgress', startedAt: MONDAY });
-    const markup = render({ recent: [open], inProgress: open });
+    const open = session({
+      id: 'open',
+      status: 'inProgress',
+      startedAt: MONDAY,
+      planDayId: 'seed-day-fisico',
+      dayNameSnapshot: 'MOVILIDAD Y CORE',
+    });
+    const markup = render({ recent: [open], inProgress: open, plan: WEEK_PLAN, week: LEAGUE_WEEK });
 
-    expect(markup).toContain('Continuar entrenamiento');
-    // The card title is the day name, formatted for reading (`formatDayName`).
-    expect(markup).toContain('Sentadilla / Pierna');
+    // The row of today carries the one filled action, and it is the way back into the sets.
+    expect(rowOf(markup, 2)).toContain('Continuar');
+    // The card below is the same day the row names, not a second opinion about it.
+    expect(markup).toContain('home__hero-title">Movilidad y core');
     expect(markup).not.toContain('Vista previa');
   });
 
@@ -332,7 +339,7 @@ describe('Inicio after the purge (S2, S3)', () => {
   });
 
   it('says a day is a preview in one chip instead of a sentence', () => {
-    const markup = render();
+    const markup = render({ plan: WEEK_PLAN });
 
     expect(markup).toContain('Vista previa');
     expect(markup).not.toContain('La sesión se crea al empezar.');
@@ -491,7 +498,12 @@ describe('the demo can show the week (?demo=inicio)', () => {
 
     expect(week?.monday).toBe('2023-11-06');
     const view = homeViewOf(input({ now, plan: fixture.plan, recent: fixture.sessions, week }));
-    expect(view.today?.swap?.label).toBe('Cambiar el entreno de hoy');
+    // The demo draws its own week, and today is the day that week places: the preparation,
+    // with the preview the row of today starts (T4, T6).
+    expect(view.agenda?.agenda.days.find((day) => day.today)?.planDay?.name).toBe(
+      'PREPARACIÓN FÚTBOL',
+    );
+    expect(view.today?.state).toBe('preview');
   });
 });
 
@@ -644,7 +656,7 @@ function layoutWith(days: readonly (string | null)[]): WeekLayout {
 function agendaWeekOf(overrides: Partial<HomeInput>) {
   const fixture = input(overrides);
   const view = homeViewOf(fixture);
-  const week = agendaWeekViewOf(fixture, view.action);
+  const week = agendaWeekViewOf(fixture, view);
   if (week === null) throw new Error('the fixture drew no agenda');
   return { fixture, view, week };
 }
@@ -874,6 +886,45 @@ describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10)', () => {
     });
     expect(itself.result).toEqual({ ok: false, reason: 'sameDay' });
     expect(itself.notice).toBeNull();
+  });
+
+  it('the card below the agenda never names a day the owner moved away from today (S1, S4)', () => {
+    const moved = layoutWith(['seed-day-leg', 'seed-day-torso-a', null, null, 'seed-day-torso-b', 'seed-day-fisico', null]);
+    const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK, weekLayout: moved });
+    expect(rowOf(markup, 2)).toContain('Descanso');
+    expect(markup).not.toContain('home__hero-title">Movilidad y core');
+    expect(markup).not.toContain('Empezar entrenamiento');
+  });
+
+  it('the card names what the day carries when the owner changes it (S3)', () => {
+    const changed = layoutWith(['seed-day-leg', 'seed-day-torso-a', 'seed-day-leg', null, 'seed-day-torso-b', 'seed-day-fisico', null]);
+    const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK, weekLayout: changed });
+    expect(rowOf(markup, 2)).toContain('Pierna');
+    expect(markup).not.toContain('home__hero-title">Movilidad y core');
+  });
+
+  it('refuses the sheet\'s confirm on a closed day without writing (S6)', async () => {
+    const closed = session({ id: 'closed', status: 'completed', planDayId: 'seed-day-leg',
+      dayNameSnapshot: 'PIERNA', scheduledDate: MONDAY });
+    const { week } = agendaWeekOf({ plan: WEEK_PLAN, week: LEAGUE_WEEK, recent: [closed] });
+    const port = layoutPort();
+    const onto = await writePlacement({ storage: port.port, agenda: week.agenda, layout: week.layout,
+      planDayId: 'seed-day-torso-a', toWeekday: 0 });
+    expect(onto).toEqual({ outcome: 'refused', layout: week.layout, notice: 'Un día hecho no se cambia.' });
+    const away = await writePlacement({ storage: port.port, agenda: week.agenda, layout: week.layout,
+      planDayId: 'seed-day-leg', toWeekday: 5 });
+    expect(away.outcome).toBe('refused');
+    expect(port.writes).toEqual([]);
+  });
+
+  it('starts exactly the day the owner put on today (T5, T6)', () => {
+    const changed = layoutWith(['seed-day-leg', 'seed-day-torso-a', 'seed-day-leg', null, 'seed-day-torso-b', 'seed-day-fisico', null]);
+    const { week } = agendaWeekOf({ plan: WEEK_PLAN, week: LEAGUE_WEEK, weekLayout: changed });
+    const today = week.agenda.days.find((day) => day.today) ?? null;
+
+    // The row carries the one filled action and hands `start.start` the day it names.
+    expect(week.action).toEqual({ kind: 'start', label: 'Empezar' });
+    expect(startRequestOf(today)).toBe('seed-day-leg');
   });
 
   it('shows the plan day the match displaced, and the sheet can place it', async () => {

@@ -50,7 +50,7 @@ import { useAppServices } from '../../app/providers';
 import type { Clock } from '../session/controller';
 import { useStartSession, type StartNotice } from '../session/startSession';
 import { summaryHash } from '../summary/route';
-import { weekFixtureOf, weekTodayOf, type WeekFixture, type WeekToday } from '../week/week';
+import { reportedMatchOf, weekFixtureOf, type WeekFixture } from '../week/week';
 import {
   AgendaWeek,
   PLACEMENT_FAILED_COPY,
@@ -65,6 +65,7 @@ import { demoFlagOf, useLocationKey } from './useHash';
 import { formatDayName } from './format';
 import {
   homeViewOf,
+  todayRowOf,
   HOME_SESSION_WINDOW,
   type ActivityEntryView,
   type HomeActionView,
@@ -145,15 +146,15 @@ async function readHome(
 
 /**
  * T8 (S1, S12) — the match and the rest day, the two days the week names and the gym does
- * not fill. `homeViewOf` already refuses to invent a training day for either of them, but
- * it says the same `emptyDay` a day without exercises gives: the screen asks the week
- * which off day it is, so the match never reads «ese día todavía no tiene ejercicios».
+ * not fill. The agenda already says which of the two today is, and both draw their own
+ * card instead of the «sin ejercicios» sentence. T6: the answer comes from the same
+ * `WeekAgenda` the rows read, so a day the owner moved away is the rest day it is now.
  */
 export type OffDay = 'match' | 'rest';
 
-/** The match or the rest day the stored week names for today, or `null` on a training day. */
+/** The match or the rest day the week places today, or `null` on a training day. */
 export function offDayOf(input: HomeInput): OffDay | null {
-  const kind = todayOf(input)?.day.kind;
+  const kind = todayRowOf(input)?.kind;
   return kind === 'match' || kind === 'rest' ? kind : null;
 }
 
@@ -165,18 +166,9 @@ export function offDayOf(input: HomeInput): OffDay | null {
  * nothing can double-write the day (T8).
  */
 export function matchReportedOf(input: HomeInput): boolean {
-  return todayOf(input)?.matchReported ?? false;
-}
-
-/** Today as the stored week names it, or `null` when the rotation answers (T4). */
-function todayOf(input: HomeInput): WeekToday | null {
-  if (input.week === undefined) return null;
-  return weekTodayOf({
-    now: input.now,
-    plan: input.plan,
-    week: input.week,
-    activities: input.activities,
-  });
+  const row = todayRowOf(input);
+  if (row === null || row.kind !== 'match') return false;
+  return reportedMatchOf(input.activities, input.now);
 }
 
 /**
@@ -334,6 +326,15 @@ function navigateTo(href: string): void {
 
 /** The screen's own title: the reference direction's first line, not the greeting. */
 export const HOME_TITLE = '¡Vamos a entrenar!';
+
+/**
+ * What the background of the day sheet carries while it is open (§9).
+ *
+ * `inert` takes the rows, the card and the sections out of the tab order and out of the
+ * pointer's reach, and `aria-hidden` says the same to a screen reader: a dialog declared
+ * `aria-modal` without both is a claim, not a modal.
+ */
+const MODAL_BACKGROUND = { inert: true, 'aria-hidden': true } as const;
 
 /** The blocks below draw the view; only the body owns the actions. */
 interface HomeViewOnly {
@@ -816,6 +817,15 @@ export function HomeBody({
   // the row could not — the screen never offers two ways into the same session (§7.1).
   const rowAction = agendaWeek?.action ?? null;
   const looseAction = rowAction === null ? view.action : null;
+  // §9 — the day sheet is `aria-modal` and traps Tab, so the screen behind it must leave
+  // the accessibility tree too. The sheet is drawn inside the agenda (the artboard wants
+  // it in the week, not over it), so this is the only place that knows both halves: the
+  // rows and the card below go `inert` and hidden from assistive technology while the
+  // dialog is open. The shell's tab bar lives in `src/app/App.tsx`, outside this screen and
+  // outside this task's edit surface; it stays reachable, which is a known gap, not a
+  // silent one.
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const background = sheetOpen ? MODAL_BACKGROUND : {};
 
   return (
     <div className="home">
@@ -823,7 +833,7 @@ export function HomeBody({
           and the date stay one quiet line under it. The mark stays the first thing on the
           left; the week it used to sit next to is now the seven rows below (T4), so the
           header keeps one object instead of a meter that repeated them. */}
-      <header className="home__head">
+      <header className="home__head" {...background}>
         <div className="home__head-bar">
           {/* The owner's own mark, at header size: it identifies the app before the
               screen says anything else, and the wordmark stays in the lockup. */}
@@ -845,78 +855,82 @@ export function HomeBody({
           week={agendaWeek}
           starting={starting}
           onStart={onStart}
+          onSheetChange={setSheetOpen}
           {...(onPlace === undefined ? {} : { onPlace })}
           placementNotice={placementNotice}
           {...(onRetryPlacement === undefined ? {} : { onRetryPlacement })}
         />
       )}
 
-      {/* The day, its numbers and — only when the agenda's row could not carry it — the
-          action that starts it. One accent fill on the screen at a time (§7.1). */}
-      <TodayBlock
-        view={view}
-        action={looseAction}
-        offDay={offDay}
-        matchReported={matchReported}
-        fixture={fixture}
-        onStart={onStart}
-        onNavigate={navigate}
-        onReportMatch={onReportMatch}
-        reporting={reporting}
-        reportNotice={reportNotice}
-        onFlipWeek={onFlipWeek}
-        starting={starting}
-      />
-
-      {/* Everything below is secondary to the day above: why nothing opened (§7.8) and
-          the store's own bad news. A failed write offers `Reintentar`; a missing profile
-          sends the owner to the tab that can fix it, because a retry cannot. */}
-      {startNotice === null ? null : startNotice.tone === 'danger' ? (
-        <ErrorBanner
-          message={startNotice.message}
-          {...(startNotice.retry ? { onRetry: onStart } : {})}
+      {/* Everything the dialog covers, in one block, so one attribute hides it (T6, §9). */}
+      <div className="home__below" {...background}>
+        {/* The day, its numbers and — only when the agenda's row could not carry it — the
+            action that starts it. One accent fill on the screen at a time (§7.1). */}
+        <TodayBlock
+          view={view}
+          action={looseAction}
+          offDay={offDay}
+          matchReported={matchReported}
+          fixture={fixture}
+          onStart={onStart}
+          onNavigate={navigate}
+          onReportMatch={onReportMatch}
+          reporting={reporting}
+          reportNotice={reportNotice}
+          onFlipWeek={onFlipWeek}
+          starting={starting}
         />
-      ) : (
-        <Banner
-          tone="warning"
-          title={startNotice.message}
-          {...(startNotice.profile
-            ? { action: { label: 'Ir a Perfil', onClick: () => navigate('#/perfil') } }
-            : {})}
+
+        {/* Everything below is secondary to the day above: why nothing opened (§7.8) and
+            the store's own bad news. A failed write offers `Reintentar`; a missing profile
+            sends the owner to the tab that can fix it, because a retry cannot. */}
+        {startNotice === null ? null : startNotice.tone === 'danger' ? (
+          <ErrorBanner
+            message={startNotice.message}
+            {...(startNotice.retry ? { onRetry: onStart } : {})}
+          />
+        ) : (
+          <Banner
+            tone="warning"
+            title={startNotice.message}
+            {...(startNotice.profile
+              ? { action: { label: 'Ir a Perfil', onClick: () => navigate('#/perfil') } }
+              : {})}
+          />
+        )}
+
+        {/* §7.8, S5: the only platform state Inicio still tells — the store opened and the
+            data is gone. The install advisory that used to sit here is Perfil's alone now
+            (S2): it explained the platform on the screen that answers «what do I do now?». */}
+        {view.notice.evicted ? (
+          <Banner
+            tone="danger"
+            title="Los datos guardados ya no están. Importa tu copia si la tienes."
+            {...(view.notice.lastExport === null
+              ? {}
+              : { text: `La última copia que se exportó es del ${view.notice.lastExport}.` })}
+            action={{ label: 'Importar copia', onClick: () => navigate('#/perfil') }}
+          />
+        ) : null}
+
+        {view.hasHistory ? null : (
+          <HomeNote icon="train">
+            Todavía no hay sesiones. La primera aparecerá aquí cuando la termines.
+          </HomeNote>
+        )}
+
+        {/* The last session the agenda above contains, then what the store measured:
+            history, read-only context under the week. */}
+        <LastSessionCard view={view} />
+        <WeightCard view={view} />
+        <ActivitySection
+          view={view}
+          {...(onRecordFootball === undefined ? {} : { onRecordFootball })}
+          recording={recording}
+          footballNotice={footballNotice}
+          {...(deletion === undefined ? {} : { deletion })}
         />
-      )}
-
-      {/* §7.8, S5: the only platform state Inicio still tells — the store opened and the
-          data is gone. The install advisory that used to sit here is Perfil's alone now
-          (S2): it explained the platform on the screen that answers «what do I do now?». */}
-      {view.notice.evicted ? (
-        <Banner
-          tone="danger"
-          title="Los datos guardados ya no están. Importa tu copia si la tienes."
-          {...(view.notice.lastExport === null
-            ? {}
-            : { text: `La última copia que se exportó es del ${view.notice.lastExport}.` })}
-          action={{ label: 'Importar copia', onClick: () => navigate('#/perfil') }}
-        />
-      ) : null}
-
-      {view.hasHistory ? null : (
-        <HomeNote icon="train">
-          Todavía no hay sesiones. La primera aparecerá aquí cuando la termines.
-        </HomeNote>
-      )}
-
-      {/* The last session the agenda above contains, then what the store measured:
-          history, read-only context under the week. */}
-      <LastSessionCard view={view} />
-      <WeightCard view={view} />
-      <ActivitySection
-        view={view}
-        {...(onRecordFootball === undefined ? {} : { onRecordFootball })}
-        recording={recording}
-        footballNotice={footballNotice}
-        {...(deletion === undefined ? {} : { deletion })}
-      />
+      </div>
     </div>
   );
 }
@@ -1067,7 +1081,7 @@ function HomeScreenBody({
   readonly onNavigate?: ((href: string) => void) | undefined;
 }): React.ReactElement {
   const view = homeViewOf(input);
-  const agendaWeek = agendaWeekViewOf(input, view.action);
+  const agendaWeek = agendaWeekViewOf(input, view);
 
   const place = (planDayId: string, weekday: number): void => {
     if (agendaWeek === null) return;

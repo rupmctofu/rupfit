@@ -17,7 +17,6 @@
 import { describe, expect, it } from 'vitest';
 import { memorySyncStore } from './outbox';
 import { createSyncService } from './sync';
-import { SYNC_TABLES } from './types';
 import type {
   LocalStorePort,
   PushOutcome,
@@ -146,8 +145,10 @@ describe('a sync pass with nothing to do', () => {
     expect(result).toMatchObject({ pushed: 0, pulled: 0, conflicts: 0, failures: [] });
     expect(remote.pushes).toEqual([]);
     expect(applied.changes).toEqual([]);
-    // One pull per mirrored table, so an additive table is picked up without editing this.
-    expect(remote.pulls).toHaveLength(SYNC_TABLES.length);
+    // One pull per mirrored table, and the number is written out so a table that
+    // disappears from the list cannot pass quietly: deleting one would leave a hole in
+    // the sync without any test noticing.
+    expect(remote.pulls).toHaveLength(11);
     expect(remote.pulls.every((pull) => pull.since === 0)).toBe(true);
   });
 });
@@ -310,7 +311,9 @@ describe('pulling and the watermark', () => {
 
     expect(result.status).toBe('completed');
     expect(result.pulled).toBe(0);
-    expect(result.failures).toHaveLength(SYNC_TABLES.length);
+    // The literal count, for the same reason the empty pass has one: the list of tables is
+    // the contract with the remote, and it cannot shrink unnoticed.
+    expect(result.failures).toHaveLength(11);
     expect(result.failures[0]).toEqual({ stage: 'pull', table: 'profiles', message: 'offline' });
   });
 });

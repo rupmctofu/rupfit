@@ -15,6 +15,7 @@ import type {
   PlanDay,
   SetRecord,
   UserProfile,
+  WeekLayout,
   WeekRecord,
   WorkoutSession,
 } from '../../storage';
@@ -129,6 +130,24 @@ const WEDNESDAY_SESSION = session({
     exercise('es-3', 'Peso muerto', []),
     exercise('es-4', 'Remo con barra', [], 2),
   ],
+});
+
+/**
+ * The Wednesday of the seeded week, with a stored row of its own.
+ *
+ * The week places the preparation on Wednesday (L7), so this is the session of the day the
+ * card names: a session only reaches the card when it is the session of *that* plan day
+ * (T6).
+ */
+const WEDNESDAY_PREP = session({
+  id: 'sessions-wednesday-prep',
+  planDayId: 'seed-day-fisico',
+  dayNameSnapshot: 'PREPARACIÓN FÚTBOL',
+  scheduledDate: NOW,
+  startedAt: null,
+  endedAt: null,
+  status: 'scheduled',
+  exercises: [exercise('es-3', 'Movilidad de cadera', []), exercise('es-4', 'Plancha', [], 2)],
 });
 
 const PLAN: readonly PlanDay[] = [
@@ -312,9 +331,9 @@ describe('homeViewOf', () => {
     expect(view.dateLine).toBe('Miércoles, 8 de noviembre');
   });
 
-  it('offers to start the session scheduled for today, which re-reads the store', () => {
-    const view = homeViewOf(input());
-    expect(view.today?.dayName).toBe('PESO MUERTO / TRACCIÓN');
+  it('offers to start the session of the day the week places today, which re-reads the store', () => {
+    const view = homeViewOf(input({ recent: [WEDNESDAY_PREP], plan: SEED_PLAN }));
+    expect(view.today?.dayName).toBe('PREPARACIÓN FÚTBOL');
     expect(view.today?.detail).toContain('2 ejercicios');
     expect(view.today?.detail).toContain('aprox.');
     expect(view.today?.phase).toBe('Readaptación · semana 2 de 4');
@@ -328,8 +347,16 @@ describe('homeViewOf', () => {
   });
 
   it('offers to continue the session that is already open', () => {
-    const open = session({ id: 'open', status: 'inProgress', scheduledDate: NOW });
-    const view = homeViewOf(input({ recent: [open, MONDAY_SESSION], inProgress: open }));
+    const open = session({
+      id: 'open',
+      status: 'inProgress',
+      scheduledDate: NOW,
+      startedAt: NOW,
+      planDayId: 'seed-day-fisico',
+    });
+    const view = homeViewOf(
+      input({ recent: [open, MONDAY_SESSION], inProgress: open, plan: SEED_PLAN }),
+    );
     expect(view.today?.state).toBe('inProgress');
     expect(view.action).toEqual({ kind: 'resume', label: 'Continuar entrenamiento', sessionId: 'open' });
   });
@@ -340,16 +367,18 @@ describe('homeViewOf', () => {
       status: 'completed',
       scheduledDate: NOW,
       endedAt: NOW,
-      exercises: WEDNESDAY_SESSION.exercises,
+      planDayId: 'seed-day-fisico',
+      exercises: WEDNESDAY_PREP.exercises,
     });
-    const view = homeViewOf(input({ recent: [done, MONDAY_SESSION] }));
+    const view = homeViewOf(input({ recent: [done, MONDAY_SESSION], plan: SEED_PLAN }));
     expect(view.today?.state).toBe('done');
     expect(view.today?.done).toBe('Sesión completada hoy · 0 de 5 series.');
     expect(view.action).toEqual({ kind: 'summary', label: 'Ver el resumen', sessionId: 'done' });
-    expect(view.week?.cells.find((cell) => cell.state === 'today')?.initial).toBe('MIÉ');
+    // The row of today reads the very same week the card does (T6).
+    expect(view.agenda?.agenda.days.find((day) => day.today)?.done).toBe(true);
   });
 
-  it('offers the next day of the rotation when nothing is scheduled today', () => {
+  it('offers the day the week places today when nothing is scheduled today', () => {
     const last = session({
       id: 'last-lower',
       planDayId: 'day-lower',
@@ -357,12 +386,12 @@ describe('homeViewOf', () => {
       status: 'completed',
       scheduledDate: MONDAY,
     });
-    const view = homeViewOf(input({ recent: [last], plan: STARTER_PLAN }));
+    const view = homeViewOf(input({ recent: [last], plan: SEED_PLAN }));
 
-    expect(view.today?.dayName).toBe('PESO MUERTO / TRACCIÓN');
+    expect(view.today?.dayName).toBe('PREPARACIÓN FÚTBOL');
     expect(view.today?.state).toBe('preview');
     expect(view.today?.sessionId).toBeNull();
-    expect(view.today?.series).toBe('5 series');
+    expect(view.today?.series).toBe('2 series');
     expect(view.today?.detail).toContain('aprox.');
     expect(view.nothingToday).toBeNull();
     expect(view.action).toEqual({
@@ -372,22 +401,35 @@ describe('homeViewOf', () => {
     });
   });
 
-  it('offers the first day of the rotation on a store that has never trained', () => {
-    const view = homeViewOf(input({ recent: [], plan: STARTER_PLAN }));
-    expect(view.today?.dayName).toBe('SENTADILLA / PIERNA');
+  it('offers the day the template places when the store has never trained', () => {
+    const view = homeViewOf(input({ now: MONDAY, recent: [], plan: SEED_PLAN }));
+    expect(view.today?.dayName).toBe('PIERNA');
     expect(view.today?.state).toBe('preview');
     expect(view.action?.kind).toBe('start');
   });
 
-  it('says the next day has no exercises instead of inventing a session for it', () => {
-    const view = homeViewOf(input({ recent: [MONDAY_SESSION] }));
+  it('says the day the week places has no exercises instead of inventing a session for it', () => {
+    const emptyPrep = SEED_PLAN.map((day) =>
+      day.id === 'seed-day-fisico' ? { ...day, items: [] } : day,
+    );
+    const view = homeViewOf(input({ recent: [MONDAY_SESSION], plan: emptyPrep }));
+
     expect(view.today).toBeNull();
     expect(view.nothingToday).toBe('emptyDay');
     expect(view.action).toBeNull();
+    // The week still names the day it carries: the card is the empty one, not the row.
+    expect(view.agenda?.agenda.days[2]?.planDay?.name).toBe('PREPARACIÓN FÚTBOL');
   });
 
-  describe('the week of the match (T3, T4, T5)', () => {
-    it('T4 takes today from the week plan instead of the rotation (S5)', () => {
+  describe('the week the rows read (T3, T4, T6)', () => {
+    const LEAGUE_WEEK: WeekRecord = { ...NO_MATCH_WEEK, match: 'league' };
+
+    /** The owner's layout, written as the seven weekdays read. */
+    function layoutWith(days: readonly (string | null)[]): WeekLayout {
+      return { slots: days.map((planDayId, weekday) => ({ weekday, planDayId })) };
+    }
+
+    it('T4 takes today from the week instead of the rotation (S5)', () => {
       const view = homeViewOf(input({ recent: [], plan: SEED_PLAN, week: NO_MATCH_WEEK }));
       // A week without a fixture: Wednesday is the football preparation day.
       expect(view.today?.dayName).toBe('PREPARACIÓN FÚTBOL');
@@ -396,67 +438,135 @@ describe('homeViewOf', () => {
       expect(view.nothingToday).toBeNull();
     });
 
-    it('T4 keeps the rotation answering when the store has no week record', () => {
+    it('T4 draws the template when the store has no week record', () => {
       const view = homeViewOf(input({ recent: [], plan: SEED_PLAN, week: undefined }));
-      expect(view.today?.dayName).toBe('PIERNA');
-      expect(view.today?.swap).toBeNull();
+      // With no record the fixture is `none`, and its template still places a day on
+      // Wednesday: the card reads the week the rows read, never the rotation.
+      expect(view.today?.dayName).toBe('PREPARACIÓN FÚTBOL');
+      expect(view.today?.state).toBe('preview');
     });
 
-    it('T3 ignores a record from another week and lets the rotation answer', () => {
-      const lastWeek: WeekRecord = { ...NO_MATCH_WEEK, monday: '2023-11-13' };
+    it('T3 ignores a record from another week and reads this one', () => {
+      // Last week was the cup: read here, its Tuesday match would make Wednesday TORSO A.
+      const lastWeek: WeekRecord = { ...NO_MATCH_WEEK, monday: '2023-11-13', match: 'cup' };
       const view = homeViewOf(input({ recent: [], plan: SEED_PLAN, week: lastWeek }));
-      expect(view.today?.dayName).toBe('PIERNA');
+      expect(view.today?.dayName).toBe('PREPARACIÓN FÚTBOL');
     });
 
-    it('T5 offers the other training days, and names where today’s day would go (S6, S9)', () => {
-      const view = homeViewOf(input({ recent: [], plan: SEED_PLAN, week: NO_MATCH_WEEK }));
-      expect(view.today?.swap).toEqual({
-        label: 'Cambiar el entreno de hoy',
-        dayName: 'Preparación fútbol',
-        options: [
-          { weekday: 'Lunes', dayName: 'Pierna', moves: 'Se mueve a Lunes', swap: { from: 2, to: 0 } },
-          { weekday: 'Martes', dayName: 'Torso A', moves: 'Se mueve a Martes', swap: { from: 2, to: 1 } },
-          { weekday: 'Jueves', dayName: 'Torso B', moves: 'Se mueve a Jueves', swap: { from: 2, to: 3 } },
-        ],
-      });
-    });
-
-    it('T5 keeps the change available in a league week, where the week is full', () => {
-      const league: WeekRecord = { ...NO_MATCH_WEEK, match: 'league' };
-      const view = homeViewOf(input({ recent: [], plan: SEED_PLAN, week: league }));
-      // Wednesday is the preparation and all five weekdays are taken; the exchange is
-      // still possible, because the two days swap places instead of needing a free slot.
-      expect(view.today?.swap?.options.map((option) => option.weekday)).toEqual([
-        'Lunes',
-        'Martes',
-        'Viernes',
+    it('says today is rest when the owner moved the day away from today (S1, S4)', () => {
+      const moved = layoutWith([
+        'seed-day-leg',
+        'seed-day-torso-a',
+        null,
+        null,
+        'seed-day-torso-b',
+        'seed-day-fisico',
+        null,
       ]);
+      const view = homeViewOf(
+        input({ recent: [], plan: SEED_PLAN, week: LEAGUE_WEEK, weekLayout: moved }),
+      );
+
+      // The verifier's blocker: the row said `Descanso` and the card named the mobility
+      // day with a way to start it. One week, one answer.
+      expect(view.agenda?.agenda.days[2]?.kind).toBe('rest');
+      expect(view.today).toBeNull();
+      expect(view.nothingToday).toBeNull();
+      expect(view.action).toBeNull();
     });
 
-    it('S9 names the weekday the day left behind moves to', () => {
-      const view = homeViewOf(input({ recent: [], plan: SEED_PLAN, week: NO_MATCH_WEEK }));
-      const tuesday = view.today?.swap?.options.find((option) => option.weekday === 'Martes');
-      expect(tuesday).toEqual({
-        weekday: 'Martes',
-        dayName: 'Torso A',
-        moves: 'Se mueve a Martes',
-        swap: { from: 2, to: 1 },
+    it('names the day the owner placed on today (S3)', () => {
+      const changed = layoutWith([
+        'seed-day-leg',
+        'seed-day-torso-a',
+        'seed-day-leg',
+        null,
+        'seed-day-torso-b',
+        'seed-day-fisico',
+        null,
+      ]);
+      const view = homeViewOf(
+        input({ recent: [], plan: SEED_PLAN, week: LEAGUE_WEEK, weekLayout: changed }),
+      );
+
+      expect(view.today?.dayName).toBe('PIERNA');
+      expect(view.today?.state).toBe('preview');
+      expect(view.action?.kind).toBe('start');
+    });
+
+    it('does not let a legacy exchange in the week record bend the card (S4)', () => {
+      // `WeekRecord.swaps` belonged to the exchange T5 replaced: the layout decides now,
+      // and an old swap left in the record must not move a day the owner never moved.
+      const view = homeViewOf(
+        input({
+          recent: [],
+          plan: SEED_PLAN,
+          week: { ...LEAGUE_WEEK, swaps: [{ from: 2, to: 0 }] },
+        }),
+      );
+      expect(view.today?.dayName).toBe('PREPARACIÓN FÚTBOL');
+    });
+
+    it('does not make a session of a moved-away day today’s card (S1, S4)', () => {
+      const moved = layoutWith([
+        'seed-day-leg',
+        null,
+        null,
+        null,
+        'seed-day-torso-b',
+        'seed-day-fisico',
+        null,
+      ]);
+      const stale = session({
+        id: 'stale',
+        status: 'scheduled',
+        scheduledDate: NOW,
+        startedAt: null,
+        endedAt: null,
+        planDayId: 'seed-day-fisico',
       });
+      const view = homeViewOf(
+        input({ recent: [stale], plan: SEED_PLAN, week: LEAGUE_WEEK, weekLayout: moved }),
+      );
+
+      // Today carries nothing; the scheduled row still exists, but it is not the day.
+      expect(view.today).toBeNull();
+      expect(view.action).toBeNull();
     });
 
-    it('T5 does not offer the swap once today already has a session row', () => {
-      const view = homeViewOf(input({ plan: SEED_PLAN, week: NO_MATCH_WEEK }));
-      // The fixture carries the session scheduled today: a stored row wins over the week
-      // and is never rewritten.
-      expect(view.today?.state).toBe('pending');
-      expect(view.today?.swap).toBeNull();
+    it('says when a day was trained when it was closed on another weekday (S6)', () => {
+      const moved = layoutWith([
+        'seed-day-torso-a',
+        'seed-day-torso-b',
+        'seed-day-leg',
+        null,
+        'seed-day-fisico',
+        null,
+        null,
+      ]);
+      const closed = session({
+        id: 'closed',
+        status: 'completed',
+        scheduledDate: MONDAY,
+        endedAt: MONDAY,
+        planDayId: 'seed-day-leg',
+        exercises: WEDNESDAY_PREP.exercises,
+      });
+      const view = homeViewOf(
+        input({ recent: [closed], plan: SEED_PLAN, week: LEAGUE_WEEK, weekLayout: moved }),
+      );
+
+      expect(view.today?.state).toBe('done');
+      expect(view.today?.done).toBe('Sesión completada el lunes · 0 de 5 series.');
+      expect(view.action).toEqual({ kind: 'summary', label: 'Ver el resumen', sessionId: 'closed' });
     });
 
     it('T3 does not hand the rotation the day of the match (S11)', () => {
-      // Thursday in a league week is the match: the week answers, and the rotation does
-      // not get to offer a strength day instead of it.
-      const league: WeekRecord = { ...NO_MATCH_WEEK, match: 'league' };
-      const view = homeViewOf(input({ now: THURSDAY, recent: [], plan: SEED_PLAN, week: league }));
+      // Thursday in a league week is the match: the week answers, and nothing offers a
+      // strength day instead of it.
+      const view = homeViewOf(
+        input({ now: THURSDAY, recent: [], plan: SEED_PLAN, week: LEAGUE_WEEK }),
+      );
       expect(view.today).toBeNull();
     });
   });
@@ -467,7 +577,8 @@ describe('homeViewOf', () => {
     expect(view.nothingToday).toBe('noPlan');
     expect(view.hasHistory).toBe(false);
     expect(view.last).toBeNull();
-    expect(view.week).toBeNull();
+    // No plan, no week to date: the agenda is absent, not empty (T4).
+    expect(view.agenda).toBeNull();
     expect(view.weight).toBeNull();
   });
 
@@ -479,84 +590,6 @@ describe('homeViewOf', () => {
       detail: '52 min · 5 de 5 series',
       volume: '5.400',
     });
-  });
-
-  it('builds the week indicator from the sessions that exist, not from the template', () => {
-    const view = homeViewOf(input());
-    expect(view.week?.cells).toEqual([
-      { key: 'sessions-monday', initial: 'LUN', state: 'done', label: 'Lunes, hecha' },
-      { key: 'sessions-wednesday', initial: 'MIÉ', state: 'today', label: 'Miércoles, hoy' },
-    ]);
-    // The header draws this arithmetic and nothing else: how many of the week's own
-    // planned sessions are closed. The old `1 de 2 sesiones` sentence is gone.
-    expect(view.week?.doneCount).toBe(1);
-    expect(view.week?.plannedCount).toBe(2);
-    expect(view.week?.hard).toBe('3 series duras');
-  });
-
-  it('names the week indicator for a screen reader, count and hard sets in one line', () => {
-    expect(homeViewOf(input()).week?.label).toBe('1 de 2 sesiones hechas · 3 series duras');
-    // One planned session: the line agrees in the singular instead of reading `1 de 1
-    // sesiones hechas`.
-    expect(homeViewOf(input({ recent: [MONDAY_SESSION] })).week?.label).toBe(
-      '1 de 1 sesión hecha · 3 series duras',
-    );
-  });
-
-  it('counts a four-session week as the indicator draws it, one segment per session', () => {
-    const tuesday = session({ id: 'sessions-tuesday', status: 'completed', scheduledDate: TUESDAY });
-    const thursday = session({
-      id: 'sessions-thursday',
-      status: 'scheduled',
-      scheduledDate: THURSDAY,
-      startedAt: null,
-      endedAt: null,
-    });
-    const view = homeViewOf(
-      input({ recent: [MONDAY_SESSION, tuesday, WEDNESDAY_SESSION, thursday] }),
-    );
-
-    // `2 de 4`: the two closed sessions of the week, out of the four it plans.
-    expect(view.week?.plannedCount).toBe(4);
-    expect(view.week?.doneCount).toBe(2);
-    expect(view.week?.cells.map((cell) => cell.state)).toEqual([
-      'done',
-      'done',
-      'today',
-      'pending',
-    ]);
-    // The days a session was already trained on are what the segments fill, in order.
-    expect(view.week?.cells.map((cell) => cell.initial)).toEqual(['LUN', 'MAR', 'MIÉ', 'JUE']);
-  });
-
-  it('fills every segment of a week that is completely trained', () => {
-    const tuesday = session({ id: 'sessions-tuesday', status: 'completed', scheduledDate: TUESDAY });
-    const doneToday = session({
-      id: 'sessions-today',
-      status: 'completed',
-      scheduledDate: NOW,
-      endedAt: NOW,
-      exercises: WEDNESDAY_SESSION.exercises,
-    });
-    const view = homeViewOf(input({ recent: [MONDAY_SESSION, tuesday, doneToday] }));
-
-    expect(view.week?.plannedCount).toBe(3);
-    expect(view.week?.doneCount).toBe(view.week?.plannedCount);
-  });
-
-  it('counts the today session as a planned session before it is done', () => {
-    // A scheduled row is planned and not closed: 1 of 2, never 1 of 1.
-    expect(homeViewOf(input()).week?.doneCount).toBe(1);
-    expect(homeViewOf(input()).week?.plannedCount).toBe(2);
-    // A session of another week never enters the indicator.
-    const nextWeek = session({
-      id: 'next-week',
-      status: 'scheduled',
-      scheduledDate: NOW + 7 * DAY_MS,
-      startedAt: null,
-      endedAt: null,
-    });
-    expect(homeViewOf(input({ recent: [MONDAY_SESSION, nextWeek] })).week?.plannedCount).toBe(1);
   });
 
   it('writes the seven-day mean and the weigh-ins behind it', () => {
@@ -652,8 +685,8 @@ describe('homeViewOf', () => {
     expect(view.activity.imported).toBe(1);
   });
 
-  it('leaves the strength rotation exactly as it was when an activity exists', () => {
-    const withoutActivity = homeViewOf(input());
+  it('leaves the week exactly as it was when an activity exists', () => {
+    const withoutActivity = homeViewOf(input({ plan: SEED_PLAN }));
     const football = {
       id: 'football-1',
       date: NOW,
@@ -664,31 +697,29 @@ describe('homeViewOf', () => {
       externalSampleId: null,
     };
 
-    // Today, the day it names, its numbers and the action are all the session/plan
-    // rotation's answer, and `nextPlanDay` never reads an activity.
-    const withActivity = homeViewOf(input({ activities: [football] }));
+    // Today, the day it names, its numbers and the action are all the week's answer, and
+    // no derivation of the week reads an activity.
+    const withActivity = homeViewOf(input({ plan: SEED_PLAN, activities: [football] }));
     expect(withActivity.today).toEqual(withoutActivity.today);
     expect(withActivity.action).toEqual(withoutActivity.action);
-    expect(withActivity.week).toEqual(withoutActivity.week);
+    expect(withActivity.agenda).toEqual(withoutActivity.agenda);
     expect(withActivity.last).toEqual(withoutActivity.last);
 
     // And the same happens the other way round: deleting the row puts the screen back
-    // exactly where it was, so the hero block and the rotation never saw it.
-    const afterDelete = homeViewOf(input({ activities: [] }));
+    // exactly where it was, so the card and the week never saw it.
+    const afterDelete = homeViewOf(input({ plan: SEED_PLAN, activities: [] }));
     expect(afterDelete.today).toEqual(withActivity.today);
     expect(afterDelete.action).toEqual(withActivity.action);
-    expect(afterDelete.week?.doneCount).toBe(withActivity.week?.doneCount);
+    expect(afterDelete.agenda?.agenda.doneCount).toBe(withActivity.agenda?.agenda.doneCount);
     expect(afterDelete.activity.recorded).toEqual([]);
 
-    // And a match recorded on a day with no session does not become one: the rotation
-    // still previews the next plan day, and the week indicator still counts sessions
-    // only — from zero, because that is exactly the week the owner wants to see.
-    const restDay = homeViewOf(input({ recent: [], activities: [football] }));
+    // And a match recorded on a day with no session does not become one: the week still
+    // previews the day it places, and `doneCount` still counts sessions only.
+    const restDay = homeViewOf(input({ recent: [], plan: SEED_PLAN, activities: [football] }));
     expect(restDay.today?.state).toBe('preview');
     expect(restDay.action?.kind).toBe('start');
     expect(restDay.hasHistory).toBe(false);
-    expect(restDay.week?.doneCount).toBe(0);
-    expect(restDay.week?.plannedCount).toBeGreaterThan(0);
+    expect(restDay.agenda?.agenda.doneCount).toBe(0);
   });
 
   it('carries only the eviction notice: the install advisory left Inicio (S2, S5)', () => {

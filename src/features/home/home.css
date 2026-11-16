@@ -11,6 +11,17 @@
   padding-bottom: var(--space-8);
 }
 
+/* Everything under the week: the day's card, the notices, the history and the activity.
+   It is one block so the day sheet can take the whole background out of the modal's way
+   with one attribute (T6, §9), and it keeps the screen's own rhythm instead of flattening
+   into the header's. */
+.home__below {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
 /* The lockup is pale-on-transparent by design: it reads on the dark canvas without a
    plate behind it. It is the first thing on the screen and the biggest it has ever been
    (S1), so the height is fixed here — like the previous 26 px, it is a size of the mark,

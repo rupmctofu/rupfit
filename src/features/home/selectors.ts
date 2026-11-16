@@ -12,14 +12,13 @@
  * 3. **Never claim a fact the store cannot prove.** The week indicator is built from the
  *    sessions that exist, not from the weekday template (`PlanDay` carries no weekday);
  *    the estimate says `aprox.`; a duration is only written when `startedAt` and an end
- *    instant are both stored. With a plan but no session today the screen offers the day
- *    the week of the match names when this device has planned one (T4), and otherwise the
- *    day the rotation names (`nextPlanDay`, session/start.ts): the app has no calendar, so
- *    "nothing is scheduled" means "not started yet".
+ *    instant are both stored. With a plan and no session today the card reads the day from
+ *    the same `WeekAgenda` the rows read (T4, T6): the week's layout answers what the day
+ *    carries, so the card and the row below it can never name two different days.
  */
 
 import type { PhaseState } from '../../core/domain';
-import type { WeekSwap } from '../../core/engine/week-plan';
+import type { MatchKind } from '../../core/engine/week-plan';
 import type {
   ActivityRecord,
   BodyMeasurement,
@@ -31,18 +30,21 @@ import type {
   WorkoutSession,
 } from '../../storage';
 import { formatVolume, formatWeight } from '../session/format';
-import { nextPlanDay } from '../session/start';
-import { weekTodayOf, type WeekToday } from '../week/week';
+import {
+  defaultLayoutOf,
+  weekAgendaOf,
+  type AgendaDay,
+  type WeekAgenda,
+} from '../week/agenda';
+import { localDayOf, mondayInstantOf } from '../week/week';
 import {
   formatDayAndMonth,
-  formatDayName,
   formatDuration,
   formatEstimate,
   formatExerciseCount,
   formatLongDate,
   formatSetProgress,
   formatShortDate,
-  formatWeekdayInitial,
   formatWeekdayName,
   greeting,
 } from './format';
@@ -143,44 +145,6 @@ export interface TodayView {
   readonly done: string | null;
   /** The stored session behind the card; `null` while the day is only a preview. */
   readonly sessionId: string | null;
-  /**
-   * T5 — changing today's training, when the week of the match can offer it. `null` on a
-   * card backed by a stored session: a row that exists is never rewritten, and on a day
-   * the rotation named, because an exchange of the week needs the week to know its
-   * partner.
-   */
-  readonly swap: TodaySwapView | null;
-}
-
-/**
- * One exchange today can make (S6, S9): the day that sits on another weekday, and where
- * today's own day would go in return. Choosing it writes `swap` into the week record.
- */
-export interface TodaySwapOptionView {
-  /** `Martes` — the weekday the offered day sits on now. */
-  readonly weekday: string;
-  /** `Torso A` — the day today would become. */
-  readonly dayName: string;
-  /** `Se mueve a Martes` — where the day that leaves today lands (S9). */
-  readonly moves: string;
-  /** The exchange itself: today and the chosen weekday trade places (T5). */
-  readonly swap: WeekSwap;
-}
-
-/**
- * What the screen needs to offer "cambiar el entreno de hoy" (S6).
- *
- * There is no "no room" state any more: the two days exchange weekdays, so a full league
- * or cup week still offers a choice. When the list is empty it is because today is the
- * match or a rest day — the whole view is absent, not an empty action.
- */
-export interface TodaySwapView {
-  /** `Cambiar el entreno de hoy` */
-  readonly label: string;
-  /** `Preparación fútbol` — the day that would leave today, as the screen names it. */
-  readonly dayName: string;
-  /** The exchange partners, in weekday order. */
-  readonly options: readonly TodaySwapOptionView[];
 }
 
 export type HomeActionKind = 'start' | 'resume' | 'summary';
@@ -209,30 +173,17 @@ export interface LastSessionView {
   readonly volume: string;
 }
 
-export type WeekCellState = 'done' | 'today' | 'pending';
-
-export interface WeekCellView {
-  readonly key: string;
-  /** `LUN` */
-  readonly initial: string;
-  readonly state: WeekCellState;
-  /** `Lunes, hecha` — the accessible name, never a colour alone (§9). */
-  readonly label: string;
-}
-
-export interface WeekView {
-  readonly cells: readonly WeekCellView[];
-  /** How many of this week's planned sessions are closed: what the indicator fills. */
-  readonly doneCount: number;
-  /** The sessions the week plans: one segment of the indicator each. */
-  readonly plannedCount: number;
-  /**
-   * The indicator's accessible name. It draws no words, so this is where the count and
-   * the hard sets are said out loud: `2 de 4 sesiones hechas · 14 series duras`.
-   */
-  readonly label: string;
-  /** `14 series duras` */
-  readonly hard: string;
+/**
+ * T4 — the week Inicio draws: the layout it came from and the seven rows dated over it.
+ *
+ * One object, derived once: the agenda's rows and the day card below them both read it,
+ * so there is no state in which the row says `Descanso` and the card names a training
+ * (T6). `null` on a screen with no plan, which draws no week at all.
+ */
+export interface HomeWeek {
+  /** The effective layout: the owner's, or the template materialised (S4, S5). */
+  readonly layout: WeekLayout;
+  readonly agenda: WeekAgenda;
 }
 
 export interface WeightView {
@@ -297,7 +248,8 @@ export interface HomeView {
   readonly nothingToday: NothingToday | null;
   readonly action: HomeActionView | null;
   readonly last: LastSessionView | null;
-  readonly week: WeekView | null;
+  /** T4: the week, derived once from the layout — the one answer today comes from. */
+  readonly agenda: HomeWeek | null;
   readonly weight: WeightView | null;
   /** Always present (§8 Inicio): the manual rows and the imported count, apart. */
   readonly activity: ActivityView;
@@ -323,6 +275,66 @@ export function startOfWeek(at: EpochMs): EpochMs {
 
 export function sameDay(left: EpochMs, right: EpochMs): boolean {
   return startOfDay(left) === startOfDay(right);
+}
+
+/* --------------------------------------------------------------------- the week */
+
+/**
+ * The fixture of the week the owner is looking at, or none.
+ *
+ * A record of another week says nothing about this one, so a stale record draws the
+ * no-match week instead of last week's Thursday.
+ */
+export function matchKindOf(input: HomeInput): MatchKind {
+  const week = input.week;
+  if (week === undefined) return 'none';
+  const monday = localDayOf(mondayInstantOf(input.now).getTime());
+  return week.monday === monday ? week.match : 'none';
+}
+
+/** The sessions the week looks at: the recent ones and the one that is open right now. */
+export function sessionsOf(input: HomeInput): readonly WorkoutSession[] {
+  return input.inProgress === undefined ? input.recent : [...input.recent, input.inProgress];
+}
+
+/**
+ * The effective layout: the owner's, or the template materialised (S4, S5).
+ *
+ * The drag has to start somewhere, and the week on screen is the answer: when the store
+ * holds no layout the template *is* the layout, so `placePlanDay` gets a real one to move
+ * instead of a hole to fill from scratch.
+ */
+export function layoutOf(input: HomeInput): WeekLayout {
+  return input.weekLayout ?? defaultLayoutOf({ matchKind: matchKindOf(input), plan: input.plan });
+}
+
+/** The seven dated rows of a week, over a given layout — the one derivation of `now`. */
+export function agendaOver(input: HomeInput, layout: WeekLayout): WeekAgenda {
+  return weekAgendaOf({
+    now: input.now,
+    matchKind: matchKindOf(input),
+    plan: input.plan,
+    layout,
+    sessions: sessionsOf(input),
+  });
+}
+
+/**
+ * T4, T6 — the week of this screen, derived exactly once.
+ *
+ * The rows and the day card both read this object: the layout decides what each weekday
+ * carries, and the card no longer asks the template or the rotation what today is. With
+ * no plan there is no week to date, and the screen keeps its honest empty state.
+ */
+export function homeAgendaOf(input: HomeInput): HomeWeek | null {
+  if (input.plan.length === 0) return null;
+  const layout = layoutOf(input);
+  return { layout, agenda: agendaOver(input, layout) };
+}
+
+/** The row the week calls today, or `null` when there is no week to date. */
+export function todayRowOf(input: HomeInput): AgendaDay | null {
+  return homeAgendaOf(input)?.agenda.days.find((day) => day.today) ?? null;
 }
 
 /* ------------------------------------------------------------- the aggregates */
@@ -464,7 +476,6 @@ function todayViewOf(
   if (session === undefined) return null;
   const phase = phaseLine(phaseState);
   const prescribed = prescribedSets(session);
-  const done = confirmedSetCount(session);
   const closed = session.status === 'completed' || session.status === 'partial';
   const state: TodayView['state'] = closed ? 'done' : session.status === 'inProgress' ? 'inProgress' : 'pending';
 
@@ -485,13 +496,21 @@ function todayViewOf(
     series: prescribed === 0 ? null : formatSeries(prescribed),
     state,
     done:
-      state === 'done'
-        ? `${session.status === 'completed' ? 'Sesión completada hoy' : 'Sesión guardada como parcial hoy'} · ${formatSetProgress(done, prescribed)}.`
-        : null,
+      state === 'done' ? doneLineOf(session, 'hoy') : null,
     sessionId: session.id,
-    // A stored row is the day: it is opened, never rewritten, so nothing is offered here.
-    swap: null,
   };
+}
+
+/**
+ * `Sesión completada hoy · 8 de 9 series.` — the closed line, and the day it happened on.
+ *
+ * The word is a parameter because a closed session of this week is not always today's: the
+ * owner may train a day and move it afterwards, and the card then says which weekday it
+ * was, instead of claiming the training happened today (S6).
+ */
+function doneLineOf(session: WorkoutSession, when: string): string {
+  const verb = session.status === 'completed' ? 'Sesión completada' : 'Sesión guardada como parcial';
+  return `${verb} ${when} · ${formatSetProgress(confirmedSetCount(session), prescribedSets(session))}.`;
 }
 
 function actionOf(today: TodayView | null, inProgress: WorkoutSession | undefined): HomeActionView | null {
@@ -513,40 +532,11 @@ function actionOf(today: TodayView | null, inProgress: WorkoutSession | undefine
   return { kind: 'start', label: 'Empezar entrenamiento', sessionId: null };
 }
 
-/**
- * What the preview of a plan day says about changing it (T5): the day that would leave
- * today and every weekday it can trade places with (S6, S9). `null` when there is no plan
- * day behind today — the match and the rest days ask nothing of the gym — and when the
- * week offers no partner at all, so the screen never draws an action with no options.
- */
-function swapOf(week: WeekToday): TodaySwapView | null {
-  if (week.planDay === null || week.targets.length === 0) return null;
-  return {
-    label: 'Cambiar el entreno de hoy',
-    dayName: formatDayName(week.planDay.name),
-    options: week.targets.map((target) => ({
-      weekday: target.weekday,
-      dayName: formatDayName(target.planDay.name),
-      moves: `Se mueve a ${target.weekday}`,
-      swap: target.swap,
-    })),
-  };
-}
-
-/**
- * The day the rotation names, shown before any session row exists.
- *
- * It is a preview, not a session: it carries the plan's own numbers and says `preview`,
- * so nothing downstream can mistake it for something stored. A day with no exercises is
- * not previewed — there is nothing to start, and the screen says which state it is in.
- */
-function previewDayOf(
-  day: PlanDay | null,
+/** How much work a plan day asks for, as the card states it, with the phase. */
+function planDayPartsOf(
+  day: PlanDay,
   phaseState: PhaseState | undefined,
-  swap: TodaySwapView | null,
-): TodayView | null {
-  if (day === null || day.items.length === 0) return null;
-  const phase = phaseLine(phaseState);
+): { readonly detail: string; readonly phase: string | null; readonly series: string | null } {
   const prescribed = day.items.reduce((total, item) => total + item.prescription.sets, 0);
   const estimated = estimateMinutes(
     day.items.map((item) => ({
@@ -554,20 +544,99 @@ function previewDayOf(
       restSeconds: item.prescription.restSeconds,
     })),
   );
-
   return {
-    dayName: day.name,
     detail:
       estimated === 0
         ? formatExerciseCount(day.items.length)
         : `${formatExerciseCount(day.items.length)} · ${formatEstimate(estimated)}`,
-    phase: phase,
+    phase: phaseLine(phaseState),
     series: prescribed === 0 ? null : formatSeries(prescribed),
+  };
+}
+
+/**
+ * The day the week places today, shown before any session row exists.
+ *
+ * It is a preview, not a session: it carries the plan's own numbers and says `preview`,
+ * so nothing downstream can mistake it for something stored. A day with no exercises is
+ * not previewed — there is nothing to start, and the screen says which state it is in.
+ */
+function previewDayOf(day: PlanDay, phaseState: PhaseState | undefined): TodayView | null {
+  if (day.items.length === 0) return null;
+  return {
+    dayName: day.name,
+    ...planDayPartsOf(day, phaseState),
     state: 'preview',
     done: null,
     sessionId: null,
-    swap,
   };
+}
+
+/**
+ * The closed session of a plan day this week, wherever the owner moved the day to.
+ *
+ * The agenda already said the row is done; this finds the training that closed it so the
+ * card can name the weekday it happened on and offer its summary.
+ */
+function closingSessionOf(
+  sessions: readonly WorkoutSession[],
+  planDayId: string,
+): WorkoutSession | null {
+  const closed = sessions.filter(
+    (session) =>
+      session.planDayId === planDayId &&
+      (session.status === 'completed' || session.status === 'partial'),
+  );
+  return closed.reduce<WorkoutSession | null>(
+    (latest, session) =>
+      latest === null || session.scheduledDate > latest.scheduledDate ? session : latest,
+    null,
+  );
+}
+
+/**
+ * T6 — the card of today, read from the agenda's today row.
+ *
+ * This is the repair of the verifier's blocker: the card used to ask the template and the
+ * stored `WeekRecord` what today was, while the row above it asked the owner's layout, so a
+ * day the owner moved away still appeared below as the day to train. Now the row is the
+ * only source of "what today carries":
+ *
+ * - a rest day or the match asks the agenda, and the card says so with nothing to start;
+ * - a workout day shows *its* plan day — a stored session of that same plan day if there is
+ *   one, the closed session that made it done if it is done, and the preview otherwise.
+ *
+ * A session scheduled for today whose plan day the owner moved off today is not the card:
+ * the store's row is still there, but today's plan says rest. An open session stays
+ * reachable through `actionOf`'s `resume`, which is the one action that does not claim a
+ * day.
+ */
+function todayCardOf(
+  row: AgendaDay | null,
+  sessions: readonly WorkoutSession[],
+  phaseState: PhaseState | undefined,
+  now: EpochMs,
+): TodayView | null {
+  if (row === null || row.kind !== 'workout' || row.planDay === null) return null;
+  const stored = todaySessionOf(
+    sessions.filter((session) => session.planDayId === row.planDay?.id),
+    now,
+  );
+  if (stored !== undefined) return todayViewOf(stored, phaseState);
+  if (row.done) {
+    const closing = closingSessionOf(sessions, row.planDay.id);
+    return {
+      dayName: row.planDay.name,
+      ...planDayPartsOf(row.planDay, phaseState),
+      state: 'done',
+      done:
+        closing === null
+          ? 'Ya está hecho esta semana.'
+          : doneLineOf(closing, `el ${formatWeekdayName(closing.scheduledDate).toLowerCase()}`),
+      sessionId: closing === null ? null : closing.id,
+    };
+  }
+  return previewDayOf(row.planDay, phaseState);
 }
 
 function lastSessionOf(sessions: readonly WorkoutSession[]): LastSessionView | null {
@@ -589,81 +658,6 @@ function lastSessionOf(sessions: readonly WorkoutSession[]): LastSessionView | n
     detail: duration === null ? progress : `${formatDuration(duration)} · ${progress}`,
     volume: formatVolume(sessionVolumeKg(last)),
   };
-}
-
-function weekViewOf(
-  sessions: readonly WorkoutSession[],
-  now: EpochMs,
-  plannedDays: number,
-): WeekView | null {
-  const week = weekSessionsOf(sessions, now);
-
-  // A week with nothing recorded yet still has a number to show: «0 de 3». The indicator
-  // is the owner's question — how much of this week is done — and answering it only after
-  // the first session would hide it exactly when it motivates.
-  if (week.length === 0) {
-    if (plannedDays === 0) return null;
-    return {
-      cells: Array.from({ length: plannedDays }, (_, index) => ({
-        key: `planned-${String(index + 1)}`,
-        initial: '',
-        state: 'pending' as const,
-        label: 'pendiente',
-      })),
-      doneCount: 0,
-      plannedCount: plannedDays,
-      label: weekMeterCount(0, plannedDays),
-      hard: '0 series duras',
-    };
-  }
-
-  const cells: WeekCellView[] = week.map((session) => {
-    // Today's cell keeps its position even after the session is closed: the strip is
-    // the anchor of "where am I in the week", and the filled segments say how many
-    // sessions are already done.
-    const closed = session.status === 'completed' || session.status === 'partial';
-    const state: WeekCellState = sameDay(session.scheduledDate, now)
-      ? 'today'
-      : closed
-        ? 'done'
-        : 'pending';
-    const name = formatWeekdayName(session.scheduledDate);
-    const word = state === 'done' ? 'hecha' : state === 'today' ? 'hoy' : 'pendiente';
-    return {
-      key: session.id,
-      initial: formatWeekdayInitial(session.scheduledDate),
-      state,
-      label: `${name}, ${word}`,
-    };
-  });
-
-  const doneCount = week.filter(
-    (session) => session.status === 'completed' || session.status === 'partial',
-  ).length;
-  const plannedCount = cells.length;
-  const hard = `${hardSetCount(week)} series duras`;
-
-  return {
-    cells,
-    doneCount,
-    plannedCount,
-    label: `${weekMeterCount(doneCount, plannedCount)} · ${hard}`,
-    hard,
-  };
-}
-
-/**
- * `2 de 4 sesiones hechas` — the sentence the indicator never draws but always says.
- *
- * A week with one planned session reads `1 de 1 sesión hecha`, because the visible
- * number and the noun have to agree before a screen reader reads them out loud.
- */
-export function weekMeterCount(done: number, planned: number): string {
-  const noun = planned === 1 ? 'sesión' : 'sesiones';
-  // The participle agrees with the noun, not with the number: `1 de 2 sesiones hechas`
-  // and `1 de 1 sesión hecha` are both correct.
-  const agreement = planned === 1 ? 'hecha' : 'hechas';
-  return `${done} de ${planned} ${noun} ${agreement}`;
 }
 
 function weightViewOf(measurements: readonly BodyMeasurement[], now: EpochMs): WeightView | null {
@@ -714,30 +708,34 @@ function activityViewOf(activities: readonly ActivityRecord[]): ActivityView {
 }
 
 export function homeViewOf(input: HomeInput): HomeView {
-  const { now, recent, inProgress, plan, profile, phaseState } = input;
+  const { now, recent, inProgress, profile, phaseState } = input;
   const pool = inProgress === undefined ? recent : [...recent, inProgress];
-  // T4: the week of the match answers first, and the rotation is the fallback — for a
-  // store with no record, a record of another week, or a seeded day that is gone. A day
-  // the week calls rest or match is not the rotation's to hand over: asking for today's
-  // training on the day of the match would silence the one day the week is built around
-  // (S11).
-  const weekToday = input.week === undefined ? null : weekTodayOf({ now, plan, week: input.week });
-  const today =
-    todayViewOf(todaySessionOf(pool, now), phaseState) ??
-    (weekToday === null
-      ? previewDayOf(nextPlanDay(plan, recent), phaseState, null)
-      : previewDayOf(weekToday.planDay, phaseState, swapOf(weekToday)));
+  // T4, T6: the week is derived once, from the owner's layout, and both the rows and the
+  // card of today read that one object. The card no longer asks the template, the stored
+  // `WeekRecord` or the rotation what today is: those three answered the same question a
+  // second time, and disagreed with the rows the moment the owner moved a day.
+  const agenda = homeAgendaOf(input);
+  const todayRow = agenda === null ? null : (agenda.agenda.days.find((day) => day.today) ?? null);
+  const today = todayCardOf(todayRow, pool, phaseState, now);
 
   return {
     greeting: greeting(profile?.displayName ?? null),
     dateLine: formatLongDate(now),
     today,
-    // Two honest states remain once a session and a preview are both absent: there is no
-    // plan at all, or the day the rotation names has no exercises to start.
-    nothingToday: today !== null ? null : plan.length === 0 ? 'noPlan' : 'emptyDay',
+    // Two honest states remain once the card has nothing to draw: no plan at all, or the
+    // plan day the week places today has no exercises to start. A rest day and the match
+    // are neither — they are days, and they say so.
+    nothingToday:
+      today !== null
+        ? null
+        : agenda === null
+          ? 'noPlan'
+          : todayRow === null || todayRow.kind !== 'workout'
+            ? null
+            : 'emptyDay',
     action: actionOf(today, inProgress),
     last: lastSessionOf(recent),
-    week: weekViewOf(recent, now, plan.length),
+    agenda,
     weight: weightViewOf(input.measurements, now),
     // Read only, and never handed to the rotation: `nextPlanDay` above sees `plan` and
     // `recent` (sessions) and nothing else, so a recorded football match cannot move the
