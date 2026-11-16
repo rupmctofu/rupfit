@@ -11,7 +11,7 @@ An account is optional and only mirrors the store to the owner's own Supabase pr
 ## Status
 
 **App tier, gate by gate.** The documents, the engine and the app exist. The app
-builds, typechecks and passes 569 tests in 36 files at `04f3b09`. The install contract
+builds, typechecks and passes 1131 tests in 74 files at `bce8129`. The install contract
 is not verified on the owner's phone yet: that check needs a published HTTPS URL and a
 device, and neither has happened.
 
@@ -33,6 +33,7 @@ Each row names the commit that holds the work, so the claim can be checked with
 | Install surface | The PNG icon set (192, 512, maskable 512, Apple touch icon), the web manifest with `standalone`, and the fail-closed GitHub Pages workflow. | `7acd7a3` |
 | Inicio, Entrenar, Resumen | The three screens around a session, with their empty, rest-day and partial states. | `86be6ab` |
 | Starting a session from the plan | Inicio offers the day the plan has today (or the next one in the rotation) and opens Sesión with that day's prescriptions; the summary hands the result back. | `04f3b09` |
+| The week in the hand | Inicio draws the week as a list — Monday to Friday, with a weekend row returning only when it carries a workout of the owner's. Each row says its day, its workout, its numbers and its state in words; the match carries the ball and cannot be moved; a day already trained is locked at both ends of a gesture. A workout moves to another day by dragging its row or through the day sheet, and that layout is one fixed assignment that survives a backup and syncs to the other devices. | `80bc8da`, `6edaa31`, `bce8129` |
 | Service worker and handoff | Registration at launch, the prompt-based update banner, and the session-to-summary handoff. | `ad607f7` |
 | Editing the routine | Not built: `Entrenar` reads the plan and writes nothing back to it. | — |
 | Recording a body measurement | Not built: `#/progreso/peso` reads stored measurements; nothing in the app creates one. | — |

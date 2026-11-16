@@ -43,16 +43,21 @@ cambia es que el reparto deja de ser intocable.
   semana de copa el partido cae sobre un día que tiene entreno, ese entreno queda sin día
   esa semana y la agenda lo muestra para colocarlo con un gesto, en vez de moverlo la app
   por su cuenta.
+- **S11** — "quita el sabado y el domingo". La agenda de Inicio enseña de lunes a viernes. Un
+  sábado o un domingo vuelve a aparecer solo si ese día tiene un entreno del reparto del dueño:
+  la agenda puede ser corta, nunca puede esconder un entreno. La semana derivada sigue teniendo
+  los siete días con fecha; lo que se acorta es la lista, no el modelo.
 
 ## Tasks
 
 - **T1** — S8, S1-S3: tres direcciones de calendario en `design/week-calendar/`, abiertas en el lienzo. **Hecha** en `7231f5b`. El dueño eligió `02-agenda-semanal.html`; 01 y 03 quedan como alternativas.
 - **T2** — S5, S6: `WeekLayout` persistente y viajero — clave `meta` `weekLayout` (sin décima tienda y sin subir `DB_VERSION`), escritura sellada y encolada, tabla `week_layout` en la nube, documento de copia con la colección opcional, migración SQL. **Hecha** en `8529dfb`; 13 pruebas nuevas, 1086 en total, ambos `tsc` limpios. La unidad de trabajo quedó en 678 líneas: es fontanería de una sola pieza y partirla dejaba el árbol sin compilar.
-- **T3** — S1, S4, S6, S10: `src/features/week/agenda.ts` puro — siete días con fecha, hecho por día del plan dentro de la semana, aviso de piernas tras el partido, reparto por defecto sacado de las plantillas y la única operación de colocación. Route: worker. En curso.
-- **T4** — S1-S3, S9: la agenda de siete renglones en Inicio — arrastre, candado en los días hechos, balón en el partido, hoja «¿qué entrenas este día?», guardado del reparto. Route: worker + revisión del padre.
-- **T5** — S1: empezar la sesión del día elegido desde su renglón, con las pruebas de pantalla. Route: inline.
-- **T6** — S1-S6: verificación independiente, README y `docs/`, y el cierre de la feature. Route: verify.
+- **T3** — S1, S4, S6, S10: `src/features/week/agenda.ts` puro — siete días con fecha, hecho por día del plan dentro de la semana, aviso de piernas tras el partido, reparto por defecto sacado de las plantillas y la única operación de colocación. **Hecha** en `1372993`; 53 pruebas en `src/features/week`, 1121 en total.
+- **T4** — S1-S3, S9: la agenda de siete renglones en Inicio — arrastre por captura de puntero, candado en los días hechos, balón en el partido, hoja «¿qué entrenas este día?», bloque de «sin día esta semana» y guardado del reparto. **Hecha** en `80bc8da`; +12 pruebas, 4 de la hoja vieja retiradas con el mecanismo que cubrían, 1130 en total. La rebanada es grande (≈1.270 líneas nuevas en dos archivos): es un módulo nuevo y una pantalla, y partirla no dejaba un árbol coherente.
+- **T5** — S1: empezar la sesión del día elegido desde su renglón. **Hecha** dentro de T4: `Empezar` vive en el renglón de hoy y llama a `start.start(planDayId)`.
+- **T6** — S1-S10: verificación independiente, README y `docs/`, y el cierre de la feature. Route: verify. En curso.
 - **T7** — Composición corporal (Evolt), feature aparte: `odd/tasks/body-composition.md` cuando arranque. El dueño la aprobó después de T1; no entra en este documento más allá de esta línea.
+- **T8** — S11: la agenda de lunes a viernes, con el fin de semana apareciendo solo si tiene algo. Route: worker, en la misma superficie que T6, así que va después de esa ronda y nunca a la vez.
 
 ## Log
 
@@ -104,3 +109,25 @@ cambia es que el reparto deja de ser intocable.
   FR-16.1/16.2 (un MUST que el código de sincronización incumple). Corregidas las tres como
   enmienda del ADR-0002, sin reescribir el requisito: la copia exportada deja de ser «la
   única» en cuanto hay cuenta. Pedido por el dueño: «si, corrige».
+- **L12** — T3 y T4 cerradas y empujadas. `1372993` la derivación, `80bc8da` la agenda en Inicio.
+  Riesgos declarados por el trabajador de la UI y aceptados como pendientes, no como resueltos:
+  conviven dos derivaciones de «hoy» (la agenda por reparto, la tarjeta del día por plantilla y
+  `WeekRecord`), así que tras un arrastre pueden discrepar durante un renderizado; `HomeView.week`
+  y `TodayView.swap` quedan calculados y sin dibujar, a la espera de una limpieza; y `Empezar`
+  sobre un día que ya tiene sesión programada de otro entreno crea una segunda sesión, porque
+  `planStart` solo reabre el mismo `planDayId`. Verificación independiente en curso antes de dar
+  la feature por cerrada.
+- **L13** — Veredicto del verificador independiente sobre `773eda2..80bc8da`: S1, S2/S3, S5, S6,
+  S4/S10 (parte del fixture) y accesibilidad **probadas**; **rota** la parte de S4 que dice que
+  la decisión del dueño manda, porque la tarjeta del día sigue calculando «hoy» con la plantilla
+  y el `WeekRecord`. Reproducido: el renglón del miércoles dice `Descanso` y la tarjeta de abajo
+  ofrece `Movilidad y core` con el único botón violeta, que arranca ese entreno hoy. L12 lo
+  llamó «un renderizado»: era falso, persiste tras releer. Se abre ronda de corrección con tres
+  pruebas durables del verificador (dos de la tarjeta, una del extremo de S6 que nadie cubría),
+  retirada de los modelos de vista muertos y dos huecos de accesibilidad: el foco no vuelve al
+  renglón al cerrar la hoja y el fondo no queda inerte. También se restaura un literal en
+  `src/cloud/sync.test.ts`, donde contar con `SYNC_TABLES.length` dejaba pasar la desaparición
+  de una tabla. Aviso que el verificador dejó y no se toca aquí: restaurar una copia vieja borra
+  el reparto, porque `restore` limpia todos los almacenes — está probado y documentado.
+- **L14** — "quita el sabado y el domingo". Se lee como S11: la agenda enseña de lunes a viernes y el fin de semana solo asoma si ese día tiene entreno tuyo o una sesión cerrada esa semana, para que acortar la lista no pueda esconder nada. Se hace después de la ronda de corrección de T6: toca los mismos archivos y dos escritores no pueden pisarse.
+- **L15** — "quita el sabado y el domingo", hecho en `bce8129`: la lista acaba en viernes y un fin de semana vuelve solo si lleva un entreno del dueño. S11 se reescribió para decir exactamente eso: la cláusula de «sesión cerrada esa semana» que yo había añadido no se implementó, porque la agenda razona por día del plan y no por fecha de sesión, y dejarla escrita habría sido una promesa falsa en la especificación. La prueba de siete renglones se partió en dos (la lista acaba en viernes; un sábado con entreno vuelve) en vez de borrarse. Ronda de corrección de T6 cerrada en `6edaa31`: una sola respuesta a «qué toca hoy», modelos de vista muertos retirados, foco devuelto al renglón al cerrar la hoja, fondo inerte y el recuento de tablas de la nube como literal. 1131 pruebas, ambos `tsc` limpios.
