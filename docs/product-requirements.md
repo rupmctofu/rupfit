@@ -419,11 +419,15 @@ messages would be documentation of a fiction (S8).
 ### FR-16 Privacy and data handling — MVP
 
 - **FR-16.1 MUST** store all data locally in the browser's IndexedDB on the
-  device; there is no server and no account.
-- **FR-16.2 MUST NOT** transmit health or training data off-device. There is no
-  network code path in the app after the shell has been installed.
+  device; the local store is the operational source of truth. *Amended by ADR-0002:* the
+  owner may sign in, and the same entities are then mirrored to the owner's own Supabase
+  project behind RLS. With no account, there is no server and nothing leaves the device.
+- **FR-16.2 MUST NOT** transmit health or training data off-device. *Amended by ADR-0002:*
+  nothing is transmitted while no account is signed in; once it is, the data goes only to
+  the project the owner configured, and no training path waits for the network.
 - **FR-16.3 MUST** export the full dataset as a documented JSON document on demand
-  (user-owned backup), and import it back. *Platform consequence:* the export is the
+  (user-owned backup), and import it back. *Platform consequence:* with no account signed
+  in, the export is the
   only copy that survives storage eviction, a cleared Safari website data store, or
   a new phone, so it must be reachable from `Perfil` in two taps, must state when
   the last export happened, and the import must validate the whole document before

@@ -150,8 +150,9 @@ break it, so a single rule applies everywhere:
 
 ### 2.5 Storage, eviction and what the design has to say about it
 
-The app has no server (FR-16.1). Two consequences that are visible in the UI, not
-just in the storage layer:
+The app has no server it needs in order to act (FR-16.1, amended by ADR-0002): the
+account is optional and the network is a later effect, never a step of a screen. Two
+consequences that are visible in the UI, not just in the storage layer:
 
 - **Eviction is a screen.** If IndexedDB is empty on launch where it previously
   held sessions, the app must not present a blank, cheerful first run. `Inicio` and

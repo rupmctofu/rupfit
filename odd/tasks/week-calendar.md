@@ -46,8 +46,8 @@ cambia es que el reparto deja de ser intocable.
 
 ## Tasks
 
-- **T1** — S8, S1-S3: tres direcciones de calendario en `design/week-calendar/`, abiertas en el lienzo. **Hecha.** El dueño eligió `02-agenda-semanal.html`; 01 y 03 quedan como alternativas.
-- **T2** — S5, S6: `WeekLayout` persistente y viajero — clave `meta` `weekLayout` (sin décima tienda y sin subir `DB_VERSION`), escritura sellada y encolada, tabla `week_layout` en la nube, documento de copia con la colección opcional, migración SQL. Route: worker. En curso.
+- **T1** — S8, S1-S3: tres direcciones de calendario en `design/week-calendar/`, abiertas en el lienzo. **Hecha** en `7231f5b`. El dueño eligió `02-agenda-semanal.html`; 01 y 03 quedan como alternativas.
+- **T2** — S5, S6: `WeekLayout` persistente y viajero — clave `meta` `weekLayout` (sin décima tienda y sin subir `DB_VERSION`), escritura sellada y encolada, tabla `week_layout` en la nube, documento de copia con la colección opcional, migración SQL. **Hecha** en `8529dfb`; 13 pruebas nuevas, 1086 en total, ambos `tsc` limpios. La unidad de trabajo quedó en 678 líneas: es fontanería de una sola pieza y partirla dejaba el árbol sin compilar.
 - **T3** — S1, S4, S6, S10: `src/features/week/agenda.ts` puro — siete días con fecha, hecho por día del plan dentro de la semana, aviso de piernas tras el partido, reparto por defecto sacado de las plantillas y la única operación de colocación. Route: worker. En curso.
 - **T4** — S1-S3, S9: la agenda de siete renglones en Inicio — arrastre, candado en los días hechos, balón en el partido, hoja «¿qué entrenas este día?», guardado del reparto. Route: worker + revisión del padre.
 - **T5** — S1: empezar la sesión del día elegido desde su renglón, con las pruebas de pantalla. Route: inline.
@@ -92,3 +92,15 @@ cambia es que el reparto deja de ser intocable.
   `agenda.ts` fijado en el encargo: el modelo de persistencia no necesita saber nada de la
   vista, y la derivación pura recibe el reparto como parámetro, de modo que ningún trabajador
   espera al otro. La UI (T4) va después porque importa ese contrato.
+- **L10** — T2 cerrada y commiteada en `feat/week-calendar`: `7231f5b` (documentos y
+  artboards), `588a5d5` (icono `ball`), `8529dfb` (persistencia). El árbol queda sucio solo
+  por `.gitignore`, que ya estaba modificado antes de esta sesión y no es de este trabajo. T3
+  se relanzó sobre las declaraciones ya presentes; el primer intento se detuvo sin escribir
+  nada porque la dependencia aún no había llegado, y se detuvo bien.
+- **L11** — Pregunta del dueño sobre por qué hay cuenta si «se borra todo»: la cuenta existe
+  desde el ADR-0002 justamente para que borrar el icono no sea una pérdida. De paso salió
+  que el README abría con «no account and no server», falso desde ese ADR, y que la misma
+  afirmación seguía en `docs/design-system.md` §2.5 y en `docs/product-requirements.md`
+  FR-16.1/16.2 (un MUST que el código de sincronización incumple). Corregidas las tres como
+  enmienda del ADR-0002, sin reescribir el requisito: la copia exportada deja de ser «la
+  única» en cuanto hay cuenta. Pedido por el dueño: «si, corrige».

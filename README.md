@@ -4,8 +4,10 @@ A strength-training coach for one person, installed on the iPhone Home Screen fr
 Safari: it remembers what you lifted, decides what you should attempt next, and gets
 out of the way while you train.
 
-Not a social fitness app. No streaks, badges, leaderboards or feeds. Offline-first,
-deterministic, no account and no server. Built and tested from Windows.
+Not a social fitness app. No streaks, badges, leaderboards or feeds. Offline-first and
+deterministic: the local store is the source of truth and no screen waits for the network.
+An account is optional and only mirrors the store to the owner's own Supabase project
+(`docs/adr/0002-cloud-sync-supabase.md`). Built and tested from Windows.
 ## Status
 
 **App tier, gate by gate.** The documents, the engine and the app exist. The app
