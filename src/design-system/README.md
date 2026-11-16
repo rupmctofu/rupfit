@@ -150,7 +150,6 @@ size and page zoom (§5.1). `-webkit-text-size-adjust` stays at `100%`.
 | `--radius-pill` / `--radius-track` / `--radius-track-thin` / `--radius-photo` | 999 / 4 / 2 / 16 px | artboard |
 | `--target-min` | 48 px | §3, S4 |
 | `--control-height` / `-compact` | 56 px / 44 px | §3, §7.1 |
-| `--rest-bar-content-height` | 60 px | §7.5 — **unexercised**: the rest bar was removed (T4b), so no stylesheet reads it |
 | `--icon-size` / `-sm` / `--icon-stroke` | 20 / 14 / 1.8 | artboard icon set |
 | `--bar-height` / `--progress-line-height` | 8 / 2 px | artboard `.bar`, `.rest .line` |
 

@@ -166,9 +166,6 @@
   /* The bar's centre action, lifted over the bar's edge: the exact shadow it shipped with,
      named so the next surface asks for the same lift instead of inventing one. */
   --shadow-lift: 0 6px 16px rgb(0 0 0 / 0.32);
-  /* An inset ring in the semantic colour, for a state that must not move anything: the
-     finished rest bar (§4, §6.3 — a colour change and two words, never a flash). */
-  --shadow-inset-success: inset 0 0 0 var(--layout-hairline) var(--color-success);
 
   /* ---------------------------------------------------------- space, layout */
   /* 4 px grid (§3). --space-1..8 keep the names the shell already references. */
@@ -221,7 +218,6 @@
   --target-min: 48px;
   --control-height: 56px;
   --control-height-compact: 44px;
-  --rest-bar-content-height: 60px;
   --icon-size: 20px;
   --icon-size-sm: 14px;
   --icon-stroke: 1.8;

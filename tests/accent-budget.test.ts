@@ -52,11 +52,6 @@ const ALLOWED: AllowList = {
     'background: var(--color-accent-muted);',
     'color: var(--color-accent-text);',
   ],
-  'features/profile/profile.css': [
-    // Active state of the real switch: on = lime track, the switch affordance itself (§4).
-    'background: var(--color-accent);',
-    'background: var(--color-accent-ink);',
-  ],
   'features/session/session.css': [
     // Data point: the live session's bar in the six-session strip, the one that matters.
     'background: var(--color-accent);',
