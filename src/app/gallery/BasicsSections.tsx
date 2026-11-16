@@ -43,6 +43,7 @@ const ICONS: readonly IconName[] = [
   'minus',
   'check',
   'moon',
+  'ball',
   'backspace',
 ];
 

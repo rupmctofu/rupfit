@@ -34,6 +34,7 @@ export type IconName =
   | 'minus'
   | 'check'
   | 'moon'
+  | 'ball'
   | 'backspace';
 
 interface IconShape {
@@ -67,6 +68,11 @@ const SHAPES: Record<IconName, IconShape> = {
   minus: { d: 'M5 12h14' },
   check: { d: 'M5 12.5l4.5 4.5L19 7.5' },
   moon: { d: 'M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z' },
+  // The match day (S9): a ball, never an emoji, so the row keeps the same 1.8 px stroke
+  // as the rest of the set and scales with the text around it.
+  ball: {
+    d: 'M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17ZM12 8.3 15.4 10.8 14.1 14.9H9.9L8.6 10.8ZM12 3.5v4.8M4 10.7l4.6.1M20 10.7l-4.6.1M9.9 19.9l.2-5M14.1 19.9l-.2-5',
+  },
   backspace: { d: 'M9 6h11a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9L3 12zM12.5 9.5l5 5M17.5 9.5l-5 5' },
 };
 
