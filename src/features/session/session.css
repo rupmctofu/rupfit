@@ -18,6 +18,15 @@
   /* The status bar is styled, never assumed away (§2.3): the sheet starts below it. */
   padding-top: var(--safe-top);
   overscroll-behavior: contain;
+  /*
+   * The sheet itself is the vertical scroller. It used to be the card's strip
+   * (`.session__slide`), a 127 px band on a 390 x 844 viewport because the ring is
+   * `flex: none` and took 351 px of the 844 before the strip got its height: the owner
+   * could not find it with a thumb and reported «no puedo deslizar hacia abajo».
+   * Scrolling the sheet lets the hero travel away and gives the card the whole screen.
+   */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .session__top {
@@ -70,8 +79,10 @@
 
 /* The paged cards: the platform's own scrolling physics, no scripted paging (§7.2). */
 .session__track {
-  flex: 1 1 auto;
-  min-height: 0;
+  /* Natural height, never squeezed: `flex: 1 1 auto` plus `min-height: 0` let the track
+     collapse to whatever the fixed children left over, and the card's scroll inside it
+     became a sliver. The sheet scrolls now (see `.session`); the track only snaps sideways. */
+  flex: 0 0 auto;
   display: flex;
   overflow-x: auto;
   overflow-y: hidden;
@@ -100,7 +111,9 @@
      region under the last set row, which reads as an unfinished screen. */
   align-items: flex-start;
   padding: 0 var(--layout-screen-padding);
-  overflow-y: auto;
+  /* The card grows to its content and the sheet carries the scroll: an inner scroller of
+     the same axis as the sheet is how the thumb ends up with nowhere to go. */
+  overflow-y: visible;
   overscroll-behavior-y: contain;
   min-height: 0;
 }
@@ -261,10 +274,17 @@
  * literal reading sane on a window the app is not designed for: at 1024 px, 90vw would be
  * a 922 px circle, so it stops at a phone-sized 420 px. `aspect-ratio` keeps it round now
  * that the size is no longer fixed at 140 px.
+ *
+ * The `dvh` term is the bug of the 390 x 844 phone, not a nicety: the ring is `flex: none`,
+ * so it never shrinks, and it was eating 351 of the 844 px before the card's strip — the
+ * only vertical scroller on the screen — got its height. Measured on that viewport, the
+ * strip fell to 127 px against a 596 px card, and on a real iPhone with the safe areas the
+ * owner was left with a band too thin to even find: «no puedo deslizar hacia abajo». Tying
+ * the ring to the height gives the card back its half of the screen.
  */
 .session-ring {
   position: relative;
-  width: 90vw;
+  width: min(90vw, 420px, 34dvh);
   max-width: 420px;
   aspect-ratio: 1 / 1;
   margin-inline: auto;
@@ -451,6 +471,12 @@
 
 .session__bar {
   flex: none;
+  /* The action bar never scrolls away: it is the one control the owner needs while the
+     card moves under it. Opaque, because cards pass beneath it. */
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background: var(--color-bg);
   padding: var(--space-2) var(--layout-screen-padding) var(--safe-bottom-padding);
 }
 
@@ -506,6 +532,14 @@
 
 .session__keypad {
   flex: none;
+  /* Pinned to the same edge as the action bar, and above it: the pad is opened to finish
+     one number, so it must land on screen instead of after the bar. Measured before this
+     rule: the pad started at 772 on an 844 px viewport and its «Listo» sat at 1094, off the
+     screen, with the sheet's own scroll unable to lift it past a sticky bar. */
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--color-bg);
   padding: 0 var(--layout-screen-padding) var(--space-2);
   max-height: 60dvh;
   overflow-y: auto;
