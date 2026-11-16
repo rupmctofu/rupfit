@@ -835,8 +835,6 @@ export function MatchSheet({ matchKind, onChoose, onClose }: MatchSheetProps): R
 
 export interface AgendaWeekProps {
   readonly week: AgendaWeekView;
-  readonly starting?: boolean | undefined;
-  readonly onStart?: ((planDayId: string) => void) | undefined;
   readonly onPlace?: ((planDayId: string, weekday: number) => void) | undefined;
   /** The sentence of a write that failed; the screen keeps the previous week. */
   readonly placementNotice?: string | null | undefined;
@@ -897,8 +895,6 @@ interface DragState {
  */
 export function AgendaWeek({
   week,
-  starting = false,
-  onStart,
   onPlace,
   placementNotice = null,
   onRetryPlacement,
@@ -1007,10 +1003,6 @@ export function AgendaWeek({
     setDrag(null);
   };
 
-  const today = agenda.days.find((day) => day.today) ?? null;
-  // One filled action per screen: while a sheet is open, its confirm is the one, so the
-  // row behind it puts its own away (§7.1).
-  const rowAction = sheet === null && !matchSheet ? week.action : null;
   // While a dialog is open, the week it was opened from is its background (§9).
   const background = sheet === null && !matchSheet ? {} : BACKGROUND_WHILE_OPEN;
 
@@ -1044,6 +1036,11 @@ export function AgendaWeek({
 
   return (
     <section className="home-agenda-block" aria-label="La semana">
+      {/* The block's own label, so the week below the card reads as one object and not as
+          four loose lines (T5 of the redesign). It is the list's heading; the section keeps
+          its accessible name. */}
+      <SectionLabel icon={<Icon name="calendar" size={14} />}>La semana</SectionLabel>
+
       <ol className="home-agenda" aria-label="Días de la semana" ref={rows} {...background}>
         {visibleDaysOf(agenda).map((day) => (
           <AgendaRow
@@ -1053,8 +1050,6 @@ export function AgendaWeek({
             dragging={drag !== null && drag.planDayId === day.planDay?.id}
             over={drag !== null && drag.over === day.weekday && !day.locked}
             refusing={drag !== null && day.locked}
-            action={today?.weekday === day.weekday ? rowAction : null}
-            starting={starting}
             fixture={day.kind === 'match' ? (fixture?.label ?? null) : null}
             reported={day.kind === 'match' && matchReported}
             report={reportOf(day)}
@@ -1063,7 +1058,6 @@ export function AgendaWeek({
                 ? () => setMatchSheet(true)
                 : undefined
             }
-            {...(onStart === undefined ? {} : { onStart })}
             onOpen={openSheet}
             onGrab={grab}
             onDragMove={dragOver}

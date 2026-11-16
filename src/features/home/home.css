@@ -1,39 +1,47 @@
 /*
- * Inicio's layout. Tokens only: no colour, radius, type size or duration is written as
- * a literal (design-system §5, §6.1). The shell already provides the horizontal screen
- * padding, so this file only stacks what Inicio draws.
+ * Inicio's layout (odd/tasks/dark-premium-redesign.md T5). Tokens only: no colour, radius,
+ * type size or duration is written as a literal (design-system §5, §6.1). The shell already
+ * provides the horizontal screen padding, so this file only stacks what Inicio draws.
  *
- * S12 cut the screen to the week: the day card, the activities, the imported notice and
- * the last-session card left (the first two to Progreso and Perfil, the cards to one
- * line), and so did their rules. What remains is the header, the week and the lines under
- * it.
+ * The composition is the redesign's, and so is its depth: the protagonist card sits one
+ * tonal step above the canvas (`--color-surface-raised`), the artwork plate one step below
+ * it (`--color-surface`), and the week's rows bring no ground of their own. Depth is a
+ * tonal step and a hairline — nothing here floats, so no card needs a shadow.
+ *
+ * The accent budget lives here (`tests/accent-budget.test.ts`): every accent reference in
+ * this file is one of the four declarations that list already argues for — the day marker,
+ * its text flavour, the tinted today cell, and the bar of the week's progress, which is the
+ * one data point this screen exists to answer.
  */
 
 .home {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-5);
+  min-width: 0;
   padding-bottom: var(--space-8);
 }
 
-/* Everything under the week: the one action a row could not carry, the kilos of the last
-   session and the notices. It is one block so a sheet can take the whole background out
-   of the modal's way with one attribute (T6, §9), and it keeps the screen's own rhythm
-   instead of flattening into the header's. */
-.home__below {
+/* Everything under the week: the one action a store with no week still has, the kilos of
+   the last session and the notices. It is one block so a sheet can take the whole
+   background out of the modal's way with one attribute (T6, §9), and it keeps the screen's
+   own rhythm instead of flattening into the header's. */
+.home__below,
+.home__notices {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
   min-width: 0;
 }
 
-/* The lockup is pale-on-transparent by design: it reads on the dark canvas without a
-   plate behind it. It is the first thing on the screen and the biggest it has ever been
-   (S1), so the height is fixed here — like the previous 26 px, it is a size of the mark,
-   not a spacing step — and the header keeps one line of rhythm. */
+/* ------------------------------------------------------------------- the header */
+
+/* The lockup is pale-on-transparent by design: it reads on the dark canvas without a plate
+   behind it. It is the first thing on the screen, and 32 px is a size of the mark, not a
+   spacing step. */
 .home__brand {
   display: block;
-  height: 40px;
+  height: 32px;
   width: auto;
 }
 
@@ -41,20 +49,286 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  min-width: 0;
   padding-top: var(--space-2);
 }
 
-/* The top row: the mark, and nothing beside it. The week the meter used to draw next to
-   the lockup is the agenda's seven rows now (T4), so the header keeps one object. The row
-   still wraps at 320 px rather than shrinking the mark. */
+/* The top row: the lockup, and the one control that leaves the screen (Perfil). The row
+   wraps at 320 px rather than shrinking either object, and its height is the 48 px target
+   of the control inside it. */
 .home__head-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-3);
+  min-height: var(--target-min);
   margin-bottom: var(--space-2);
 }
+
+/* Settings: a quiet ground, not a filled control — the accent belongs to the card's one
+   action, and a header button that spent it would compete with it (§4). */
+.home__settings {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--target-min);
+  height: var(--target-min);
+  border: var(--layout-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-muted);
+}
+
+.home__gear {
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: var(--icon-stroke);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The greeting is the screen's own line, and a step below the card's title: it says who
+   is training, not what he trains. The card owns the loudest type on the screen. */
+.home__greeting {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  letter-spacing: var(--tracking-title);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+/* -------------------------------------------------------- today's workout (T5) */
+
+/* The protagonist. One tonal step above the canvas, a hairline, and the tighter inset so
+   the four things inside it (eyebrow, title, the two figures, the action) stay one glance
+   tall: at 390 the whole card, from the lockup down to its button, fits above the fold. */
+.home-today {
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-surface-raised);
+}
+
+.home-today__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.home-today__copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
+  min-width: 0;
+}
+
+.home-today__eyebrow {
+  /* The eyebrow is a label, not a control: it keeps the tracking of the role and drops the
+     uppercase it already writes in the string. */
+  color: var(--color-muted);
+}
+
+.home-today__title {
+  font-weight: var(--weight-bold);
+}
+
+.home-today__chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+}
+
+/* The artwork plate: one step *down* from the raised card, so the picture sits in a frame
+   instead of floating on it. The approved cut-outs are square with their own
+   transparency, and the pictograms hold the same box (illustrations.css), so one square
+   serves both. */
+.home-today__art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 104px;
+  height: 104px;
+  border: var(--layout-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+/* The approved cut-outs are square with transparent margins around the athlete, so the
+   picture is scaled a touch past its box to fill the frame; `contain` keeps every figure
+   whole, and the pictograms (no margins) simply sit in the box they were drawn for. */
+.home-today__art > img,
+.home-today__art > svg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.home-today__art > img {
+  transform: scale(1.08);
+}
+
+/* The mark, when the day has no exercise this build can draw. It is the owner's asset at
+   its own size — 40 px is a size of the mark, not a spacing step, and it never fills the
+   plate the way a picture does. It is never recoloured and never redrawn (S2). */
+.home-today__art > .home-today__mark {
+  width: 40px;
+  height: 40px;
+}
+
+.home-today__note {
+  margin: 0;
+}
+
+/* A closed day is a fact worth its own ink, and green is the system's word for done. */
+.home-today__done {
+  color: var(--color-success);
+}
+
+/* ------------------------------------------------------- the week's progress (T5) */
+
+.home-week {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.home-week__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.home-week__figure {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  margin: 0;
+  min-width: 0;
+}
+
+/* `de 4 entrenos` — the word half of the figure, so the bar is never the only carrier. */
+.home-week__of {
+  font-family: var(--font-sans);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.home-week__track {
+  display: block;
+  height: var(--bar-height);
+  border-radius: var(--radius-track);
+  /* The empty part of the bar is the same family, one step down: what is still missing
+     is read in the same colour as what is done, and the bar is never a grey line. */
+  background: var(--color-accent-muted);
+  overflow: hidden;
+}
+
+/* The one purple bar of the screen: the week's progress, and nothing else. It paints in the
+   element's own ink so the accent is spent on the single line this file's budget argues
+   for (see the header of the file). */
+.home-week__fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-track);
+  color: var(--color-accent);
+  background: currentColor;
+  transition: width var(--motion-base) var(--motion-ease);
+}
+
+/* Seven cells, Monday first: the same week the rows below carry, read as one line. They
+   are a reading, not a control — every gesture stays on the rows — so the cells are as
+   short as the letters and the marks inside them allow. */
+.home-week__days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-week__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-1) 0;
+  border: var(--layout-hairline) solid transparent;
+  border-radius: var(--radius-control-square);
+}
+
+.home-week__initial {
+  font-family: var(--font-sans);
+  font-size: var(--text-micro);
+  line-height: var(--leading-micro);
+  letter-spacing: var(--tracking-micro);
+  font-weight: var(--weight-semibold);
+  color: var(--color-muted);
+}
+
+/* The mark column: an empty ring for a day that has not happened, the check for a done
+   day, the ball for the match, and the accent ring under the word `today` — the cell
+   itself is the marker then. Every state is drawn with a shape, never with the hue alone
+   (§9), and the ring is `border` and not `hairline` because at 24 px a hairline does not
+   survive a phone in daylight. */
+.home-week__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-6);
+  height: var(--space-6);
+  border: var(--layout-hairline) solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-subtle);
+}
+
+.home-week__day--done .home-week__mark {
+  border-color: transparent;
+  background: var(--color-surface-raised);
+  color: var(--color-success);
+}
+
+.home-week__day--done .home-week__initial {
+  color: var(--color-text);
+}
+
+.home-week__day--match .home-week__mark {
+  color: var(--color-accent-text);
+}
+
+.home-week__day--today {
+  border-color: var(--color-accent);
+  background: var(--color-accent-muted);
+}
+
+.home-week__day--today .home-week__initial {
+  color: var(--color-accent-text);
+}
+
+.home-week__day--today .home-week__mark {
+  border-color: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+/* ------------------------------------------------------------ the empty states */
 
 /* An empty state said once: a glyph and the sentence, no box. The icon aligns to the
    baseline of the first line, so a sentence that wraps does not drag it down. */
@@ -80,11 +354,22 @@
   width: 100%;
 }
 
-/* S12 — the kilos of the last session: one line under the week, the only number the
-   screen keeps, and no card around it. */
+/* The kilos of the last session: one line, the only number the screen keeps, and no card
+   around it. */
 .home__last-line {
   margin: 0;
   color: var(--color-muted);
+}
+
+/* One column, at every width. A wide window (a tablet, a phone in landscape on a desk)
+   gets a readable column instead of a 768 px line of text and a 728 px button: the app is
+   mobile-first (S8) and Inicio has nothing to put beside the week — T5 keeps it that way
+   instead of inventing a dashboard. */
+@media (min-width: 720px) {
+  .home {
+    max-width: 560px;
+    margin-inline: auto;
+  }
 }
 
 /* --------------------------------------------------------------- the agenda (T4) */
@@ -125,4 +410,12 @@
 .home-agenda-sheet__option--current .home-agenda-sheet__radio {
   border-color: var(--color-accent);
   color: var(--color-accent-text);
+}
+
+/* Motion is the system's, and the owner's request wins: nothing essential is animated in
+   the first place, so a reduced-motion preference only has to reset what is left. */
+@media (prefers-reduced-motion: reduce) {
+  .home-week__fill {
+    transition: none;
+  }
 }

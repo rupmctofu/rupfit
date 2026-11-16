@@ -1,35 +1,48 @@
 /*
- * Inicio — the week, and very little else (S12, T9).
+ * Inicio — the screen that answers «¿qué toca hoy?» (odd/tasks/dark-premium-redesign.md T5).
  *
- * The owner opened Inicio and said it had too many things: «lo que sobre de ahí de ese
- * inicio lo quites porque ... había muchas cosas y era muy lioso», and then «si, recorta».
- * What is left is the screen he asked for: the mark and the date, the week's rows, the one
- * action a row could not carry, one line with the kilos of the last session, and the two
- * notices that are not decoration — a start that failed and a store that came back empty.
+ * The composition below is the redesign's, in the order the spec asks for:
  *
- * | what used to be here                    | where it went                      |
- * | --------------------------------------- | ---------------------------------- |
- * | the big card of today (`home__hero`)    | nowhere: its row already says the day |
- * | the fixture line and its flip           | the match row, whose sheet writes it |
- * | the match report                        | the match row, next to the ball    |
- * | `0 de 4 entrenos hechos`                | nowhere: each row says `Hecho` or `Pendiente` |
- * | the hint paragraph                      | inside the day sheet, where the move is made |
- * | the activities and their bin            | Progreso (`ProgressScreen.tsx`)    |
- * | the imported notice                     | Perfil (bookkeeping, not the week)  |
- * | the last-session card and the weight    | one line: `Última: PIERNA · 3.480 kg` |
+ * 1. **The header** — the owner's lockup (`public/logo-lockup.svg`, never redrawn), the
+ *    greeting the profile already personalises, and one control into Perfil, where every
+ *    setting lives.
+ * 2. **Today's workout, as the protagonist** (`HomeToday`, `today.ts`). The name, the day's
+ *    own counts, the illustration that already maps to its first exercise
+ *    (`todayArtwork.ts`), and the one filled action of the screen.
+ * 3. **The week's progress** (`HomeWeekProgress`) — `doneCount` over the plan days the week
+ *    holds, one bar, and the seven days. Every figure is the agenda's own; nothing is
+ *    counted a second time.
+ * 4. **The week itself** — the same seven dated rows as before (`agenda.tsx`), now below the
+ *    card instead of being the whole screen. The rows keep every gesture they had: the tap
+ *    into the day sheet, the drag into another day, the match's fixture sheet and its
+ *    report.
  *
- * The file holds no decision worth testing: `homeViewOf` decides, this renders. Two rules
- * it does keep:
+ * What did *not* change is the point of the task: no behaviour, no data source, no stored
+ * shape. `homeViewOf` still decides everything, the screen still renders, and the primary
+ * action is still the same `onStart` the row used to call — it simply moved up, into the
+ * card the owner reads first.
+ *
+ * Two rules the file keeps:
  *
  * 1. **No `Date.now()` and no port construction.** The clock and the storage instance
  *    arrive from `AppProvider` (`src/app/providers.tsx`); a demo mounts this screen with
  *    its own fixtures through the same props.
- * 2. **No invented facts.** When the store answers nothing the screen shows the empty
- *    version — a note saying so — never a zero dressed as a measurement.
+ * 2. **No invented facts.** When the store answers nothing the card says so — a sentence,
+ *    never a zero dressed as a measurement.
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { Banner, ErrorBanner, Icon, PrimaryAction, type IconName } from '../../design-system';
+import {
+  Banner,
+  Card,
+  Chip,
+  DataStrip,
+  ErrorBanner,
+  Icon,
+  Numeral,
+  PrimaryAction,
+  type IconName,
+} from '../../design-system';
 import type { StoragePort, WeekLayout, WeekRecord } from '../../storage';
 import type { MatchKind } from '../../core/engine/week-plan';
 import { useAppServices } from '../../app/providers';
@@ -47,6 +60,7 @@ import {
 import { DemoHome } from './DemoHome';
 import { useFootballCapture } from './football';
 import { demoFlagOf, useLocationKey } from './useHash';
+import { ExerciseIllustration } from '../session/ExerciseIllustration';
 import {
   homeViewOf,
   lastVolumeLineOf,
@@ -56,6 +70,8 @@ import {
   type HomeInput,
   type HomeView,
 } from './selectors';
+import { todayHeroOf, weekProgressOf, type TodayHero, type WeekDayMark, type WeekProgress } from './today';
+import { dayArtworkOf, type DayArtwork } from './todayArtwork';
 import './home.css';
 
 /** `?demo=inicio` — the review surface, resolved here until the router owns it. */
@@ -287,9 +303,6 @@ function navigateTo(href: string): void {
   window.location.hash = href;
 }
 
-/** The screen's own title: the reference direction's first line, not the greeting. */
-export const HOME_TITLE = '¡Vamos a entrenar!';
-
 /**
  * What the background of a sheet carries while it is open (§9).
  *
@@ -324,15 +337,29 @@ function HomeNote({ icon, children }: {
  *
  * It stays a single component because the same action is the one the week's row could not
  * carry: an open session left on another day (the only way back into its sets), the
- * summary of a closed day, or a store with no week at all.
+ * summary of a closed day, or a store with no week at all. Since T5 of the redesign it sits
+ * in the protagonist card, and it hands `start` the plan day the card names — exactly what
+ * the row passed before the action moved up.
+ */
+/**
+ * The one primary action of the screen, drawn where the view says it belongs.
+ *
+ * It stays a single component because the same action is the one the week's row could not
+ * carry: an open session left on another day (the only way back into its sets), the
+ * summary of a closed day, or a store with no week at all. Since T5 of the redesign it sits
+ * in the protagonist card, and it hands `start` the plan day the card names — exactly what
+ * the row passed before the action moved up.
  */
 function TodayAction({
   action,
+  planDayId = null,
   onStart,
   onNavigate = navigateTo,
   starting = false,
 }: {
   readonly action: HomeActionView | null;
+  /** The plan day of the card that names it; ignored when the action is not a start. */
+  readonly planDayId?: string | null | undefined;
   readonly onStart: (planDayId?: string | null) => void;
   readonly onNavigate?: ((href: string) => void) | undefined;
   readonly starting?: boolean | undefined;
@@ -345,7 +372,9 @@ function TodayAction({
       disabled={starting}
       onClick={() => {
         if (action.kind !== 'summary') {
-          onStart();
+          // `planStart` resumes the open session before it looks at the requested day, so
+          // passing the card's day is safe in both branches (features/session/start.ts).
+          onStart(planDayId);
           return;
         }
         onNavigate(action.sessionId === null ? '#/sesion' : summaryHash(action.sessionId));
@@ -357,14 +386,183 @@ function TodayAction({
 }
 
 /**
+ * The header's one control: Perfil, where every setting of the app lives.
+ *
+ * The glyph is drawn here for the reason `agenda.tsx` draws its grip and its lock: the
+ * system's icon set has no settings shape and this surface is the only one that needs it.
+ * It is `aria-hidden`, because the button carries the name.
+ */
+function SettingsGlyph(): React.ReactElement {
+  return (
+    <svg
+      className="home__gear"
+      viewBox="0 0 24 24"
+      width={20}
+      height={20}
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M4 7h8M18 7h2M4 12h2M12 12h8M4 17h8M18 17h2" />
+      <circle cx="15" cy="7" r="2.4" />
+      <circle cx="9" cy="12" r="2.4" />
+      <circle cx="15" cy="17" r="2.4" />
+    </svg>
+  );
+}
+
+/** The weekday marker of the strip: done gets the check, the match its ball, the rest none. */
+function WeekDayGlyph({ day }: { readonly day: WeekDayMark }): React.ReactElement | null {
+  if (day.done) return <Icon name="check" size={14} />;
+  if (day.kind === 'match') return <Icon name="ball" size={14} />;
+  return null;
+}
+
+/**
+ * Today's workout — the protagonist of the screen (odd/tasks/dark-premium-redesign.md T5).
+ *
+ * Everything on it is a reading of data that already exists: the title and the eyebrow come
+ * from the agenda's today row, the two figures are the plan day's prescribed exercises and
+ * sets, the chips are the muscle group of a compound name and the readaptation block, and
+ * the picture is the illustration the app already maps to the day's first exercise
+ * (`todayArtwork.ts`). The card carries the one filled action of the screen (§7.1), and it
+ * is the loudest surface on it: one tonal step above the canvas, the days under it one step
+ * down.
+ *
+ * The picture is an `<img>`/`<svg>` inside an `aria-hidden` plate: the card already names
+ * the day out loud, so the drawing only points at it (§9). When the day cannot be drawn the
+ * plate holds the owner's mark — the brand asset, never a recoloured or redrawn one (S2).
+ */
+function HomeToday({
+  hero,
+  artwork,
+  action,
+  onStart,
+  onNavigate,
+  starting,
+}: {
+  readonly hero: TodayHero;
+  readonly artwork: DayArtwork | null;
+  readonly action: HomeActionView | null;
+  readonly onStart: (planDayId?: string | null) => void;
+  readonly onNavigate: (href: string) => void;
+  readonly starting: boolean;
+}): React.ReactElement {
+  return (
+    <Card className="home-today" label="Tu entreno de hoy">
+      <div className="home-today__top">
+        <div className="home-today__copy">
+          <p className="ds-section-label home-today__eyebrow">{hero.eyebrow}</p>
+          <h2 className="ds-card-title ds-card-title--large home-today__title">{hero.title}</h2>
+          {hero.chips.length === 0 ? null : (
+            <p className="home-today__chips">
+              {hero.chips.map((chip) => (
+                <Chip key={chip}>{chip}</Chip>
+              ))}
+            </p>
+          )}
+        </div>
+        <span className="home-today__art" aria-hidden="true">
+          {artwork === null ? (
+            <img
+              className="home-today__mark"
+              src={`${import.meta.env.BASE_URL}logo-mark.svg`}
+              alt=""
+              width={40}
+              height={40}
+            />
+          ) : (
+            <ExerciseIllustration illustration={artwork.illustration} label={artwork.label} />
+          )}
+        </span>
+      </div>
+
+      {hero.exercises === null || hero.sets === null ? null : (
+        <DataStrip
+          label="Lo que pide el día"
+          items={[
+            { label: 'Ejercicios', value: String(hero.exercises) },
+            { label: 'Series', value: String(hero.sets) },
+          ]}
+        />
+      )}
+
+      {hero.note === null ? null : <p className="ds-meta home-today__note">{hero.note}</p>}
+      {hero.done === null ? null : (
+        <p className="ds-meta home-today__note home-today__done">{hero.done}</p>
+      )}
+
+      <TodayAction
+        action={action}
+        planDayId={hero.planDayId}
+        onStart={onStart}
+        onNavigate={onNavigate}
+        starting={starting}
+      />
+    </Card>
+  );
+}
+
+/**
+ * The week's progress: what is done over what the week holds, one bar, and the seven days.
+ *
+ * `doneCount` and the plan days are the agenda's own numbers (`today.ts`), so this block
+ * cannot disagree with the rows below it. The bar is `aria-hidden` and the same fact is
+ * always written next to it in words — a percentage alone is never the carrier (§9). The
+ * strip is a reading, not a control: every gesture of the week is still on the rows, where
+ * it already was, so a second tappable surface would be a second way to do one thing.
+ */
+function HomeWeekProgress({ progress }: { readonly progress: WeekProgress }): React.ReactElement {
+  return (
+    <section className="home-week" aria-labelledby="home-week-label">
+      <div className="home-week__head">
+        <h2 className="ds-section-label" id="home-week-label">
+          Tu progreso
+        </h2>
+        <p className="home-week__figure">
+          <Numeral value={String(progress.done)} size="metric-small" />
+          <span className="home-week__of">{`de ${String(progress.target)} entrenos`}</span>
+        </p>
+      </div>
+
+      <span className="home-week__track" aria-hidden="true">
+        <span className="home-week__fill" style={{ width: `${String(progress.percent)}%` }} />
+      </span>
+
+      <ol className="home-week__days" aria-label="Días de la semana">
+        {progress.days.map((day) => {
+          const classes = [
+            'home-week__day',
+            day.today ? 'home-week__day--today' : '',
+            day.done ? 'home-week__day--done' : '',
+            day.kind === 'match' ? 'home-week__day--match' : '',
+          ]
+            .filter((part) => part !== '')
+            .join(' ');
+          return (
+            <li key={day.weekday} className={classes}>
+              <span className="home-week__initial" aria-hidden="true">
+                {day.initial}
+              </span>
+              <span className="home-week__mark" aria-hidden="true">
+                <WeekDayGlyph day={day} />
+              </span>
+              <span className="ds-visually-hidden">{day.label}</span>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+/**
  * The screen's body. It takes the view, never the store, so the demo and the tests of
  * the selectors describe the same screen.
  *
- * T9 (S12) — this is the whole of Inicio after the cut: the header, the week, the one
- * action the week's row could not carry, one line with the kilos of the last session, and
- * the two notices that are not decoration (a start that failed, a store that came back
- * empty). The day card, the count, the hint, the activities and the imported notice left;
- * the fixture and the match report moved onto the match row (`agenda.tsx`).
+ * The order is the redesign's (odd/tasks/dark-premium-redesign.md T5): the header, then
+ * today's workout as the protagonist, then the week's progress, then the week's own rows.
+ * The last block keeps what the week cannot say — the kilos of the last session and the two
+ * notices that are not decoration (a start that failed, a store that came back empty).
  */
 export function HomeBody({
   view,
@@ -384,53 +582,126 @@ export function HomeBody({
   onChooseFixture,
 }: HomeProps): React.ReactElement {
   const navigate = onNavigate;
-  // T4: the agenda's today row carries the action, so the screen below draws one only
-  // when the row could not — the screen never offers two ways into the same session
-  // (§7.1). T9 leaves the action and removes the card it used to sit in.
+  const hero = todayHeroOf(view);
+  const progress = weekProgressOf(view);
+  // The protagonist card carries the one filled action the week's today row used to carry
+  // (T5); the derivation of that row is read below, as the gate for it.
   const rowAction = agendaWeek?.action ?? null;
-  const looseAction = rowAction === null ? view.action : null;
   const lastLine = lastVolumeLineOf(view.last);
   // §9 — a sheet is `aria-modal` and traps Tab, so the screen behind it must leave the
   // accessibility tree too. The sheets are drawn inside the week (the artboard wants them
-  // in the week, not over it), so this is the only place that knows both halves: the week,
-  // the line and the notices go `inert` and hidden from assistive technology while one is
-  // open. The shell's tab bar lives in `src/app/App.tsx`, outside this screen and outside
-  // this task's edit surface; it stays reachable, which is a known gap, not a silent one.
+  // in the week, not over it), so this is the only place that knows both halves: the card,
+  // the strip, the line and the notices go `inert` and hidden from assistive technology
+  // while one is open. The shell's tab bar lives in `src/app/App.tsx`, outside this screen
+  // and outside this task's edit surface; it stays reachable, which is a known gap, not a
+  // silent one.
   const [sheetOpen, setSheetOpen] = useState(false);
   const background = sheetOpen ? MODAL_BACKGROUND : {};
+  const artwork = dayArtworkOf(
+    view.agenda?.agenda.days.find((day) => day.today)?.planDay ?? null,
+  );
+  // One filled control per screen (§7.1): the card's, unless a sheet is open (its confirm
+  // is then the one) or the card has nothing to offer — a store with no week at all, where
+  // the loose action keeps its place below.
+  //
+  // The row's own derivation (`agendaWeek.action`) is the gate: it answers whether today is
+  // a workout that can be started at all (not the match, not a closed day). `view.action`
+  // carries the words — `Empezar entrenamiento`, `Continuar entrenamiento`, `Ver el
+  // resumen` — and the session the summary needs, which is why both are read here and not
+  // one of them rebuilt from the other.
+  const canStart = rowAction !== null;
+  const heroAction: HomeActionView | null =
+    agendaWeek === null || sheetOpen || view.action === null
+      ? null
+      : view.action.kind === 'start' && !canStart
+        ? null
+        : view.action;
+  const looseAction = agendaWeek === null ? view.action : null;
 
   return (
     <div className="home">
-      {/* The reference hierarchy: the title is the screen's, not a person's, and the name
-          and the date stay one quiet line under it. The mark stays the first thing on the
-          left; the week it used to sit next to is now the seven rows below (T4), so the
-          header keeps one object instead of a meter that repeated them. */}
       <header className="home__head" {...background}>
         <div className="home__head-bar">
-          {/* The owner's own mark, at header size: it identifies the app before the
-              screen says anything else, and the wordmark stays in the lockup. */}
+          {/* The owner's lockup, at header size: the brand identifies the app before the
+              screen says anything else, and the wordmark is part of the asset (S2). */}
           <img
             className="home__brand"
             src={`${import.meta.env.BASE_URL}logo-lockup.svg`}
             alt="Rupfit"
-            height={40}
+            height={32}
           />
+          <button
+            type="button"
+            className="ds-action home__settings"
+            aria-label="Ajustes"
+            onClick={() => navigate('#/perfil')}
+          >
+            <SettingsGlyph />
+          </button>
         </div>
-        <h1 className="ds-screen-title">{HOME_TITLE}</h1>
-        <p className="ds-meta">{`${view.greeting} · ${view.dateLine}`}</p>
+        <h1 className="home__greeting">{view.greeting}</h1>
+        <p className="ds-meta">{view.dateLine}</p>
       </header>
 
-      {/* T4, S12: the week, seven rows, is the screen. The match row carries the fixture
-          of the week and its report; the day sheet carries the hint the list gave up. */}
-      {agendaWeek === null ? (
-        <HomeNote icon="calendar">
-          Todavía no hay rutina ni sesiones programadas. La plantilla de la semana está en Entrenar.
-        </HomeNote>
-      ) : (
+      {/* The bad news goes above the card, not under it: a start that failed and a store
+          that came back empty are states the owner has to see before he reads what to do
+          today. A report that failed is said next to the row that can repeat it. */}
+      {startNotice === null && reportNotice === null && !view.notice.evicted ? null : (
+        <div className="home__notices" {...background}>
+          {startNotice === null ? null : startNotice.tone === 'danger' ? (
+            <ErrorBanner
+              message={startNotice.message}
+              {...(startNotice.retry ? { onRetry: onStart } : {})}
+            />
+          ) : (
+            <Banner
+              tone="warning"
+              title={startNotice.message}
+              {...(startNotice.profile
+                ? { action: { label: 'Ir a Perfil', onClick: () => navigate('#/perfil') } }
+                : {})}
+            />
+          )}
+
+          {reportNotice === null ? null : <p className="ds-body">{reportNotice}</p>}
+
+          {view.notice.evicted ? (
+            <Banner
+              tone="danger"
+              title="Los datos guardados ya no están. Importa tu copia si la tienes."
+              {...(view.notice.lastExport === null
+                ? {}
+                : { text: `La última copia que se exportó es del ${view.notice.lastExport}.` })}
+              action={{ label: 'Importar copia', onClick: () => navigate('#/perfil') }}
+            />
+          ) : null}
+        </div>
+      )}
+
+      <div className="home__today-wrap" {...background}>
+        <HomeToday
+          hero={hero}
+          artwork={artwork}
+          action={heroAction}
+          onStart={onStart}
+          onNavigate={navigate}
+          starting={starting}
+        />
+      </div>
+
+      {progress === null ? null : (
+        <div className="home__week-wrap" {...background}>
+          <HomeWeekProgress progress={progress} />
+        </div>
+      )}
+
+      {/* T4, S12: the week, seven rows. The match row carries the fixture of the week and
+          its report; the day sheet carries the hint the list gave up. The rows keep every
+          gesture they had — the tap, the drag, the fixture sheet — and lose only the
+          action, which the card above now carries. */}
+      {agendaWeek === null ? null : (
         <AgendaWeek
           week={agendaWeek}
-          starting={starting}
-          onStart={onStart}
           onSheetChange={setSheetOpen}
           {...(onPlace === undefined ? {} : { onPlace })}
           placementNotice={placementNotice}
@@ -445,8 +716,8 @@ export function HomeBody({
 
       {/* Everything a sheet covers, in one block, so one attribute hides it (T6, §9). */}
       <div className="home__below" {...background}>
-        {/* The one filled control, and only when the week's row could not carry it: an
-            open session, the summary of a closed day, or a store with no week at all. */}
+        {/* The one filled control, and only when the card above could not carry it: a store
+            with no week at all still has an open session to return to. */}
         <TodayAction
           action={looseAction}
           onStart={onStart}
@@ -454,44 +725,9 @@ export function HomeBody({
           starting={starting}
         />
 
-        {/* S12: the only number left on Inicio, and a line rather than a card. With no
-            closed session the line does not exist at all. */}
+        {/* The only number under the week, and a line rather than a card. With no closed
+            session the line does not exist at all. */}
         {lastLine === null ? null : <p className="ds-meta home__last-line">{lastLine}</p>}
-
-        {/* A report that failed is said once, next to the row that can repeat it. */}
-        {reportNotice === null ? null : <p className="ds-body">{reportNotice}</p>}
-
-        {/* Why nothing opened (§7.8) and the store's own bad news. A failed start offers
-            `Reintentar`; a missing profile sends the owner to the tab that can fix it,
-            because a retry cannot. */}
-        {startNotice === null ? null : startNotice.tone === 'danger' ? (
-          <ErrorBanner
-            message={startNotice.message}
-            {...(startNotice.retry ? { onRetry: onStart } : {})}
-          />
-        ) : (
-          <Banner
-            tone="warning"
-            title={startNotice.message}
-            {...(startNotice.profile
-              ? { action: { label: 'Ir a Perfil', onClick: () => navigate('#/perfil') } }
-              : {})}
-          />
-        )}
-
-        {/* §7.8, S5: the only platform state Inicio still tells — the store opened and the
-            data is gone. It is the way back into a lost store, so it is not decoration and
-            it is not noise. */}
-        {view.notice.evicted ? (
-          <Banner
-            tone="danger"
-            title="Los datos guardados ya no están. Importa tu copia si la tienes."
-            {...(view.notice.lastExport === null
-              ? {}
-              : { text: `La última copia que se exportó es del ${view.notice.lastExport}.` })}
-            action={{ label: 'Importar copia', onClick: () => navigate('#/perfil') }}
-          />
-        ) : null}
 
         {view.hasHistory ? null : (
           <HomeNote icon="train">

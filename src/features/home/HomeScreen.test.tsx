@@ -265,11 +265,14 @@ describe('Inicio renders', () => {
     });
     const markup = render({ recent: [open], inProgress: open, plan: WEEK_PLAN, week: LEAGUE_WEEK });
 
-    // The row of today carries the one filled action, and it is the way back into the sets.
-    expect(rowOf(markup, 2)).toContain('Continuar');
-    // And the row names the day the week places, which is the only answer Inicio gives.
-    expect(rowOf(markup, 2)).toContain('Movilidad y core');
+    // T5 of the redesign: the action moved up into the protagonist card, and it is still
+    // the way back into the sets of an open session.
+    expect(markup).toContain('Continuar entrenamiento');
+    // The card names the day the week places, which is the only answer Inicio gives.
+    expect(markup).toContain('home-today__title');
     expect(rowOf(markup, 2)).toContain('Hoy');
+    // And the row above it carries no second filled control (one action per screen).
+    expect(rowOf(markup, 2)).not.toContain('ds-primary');
     expect(markup).not.toContain('Vista previa');
   });
 
@@ -316,13 +319,14 @@ describe('Inicio after the purge (S2, S3)', () => {
     expect(markup).not.toContain('Registrar');
   });
 
-  it('does not narrate a preview: the row says what the day is (T9)', () => {
+  it('does not narrate a preview: the card and the row name the day (T9, T5)', () => {
     const markup = render({ plan: WEEK_PLAN });
 
     expect(markup).not.toContain('La sesión se crea al empezar.');
-    // The week's row is the whole statement: the day, its numbers and the action.
+    // The day, its numbers, and the one action — on the card now, in the day's own words.
+    expect(markup).toContain('Movilidad y core');
+    expect(markup).toContain('Empezar entrenamiento');
     expect(rowOf(markup, 2)).toContain('Movilidad y core');
-    expect(rowOf(markup, 2)).toContain('Empezar');
   });
 });
 
@@ -978,19 +982,22 @@ describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10, S11)', () => {
     expect(port.writes).toHaveLength(1);
   });
 
-  it('carries the start of today on its own row, as the one filled action', () => {
+  it('carries the action of today into the card, as the one filled action', () => {
     const { week, view } = agendaWeekOf({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
 
+    // The row's own derivation is still the answer to "can today start", and it is what
+    // the card is gated on; the words are the view's (`Empezar entrenamiento`).
     expect(week.action).toEqual({ kind: 'start', label: 'Empezar' });
     const today = week.agenda.days.find((day) => day.today) ?? null;
     expect(today?.weekday).toBe(2);
     expect(startRequestOf(today)).toBe('seed-day-fisico');
 
     const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
-    expect(rowOf(markup, 2)).toContain('Empezar');
-    // One filled action per screen (§7.1): the card below the agenda adds none.
+    expect(markup).toContain('Empezar entrenamiento');
+    expect(markup).toContain('home-today');
+    // One filled action per screen (§7.1): the rows carry none, the card carries the one.
     expect(markup.split('ds-action ds-primary').length - 1).toBe(1);
-    expect(markup).not.toContain('Empezar entrenamiento');
+    expect(rowOf(markup, 2)).not.toContain('ds-primary');
     expect(view.today?.dayName).toBe('MOVILIDAD Y CORE');
   });
 
@@ -1269,10 +1276,149 @@ describe('Inicio is the week and very little else (T9, S12)', () => {
     expect(markup).not.toContain('actividades importadas');
   });
 
-  it('still starts today from its row, as the only filled action (T5)', () => {
+  it('still starts today from the card, as the only filled action (T5)', () => {
     const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
 
-    expect(rowOf(markup, 2)).toContain('Empezar');
+    expect(markup).toContain('Empezar entrenamiento');
     expect(markup.split('ds-action ds-primary').length - 1).toBe(1);
+    expect(rowOf(markup, 2)).not.toContain('ds-primary');
+  });
+});
+
+/* ----------------------------------------------------------------------------
+ * T5 (odd/tasks/dark-premium-redesign.md) — the composition of the screen.
+ *
+ * Header, today's workout as the protagonist, the week's progress, then the week's rows.
+ * What is pinned here is the reading order and the one rule the redesign must not break:
+ * nothing on the card is a figure the store did not already hold.
+ * ------------------------------------------------------------------------- */
+
+describe('the redesign composition (T5)', () => {
+  it('opens with the lockup, the greeting and the way into the settings', () => {
+    const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
+
+    // The owner's asset, never redrawn: the lockup is the same file the app has always shipped.
+    expect(markup).toContain('logo-lockup.svg');
+    // The greeting the profile already personalises, and the date under it.
+    expect(markup).toContain('Hola, Rup');
+    expect(markup).toContain('Miércoles, 8 de noviembre');
+    // One control into Perfil, where every setting lives, with its accessible name.
+    expect(markup).toContain('aria-label="Ajustes"');
+    // The old screen title left with the redesign: the hero is the loudest line now.
+    expect(markup).not.toContain('¡Vamos a entrenar!');
+  });
+
+  it('gives today’s workout the card, with its name, its counts and its own picture', () => {
+    const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
+
+    expect(markup).toContain('home-today');
+    expect(markup).toContain('HOY · MIÉRCOLES');
+    expect(markup).toContain('Movilidad y core');
+    // The plan day's own prescription: 1 exercise of 3 sets in this fixture.
+    expect(markup).toContain('Ejercicios');
+    expect(markup).toContain('Series');
+    // The picture is decorative and the card already names the day: this fixture's exercise
+    // is not in the seeded library, so the plate holds the owner's mark, never a drawing
+    // of a different movement.
+    expect(markup).toContain('home-today__art');
+    expect(markup).toContain('logo-mark.svg');
+  });
+
+  it('draws the picture the app already maps to the day’s first exercise', () => {
+    // The seeded leg day opens on the back squat, which has one of the approved cut-outs.
+    const legDay: PlanDay = {
+      ...seededDay('seed-day-leg', 'PIERNA', 0),
+      items: [
+        {
+          id: 'seed-item-leg',
+          planDayId: 'seed-day-leg',
+          order: 0,
+          exerciseId: 'seed-ex-sentadilla-trasera',
+          exerciseNameSnapshot: 'Sentadilla trasera',
+          prescription: {
+            sets: 3,
+            repRange: { lowerBound: 8, upperBound: 10 },
+            targetRIR: { lowerBound: 2, upperBound: 3 },
+            restSeconds: 180,
+          },
+        },
+      ],
+    };
+    // Today is the fifth day of the week, so the layout puts the legs on it: the card reads
+    // the week the owner actually has, not the template.
+    const markup = render({
+      plan: [legDay],
+      week: LEAGUE_WEEK,
+      weekLayout: {
+        slots: [null, null, 'seed-day-leg', null, null, null, null].map((planDayId, weekday) => ({
+          weekday,
+          planDayId,
+        })),
+      },
+    });
+
+    expect(markup).toContain('Pierna');
+    expect(markup).toContain('art/squat-back.webp');
+  });
+
+  it('states the week’s progress from the agenda’s own numbers, in words and in a bar', () => {
+    const closed = session({
+      id: 'closed',
+      status: 'completed',
+      planDayId: 'seed-day-leg',
+      dayNameSnapshot: 'PIERNA',
+      scheduledDate: MONDAY,
+    });
+    const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK, recent: [closed] });
+
+    expect(markup).toContain('Tu progreso');
+    // `doneCount` over the plan days the week holds: one of four, never a second count.
+    expect(markup).toContain('de 4 entrenos');
+    expect(markup).toContain('width:25%');
+    // The seven days, each with its state said out loud for the reader.
+    expect(markup).toContain('Días de la semana');
+    expect(markup).toContain('Lunes, hecho');
+    expect(markup).toContain('Miércoles, hoy');
+    expect(markup).toContain('Jueves, fijo');
+  });
+
+  it('invents no figure on a store with no plan and no history', () => {
+    const markup = render({ plan: [], recent: [], profile: undefined });
+
+    // No plan, no progress block: there is no week to count, and no `0 de 0` on screen.
+    expect(markup).not.toContain('Tu progreso');
+    expect(markup).not.toContain('entrenos');
+    // The card is the empty state, and it says what is missing in the same words as before.
+    expect(markup).toContain('home-today');
+    expect(markup).toContain('Todavía no hay rutina ni sesiones programadas');
+    expect(markup).not.toContain('Ejercicios');
+  });
+
+  it('names the match on its day, and keeps the report on its row', () => {
+    const markup = render({ now: THURSDAY, plan: WEEK_PLAN, week: LEAGUE_WEEK });
+
+    expect(markup).toContain('HOY · JUEVES');
+    expect(markup).toContain('Partido · Liga');
+    expect(markup).toContain('Sólo se informa');
+    // One report, where it already was, and no way to start a training.
+    expect(rowOf(markup, 3)).toContain('Informar el partido');
+    expect(markup.split('ds-action ds-primary').length - 1).toBe(1);
+    expect(markup).not.toContain('Empezar entrenamiento');
+  });
+
+  it('carries the summary of a closed day instead of a start', () => {
+    const closed = session({
+      id: 'closed-today',
+      status: 'completed',
+      planDayId: 'seed-day-fisico',
+      dayNameSnapshot: 'MOVILIDAD Y CORE',
+      scheduledDate: NOW,
+    });
+    const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK, recent: [closed] });
+
+    expect(markup).toContain('Ver el resumen');
+    expect(markup).not.toContain('Empezar entrenamiento');
+    // The closed line the view already wrote, in the card.
+    expect(markup).toContain('Sesión completada hoy');
   });
 });

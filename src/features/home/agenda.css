@@ -12,7 +12,9 @@
 .home-agenda-block {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  /* The block owns a heading now (T5): the label sits a step further from the rows than
+     the rows sit from each other, so the week reads as one object instead of five. */
+  gap: var(--space-3);
   min-width: 0;
 }
 
@@ -213,7 +215,8 @@
   color: var(--color-subtle);
 }
 
-/* The start of today, on its own line inside the row: the one filled action (§7.1). */
+/* The start of a match, when the week is on the match day: the report is the one filled
+   action of the rows (the workout's own action lives in the protagonist card now, T5). */
 .home-agenda__action {
   flex: 0 0 100%;
   display: flex;
