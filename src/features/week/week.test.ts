@@ -10,7 +10,14 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PlanDay, WeekRecord } from '../../storage';
-import { weekDaysOf, weekFixtureOf, weekTodayOf } from './week';
+import {
+  localDayOf,
+  mondayInstantOf,
+  planDayIdOfRole,
+  weekDaysOf,
+  weekFixtureOf,
+  weekTodayOf,
+} from './week';
 
 /** Monday 2 March 2026 and the Wednesday and Thursday of that same week, 18:00 local. */
 const MONDAY = new Date(2026, 2, 2, 18, 0, 0).getTime();
@@ -80,6 +87,42 @@ describe('weekDaysOf maps the stored plan days by name', () => {
       day.id === 'seed-day-fisico' ? { ...day, name: 'PREPARACIÓN FÚTBOL' } : day,
     );
     expect(weekDaysOf(legacy)?.prep).toBe('seed-day-fisico');
+  });
+});
+
+describe('planDayIdOfRole bridges one role at a time (T3, S10)', () => {
+  it('names the stored day behind a role, and no other', () => {
+    expect(planDayIdOfRole(PLAN, 'leg')).toBe('seed-day-leg');
+    expect(planDayIdOfRole(PLAN, 'prep')).toBe('seed-day-fisico');
+  });
+
+  it('answers null for a role the plan lost, without losing the other three', () => {
+    // The owner's default layout is materialised slot by slot (S10): a missing day is one
+    // free weekday, not a week with no layout at all.
+    const withoutLegs = PLAN.slice(1);
+    expect(planDayIdOfRole(withoutLegs, 'leg')).toBeNull();
+    expect(planDayIdOfRole(withoutLegs, 'upperA')).toBe('seed-day-torso-a');
+  });
+
+  it('keeps reading the name an earlier release used for the fourth role', () => {
+    const legacy = PLAN.map((day) =>
+      day.id === 'seed-day-fisico' ? { ...day, name: 'PREPARACIÓN FÚTBOL' } : day,
+    );
+    expect(planDayIdOfRole(legacy, 'prep')).toBe('seed-day-fisico');
+  });
+});
+
+describe('mondayInstantOf dates the week for the agenda (T3)', () => {
+  it('answers local midnight of the Monday that contains the instant', () => {
+    const monday = mondayInstantOf(WEDNESDAY);
+    expect(monday.getDay()).toBe(1);
+    expect(monday.getHours()).toBe(0);
+    expect(localDayOf(monday.getTime())).toBe(MONDAY_OF_WEEK);
+  });
+
+  it('keeps Sunday in the week that started the Monday before it (R11)', () => {
+    const sunday = new Date(2026, 2, 8, 23, 30).getTime();
+    expect(localDayOf(mondayInstantOf(sunday).getTime())).toBe(MONDAY_OF_WEEK);
   });
 });
 

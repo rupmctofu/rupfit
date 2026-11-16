@@ -69,16 +69,30 @@ function pad(value: number): string {
 }
 
 /** Local `YYYY-MM-DD` of the day that contains `at`. Never `toISOString`, which is UTC. */
-function localDayOf(at: EpochMs): string {
+export function localDayOf(at: EpochMs): string {
   const date = new Date(at);
   return `${String(date.getFullYear())}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+/**
+ * Local midnight of the Monday the week of `at` starts on (R11).
+ *
+ * Exported because the agenda of seven rows dates every week from it: the week has one
+ * Monday in this module, and a second copy of the offset arithmetic elsewhere would be a
+ * second chance to start the week on Sunday.
+ */
+export function mondayInstantOf(at: EpochMs): Date {
+  const date = new Date(at);
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate() - ((date.getDay() + 6) % 7),
+  );
+}
+
 /** Monday of the week that contains `at`, local `YYYY-MM-DD` (R11). */
 function mondayOfWeek(at: EpochMs): string {
-  const date = new Date(at);
-  const weekday = (date.getDay() + 6) % 7;
-  return localDayOf(new Date(date.getFullYear(), date.getMonth(), date.getDate() - weekday).getTime());
+  return localDayOf(mondayInstantOf(at).getTime());
 }
 
 /** Where `at` sits in the week: Monday is 0 and Sunday is 6. */
@@ -87,30 +101,36 @@ function offsetOf(at: EpochMs): DayOffset {
 }
 
 /**
- * The four stored days, keyed by role, or `null` when one of them is gone.
+ * The stored day behind one role, or `null` when the plan does not hold it.
  *
  * The comparison goes through `formatDayName`, the app's one day formatter, so `PIERNA`
  * and `Pierna` are the same day: the stored snapshot is in capitals (§3), and the owner
  * may edit the name in Ejercicios.
+ *
+ * One role at a time, and not the four together, because T3's default layout is
+ * materialised slot by slot (S10): a week that lost one seeded day still places the other
+ * three, and only the lost one leaves a weekday free.
+ */
+export function planDayIdOfRole(plan: readonly PlanDay[], role: keyof WeekPlanDays): string | null {
+  // The current name wins over a previous one, so a store that somehow holds both keeps
+  // the day the release of today means.
+  for (const name of [ROLE_NAMES[role], ...(PREVIOUS_ROLE_NAMES[role] ?? [])]) {
+    const wanted = formatDayName(name);
+    for (const day of plan) {
+      if (formatDayName(day.name) === wanted) return day.id;
+    }
+  }
+  return null;
+}
+
+/**
+ * The four stored days, keyed by role, or `null` when one of them is gone.
  */
 export function weekDaysOf(plan: readonly PlanDay[]): WeekPlanDays | null {
-  const byName = new Map<string, string>();
-  for (const day of plan) byName.set(formatDayName(day.name), day.id);
-
-  const idOf = (role: keyof WeekPlanDays): string | null => {
-    const current = byName.get(formatDayName(ROLE_NAMES[role]));
-    if (current !== undefined) return current;
-    for (const previous of PREVIOUS_ROLE_NAMES[role] ?? []) {
-      const id = byName.get(formatDayName(previous));
-      if (id !== undefined) return id;
-    }
-    return null;
-  };
-
-  const leg = idOf('leg');
-  const upperA = idOf('upperA');
-  const upperB = idOf('upperB');
-  const prep = idOf('prep');
+  const leg = planDayIdOfRole(plan, 'leg');
+  const upperA = planDayIdOfRole(plan, 'upperA');
+  const upperB = planDayIdOfRole(plan, 'upperB');
+  const prep = planDayIdOfRole(plan, 'prep');
   if (leg === null || upperA === null || upperB === null || prep === null) return null;
   return { leg, upperA, upperB, prep };
 }
