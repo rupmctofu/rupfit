@@ -211,7 +211,7 @@ export interface ActivityEntryView {
 }
 
 /**
- * The activity section of Inicio.
+ * The activity section, drawn by Progreso since T9 (S12).
  *
  * Two buckets, never mixed: `recorded` is what the owner typed (a `provenance: 'manual'`
  * row), and `imported` is the count of the rows that arrived from somewhere else. The
@@ -660,6 +660,18 @@ function lastSessionOf(sessions: readonly WorkoutSession[]): LastSessionView | n
   };
 }
 
+/**
+ * T9 (S12) — the last session in one line: `Última: PIERNA · 3.480 kg`.
+ *
+ * The only number Inicio keeps after the cut, and a line instead of a card: the week is
+ * the screen, and the kilos of the last session are the one fact under it that the week
+ * cannot give. `null` when there is no closed session, so the screen draws no line at all
+ * rather than a zero dressed as a measurement.
+ */
+export function lastVolumeLineOf(last: LastSessionView | null): string | null {
+  return last === null ? null : `Última: ${last.dayName} · ${last.volume} kg`;
+}
+
 function weightViewOf(measurements: readonly BodyMeasurement[], now: EpochMs): WeightView | null {
   const from = now - WEIGHT_WINDOW_DAYS * DAY_MS;
   const samples = measurements
@@ -689,8 +701,13 @@ function weightViewOf(measurements: readonly BodyMeasurement[], now: EpochMs): W
  * writes, and calling it imported would be a lie about where the number came from.
  * Anything else (an import, or an estimate from a bridge) is a count the owner cannot
  * edit here, exactly as before.
+ *
+ * T9 (S12): the rows are drawn by Progreso now, not by Inicio. The derivation stays here
+ * because it is the same view model — one label per manual row, one count for the rest —
+ * and a second copy beside the section would have given the app two answers to one
+ * question.
  */
-function activityViewOf(activities: readonly ActivityRecord[]): ActivityView {
+export function activityViewOf(activities: readonly ActivityRecord[]): ActivityView {
   const manual = activities
     .filter((row) => row.provenance === 'manual')
     .sort((left, right) => right.date - left.date);

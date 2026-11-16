@@ -610,7 +610,7 @@ component; no native control is used.
 
 | Screen | Content | States that must exist |
 | --- | --- | --- |
-| Inicio | greeting, next workout, `Empezar entrenamiento`, last session, weekly summary | no history, session already done today, no imported health data, storage evicted |
+| Inicio | greeting, the week Monday to Friday with each day's state in words, start or change a workout, one line of the last session's kilograms, the fixture of the week | no history, a week with no match, a weekend that carries a workout, no session yet, storage evicted |
 | Entrenar | weekday template, session list, routine management entry | empty plan day, no sessions yet |
 | Sesión | paged exercise cards, decision bar, rest bar, progress (`2 de 6`) | first time, resumed after the app was killed or the page was discarded from memory, resumed after the screen slept, finished, partial |
 | Resumen | duration, sets vs prescribed, volume, PRs, per-exercise read-out | no PR, partial session |

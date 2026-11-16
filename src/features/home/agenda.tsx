@@ -6,17 +6,22 @@
  * dated day is, whether it is done, today, locked and what the legs rule has to say, from
  * `now`, the fixture, the plan, the owner's layout and the sessions. This file only:
  *
- * 1. **Draws the week the card reads.** The layout and the seven dated rows arrive from
- *    `homeViewOf` as one object (`HomeWeek`), so the rows and the day card below them can
- *    never disagree about today: `selectors.ts` derives the week once, and this file
- *    draws it.
- * 2. **Turns the gesture into one operation.** A drop and a tap of the sheet both call
+ * 1. **The week is the screen (S12).** The layout and the seven dated rows arrive from
+ *    `homeViewOf` as one object (`HomeWeek`), and since T9 the rows are all Inicio draws:
+ *    the day card that used to sit under them is gone, so nothing can disagree with the
+ *    week about what today carries.
+ * 2. **Turns the gesture into one operation.** A drop and a tap of the day sheet both call
  *    `placePlanDay` and write the layout it returns. A refusal changes nothing and says
  *    one quiet sentence; a write that fails keeps the previous week on screen and offers
  *    one retry.
  * 3. **Draws what the artboard fixes** (`design/week-calendar/02-agenda-semanal.html`):
  *    the weekday and its number, the name in full, its exercises and sets, the state in a
  *    word, the ball on the match and the lock on the days that refuse the row.
+ * 4. **Keeps the two things that left the card where they belong (S12).** The fixture of
+ *    the week is the match row's own line, and the row opens the sheet that writes it;
+ *    the report of the match is that row's action. The hint the list used to print lives
+ *    in the day sheet now, and the count line is not drawn at all: each row already says
+ *    `Hecho` or `Pendiente`.
  *
  * Three rules the code below keeps.
  *
@@ -51,6 +56,7 @@ import {
   type PlacementResult,
   type WeekAgenda,
 } from '../week/agenda';
+import type { WeekFixture } from '../week/week';
 import { formatDayName, formatExerciseCount, formatWeekdayInitial } from './format';
 import { agendaOver, type HomeActionView, type HomeInput, type HomeView } from './selectors';
 import './agenda.css';
@@ -76,13 +82,42 @@ export function stateWordOf(day: AgendaDay): AgendaStateWord {
 /** What an unchangeable row says while a row is in the air: the lock and this word. */
 export const CLOSED_WORD = 'Cerrado';
 
-/** The one sentence under the rows, in the owner's words (the artboard's hint). */
+/**
+ * The one sentence about the gesture, in the owner's words (the artboard's hint).
+ *
+ * S12 moved it off Inicio and into the day sheet: the week is the screen now, and the
+ * sentence that explains how to move a row belongs where the move is made, not under a
+ * list the owner already understands.
+ */
 export const AGENDA_HINT =
   'Arrastra un renglón a otro día, o tócalo para cambiar el entreno que lleva.';
 
 /** The same hint while something is in the hand: what accepts it and what does not. */
 export const DRAG_HINT =
   'Los días hechos llevan candado y el partido no se mueve. El resto acepta el renglón.';
+
+/**
+ * S12 — what a match row says once its match has been reported.
+ *
+ * The card used to carry the sentence; the row it belongs to carries it now, in the same
+ * muted meta line as the fixture, because a day that is done has nothing left to offer.
+ */
+export const MATCH_REPORTED_WORD = 'Partido informado';
+
+/**
+ * The three ways a week can answer the fixture question (S7, S12).
+ *
+ * The card's flip offered two (`liga` ↔ `copa`) and could not say «this week there is no
+ * match»; the sheet the match row opens offers all three, in the owner's words.
+ */
+export const MATCH_CHOICE_LABELS: Readonly<Record<MatchKind, string>> = {
+  league: 'Liga',
+  cup: 'Copa',
+  none: 'Sin partido',
+};
+
+/** The order the choices are offered in: the two fixtures, then no match. */
+const MATCH_CHOICES: readonly MatchKind[] = ['league', 'cup', 'none'];
 
 /** A failed write, said once, next to the retry that can fix it (S5). */
 export const PLACEMENT_FAILED_COPY =
@@ -236,14 +271,6 @@ export function unplacedPlanDaysOf(agenda: WeekAgenda): readonly AgendaPlanDay[]
   return agenda.planDays.filter((entry) => entry.weekday === null);
 }
 
-/** `3 de 4 entrenos hechos` — the count the meter drew, said in words above the rows. */
-export function countLineOf(agenda: WeekAgenda): string {
-  const planned = agenda.planDays.length;
-  return planned === 1
-    ? `${agenda.doneCount} de 1 entreno hecho`
-    : `${agenda.doneCount} de ${planned} entrenos hechos`;
-}
-
 
 /* -------------------------------------------------------------------- the write */
 
@@ -359,6 +386,17 @@ export interface AgendaRowProps {
   readonly refusing?: boolean | undefined;
   readonly action?: AgendaRowAction | null | undefined;
   readonly starting?: boolean | undefined;
+  /**
+   * S12 — the fixture of the week (`Liga · jueves`), drawn on the match row instead of on
+   * the card. A week with no fixture has no match row to carry it.
+   */
+  readonly fixture?: string | null | undefined;
+  /** S12 — the match of this week has been reported: the row says so and offers nothing. */
+  readonly reported?: boolean | undefined;
+  /** S12 — the match row is a control that opens the fixture sheet. */
+  readonly onOpenFixture?: (() => void) | undefined;
+  /** S12 — the match report, on the match row and only on the day of the match. */
+  readonly report?: AgendaRowReport | null | undefined;
   readonly onOpen?: ((weekday: number) => void) | undefined;
   readonly onStart?: ((planDayId: string) => void) | undefined;
   readonly onGrab?: ((event: React.PointerEvent<HTMLSpanElement>, day: AgendaDay) => void) | undefined;
@@ -367,13 +405,24 @@ export interface AgendaRowProps {
   readonly onDragCancel?: ((event: React.PointerEvent<HTMLSpanElement>) => void) | undefined;
 }
 
+/** The report a row can carry, shaped like the start action: a label and a guarded press. */
+export interface AgendaRowReport {
+  readonly label: string;
+  readonly busy: boolean;
+  readonly onPress: () => void;
+}
+
 /**
  * One day of the week, as a row.
  *
  * A row the owner can change is a real `<button>` whose own content is its accessible name
  * — weekday, number, the workout and the state (§9) — and tapping it opens the day sheet.
- * A locked row (the match, a done day) is not a control at all: it has nothing to offer,
- * and a button that can only refuse is worse than plain text.
+ * A locked row (a done day) is not a control at all: it has nothing to offer, and a button
+ * that can only refuse is worse than plain text.
+ *
+ * The one locked row that is a control is the match (S12): it carries the fixture of the
+ * week and opens the sheet that changes it, which is what the day card's flip used to do.
+ * Its report is the row's own action, drawn where the day is.
  *
  * The handle is a `<span>` beside the button, `aria-hidden`, because dragging is never
  * required: the sheet is the accessible path and the handle only serves a finger.
@@ -386,6 +435,10 @@ export function AgendaRow({
   refusing = false,
   action = null,
   starting = false,
+  fixture = null,
+  reported = false,
+  onOpenFixture,
+  report = null,
   onOpen,
   onStart,
   onGrab,
@@ -394,9 +447,18 @@ export function AgendaRow({
   onDragCancel,
 }: AgendaRowProps): React.ReactElement {
   const state = stateWordOf(day);
-  const canChange = !day.locked && onOpen !== undefined;
+  const opensDay = !day.locked && onOpen !== undefined;
+  const opensMatch = day.kind === 'match' && onOpenFixture !== undefined;
   const canDrag = !day.locked && day.planDay !== null && onGrab !== undefined;
   const planDayId = startRequestOf(day);
+  // S12: the match row's second line is the fixture it belongs to. It replaces the old
+  // `Sólo se informa`, which said what the row does instead of which match it is.
+  const meta =
+    day.kind !== 'match'
+      ? rowMetaOf(day)
+      : reported
+        ? MATCH_REPORTED_WORD
+        : (fixture ?? rowMetaOf(day));
 
   const classes = [
     'home-agenda__row',
@@ -421,7 +483,7 @@ export function AgendaRow({
       </span>
       <span className="home-agenda__main">
         <span className="home-agenda__name">{rowTitleOf(day, matchKind)}</span>
-        <span className="home-agenda__meta">{rowMetaOf(day)}</span>
+        <span className="home-agenda__meta">{meta}</span>
       </span>
       <span className="home-agenda__state">
         {day.done ? (
@@ -442,7 +504,16 @@ export function AgendaRow({
 
   return (
     <li data-weekday={day.weekday} className={classes}>
-      {canChange ? (
+      {opensMatch ? (
+        <button
+          type="button"
+          className="ds-action home-agenda__body"
+          aria-haspopup="dialog"
+          onClick={() => onOpenFixture?.()}
+        >
+          {content}
+        </button>
+      ) : opensDay ? (
         <button
           type="button"
           className="ds-action home-agenda__body"
@@ -474,6 +545,13 @@ export function AgendaRow({
             onClick={() => onStart?.(planDayId)}
           >
             {starting ? 'Empezando…' : action.label}
+          </PrimaryAction>
+        </span>
+      )}
+      {report === null ? null : (
+        <span className="home-agenda__action">
+          <PrimaryAction icon="check" disabled={report.busy} onClick={report.onPress}>
+            {report.label}
           </PrimaryAction>
         </span>
       )}
@@ -636,6 +714,119 @@ export function DaySheet({
             ? 'Ya es el entreno de ese día'
             : `Poner ${formatDayName(chosen.planDay.name)} el ${weekdayName}`}
       </PrimaryAction>
+
+      {/* S12: the sentence about dragging lives here now, where the change is made. */}
+      <p className="ds-meta home-agenda-sheet__hint">{AGENDA_HINT}</p>
+    </div>
+  );
+}
+
+/* --------------------------------------------------------- the fixture's sheet */
+
+/** «¿Qué partido juegas esta semana?» — the title of the sheet the match row opens. */
+export const MATCH_SHEET_TITLE = '¿Qué partido juegas esta semana?';
+
+export interface MatchSheetProps {
+  /** The fixture of this week: the choice that is already written. */
+  readonly matchKind: MatchKind;
+  /** Writes the record and closes: one tap, exactly like the flip the card used to have. */
+  readonly onChoose: (match: MatchKind) => void;
+  readonly onClose: () => void;
+}
+
+/**
+ * S12 — the fixture of the week, changed from the match row.
+ *
+ * The card's line offered two kinds and one action; this offers the three answers a week
+ * can have — league, cup, no match — and writes the same record `saveWeekMatch` already
+ * writes (`HomeScreen.tsx`). It is a dialog for the same reason the day sheet is: the week
+ * behind it has to leave the accessibility tree, and the caller marks it (`AgendaWeek`).
+ *
+ * Choosing closes the sheet: the record is written and the screen re-reads, so there is no
+ * second confirm step between the choice and the week it changes.
+ */
+export function MatchSheet({ matchKind, onChoose, onClose }: MatchSheetProps): React.ReactElement {
+  const sheet = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    sheet.current?.focus();
+  }, []);
+
+  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
+    if (event.key === 'Escape') {
+      onClose();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = Array.from(
+      event.currentTarget.querySelectorAll<HTMLElement>('button, [href], [tabindex="0"]'),
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (first === undefined || last === undefined) return;
+    if (event.shiftKey && (document.activeElement === first || document.activeElement === event.currentTarget)) {
+      event.preventDefault();
+      last.focus();
+      return;
+    }
+    if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  return (
+    <div
+      className="home-agenda-sheet"
+      role="dialog"
+      aria-modal="true"
+      aria-label={MATCH_SHEET_TITLE}
+      tabIndex={-1}
+      ref={sheet}
+      onKeyDown={onKeyDown}
+    >
+      <span className="home-agenda-sheet__grab" aria-hidden="true" />
+      <div className="home-agenda-sheet__head">
+        <div>
+          <h2 className="ds-card-title">{MATCH_SHEET_TITLE}</h2>
+          <p className="ds-meta">La semana entera cambia: el partido lleva su día.</p>
+        </div>
+        <TextButton onClick={onClose}>Cerrar</TextButton>
+      </div>
+
+      <ul className="home-agenda-sheet__options">
+        {MATCH_CHOICES.map((kind) => {
+          const selected = kind === matchKind;
+          return (
+            <li key={kind}>
+              <button
+                type="button"
+                className={[
+                  'ds-action',
+                  'home-agenda-sheet__option',
+                  selected ? 'home-agenda-sheet__option--current' : '',
+                ]
+                  .filter((part) => part !== '')
+                  .join(' ')}
+                aria-pressed={selected}
+                onClick={() => {
+                  onChoose(kind);
+                  onClose();
+                }}
+              >
+                <span className="home-agenda-sheet__radio" aria-hidden="true">
+                  {selected ? <Icon name="check" size={10} /> : null}
+                </span>
+                <span className="home-agenda-sheet__option-body">
+                  <span className="home-agenda-sheet__option-name">
+                    {MATCH_CHOICE_LABELS[kind]}
+                  </span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
@@ -656,6 +847,18 @@ export interface AgendaWeekProps {
    * it and this only says when.
    */
   readonly onSheetChange?: ((open: boolean) => void) | undefined;
+  /**
+   * S12 — the fixture of this week, once the store holds a record. It is drawn on the
+   * match row and nowhere else; `null` means a store that cannot say which week it is.
+   */
+  readonly fixture?: WeekFixture | null | undefined;
+  /** S12 — the match of this week has already been reported (the row is done). */
+  readonly matchReported?: boolean | undefined;
+  /** S12 — writes the chosen fixture into this week's record. */
+  readonly onChooseFixture?: ((match: MatchKind) => void) | undefined;
+  /** S12 — reports the match of the day, from the match row. */
+  readonly onReportMatch?: (() => void) | undefined;
+  readonly reporting?: boolean | undefined;
 }
 
 /**
@@ -700,12 +903,20 @@ export function AgendaWeek({
   placementNotice = null,
   onRetryPlacement,
   onSheetChange,
+  fixture = null,
+  matchReported = false,
+  onChooseFixture,
+  onReportMatch,
+  reporting = false,
 }: AgendaWeekProps): React.ReactElement {
   const { agenda, layout } = week;
   const [drag, setDrag] = useState<DragState | null>(null);
   const [sheet, setSheet] = useState<{ readonly weekday: number; readonly notice: string | null } | null>(
     null,
   );
+  // S12: the fixture sheet, opened from the match row (or from the quiet line that stands
+  // in for it in a week with no match day).
+  const [matchSheet, setMatchSheet] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
   const unplaced = unplacedPlanDaysOf(agenda);
   // The row that opened the sheet, so closing it puts the focus back where the owner was
@@ -715,10 +926,10 @@ export function AgendaWeek({
   const restoreTo = useRef<number | null>(null);
 
   // §9 — the screen behind the dialog learns that the dialog exists. One effect, and the
-  // parent decides what to hide.
+  // parent decides what to hide. Both sheets are dialogs, so either one counts.
   useEffect(() => {
-    onSheetChange?.(sheet !== null);
-  }, [sheet, onSheetChange]);
+    onSheetChange?.(sheet !== null || matchSheet);
+  }, [sheet, matchSheet, onSheetChange]);
 
   // §9 — the focus goes back to the row that opened the sheet on the render *after* the
   // close: the rows are `inert` while the dialog is open, and a `focus()` into an inert
@@ -797,16 +1008,42 @@ export function AgendaWeek({
   };
 
   const today = agenda.days.find((day) => day.today) ?? null;
-  // One filled action per screen: while the sheet is open, its confirm is the one, so the
+  // One filled action per screen: while a sheet is open, its confirm is the one, so the
   // row behind it puts its own away (§7.1).
-  const rowAction = sheet === null ? week.action : null;
-  // While the dialog is open, the week it was opened from is its background (§9).
-  const background = sheet === null ? {} : BACKGROUND_WHILE_OPEN;
+  const rowAction = sheet === null && !matchSheet ? week.action : null;
+  // While a dialog is open, the week it was opened from is its background (§9).
+  const background = sheet === null && !matchSheet ? {} : BACKGROUND_WHILE_OPEN;
+
+  /**
+   * S12 — the report a row carries. Only the day of the match reports it, only once, and
+   * only when the screen behind this week can write it.
+   */
+  const reportOf = (day: AgendaDay): AgendaRowReport | null => {
+    if (!day.today || day.kind !== 'match') return null;
+    if (matchReported || onReportMatch === undefined) return null;
+    return {
+      label: reporting ? 'Informando…' : 'Informar el partido',
+      busy: reporting,
+      onPress: onReportMatch,
+    };
+  };
+
+  // A week with no fixture has no match day, and therefore no row to carry the line: one
+  // quiet line under the rows opens the same sheet, so the owner can always say what he
+  // plays (S7). It keeps the flip's own words.
+  const hasMatchRow = agenda.days.some((day) => day.kind === 'match');
+  const fixtureLine =
+    hasMatchRow || fixture === null || onChooseFixture === undefined ? null : (
+      <p className="ds-meta home-agenda__fixture" {...background}>
+        <span>{fixture.label ?? 'Sin partido esta semana'}</span>
+        <TextButton align="start" onClick={() => setMatchSheet(true)}>
+          {fixture.action}
+        </TextButton>
+      </p>
+    );
 
   return (
     <section className="home-agenda-block" aria-label="La semana">
-      <p className="home-agenda__count" {...background}>{countLineOf(agenda)}</p>
-
       <ol className="home-agenda" aria-label="Días de la semana" ref={rows} {...background}>
         {visibleDaysOf(agenda).map((day) => (
           <AgendaRow
@@ -818,6 +1055,14 @@ export function AgendaWeek({
             refusing={drag !== null && day.locked}
             action={today?.weekday === day.weekday ? rowAction : null}
             starting={starting}
+            fixture={day.kind === 'match' ? (fixture?.label ?? null) : null}
+            reported={day.kind === 'match' && matchReported}
+            report={reportOf(day)}
+            onOpenFixture={
+              day.kind === 'match' && onChooseFixture !== undefined
+                ? () => setMatchSheet(true)
+                : undefined
+            }
             {...(onStart === undefined ? {} : { onStart })}
             onOpen={openSheet}
             onGrab={grab}
@@ -828,9 +1073,15 @@ export function AgendaWeek({
         ))}
       </ol>
 
-      <p className="ds-meta home-agenda__hint" {...background}>
-        {drag === null ? AGENDA_HINT : DRAG_HINT}
-      </p>
+      {fixtureLine}
+
+      {/* S12: while a row is in the hand, the sentence says what takes it and what refuses
+          it. It is live feedback, not the permanent hint the week no longer carries. */}
+      {drag === null ? null : (
+        <p className="ds-meta home-agenda__hint" {...background}>
+          {DRAG_HINT}
+        </p>
+      )}
 
       {/* A refusal says itself once, in the smallest voice the screen has (S6). */}
       {refusal === null ? null : (
@@ -874,6 +1125,14 @@ export function AgendaWeek({
             : { action: { label: 'Reintentar el cambio', onClick: onRetryPlacement } })}
         />
       )}
+
+      {matchSheet ? (
+        <MatchSheet
+          matchKind={agenda.matchKind}
+          onClose={() => setMatchSheet(false)}
+          onChoose={(match) => onChooseFixture?.(match)}
+        />
+      ) : null}
 
       {sheet === null ? null : (
         <DaySheet

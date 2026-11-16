@@ -30,6 +30,7 @@ import {
   todaySessionOf,
   weekSessionsOf,
   confirmedSetCount,
+  lastVolumeLineOf,
   type HomeInput,
 } from './selectors';
 
@@ -590,6 +591,16 @@ describe('homeViewOf', () => {
       detail: '52 min · 5 de 5 series',
       volume: '5.400',
     });
+  });
+
+  it('states the last session in one line of kilograms, and draws nothing without one (T9)', () => {
+    // The only number S12 keeps on Inicio: one line, the day and its volume in kilos.
+    expect(lastVolumeLineOf(homeViewOf(input()).last)).toBe(
+      'Última: SENTADILLA / PIERNA · 5.400 kg',
+    );
+    // No closed session, no line: the screen must not dress a zero as a measurement.
+    expect(lastVolumeLineOf(homeViewOf(input({ recent: [] })).last)).toBeNull();
+    expect(lastVolumeLineOf(null)).toBeNull();
   });
 
   it('writes the seven-day mean and the weigh-ins behind it', () => {

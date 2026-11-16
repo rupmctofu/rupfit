@@ -252,3 +252,97 @@
   flex-wrap: wrap;
   gap: var(--space-2);
 }
+
+/* ------------------------------------------------------------------- the activity */
+
+/* T9 (S12) — the activity section, moved from Inicio with its rows and its bin.
+   Tokens only, and no accent: this tab's one filled action is the empty state's, and a
+   bin or a capture must never compete with it (§7.1). */
+.progress__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.progress__icon {
+  flex: none;
+  color: var(--color-muted);
+}
+
+/* The football row: glyph, word, duration as a small figure, action. It wraps at 320 px
+   instead of pushing the action past the screen edge. */
+.progress__football {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+
+.progress__football-min {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  flex: none;
+  color: var(--color-muted);
+}
+
+.progress__football-action {
+  margin-left: auto;
+}
+
+/* One recorded activity per line: what it is, its date, and its bin. */
+.progress__activity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.progress__activity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+}
+
+.progress__activity-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+}
+
+/* The bin: a 48 px target around a 20 pt glyph, in the muted ink a secondary control
+   uses. It is a real button, so focus, activation and the accessible name come free. */
+.progress__bin {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--target-min);
+  min-height: var(--target-min);
+  margin: 0 calc(-1 * var(--space-3)) 0 0;
+  border-radius: var(--radius-control-square);
+  color: var(--color-muted);
+}
+
+/* The inline question: the bin is replaced by «¿Eliminar? Sí / Cancelar» in the same row,
+   so nothing covers the screen and nothing has to be dismissed. */
+.progress__confirm {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.progress__confirm-ask {
+  font-family: var(--font-sans);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  color: var(--color-muted);
+}

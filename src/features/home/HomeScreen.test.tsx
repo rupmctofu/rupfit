@@ -7,9 +7,11 @@
  * (S3). Interactions are not faked; the football write is exercised through the fake
  * port, which is where it actually happens.
  *
- * Four states, because each one is a different branch of `HomeBody`: an empty store, a
- * session in progress, a recorded activity, and a store that came back empty (the one
- * banner Inicio still announces).
+ * The states `HomeBody` still has after T9: an empty store, a session in progress, a
+ * store that came back empty (the one banner Inicio still announces), the match and the
+ * rest day on their rows, and the week with its fixture, its report and the kilos of the
+ * last session. The activities are not one of them any more: they live in Progreso, and
+ * `ProgressScreen.test.tsx` pins them there.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -23,12 +25,13 @@ import type {
   WorkoutSession,
 } from '../../storage';
 import { createFakeStorage } from '../session/fake-port';
-import { HomeBody, currentWeekOf, matchReportedOf, offDayOf, saveWeekMatch } from './HomeScreen';
+import { HomeBody, currentWeekOf, matchReportedOf, saveWeekMatch } from './HomeScreen';
 import {
   AGENDA_HINT,
   AgendaRow,
   AgendaWeek,
   DaySheet,
+  MatchSheet,
   PLACEMENT_FAILED_COPY,
   agendaWeekViewOf,
   placementOf,
@@ -38,9 +41,8 @@ import {
 import { defaultLayoutOf } from '../week/agenda';
 import { weekFixtureOf } from '../week/week';
 import { demoWeek, demoPort, demoRestNow } from './demo';
-import { homeViewOf, startOfDay, type HomeInput } from './selectors';
+import { activityViewOf, homeViewOf, startOfDay, type HomeInput } from './selectors';
 import { recordFootball, reportMatch } from './football';
-import { NO_DELETION, type ActivityDeletionState } from './deletion';
 
 /** Wednesday 8 November 2023, 18:00 local. */
 const NOW = new Date(2023, 10, 8, 18, 0, 0).getTime();
@@ -170,14 +172,6 @@ function input(overrides: Partial<HomeInput> = {}): HomeInput {
   };
 }
 
-/** The bin's seam, idle: the app always hands the screen one, so the test does too. */
-const DELETION: ActivityDeletionState = {
-  ...NO_DELETION,
-  ask: () => undefined,
-  cancel: () => undefined,
-  confirm: () => undefined,
-};
-
 /** The screen's markup for a fixture, with the actions a phone would have. */
 function render(overrides: Partial<HomeInput> = {}): string {
   const fixture = input(overrides);
@@ -186,15 +180,12 @@ function render(overrides: Partial<HomeInput> = {}): string {
     <HomeBody
       view={view}
       agendaWeek={agendaWeekViewOf(fixture, view)}
-      offDay={offDayOf(fixture)}
       matchReported={matchReportedOf(fixture)}
       fixture={weekFixtureOf(fixture.week)}
       onStart={() => undefined}
-      onRecordFootball={() => undefined}
       onReportMatch={() => undefined}
-      onFlipWeek={() => undefined}
+      onChooseFixture={() => undefined}
       onPlace={() => undefined}
-      deletion={DELETION}
     />,
   );
 }
@@ -257,10 +248,11 @@ describe('Inicio renders', () => {
 
     expect(markup).toContain('Todavía no hay rutina ni sesiones programadas');
     expect(markup).toContain('Todavía no hay sesiones. La primera aparecerá aquí cuando la termines.');
-    expect(markup).toContain('Todavía no hay actividad registrada. Esto no impide entrenar.');
-    // The football capture is offered even when nothing has ever been recorded.
-    expect(markup).toContain('Fútbol');
-    expect(markup).toContain('Registrar');
+    // S12: the activity section left Inicio, so its empty state left with it.
+    expect(markup).not.toContain('Todavía no hay actividad registrada');
+    expect(markup).not.toContain('Registrar');
+    // No closed session, no kilos: the line does not exist instead of reading `0 kg`.
+    expect(markup).not.toContain('Última:');
   });
 
   it('draws the session in progress with the action that returns to its sets', () => {
@@ -275,31 +267,21 @@ describe('Inicio renders', () => {
 
     // The row of today carries the one filled action, and it is the way back into the sets.
     expect(rowOf(markup, 2)).toContain('Continuar');
-    // The card below is the same day the row names, not a second opinion about it.
-    expect(markup).toContain('home__hero-title">Movilidad y core');
+    // And the row names the day the week places, which is the only answer Inicio gives.
+    expect(rowOf(markup, 2)).toContain('Movilidad y core');
+    expect(rowOf(markup, 2)).toContain('Hoy');
     expect(markup).not.toContain('Vista previa');
   });
 
-  it('draws a recorded activity as a row, with the bin that names what it deletes', () => {
+  it('does not draw the recorded activities any more: they are Progreso’s now (T9)', () => {
     const markup = render({
       recent: [session({ id: 'closed', status: 'completed', startedAt: MONDAY, endedAt: NOW })],
-      activities: [
-        {
-          id: 'football-1',
-          date: NOW,
-          kind: 'other',
-          durationSeconds: 50 * 60,
-          activeEnergyKcal: null,
-          provenance: 'manual',
-          externalSampleId: null,
-        },
-      ],
+      activities: [FOOTBALL_ACTIVITY],
     });
 
-    expect(markup).toContain('Fútbol registrado');
-    expect(markup).toContain('8 nov · 50 min');
-    // The bin shows a glyph and no word, so its accessible name has to do the talking.
-    expect(markup).toContain('aria-label="Eliminar fútbol del 8 de noviembre"');
+    // The section moved with its copy (`ProgressScreen.test.tsx` pins it there).
+    expect(markup).not.toContain('Fútbol registrado');
+    expect(markup).not.toContain('aria-label="Eliminar fútbol del 8 de noviembre"');
   });
 
   it('keeps the banner that reports a real loss, and only that one', () => {
@@ -325,48 +307,49 @@ describe('Inicio after the purge (S2, S3)', () => {
     expect(markup).not.toContain('Añadir a pantalla de inicio');
   });
 
-  it('drops the football prose and keeps the numbers in one compact row', () => {
+  it('does not explain the football capture any more: it left with its section (T9)', () => {
     const markup = render();
 
     expect(markup).not.toContain('dos partes de 25');
     expect(markup).not.toContain('no cuenta como sesión ni cambia el orden de tus días de fuerza');
-    // Glyph, word, duration as a figure, action: the row is all that is left.
-    expect(markup).toContain('home__football');
-    expect(markup).toContain('Fútbol');
-    expect(markup).toContain('50');
-    expect(markup).toContain('min');
-    expect(markup).toContain('Registrar');
+    expect(markup).not.toContain('home__football');
+    expect(markup).not.toContain('Registrar');
   });
 
-  it('says a day is a preview in one chip instead of a sentence', () => {
+  it('does not narrate a preview: the row says what the day is (T9)', () => {
     const markup = render({ plan: WEEK_PLAN });
 
-    expect(markup).toContain('Vista previa');
     expect(markup).not.toContain('La sesión se crea al empezar.');
+    // The week's row is the whole statement: the day, its numbers and the action.
+    expect(rowOf(markup, 2)).toContain('Movilidad y core');
+    expect(rowOf(markup, 2)).toContain('Empezar');
   });
 });
 
 describe('the match day and the rest day have their own state (T8, S1, S12)', () => {
-  it('says the match is today instead of «no exercises», and offers nothing', () => {
+  it('says the match is today on its row instead of «no exercises», and offers nothing', () => {
     const markup = render({ now: THURSDAY, plan: WEEK_PLAN, week: LEAGUE_WEEK });
 
-    expect(markup).toContain('Hoy es el día del partido');
+    // S12: the row is the day. The match, its fixture, its ball and its word — and no
+    // training to start, because the fifth day of the week is informed.
+    const thursday = rowOf(markup, 3);
+    expect(thursday).toContain('Partido · Liga');
+    expect(thursday).toContain('Hoy');
+    expect(thursday).toContain('home-agenda__mark--ball');
     expect(markup).not.toContain('El siguiente día de tu rutina todavía no tiene ejercicios');
     expect(markup).not.toContain('Empezar entrenamiento');
-    expect(markup).not.toContain('Cambiar el entreno de hoy');
   });
 
-  it('says today is rest on Saturday, and does not borrow the empty-day sentence either', () => {
+  it('offers nothing on a rest day, and does not borrow the empty-day sentence either', () => {
     const markup = render({ now: SATURDAY, plan: WEEK_PLAN, week: LEAGUE_WEEK });
 
-    expect(markup).toContain('Hoy descansas');
+    // Saturday carries no workout of the owner's, so the shortened list hides it (S11)
+    // and nothing on the screen asks for a training or a report.
+    expect(markup).not.toContain('data-weekday="5"');
     expect(markup).not.toContain('El siguiente día de tu rutina todavía no tiene ejercicios');
     expect(markup).not.toContain('Empezar entrenamiento');
-    // T8: a rest day has nothing to report, so the match's action is not offered on it.
     expect(markup).not.toContain('Informar el partido');
-    // A training day of the same week is not an off day, in the league and in the cup.
-    expect(offDayOf(input({ plan: WEEK_PLAN, week: LEAGUE_WEEK }))).toBeNull();
-    expect(offDayOf(input({ plan: WEEK_PLAN, week: { ...LEAGUE_WEEK, match: 'cup' } }))).toBeNull();
+    expect(markup).not.toContain('Hoy descansas');
   });
 });
 
@@ -377,13 +360,12 @@ describe('the match is reported, never trained (T8, S1)', () => {
   it('offers the report on the match day, and no way to start a training', () => {
     const markup = render({ now: THURSDAY, plan: WEEK_PLAN, week: LEAGUE_WEEK });
 
-    expect(markup).toContain('Hoy es el día del partido');
-    // S1: the fifth day of the week is informed, in the owner's words.
-    expect(markup).toContain('Informar el partido');
+    // S1: the fifth day of the week is informed, in the owner's words, from its own row.
+    expect(rowOf(markup, 3)).toContain('Informar el partido');
     expect(markup).not.toContain('Empezar entrenamiento');
   });
 
-  it('writes exactly one activity, and the card then shows the day is done', async () => {
+  it('writes exactly one activity, and the row then says the day is done', async () => {
     const storage = createFakeStorage();
 
     expect(await reportMatch(report(storage, 'match-1'))).toBe('saved');
@@ -402,7 +384,7 @@ describe('the match is reported, never trained (T8, S1)', () => {
     expect(storage.calls.filter((call) => call.startsWith('sessions.'))).toEqual([]);
 
     const markup = render({ now: THURSDAY, plan: WEEK_PLAN, week: LEAGUE_WEEK, activities });
-    expect(markup).toContain('Partido informado');
+    expect(rowOf(markup, 3)).toContain('Partido informado');
     expect(markup).not.toContain('Informar el partido');
   });
 
@@ -508,24 +490,26 @@ describe('the demo can show the week (?demo=inicio)', () => {
 });
 
 describe('the week says which fixture it has (T3, S7, S11)', () => {
-  it('names the fixture of the week on the card, in the owner’s words', () => {
+  it('names the fixture of the week on the match row, in the owner’s words (S12)', () => {
     const league = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
-    expect(league).toContain('Liga · jueves');
-    // One quiet action next to it, naming the other fixture (S7).
-    expect(league).toContain('Esta semana jugamos copa');
+    expect(rowOf(league, 3)).toContain('Liga · jueves');
+    // The flip left the screen: the fixture sheet, opened from the row, offers every
+    // choice, so `Esta semana jugamos copa` is not a line of Inicio any more.
+    expect(league).not.toContain('Esta semana jugamos copa');
     expect(league).not.toContain('Copa · martes');
 
     const cup = render({ plan: WEEK_PLAN, week: { ...LEAGUE_WEEK, match: 'cup' } });
-    expect(cup).toContain('Copa · martes');
-    expect(cup).toContain('Esta semana jugamos liga');
+    expect(rowOf(cup, 1)).toContain('Copa · martes');
     expect(cup).not.toContain('Liga · jueves');
   });
 
-  it('says nothing about a match in a week with no fixture', () => {
+  it('says nothing about a match in a week with no fixture, and keeps the way to declare one', () => {
     const markup = render({ plan: WEEK_PLAN, week: { ...LEAGUE_WEEK, match: 'none' } });
     expect(markup).not.toContain('Liga · jueves');
     expect(markup).not.toContain('Copa · martes');
-    // The way to declare one is still there, so the owner is never stuck.
+    // No match day means no match row: one quiet line under the rows opens the same
+    // sheet, so the owner is never left without a way to say what he plays (S7).
+    expect(markup).toContain('Sin partido esta semana');
     expect(markup).toContain('Esta semana jugamos copa');
   });
 
@@ -537,7 +521,7 @@ describe('the week says which fixture it has (T3, S7, S11)', () => {
     // hold other days, so the list goes with the layout it was made on (T5, L7).
     expect(writes).toEqual([{ monday: '2023-11-06', match: 'cup', swaps: [] }]);
 
-    // The card the re-read draws is the cup week: today is the upper body, not the
+    // The week the re-read draws is the cup week: today is the upper body, not the
     // mobility day the league layout puts on Wednesday.
     const markup = render({ plan: WEEK_PLAN, week: writes[0] });
     expect(markup).toContain('Copa · martes');
@@ -554,13 +538,14 @@ describe('the week says which fixture it has (T3, S7, S11)', () => {
     expect(await saveWeekMatch(port, NOW, 'cup')).toBe(true);
 
     const before = render({ now: THURSDAY, plan: WEEK_PLAN, week: LEAGUE_WEEK });
-    expect(before).toContain('Hoy es el día del partido');
+    expect(rowOf(before, 3)).toContain('Partido · Liga');
+    expect(rowOf(before, 3)).toContain('Hoy');
 
     // L7: the cup match is Tuesday, so Thursday is the leg day of that layout.
     const after = render({ now: THURSDAY, plan: WEEK_PLAN, week: writes[0] });
-    expect(after).toContain('Pierna');
-    expect(after).not.toContain('Hoy es el día del partido');
-    expect(after).toContain('Copa · martes');
+    expect(rowOf(after, 3)).toContain('Pierna');
+    expect(after).not.toContain('Partido · Liga');
+    expect(rowOf(after, 1)).toContain('Copa · martes');
   });
 
   it('flipping back restores the league layout, on Wednesday and on Thursday', async () => {
@@ -578,11 +563,11 @@ describe('the week says which fixture it has (T3, S7, S11)', () => {
 
     // Thursday: the league match takes the day the cup week trained the legs on.
     const thursday = render({ now: THURSDAY, plan: WEEK_PLAN, week: writes[0] });
-    expect(thursday).toContain('Hoy es el día del partido');
     expect(rowOf(thursday, 3)).toContain('Partido · Liga');
+    expect(rowOf(thursday, 3)).toContain('Hoy');
   });
 
-  it('leaves the league layout on the card when the write fails, never half a cup week', async () => {
+  it('leaves the league week on screen when the write fails, never half a cup week', async () => {
     const failing: StoragePort = {
       meta: {
         readWeek: async (): Promise<WeekRecord | undefined> => LEAGUE_WEEK,
@@ -592,17 +577,17 @@ describe('the week says which fixture it has (T3, S7, S11)', () => {
 
     expect(await saveWeekMatch(failing, NOW, 'cup')).toBe(false);
 
-    // S7: a write that did not happen re-reads nothing, so the card keeps the week it was
+    // S7: a write that did not happen re-reads nothing, so the week keeps what it was
     // drawn from — the league day for today, not the cup's day with the league's numbers.
     const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
-    expect(markup).toContain('Liga · jueves');
-    expect(markup).toContain('Movilidad y core');
+    expect(rowOf(markup, 3)).toContain('Liga · jueves');
+    expect(rowOf(markup, 2)).toContain('Movilidad y core');
     expect(markup).not.toContain('Copa · martes');
   });
 });
 
 describe('the football row writes through the port', () => {
-  it('reaches the screen as a recorded activity, without touching sessions', async () => {
+  it('writes a recorded activity the Progreso rows can read, without touching sessions', async () => {
     const storage = createFakeStorage();
     const outcome = await recordFootball({
       storage,
@@ -614,20 +599,23 @@ describe('the football row writes through the port', () => {
     expect(outcome).toBe('saved');
     expect(storage.calls.filter((call) => call.startsWith('sessions.'))).toEqual([]);
 
-    const markup = renderToStaticMarkup(
-      <HomeBody
-        view={homeViewOf(input({ activities }))}
-        onStart={() => undefined}
-        onRecordFootball={() => undefined}
-        deletion={DELETION}
-      />,
-    );
+    // T9: the row it writes is drawn by Progreso now (`ActivitySection`), and the view
+    // model it reads is still the one Inicio used to read (`activityViewOf`).
+    const activity = activityViewOf(activities);
+    expect(activity.recorded).toEqual([
+      {
+        id: 'football-1',
+        label: 'Fútbol registrado',
+        detail: '8 nov · 50 min',
+        removeLabel: 'Eliminar fútbol del 8 de noviembre',
+      },
+    ]);
 
-    // `Fútbol registrado` is what the row says a manual match is: the capture still
-    // ends up somewhere the owner can see and delete (S5).
-    expect(markup).toContain('Fútbol registrado');
-    expect(markup).toContain('8 nov · 50 min');
-    expect(markup).toContain('aria-label="Eliminar fútbol del 8 de noviembre"');
+    // And Inicio shows nothing of it: the section is not the week's business.
+    const markup = renderToStaticMarkup(
+      <HomeBody view={homeViewOf(input({ activities }))} onStart={() => undefined} />,
+    );
+    expect(markup).not.toContain('Fútbol registrado');
   });
 });
 
@@ -681,9 +669,9 @@ describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10, S11)', () => {
     expect(rowOf(markup, 2)).toContain('Hoy');
     expect(rowOf(markup, 3)).toContain('Partido · Liga');
     expect(rowOf(markup, 3)).toContain('Fijo');
-    // The count the meter drew is a sentence above the rows now.
-    expect(markup).toContain('0 de 4 entrenos hechos');
-    expect(markup).toContain(AGENDA_HINT);
+    // S12: neither the count the meter drew nor the hint paragraph is on Inicio any more.
+    expect(markup).not.toContain('entrenos hechos');
+    expect(markup).not.toContain(AGENDA_HINT);
     // No plan, no week to date: the honest empty state keeps its place.
     expect(render({ plan: [] })).not.toContain('home-agenda__row');
   });
@@ -752,7 +740,10 @@ describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10, S11)', () => {
     // S9: the ball is the system's icon, and the word says the same thing.
     expect(thursday).toContain('home-agenda__mark--ball');
     expect(thursday).toContain('Fijo');
-    expect(thursday).not.toContain('<button');
+    // S12: the match row is a control now — it opens the fixture sheet — but never a
+    // handle: the match does not move.
+    expect(thursday).toContain('aria-haspopup="dialog"');
+    expect(thursday).not.toContain('home-agenda__handle');
 
     const { week } = agendaWeekOf({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
     const drop = placementOf({
@@ -831,6 +822,8 @@ describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10, S11)', () => {
     expect(markup).toContain('role="dialog"');
     expect(markup).toContain('aria-modal="true"');
     expect(markup).toContain('¿Qué entrenas el viernes 10?');
+    // S12: the sentence about dragging lives in the sheet, where the change is made.
+    expect(markup).toContain(AGENDA_HINT);
     // The one that is there already, and the one that would be exchanged.
     expect(markup).toContain('Lo que toca');
     expect(markup).toContain('Ya el lunes · se cambiaría de sitio');
@@ -907,19 +900,26 @@ describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10, S11)', () => {
     expect(itself.notice).toBeNull();
   });
 
-  it('the card below the agenda never names a day the owner moved away from today (S1, S4)', () => {
+  it('never names a day the owner moved away from today (S1, S4, S12)', () => {
     const moved = layoutWith(['seed-day-leg', 'seed-day-torso-a', null, null, 'seed-day-torso-b', 'seed-day-fisico', null]);
     const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK, weekLayout: moved });
+    // Wednesday is the day after the move: the row says rest, and no second reading of
+    // "today" exists to contradict it any more (T9 took the card away).
     expect(rowOf(markup, 2)).toContain('Descanso');
-    expect(markup).not.toContain('home__hero-title">Movilidad y core');
+    // The workout it used to carry is on Saturday, where the owner put it.
+    expect(rowOf(markup, 2)).not.toContain('Movilidad y core');
+    expect(rowOf(markup, 5)).toContain('Movilidad y core');
     expect(markup).not.toContain('Empezar entrenamiento');
   });
 
-  it('the card names what the day carries when the owner changes it (S3)', () => {
+  it('names what the day carries when the owner changes it (S3)', () => {
     const changed = layoutWith(['seed-day-leg', 'seed-day-torso-a', 'seed-day-leg', null, 'seed-day-torso-b', 'seed-day-fisico', null]);
     const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK, weekLayout: changed });
     expect(rowOf(markup, 2)).toContain('Pierna');
-    expect(markup).not.toContain('home__hero-title">Movilidad y core');
+    // The row is the only place today is named: the mobility day is on Saturday in this
+    // layout, and nothing says it is Wednesday's.
+    expect(rowOf(markup, 5)).toContain('Movilidad y core');
+    expect(rowOf(markup, 2)).not.toContain('Movilidad y core');
   });
 
   it('refuses the sheet\'s confirm on a closed day without writing (S6)', async () => {
@@ -1064,12 +1064,215 @@ describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10, S11)', () => {
     expect(markup).not.toContain('¿Qué toca hoy?');
     expect(markup).not.toContain('Cambiar el entreno de hoy');
 
-    // And the rest of Inicio is still there.
-    expect(markup).toContain('Liga · jueves');
+    // And the week is still there: the fixture on its match row, the done Monday on its
+    // own row, and the kilos of the last session as the one line under it (T9).
+    expect(rowOf(markup, 3)).toContain('Liga · jueves');
+    expect(rowOf(markup, 0)).toContain('Hecho');
+    expect(markup).toContain('Última: PIERNA ·');
+    expect(markup).not.toContain('entrenos hechos');
+  });
+});
+
+/* ----------------------------------------------------------------------------
+ * T9 (S12, S13) — Inicio is the week and very little else.
+ *
+ * The owner: «lo que sobre de ahí de ese inicio lo quites porque ... había muchas cosas y
+ * era muy lioso», and then «si, recorta». The card, the count line, the hint, the
+ * activities with their bin and the imported notice leave; the fixture and the match
+ * report move onto the match row; the kilos of the last session stay as one line.
+ * ------------------------------------------------------------------------- */
+
+/** A closed session with a volume to state: 3 × 116 kg × 10 reps = 3.480 kg. */
+const CLOSED_WITH_VOLUME = session({
+  id: 'closed-volume',
+  status: 'completed',
+  planDayId: 'seed-day-leg',
+  dayNameSnapshot: 'PIERNA',
+  scheduledDate: MONDAY,
+  startedAt: MONDAY,
+  endedAt: NOW,
+  exercises: [
+    {
+      id: 'es-volume',
+      order: 0,
+      exerciseId: 'lib-1',
+      exerciseNameSnapshot: 'Sentadilla',
+      prescription: {
+        sets: 3,
+        repRange: { lowerBound: 8, upperBound: 10 },
+        targetRIR: { lowerBound: 2, upperBound: 3 },
+        restSeconds: 180,
+      },
+      recommendation: null,
+      decision: null,
+      recommendedWeightKg: null,
+      usedWeightKg: 116,
+      loadDeltaKg: null,
+      sets: [1, 2, 3].map((index) => ({
+        id: `set-volume-${String(index)}`,
+        index,
+        weightKg: 116,
+        targetReps: 10,
+        actualReps: 10,
+        effort: null,
+        discomfort: null,
+        confirmedAt: MONDAY,
+      })),
+      status: 'done' as const,
+      completedAt: NOW,
+    },
+  ],
+});
+
+/** A weigh-in, so the test can prove the body-weight number left the screen too. */
+const A_WEIGH_IN = {
+  id: 'm1',
+  date: NOW,
+  weightKg: 80,
+  waistCm: null,
+  chestCm: null,
+  armCm: null,
+  thighCm: null,
+  hipCm: null,
+  bodyFatPercent: null,
+  provenance: 'manual' as const,
+};
+
+const FOOTBALL_ACTIVITY = {
+  id: 'football-1',
+  date: NOW,
+  kind: 'other' as const,
+  durationSeconds: 50 * 60,
+  activeEnergyKcal: null,
+  provenance: 'manual' as const,
+  externalSampleId: null,
+};
+
+const IMPORTED_ACTIVITY = {
+  id: 'imported-1',
+  date: NOW,
+  kind: 'cardio' as const,
+  durationSeconds: 1800,
+  activeEnergyKcal: 210,
+  provenance: 'imported' as const,
+  externalSampleId: 'sample-1',
+};
+
+/** The match of Thursday, as the report writes it: the football row of that date. */
+const MATCH_ACTIVITY = {
+  ...FOOTBALL_ACTIVITY,
+  id: 'match-1',
+  date: startOfDay(THURSDAY),
+};
+
+describe('Inicio is the week and very little else (T9, S12)', () => {
+  it('leaves the big today card, the count and the hint behind', () => {
+    const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
+
+    expect(markup).not.toContain('home__hero');
+    expect(markup).not.toContain('home-agenda__count');
+    expect(markup).not.toContain('entrenos hechos');
+    expect(markup).not.toContain(AGENDA_HINT);
+    // The day is still named, by the row that is now the only thing holding it.
+    expect(rowOf(markup, 2)).toContain('Movilidad y core');
+    expect(rowOf(markup, 2)).toContain('Hoy');
+  });
+
+  it('carries the fixture on the match row, and the sheet writes the week record', async () => {
+    const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
+    const thursday = rowOf(markup, 3);
+
+    // S12: `Liga · jueves` left the card and lives in the row it talks about, which is a
+    // control now: tapping the match opens the fixture sheet.
+    expect(thursday).toContain('Liga · jueves');
+    expect(thursday).toContain('aria-haspopup="dialog"');
+    // The quiet flip button left with the card; the three choices are the sheet's.
+    expect(markup).not.toContain('Esta semana jugamos copa');
+
+    const sheet = renderToStaticMarkup(
+      <MatchSheet matchKind="league" onChoose={() => undefined} onClose={() => undefined} />,
+    );
+    expect(sheet).toContain('role="dialog"');
+    expect(sheet).toContain('Liga');
+    expect(sheet).toContain('Copa');
+    expect(sheet).toContain('Sin partido');
+    // The week's own fixture is the selected choice, and the choice can be none at all.
+    expect(sheet).toContain('aria-pressed="true"');
+
+    // The sheet writes the same record the flip wrote, whichever of the three is chosen.
+    const { port, writes } = weekPort(LEAGUE_WEEK);
+    expect(await saveWeekMatch(port, NOW, 'cup')).toBe(true);
+    expect(await saveWeekMatch(port, NOW, 'none')).toBe(true);
+    expect(writes).toEqual([
+      { monday: '2023-11-06', match: 'cup', swaps: [] },
+      { monday: '2023-11-06', match: 'none', swaps: [] },
+    ]);
+  });
+
+  it('keeps a way to declare the fixture in a week with no match row', () => {
+    // `none` has no match day, so no row carries the line: one quiet line under the rows
+    // opens the same sheet, and the owner is never left without a way to say what he plays.
+    const markup = render({ plan: WEEK_PLAN, week: { ...LEAGUE_WEEK, match: 'none' } });
+
+    expect(markup).toContain('Sin partido esta semana');
     expect(markup).toContain('Esta semana jugamos copa');
-    expect(markup).toContain('Última sesión · lunes');
-    expect(markup).toContain('Fútbol registrado');
-    expect(markup).toContain('Registrar');
-    expect(markup).toContain('1 de 4 entrenos hechos');
+    expect(markup).not.toContain('Liga · jueves');
+  });
+
+  it('reaches the match report from its row, and the row says when it is done', () => {
+    const markup = render({ now: THURSDAY, plan: WEEK_PLAN, week: LEAGUE_WEEK });
+
+    // S12: the report is an action of the row, not a card under it.
+    expect(rowOf(markup, 3)).toContain('Informar el partido');
+    expect(markup).not.toContain('Hoy es el día del partido');
+
+    const reported = render({
+      now: THURSDAY,
+      plan: WEEK_PLAN,
+      week: LEAGUE_WEEK,
+      activities: [MATCH_ACTIVITY],
+    });
+    expect(rowOf(reported, 3)).toContain('Partido informado');
+    expect(rowOf(reported, 3)).not.toContain('Informar el partido');
+  });
+
+  it('states the kilos of the last session in one line, and keeps no other number', () => {
+    const withoutSession = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
+    expect(withoutSession).not.toContain('Última:');
+
+    const markup = render({
+      plan: WEEK_PLAN,
+      week: LEAGUE_WEEK,
+      recent: [CLOSED_WITH_VOLUME],
+      measurements: [A_WEIGH_IN],
+    });
+    expect(markup).toContain('Última: PIERNA · 3.480 kg');
+    // A line, not a card: the last-session card and the body-weight tile are gone.
+    expect(markup).not.toContain('Última sesión ·');
+    expect(markup).not.toContain('home__last-main');
+    expect(markup).not.toContain('home__last-volume');
+    expect(markup).not.toContain('Peso corporal');
+  });
+
+  it('leaves the activities and their bin to Progreso', () => {
+    const markup = render({
+      plan: WEEK_PLAN,
+      week: LEAGUE_WEEK,
+      activities: [FOOTBALL_ACTIVITY, IMPORTED_ACTIVITY],
+    });
+
+    // S12: the section moved to Progreso, it was not deleted.
+    expect(markup).not.toContain('Fútbol registrado');
+    expect(markup).not.toContain('Registrar');
+    expect(markup).not.toContain('aria-label="Eliminar fútbol del 8 de noviembre"');
+    // The imported notice is Perfil's bookkeeping now, not Inicio's.
+    expect(markup).not.toContain('actividades importadas');
+  });
+
+  it('still starts today from its row, as the only filled action (T5)', () => {
+    const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
+
+    expect(rowOf(markup, 2)).toContain('Empezar');
+    expect(markup.split('ds-action ds-primary').length - 1).toBe(1);
   });
 });

@@ -47,6 +47,17 @@ cambia es que el reparto deja de ser intocable.
   sábado o un domingo vuelve a aparecer solo si ese día tiene un entreno del reparto del dueño:
   la agenda puede ser corta, nunca puede esconder un entreno. La semana derivada sigue teniendo
   los siete días con fecha; lo que se acorta es la lista, no el modelo.
+- **S12** — "yo lo que quiero es abrir mi aplicación, ver un poco la semana como la tengo …
+  básicamente te plantees que lo que sobre de ahí de ese inicio lo quites porque ahora estaba
+  viendo que como que había muchas cosas y era muy lioso", y después "si, recorta". Inicio se
+  queda con la semana y con cambiar el entreno. Fuera: la tarjeta grande de hoy, el recuento
+  duplicado, la frase de ayuda, la tarjeta de actividades con su papelera y el aviso de lo
+  importado. Los kilos de la última sesión, en una línea. El conmutador liga/copa se muda al
+  renglón del partido. Las actividades y su borrado se mudan a Progreso: se mueven, no se
+  pierden. El aviso de datos perdidos se queda: no es ruido, es la salida.
+- **S13** — "no quiero decirle a la app que me duele la espalda, si no que yo pueda cambiarlo si
+  me duele algo, no hace falta que lo haga rupfit". Ninguna sugerencia automática por dolor o
+  cansancio: el cambio lo decide el dueño moviendo el entreno.
 
 ## Tasks
 
@@ -58,6 +69,7 @@ cambia es que el reparto deja de ser intocable.
 - **T6** — S1-S10: verificación independiente, README y `docs/`, y el cierre de la feature. **Hecha**: verificación en `773eda2..80bc8da` con un bloqueante real (la tarjeta del día), corregido en `6edaa31`; README y cierre en `98dc130`.
 - **T7** — Composición corporal (Evolt), feature aparte: `odd/tasks/body-composition.md` cuando arranque. El dueño la aprobó después de T1; no entra en este documento más allá de esta línea.
 - **T8** — S11: la agenda de lunes a viernes, con el fin de semana apareciendo solo si lleva un entreno. **Hecha** en `bce8129`.
+- **T9** — S12: recorte de Inicio al núcleo y mudanza de las actividades con su borrado a Progreso. El conmutador liga/copa pasa al renglón del partido. **Hecha**; +11 pruebas, 1142 en total, ambos `tsc` limpios.
 
 ## Log
 
@@ -131,3 +143,5 @@ cambia es que el reparto deja de ser intocable.
   el reparto, porque `restore` limpia todos los almacenes — está probado y documentado.
 - **L14** — "quita el sabado y el domingo". Se lee como S11: la agenda enseña de lunes a viernes y el fin de semana solo asoma si ese día tiene entreno tuyo o una sesión cerrada esa semana, para que acortar la lista no pueda esconder nada. Se hace después de la ronda de corrección de T6: toca los mismos archivos y dos escritores no pueden pisarse.
 - **L15** — "quita el sabado y el domingo", hecho en `bce8129`: la lista acaba en viernes y un fin de semana vuelve solo si lleva un entreno del dueño. S11 se reescribió para decir exactamente eso: la cláusula de «sesión cerrada esa semana» que yo había añadido no se implementó, porque la agenda razona por día del plan y no por fecha de sesión, y dejarla escrita habría sido una promesa falsa en la especificación. La prueba de siete renglones se partió en dos (la lista acaba en viernes; un sábado con entreno vuelve) en vez de borrarse. Ronda de corrección de T6 cerrada en `6edaa31`: una sola respuesta a «qué toca hoy», modelos de vista muertos retirados, foco devuelto al renglón al cerrar la hoja, fondo inerte y el recuento de tablas de la nube como literal. 1131 pruebas, ambos `tsc` limpios.
+- **L16** — "si, recorta", hecho: Inicio se queda en la semana, el arranque desde el renglón de hoy, el cambio de entreno, una línea con los kilos de la última sesión y los dos avisos honestos. La tarjeta grande, el recuento, la frase de ayuda y el aviso de lo importado salieron; las actividades con su papelera se mudaron a Progreso con las mismas palabras y el mismo orden de borrado, y el aviso de lo importado a Perfil. El conmutador liga/copa y el informe del partido viven ahora en el renglón del partido. 1142 pruebas en 75 archivos, ambos `tsc` limpios. Riesgos declarados: el aviso de Perfil no tiene prueba (esa pantalla necesita `AppServices` y ninguna prueba de Perfil estaba en la superficie), una semana sin partido abre la hoja desde una línea bajo los renglones para no perder la marca manual, y `HomeView.today`/`weight` siguen calculándose sin dibujarse.
+- **L17** — Documento nuevo `odd/tasks/fixture-calendar.md` para la feature del calendario real: fuente, esquema, lo que la ingesta debe validar y la corrección expresa de S10 de `match-aware-week.md`. No empieza hasta que el dueño lo pida; queda listo.

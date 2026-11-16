@@ -50,17 +50,32 @@ import {
   DataRow,
   EmptyState,
   ErrorBanner,
+  Icon,
   LineChart,
   MetricTile,
+  SectionLabel,
+  TextButton,
 } from '../../design-system';
 import { useAppServices } from '../../app/providers';
 import type {
+  ActivityRecord,
   BodyMeasurement,
   Exercise,
   StoragePort,
   UserProfile,
   WorkoutSession,
 } from '../../storage';
+import {
+  ACTIVITY_DELETE_COPY,
+  useActivityDeletion,
+  type ActivityDeletionState,
+} from '../home/deletion';
+import { FOOTBALL_DURATION_MINUTES, useFootballCapture } from '../home/football';
+import {
+  activityViewOf,
+  type ActivityEntryView,
+  type ActivityView,
+} from '../home/selectors';
 import {
   isRecordedSession,
   personalRecords,
@@ -92,7 +107,7 @@ import { useProgressView } from './navigation';
 import { LastWeighInTile, MeanAndGoalRows, WeightScreen } from './WeightScreen';
 import type { WeightDraft, WeightSaveOutcome } from './weightEntry';
 import { createMeasurementId, saveWeightEntry } from './weightSave';
-import { Segmented } from './parts';
+import { Segmented, TrashGlyph } from './parts';
 import './progress.css';
 
 /** The one clock the tab is allowed to read: the provider's. */
@@ -138,6 +153,11 @@ interface ProgressFacts {
   readonly measurements: readonly BodyMeasurement[];
   readonly profile: UserProfile | null;
   readonly exercises: readonly Exercise[];
+  /**
+   * T9 (S12) — the owner's recorded activities. They live here now: Inicio is the week,
+   * and the rows the football capture writes are history, not the day.
+   */
+  readonly activities: readonly ActivityRecord[];
   readonly now: number;
 }
 
@@ -166,11 +186,12 @@ function ProgressTab({
 
     void (async () => {
       try {
-        const [sessions, measurements, profile, exercises] = await Promise.all([
+        const [sessions, measurements, profile, exercises, activities] = await Promise.all([
           storage.sessions.recent(HISTORY_LIMIT),
           storage.measurements.all(),
           storage.profile.read(),
           storage.exercises.all(),
+          storage.activities.all(),
         ]);
         if (cancelled) return;
         setState({
@@ -179,6 +200,7 @@ function ProgressTab({
           measurements,
           profile: profile ?? null,
           exercises,
+          activities,
           now: clock.now(),
         });
       } catch {
@@ -209,6 +231,22 @@ function ProgressTab({
   const startTraining = useCallback(() => {
     window.location.hash = '#/entrenar';
   }, []);
+
+  /**
+   * T9 (S12) — the activity section's two seams, moved here from Inicio.
+   *
+   * The clock is handed to the capture as a stable object: `useFootballCapture` keeps its
+   * `save` in a `useCallback`, and a fresh clock on every render would rebuild it on every
+   * render for no reason. Both writes re-read the tab afterwards, which is the only way
+   * the rows and their bins can catch up with the store.
+   */
+  const writeClock = useMemo<ProgressClock>(() => ({ now: () => clock.now() }), [clock]);
+  const capture = useFootballCapture({ storage, clock: writeClock, onSaved: retry });
+  const deletion = useActivityDeletion({ storage, onDeleted: retry });
+  const activity = useMemo(
+    () => activityViewOf(state.status === 'ready' ? state.activities : []),
+    [state],
+  );
 
   const goal = useMemo(
     () => formatGoal(state.status === 'ready' ? (state.profile?.weightGoal ?? null) : null),
@@ -312,6 +350,14 @@ function ProgressTab({
         onOpenWeight={() => navigation.navigate('peso')}
         onOpenExercise={navigation.openExercise}
         onStartTraining={startTraining}
+      />
+      {/* T9 (S12): the activities and their bin, moved — not deleted — from Inicio. */}
+      <ActivitySection
+        view={activity}
+        onRecordFootball={capture.save}
+        recording={capture.busy}
+        footballNotice={capture.notice}
+        deletion={deletion}
       />
     </div>
   );
@@ -682,5 +728,141 @@ function ExerciseListCard({
         />
       ))}
     </Card>
+  );
+}
+
+/* ---------------------------------------------------------------- the activity */
+
+export interface ActivitySectionProps {
+  /** The rows, as `activityViewOf` shapes them: one per manual row, and the counts. */
+  readonly view: ActivityView;
+  /** Writes the manual football activity. Absent: the capture is not offered. */
+  readonly onRecordFootball?: (() => void) | undefined;
+  readonly recording?: boolean | undefined;
+  readonly footballNotice?: string | null | undefined;
+  /** The bin and its inline question. Absent: the recorded rows are read-only. */
+  readonly deletion?: ActivityDeletionState | undefined;
+}
+
+/**
+ * T9 (S12) — the activity section, at the home it was moved to.
+ *
+ * Inicio stopped drawing it — the owner asked for the week and little else — but nothing
+ * about it changed: the manual football capture still writes an `ActivityRecord`, the rows
+ * are still named for what they are (`Fútbol registrado`, its date and duration), and the
+ * bin still asks before it removes, in place, with `deletion.ts`'s own copy. Progreso is
+ * where the history lives, so it is where the history is edited.
+ *
+ * Only the class names are new: the geometry is `progress.css`, in tokens, so the accent
+ * fill of this screen stays `EmptyState`'s one action (§7.1).
+ */
+export function ActivitySection({
+  view,
+  onRecordFootball,
+  recording = false,
+  footballNotice = null,
+  deletion,
+}: ActivitySectionProps): React.ReactElement {
+  return (
+    <section className="progress__section">
+      <SectionLabel icon={<Icon name="heart" size={14} />}>Actividad</SectionLabel>
+
+      <Card padding="dense" label="Fútbol">
+        <div className="progress__football">
+          <Icon name="clock" size={20} className="progress__icon" />
+          <span className="ds-card-title">Fútbol</span>
+          <span className="progress__football-min">
+            <span className="ds-numeral ds-numeral--metric-small">
+              {String(FOOTBALL_DURATION_MINUTES)}
+            </span>
+            <span className="ds-numeral__unit">min</span>
+          </span>
+          {onRecordFootball === undefined ? null : (
+            <TextButton
+              icon="plus"
+              align="start"
+              className="progress__football-action"
+              disabled={recording}
+              onClick={onRecordFootball}
+            >
+              {recording ? 'Guardando…' : 'Registrar'}
+            </TextButton>
+          )}
+        </div>
+        {/* A plain result line: no modal, no timer, and no claim about a screen that has
+            not re-read yet. */}
+        {footballNotice === null ? null : <p className="ds-body">{footballNotice}</p>}
+      </Card>
+
+      {view.recorded.length === 0 ? null : (
+        <Card padding="dense" label="Actividad registrada">
+          <div className="progress__activity" role="list">
+            {view.recorded.map((row) => (
+              <ActivityRow key={row.id} row={row} {...(deletion === undefined ? {} : { deletion })} />
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* What the removal did, in one line: the row disappears on its own when the tab
+          re-reads, so there is no toast to dismiss. */}
+      {deletion === undefined || deletion.notice === null ? null : (
+        <p className="ds-body">{deletion.notice}</p>
+      )}
+
+      {view.empty ? (
+        <p className="ds-meta">Todavía no hay actividad registrada. Esto no impide entrenar.</p>
+      ) : null}
+    </section>
+  );
+}
+
+/**
+ * One recorded activity: what it is, its date and duration, and its bin.
+ *
+ * The bin never deletes on its own (S5): the first tap only asks, and the question
+ * replaces the bin in place — «¿Eliminar? Sí / Cancelar». A row mid-question keeps its
+ * own two 48 px buttons rather than a dialog, so nothing covers the screen and nothing
+ * has to be dismissed before the owner can change his mind.
+ */
+function ActivityRow({
+  row,
+  deletion,
+}: {
+  readonly row: ActivityEntryView;
+  readonly deletion?: ActivityDeletionState | undefined;
+}): React.ReactElement {
+  const asking = deletion !== undefined && deletion.pendingId === row.id;
+  return (
+    <div className="progress__activity-row" role="listitem">
+      <span className="progress__activity-main">
+        <span className="ds-body">{row.label}</span>
+        <span className="ds-meta">{row.detail}</span>
+      </span>
+      {deletion === undefined ? null : asking ? (
+        <span className="progress__confirm">
+          <span className="progress__confirm-ask">{ACTIVITY_DELETE_COPY.ask}</span>
+          <TextButton
+            tone="danger"
+            disabled={deletion.busy}
+            onClick={() => deletion.confirm(row.id)}
+          >
+            {ACTIVITY_DELETE_COPY.confirm}
+          </TextButton>
+          <TextButton disabled={deletion.busy} onClick={deletion.cancel}>
+            {ACTIVITY_DELETE_COPY.cancel}
+          </TextButton>
+        </span>
+      ) : (
+        <button
+          type="button"
+          className="ds-action progress__bin"
+          aria-label={row.removeLabel}
+          onClick={() => deletion.ask(row.id)}
+        >
+          <TrashGlyph />
+        </button>
+      )}
+    </div>
   );
 }

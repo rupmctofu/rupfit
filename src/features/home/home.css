@@ -2,6 +2,11 @@
  * Inicio's layout. Tokens only: no colour, radius, type size or duration is written as
  * a literal (design-system §5, §6.1). The shell already provides the horizontal screen
  * padding, so this file only stacks what Inicio draws.
+ *
+ * S12 cut the screen to the week: the day card, the activities, the imported notice and
+ * the last-session card left (the first two to Progreso and Perfil, the cards to one
+ * line), and so did their rules. What remains is the header, the week and the lines under
+ * it.
  */
 
 .home {
@@ -11,10 +16,10 @@
   padding-bottom: var(--space-8);
 }
 
-/* Everything under the week: the day's card, the notices, the history and the activity.
-   It is one block so the day sheet can take the whole background out of the modal's way
-   with one attribute (T6, §9), and it keeps the screen's own rhythm instead of flattening
-   into the header's. */
+/* Everything under the week: the one action a row could not carry, the kilos of the last
+   session and the notices. It is one block so a sheet can take the whole background out
+   of the modal's way with one attribute (T6, §9), and it keeps the screen's own rhythm
+   instead of flattening into the header's. */
 .home__below {
   display: flex;
   flex-direction: column;
@@ -51,65 +56,6 @@
   margin-bottom: var(--space-2);
 }
 
-.home__section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-/* Today's block (S3): the loudest card after the header. It gains weight through the
-   accent edge the week strip already uses for "today", never through a shadow (§6.2). */
-.home__hero {
-  gap: var(--space-3);
-  border-color: var(--color-accent);
-}
-
-.home__hero-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-width: 0;
-}
-
-.home__hero-badge {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--size-badge);
-  height: var(--size-badge);
-  border-radius: var(--radius-badge);
-  background: var(--color-accent-muted);
-  color: var(--color-accent);
-}
-
-.home__hero-title {
-  min-width: 0;
-}
-
-/* The prescribed sets and the phase on one line when they fit, two when they do not. */
-.home__hero-meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  min-width: 0;
-}
-
-/* A card head that carries a glyph before its word (S3): the glyph is the marker, the
-   word is the meaning, and neither one is announced twice. */
-.home__card-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-}
-
-.home__card-icon {
-  flex: none;
-  color: var(--color-muted);
-}
-
 /* An empty state said once: a glyph and the sentence, no box. The icon aligns to the
    baseline of the first line, so a sentence that wraps does not drag it down. */
 .home__note {
@@ -129,155 +75,16 @@
   color: var(--color-muted);
 }
 
-/* The football row (S2): glyph, word, duration as a small figure, action. It wraps at
-   320 px instead of pushing the action past the screen edge. */
-.home__football {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-3);
-  min-width: 0;
-}
-
-.home__football-icon {
-  flex: none;
-  color: var(--color-muted);
-}
-
-.home__football-min {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-1);
-  flex: none;
-  color: var(--color-muted);
-}
-
-.home__football-action {
-  margin-left: auto;
-}
-
-/* The imported count: the watch glyph says where those rows came from, the sentence says
-   how many. */
-.home__imported {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-}
-
-.home__imported-icon {
-  flex: none;
-  color: var(--color-muted);
-}
-
 /* One primary action per screen (design-system §7.1), in the thumb zone. */
 .home__primary {
   width: 100%;
 }
 
-.home__last {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-
-.home__last-main {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
-.home__last-volume {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-1);
-  flex: none;
-  color: var(--color-text);
-}
-
-/* The last closed session, under the agenda: history, read-only context. */
-
-/* One recorded activity per line: what it is, its date, and its bin. It wraps instead of
-   pushing the card past a 390 px screen. */
-.home__activity {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.home__activity-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-3);
-  min-width: 0;
-}
-
-.home__activity-main {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-1) var(--space-2);
-  min-width: 0;
-}
-
-/* The bin: a 48 px target around a 20 pt glyph, in the muted ink a secondary control
-   uses. It is a real button, so focus, activation and the accessible name come free. */
-.home__bin {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: var(--target-min);
-  min-height: var(--target-min);
-  margin: 0 calc(-1 * var(--space-3)) 0 0;
-  border-radius: var(--radius-control-square);
+/* S12 — the kilos of the last session: one line under the week, the only number the
+   screen keeps, and no card around it. */
+.home__last-line {
+  margin: 0;
   color: var(--color-muted);
-}
-
-.home__bin-icon {
-  display: block;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: var(--icon-stroke);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-/* The inline question of S5: the bin is replaced by «¿Eliminar? Sí / Cancelar», in the
-   same row, so nothing covers the screen and nothing has to be dismissed. It wraps at
-   320 px instead of clipping the two buttons. */
-.home__confirm {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  margin-left: auto;
-}
-
-.home__confirm-ask {
-  font-family: var(--font-sans);
-  font-size: var(--text-meta);
-  line-height: var(--leading-meta);
-  color: var(--color-muted);
-}
-
-/* The fixture of the week (T3, S7): `Liga · jueves` and the quiet action that flips it, on
-   one line that wraps at 320 px. The line is muted and the button is the text button, so
-   neither competes with the day's action for the accent fill (§7.1). */
-.home__fixture {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-2);
-  min-width: 0;
-}
-
-.home__fixture-flip {
-  margin-left: auto;
 }
 
 /* --------------------------------------------------------------- the agenda (T4) */
@@ -285,8 +92,8 @@
 /* The week's accent lives here, not in `agenda.css`: this file carries Inicio's allow-list
    (`tests/accent-budget.test.ts`), and every declaration below is one of the four roles
    that list already argues for — today's marker, its text flavour, the tinted active state
-   of the drop target, and the selected option of the day sheet. `agenda.css` keeps the
-   geometry and calls that out where it would otherwise have painted. */
+   of the drop target, and the selected option of a sheet. `agenda.css` keeps the geometry
+   and calls that out where it would otherwise have painted. */
 
 /* Today's edge: the single data point Inicio exists to answer. */
 .home-agenda__row--today {
@@ -308,7 +115,8 @@
   color: var(--color-accent-text);
 }
 
-/* The chosen plan day of the sheet: a selected option, tinted and never a filled pill. */
+/* The chosen plan day of the day sheet, and the chosen fixture of the match sheet: a
+   selected option, tinted and never a filled pill. */
 .home-agenda-sheet__option--current {
   border-color: var(--color-accent);
   background: var(--color-accent-muted);

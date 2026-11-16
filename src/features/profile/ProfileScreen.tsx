@@ -30,7 +30,7 @@
  * and the export file name and the launch marker both come from it.
  */
 
-import { Suspense, lazy, useCallback, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Banner,
   Card,
@@ -135,6 +135,35 @@ export function ProfileScreen(): React.ReactElement {
     },
     [clock, reload, storage],
   );
+
+  /**
+   * T9 (S12) — the imported activities, one-off bookkeeping that used to sit in Inicio.
+   *
+   * Inicio stopped counting what arrived from elsewhere: the week is what that screen is
+   * for, and a read-only row count is not part of it. It is Perfil's, next to the store
+   * it describes. `null` until the store answers (and after a failed read), so the line
+   * never claims a number it does not have; it re-reads when the snapshot's own activity
+   * count changes, which is what an import moves.
+   */
+  const [importedActivities, setImportedActivities] = useState<number | null>(null);
+  const activityCount = data.snapshot.activities;
+
+  useEffect(() => {
+    if (data.phase !== 'ready') return undefined;
+    let cancelled = false;
+    void storage.activities.all().then(
+      (rows) => {
+        if (cancelled) return;
+        setImportedActivities(rows.filter((row) => row.provenance !== 'manual').length);
+      },
+      () => {
+        if (!cancelled) setImportedActivities(null);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [storage, data.phase, activityCount]);
 
   const installed = installState(data.installed);
   const updateView = updateState({
@@ -246,6 +275,17 @@ export function ProfileScreen(): React.ReactElement {
             answer={data.storageAnswer}
             onChanged={() => void reload()}
           />
+
+          {/* S12: what arrived from outside the app, where the store is described. The
+              rows are read-only here — a health import cannot be edited by hand. */}
+          {importedActivities === null || importedActivities === 0 ? null : (
+            <Note>
+              {importedActivities === 1
+                ? '1 actividad importada'
+                : `${String(importedActivities)} actividades importadas`}
+              : llegaron de fuera y no se editan aquí.
+            </Note>
+          )}
 
           <InstallGroup install={installed} schemaVersion={BACKUP_SCHEMA_VERSION} />
         </>

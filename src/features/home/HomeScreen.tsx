@@ -1,49 +1,35 @@
 /*
- * Inicio — the screen that answers "what do I do now?" (design-system §8).
+ * Inicio — the week, and very little else (S12, T9).
  *
- * The reference direction (design/rupfit-inspiration/01-reference-flow.html) fixes the
- * order and this file follows it: a top row with the mark and the week, the title
- * «¡Vamos a entrenar!», and one protagonist block for the day that carries its own
- * action. The personalised name and the date stay on screen under the title, smaller
- * than the action; the last session, the body weight, the activity (the manual football
- * capture, the rows it writes and the imported count) and the empty states move below
- * it. The one platform notice Inicio still tells is the loss of the stored data: it sits
- * under the day, never above it. The install advisory belongs to Perfil alone (S2, S5).
+ * The owner opened Inicio and said it had too many things: «lo que sobre de ahí de ese
+ * inicio lo quites porque ... había muchas cosas y era muy lioso», and then «si, recorta».
+ * What is left is the screen he asked for: the mark and the date, the week's rows, the one
+ * action a row could not carry, one line with the kilos of the last session, and the two
+ * notices that are not decoration — a start that failed and a store that came back empty.
  *
- * Three rules of the hierarchy, all of them the owner's words (odd/tasks/home-hierarchy):
+ * | what used to be here                    | where it went                      |
+ * | --------------------------------------- | ---------------------------------- |
+ * | the big card of today (`home__hero`)    | nowhere: its row already says the day |
+ * | the fixture line and its flip           | the match row, whose sheet writes it |
+ * | the match report                        | the match row, next to the ball    |
+ * | `0 de 4 entrenos hechos`                | nowhere: each row says `Hecho` or `Pendiente` |
+ * | the hint paragraph                      | inside the day sheet, where the move is made |
+ * | the activities and their bin            | Progreso (`ProgressScreen.tsx`)    |
+ * | the imported notice                     | Perfil (bookkeeping, not the week)  |
+ * | the last-session card and the weight    | one line: `Última: PIERNA · 3.480 kg` |
  *
- * 1. The mark goes top-left and bigger (S1); the week is a graphic in the top-right
- * corner with no sentence next to it (S2).
- * 2. Today's session is *one* card — the day, its numbers and the start action inside
- * it (S3) — with no label above it and no narration around it (S4). The primary action
- * is the only accent fill of the screen, wherever it is drawn (design-system §7.1).
- * 3. A recorded activity is deleted through its bin, which asks first (S5). The
- * confirmation is inline state, never a browser dialog.
- *
- * The file holds no decision worth testing: `homeViewOf` decides, this renders. Two
- * rules it does keep:
+ * The file holds no decision worth testing: `homeViewOf` decides, this renders. Two rules
+ * it does keep:
  *
  * 1. **No `Date.now()` and no port construction.** The clock and the storage instance
  *    arrive from `AppProvider` (`src/app/providers.tsx`); a demo mounts this screen with
  *    its own fixtures through the same props.
  * 2. **No invented facts.** When the store answers nothing the screen shows the empty
- *    version — a dashed card saying so — never a zero dressed as a measurement.
+ *    version — a note saying so — never a zero dressed as a measurement.
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Banner,
-  Card,
-  Chip,
-  ErrorBanner,
-  Icon,
-  MetricTile,
-  PrimaryAction,
-  SectionLabel,
-  Sparkline,
-  TextButton,
-  type IconName,
-} from '../../design-system';
+import { Banner, ErrorBanner, Icon, PrimaryAction, type IconName } from '../../design-system';
 import type { StoragePort, WeekLayout, WeekRecord } from '../../storage';
 import type { MatchKind } from '../../core/engine/week-plan';
 import { useAppServices } from '../../app/providers';
@@ -59,15 +45,13 @@ import {
   type AgendaWeekView,
 } from './agenda';
 import { DemoHome } from './DemoHome';
-import { ACTIVITY_DELETE_COPY, useActivityDeletion, type ActivityDeletionState } from './deletion';
-import { FOOTBALL_DURATION_MINUTES, useFootballCapture } from './football';
+import { useFootballCapture } from './football';
 import { demoFlagOf, useLocationKey } from './useHash';
-import { formatDayName } from './format';
 import {
   homeViewOf,
+  lastVolumeLineOf,
   todayRowOf,
   HOME_SESSION_WINDOW,
-  type ActivityEntryView,
   type HomeActionView,
   type HomeInput,
   type HomeView,
@@ -145,25 +129,12 @@ async function readHome(
 }
 
 /**
- * T8 (S1, S12) — the match and the rest day, the two days the week names and the gym does
- * not fill. The agenda already says which of the two today is, and both draw their own
- * card instead of the «sin ejercicios» sentence. T6: the answer comes from the same
- * `WeekAgenda` the rows read, so a day the owner moved away is the rest day it is now.
- */
-export type OffDay = 'match' | 'rest';
-
-/** The match or the rest day the week places today, or `null` on a training day. */
-export function offDayOf(input: HomeInput): OffDay | null {
-  const kind = todayRowOf(input)?.kind;
-  return kind === 'match' || kind === 'rest' ? kind : null;
-}
-
-/**
  * T8 (S1) — whether the match of this week has already been reported.
  *
  * A read, never a second store: the football row of today's date is the week's whole
  * memory of it (`reportedMatchOf`), so a second visit does not offer the report again and
- * nothing can double-write the day (T8).
+ * nothing can double-write the day (T8). Since T9 the answer is drawn on the match row,
+ * which is where the report itself lives now.
  */
 export function matchReportedOf(input: HomeInput): boolean {
   const row = todayRowOf(input);
@@ -274,16 +245,12 @@ export interface HomeProps {
   readonly onNavigate?: ((href: string) => void) | undefined;
   /**
    * Starts the session the row names (T5): the agenda hands the plan day of its row, and
-   * the card without an agenda hands nothing, so the rotation decides.
+   * a screen with no agenda hands nothing, so the rotation decides.
    */
   readonly onStart: (planDayId?: string | null) => void;
   /** True while the write is in flight: the action is disabled and says so (S3). */
   readonly starting?: boolean | undefined;
   readonly startNotice?: StartNotice | null | undefined;
-  /** Writes the manual football activity. Absent: the capture is not offered. */
-  readonly onRecordFootball?: (() => void) | undefined;
-  readonly recording?: boolean | undefined;
-  readonly footballNotice?: string | null | undefined;
   /**
    * T4 — the week, as seven dated rows over the effective layout. Absent (an empty plan,
    * the gallery): Inicio draws no agenda and keeps its honest empty states.
@@ -294,30 +261,26 @@ export interface HomeProps {
   /** The sentence of a write that failed; the week on screen is still the previous one. */
   readonly placementNotice?: string | null | undefined;
   readonly onRetryPlacement?: (() => void) | undefined;
-  /** T8 — the match or the rest day the week names, so the card can name it too. */
-  readonly offDay?: OffDay | null | undefined;
-  /** T8 — the match of this week has already been reported: the day is done (S1). */
+  /** T8 — the match of this week has already been reported: the row is done (S1). */
   readonly matchReported?: boolean | undefined;
   /**
-   * T8 — reports the match of the day. Absent (a screen with no port, the gallery): the
-   * day still names itself and offers nothing.
+   * T8 — reports the match of the day from its row. Absent (a screen with no port, the
+   * gallery): the row still names itself and offers nothing.
    */
   readonly onReportMatch?: (() => void) | undefined;
   readonly reporting?: boolean | undefined;
   /** The failure line of the last report; `null` until one fails. */
   readonly reportNotice?: string | null | undefined;
   /**
-   * T3 — which fixture this week has and the way to flip it. Absent (a store with no
-   * record, the gallery): the card says nothing about a match (S11).
+   * T3, S12 — which fixture this week has. It is drawn on the match row now; absent (a
+   * store with no record, the gallery) the week says nothing about a match (S11).
    */
   readonly fixture?: WeekFixture | null | undefined;
-  /** Writes the flipped fixture into this week's record. Absent: the action is not offered. */
-  readonly onFlipWeek?: ((match: MatchKind) => void) | undefined;
   /**
-   * The bin and its inline question (S5). Absent: the recorded rows are read-only, which
-   * is what a screen with no port behind it (and the gallery) needs.
+   * Writes the fixture the sheet chose into this week's record. Absent: the sheet is not
+   * offered, and the row is not a control.
    */
-  readonly deletion?: ActivityDeletionState | undefined;
+  readonly onChooseFixture?: ((match: MatchKind) => void) | undefined;
 }
 
 function navigateTo(href: string): void {
@@ -328,18 +291,13 @@ function navigateTo(href: string): void {
 export const HOME_TITLE = '¡Vamos a entrenar!';
 
 /**
- * What the background of the day sheet carries while it is open (§9).
+ * What the background of a sheet carries while it is open (§9).
  *
- * `inert` takes the rows, the card and the sections out of the tab order and out of the
+ * `inert` takes the week and the lines under it out of the tab order and out of the
  * pointer's reach, and `aria-hidden` says the same to a screen reader: a dialog declared
  * `aria-modal` without both is a claim, not a modal.
  */
 const MODAL_BACKGROUND = { inert: true, 'aria-hidden': true } as const;
-
-/** The blocks below draw the view; only the body owns the actions. */
-interface HomeViewOnly {
-  readonly view: HomeView;
-}
 
 /**
  * An empty state, said once: a glyph and the sentence, and no box.
@@ -364,9 +322,9 @@ function HomeNote({ icon, children }: {
 /**
  * The one primary action of the screen, drawn where the view says it belongs.
  *
- * It stays a single component because the same action appears inside the day's card when
- * there is a day, and alone when there is not (a session left open on another day is
- * still resumable, and that is the only way back into its sets).
+ * It stays a single component because the same action is the one the week's row could not
+ * carry: an open session left on another day (the only way back into its sets), the
+ * summary of a closed day, or a store with no week at all.
  */
 function TodayAction({
   action,
@@ -399,431 +357,45 @@ function TodayAction({
 }
 
 /**
- * T3 (S7, S11) — the fixture of this week, and the quiet action that flips it.
- *
- * `Liga · jueves` is the week's shape in the owner's words (L5); next to it,
- * `Esta semana jugamos copa` writes the other kind into the record so the whole week
- * restructures. Neither takes the accent fill: the day's action is the only one (§7.1).
- * A week with no fixture renders no line — no match day to name (S11) — but keeps the
- * action, so the owner can always say that this one is the cup.
- */
-function WeekFixtureLine({
-  fixture = null,
-  onFlipWeek,
-}: {
-  readonly fixture?: WeekFixture | null | undefined;
-  readonly onFlipWeek?: ((match: MatchKind) => void) | undefined;
-}): React.ReactElement | null {
-  if (fixture === null) return null;
-  return (
-    <div className="home__fixture">
-      {fixture.label === null ? null : <span className="ds-meta">{fixture.label}</span>}
-      {onFlipWeek === undefined ? null : (
-        <TextButton align="start" className="home__fixture-flip" onClick={() => onFlipWeek(fixture.next)}>
-          {fixture.action}
-        </TextButton>
-      )}
-    </div>
-  );
-}
-
-/**
- * Today's session as one protagonist block (S3, S4).
- *
- * The card holds the day, its short detail and the prescribed sets — the owner's «hoy
- * toca esto» — and nothing sits above it: the old `Tu próxima sesión` label narrated what
- * the title already says. What remains are the facts the store can prove: the phase, the
- * prescribed sets, the completed line, and the one chip that says a preview is not a
- * stored session yet.
- *
- * T4 moved the start of the day onto the agenda's today row, which is where the week is
- * read: the card draws `action` only when the row could not carry it (an open session
- * from another day, a closed session's summary), so the screen still has exactly one
- * filled violet control (§7.1). The match day and the rest day keep their own card: the
- * match is reported, never trained, and a rest day asks nothing of the gym.
- */
-function TodayBlock({
-  view,
-  action = null,
-  offDay = null,
-  matchReported = false,
-  fixture = null,
-  onStart,
-  onNavigate = navigateTo,
-  onReportMatch,
-  reporting = false,
-  reportNotice = null,
-  onFlipWeek,
-  starting = false,
-}: HomeViewOnly & {
-  /** The action the agenda's today row could not carry, if any. */
-  readonly action?: HomeActionView | null | undefined;
-  readonly offDay?: OffDay | null | undefined;
-  readonly matchReported?: boolean | undefined;
-  readonly fixture?: WeekFixture | null | undefined;
-  readonly onStart: (planDayId?: string | null) => void;
-  readonly onNavigate?: ((href: string) => void) | undefined;
-  readonly onReportMatch?: (() => void) | undefined;
-  readonly reporting?: boolean | undefined;
-  readonly reportNotice?: string | null | undefined;
-  readonly onFlipWeek?: ((match: MatchKind) => void) | undefined;
-  readonly starting?: boolean | undefined;
-}): React.ReactElement {
-  const today = view.today;
-  // A preview is the rotation's next day, not a stored session. The old caption said it
-  // in a sentence; a chip says the same thing in one word (S2).
-  const preview = today !== null && today.state === 'preview';
-
-  if (today === null) {
-    return (
-      <section className="home__section">
-        {/* S1, S12: the match is reported, never trained, and a rest day asks nothing of
-            the gym. Neither one is «sin ejercicios», which is about a plan day not filled. */}
-        {offDay === 'match' ? (
-          <Card>
-            <div className="home__card-head">
-              <Icon name="heart" size={20} className="home__card-icon" />
-              <h2 className="ds-card-title">Hoy es el día del partido</h2>
-            </div>
-            {/* S1: the fifth day of the week is informed, not trained. Once it has been
-                informed there is nothing left to do on it, and the card says so instead
-                of offering the action again (T8). */}
-            {matchReported ? (
-              <p className="ds-body ds-body--muted">Partido informado. Hoy no hay entreno.</p>
-            ) : (
-              <>
-                <p className="ds-body ds-body--muted">
-                  Hoy se juega: el partido se informa, no se entrena. Dímelo cuando lo hayas jugado.
-                </p>
-                {onReportMatch === undefined ? null : (
-                  <PrimaryAction
-                    icon="check"
-                    className="home__primary"
-                    disabled={reporting}
-                    onClick={onReportMatch}
-                  >
-                    {reporting ? 'Informando…' : 'Informar el partido'}
-                  </PrimaryAction>
-                )}
-                {reportNotice === null ? null : <p className="ds-body">{reportNotice}</p>}
-              </>
-            )}
-          </Card>
-        ) : offDay === 'rest' ? (
-          <Card>
-            <div className="home__card-head">
-              <Icon name="moon" size={20} className="home__card-icon" />
-              <h2 className="ds-card-title">Hoy descansas</h2>
-            </div>
-            <p className="ds-body ds-body--muted">
-              No hay entreno hoy. El descanso también es parte de la semana.
-            </p>
-          </Card>
-        ) : view.nothingToday === 'emptyDay' ? (
-          <Card>
-            <div className="home__card-head">
-              <Icon name="dumbbell" size={20} className="home__card-icon" />
-              <h2 className="ds-card-title">Sin ejercicios</h2>
-            </div>
-            <p className="ds-body ds-body--muted">
-              El siguiente día de tu rutina todavía no tiene ejercicios. Añádelos en Entrenar.
-            </p>
-          </Card>
-        ) : (
-          <HomeNote icon="calendar">
-            Todavía no hay rutina ni sesiones programadas. La plantilla de la semana está en Entrenar.
-          </HomeNote>
-        )}
-        <TodayAction action={action} onStart={onStart} onNavigate={onNavigate} starting={starting} />
-        {/* S7: the match day is exactly when the owner knows the cup is next, so the
-            fixture and its flip stay reachable on the two days the gym does not fill. */}
-        <WeekFixtureLine fixture={fixture} onFlipWeek={onFlipWeek} />
-      </section>
-    );
-  }
-
-  return (
-    <Card className="home__hero">
-      <div className="home__hero-head">
-        <span className="home__hero-badge" aria-hidden="true">
-          <Icon name="train" size={20} />
-        </span>
-        <h2 className="ds-card-title ds-card-title--large home__hero-title">
-          {formatDayName(today.dayName)}
-        </h2>
-      </div>
-      <p className="ds-meta">{today.detail}</p>
-      {today.series === null && today.phase === null && !preview ? null : (
-        <div className="home__hero-meta">
-          {today.series === null ? null : <Chip>{today.series}</Chip>}
-          {today.phase === null ? null : <span className="ds-caption">{today.phase}</span>}
-          {preview ? <Chip>Vista previa</Chip> : null}
-        </div>
-      )}
-      {today.done === null ? null : <p className="ds-body">{today.done}</p>}
-      <TodayAction action={action} onStart={onStart} onNavigate={onNavigate} starting={starting} />
-      {/* T4: which workout a day carries is changed on the agenda's own sheet, so the
-          card keeps only the fixture of the week — one mechanism for one question. */}
-      <WeekFixtureLine fixture={fixture} onFlipWeek={onFlipWeek} />
-    </Card>
-  );
-}
-
-function LastSessionCard({ view }: HomeViewOnly): React.ReactElement | null {
-  const last = view.last;
-  if (last === null) return null;
-  return (
-    <section className="home__section">
-      <SectionLabel icon={<Icon name="train" size={14} />}>{last.label}</SectionLabel>
-      <Card>
-        <div className="home__last">
-          <span className="home__last-main">
-            <span className="ds-card-title">{formatDayName(last.dayName)}</span>
-            <span className="ds-meta">{last.detail}</span>
-          </span>
-          <span className="home__last-volume">
-            <span className="ds-numeral ds-numeral--metric-small">{last.volume}</span>
-            <span className="ds-numeral__unit">kg</span>
-          </span>
-        </div>
-      </Card>
-    </section>
-  );
-}
-
-/**
- * The last closed session, as history under the week: it is the only context the agenda
- * cannot give, because the agenda says what is planned and this says what happened.
- */
-function WeightCard({ view }: HomeViewOnly): React.ReactElement | null {
-  const weight = view.weight;
-  if (weight === null) return null;
-  const series = weight.series;
-  return (
-    <section className="home__section">
-      <Card padding="default">
-        <MetricTile
-          label="Peso corporal"
-          value={weight.value}
-          unit="kg"
-          caption={weight.caption}
-          aside={series.length < 2 ? undefined : <Sparkline values={[...series]} />}
-        />
-      </Card>
-    </section>
-  );
-}
-
-/**
- * Activity: what the owner recorded, and then what arrived from elsewhere.
- *
- * Two deliberate changes from the old card, both demanded by S1/S6:
- *
- * 1. The capture is here, and it writes an `ActivityRecord` — never a session. The next
- *    strength day above is untouched by it; the row says that by being an activity and
- *    nothing else, so the card no longer explains it in prose (S2).
- * 2. `N actividades importadas` used to cover every row, so a manually recorded football
- *    match would have read as an imported health sample. Manual rows are now named for
- *    what they are (`Fútbol registrado`) with their date and duration, and only the rows
- *    Rupfit did not write are counted as imported.
- */
-/**
- * The bin the owner asked for (S5): 20 pt, 24 × 24 grid, 1.8 stroke, `currentColor`.
- *
- * The design system's icon set has no bin and §4 puts the shared glyphs in one place; the
- * shape lives here because the only screen that deletes is this one. It is `aria-hidden`:
- * the button that wraps it carries the accessible name.
- */
-function BinGlyph(): React.ReactElement {
-  return (
-    <svg className="home__bin-icon" viewBox="0 0 24 24" width={20} height={20} aria-hidden="true" focusable="false">
-      <path d="M4 7h16M9.5 4.5h5M6.5 7l.8 11.6A2 2 0 0 0 9.3 20.5h5.4a2 2 0 0 0 2-1.9L17.5 7M10 10.5v6M14 10.5v6" />
-    </svg>
-  );
-}
-
-/**
- * One recorded activity: what it is, its date and duration, and its bin.
- *
- * The bin never deletes on its own (S5, L3): the first tap only asks, and the question
- * replaces the bin in place — «¿Eliminar? Sí / Cancelar». A row mid-question keeps its
- * own two 48 px buttons rather than a dialog, so nothing covers the screen and nothing
- * has to be dismissed before the owner can change his mind.
- */
-function ActivityRow({
-  row,
-  deletion,
-}: {
-  readonly row: ActivityEntryView;
-  readonly deletion?: ActivityDeletionState | undefined;
-}): React.ReactElement {
-  const asking = deletion !== undefined && deletion.pendingId === row.id;
-  return (
-    <div className="home__activity-row" role="listitem">
-      <span className="home__activity-main">
-        <span className="ds-body">{row.label}</span>
-        <span className="ds-meta">{row.detail}</span>
-      </span>
-      {deletion === undefined ? null : asking ? (
-        <span className="home__confirm">
-          <span className="home__confirm-ask">{ACTIVITY_DELETE_COPY.ask}</span>
-          <TextButton
-            tone="danger"
-            disabled={deletion.busy}
-            onClick={() => deletion.confirm(row.id)}
-          >
-            {ACTIVITY_DELETE_COPY.confirm}
-          </TextButton>
-          <TextButton disabled={deletion.busy} onClick={deletion.cancel}>
-            {ACTIVITY_DELETE_COPY.cancel}
-          </TextButton>
-        </span>
-      ) : (
-        <button
-          type="button"
-          className="ds-action home__bin"
-          aria-label={row.removeLabel}
-          onClick={() => deletion.ask(row.id)}
-        >
-          <BinGlyph />
-        </button>
-      )}
-    </div>
-  );
-}
-
-function ActivitySection({
-  view,
-  onRecordFootball,
-  recording = false,
-  footballNotice = null,
-  deletion,
-}: HomeViewOnly & {
-  readonly onRecordFootball?: (() => void) | undefined;
-  readonly recording?: boolean | undefined;
-  readonly footballNotice?: string | null | undefined;
-  readonly deletion?: ActivityDeletionState | undefined;
-}): React.ReactElement {
-  const activity = view.activity;
-  return (
-    <section className="home__section">
-      <SectionLabel icon={<Icon name="heart" size={14} />}>Actividad</SectionLabel>
-
-      {/* One compact row: the glyph, the word, the duration as a figure, the action.
-          The prose that used to sit here («50 minutos, dos partes de 25. Se guarda como
-          actividad: no cuenta como sesión…») explained a fact the row already proves —
-          the match is an activity by construction, and the rotation above never saw it
-          (S2, S6). */}
-      <Card padding="dense" label="Fútbol">
-        <div className="home__football">
-          <Icon name="clock" size={20} className="home__football-icon" />
-          <span className="ds-card-title">Fútbol</span>
-          <span className="home__football-min">
-            <span className="ds-numeral ds-numeral--metric-small">
-              {String(FOOTBALL_DURATION_MINUTES)}
-            </span>
-            <span className="ds-numeral__unit">min</span>
-          </span>
-          {onRecordFootball === undefined ? null : (
-            <TextButton
-              icon="plus"
-              align="start"
-              className="home__football-action"
-              disabled={recording}
-              onClick={onRecordFootball}
-            >
-              {recording ? 'Guardando…' : 'Registrar'}
-            </TextButton>
-          )}
-        </div>
-        {/* A plain result line: no modal, no timer, and no claim about a screen that has
-            not re-read yet. */}
-        {footballNotice === null ? null : <p className="ds-body">{footballNotice}</p>}
-      </Card>
-
-      {activity.recorded.length === 0 ? null : (
-        <Card padding="dense" label="Actividad registrada">
-          <div className="home__activity" role="list">
-            {activity.recorded.map((row) => (
-              <ActivityRow
-                key={row.id}
-                row={row}
-                {...(deletion === undefined ? {} : { deletion })}
-              />
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {/* What the removal did, in one line: the row disappears on its own when the
-          screen re-reads, so there is no toast to dismiss. */}
-      {deletion === undefined || deletion.notice === null ? null : (
-        <p className="ds-body">{deletion.notice}</p>
-      )}
-
-      {activity.imported === 0 ? null : (
-        <Card>
-          <div className="ds-row">
-            <span className="home__imported">
-              <Icon name="watch" size={20} className="home__imported-icon" />
-              <span className="ds-body">
-                {activity.imported === 1
-                  ? '1 actividad importada'
-                  : `${String(activity.imported)} actividades importadas`}
-              </span>
-            </span>
-            <Chip>Sólo lectura</Chip>
-          </div>
-        </Card>
-      )}
-
-      {activity.empty ? (
-        <HomeNote icon="heart">
-          Todavía no hay actividad registrada. Esto no impide entrenar.
-        </HomeNote>
-      ) : null}
-    </section>
-  );
-}
-
-/**
  * The screen's body. It takes the view, never the store, so the demo and the tests of
  * the selectors describe the same screen.
+ *
+ * T9 (S12) — this is the whole of Inicio after the cut: the header, the week, the one
+ * action the week's row could not carry, one line with the kilos of the last session, and
+ * the two notices that are not decoration (a start that failed, a store that came back
+ * empty). The day card, the count, the hint, the activities and the imported notice left;
+ * the fixture and the match report moved onto the match row (`agenda.tsx`).
  */
 export function HomeBody({
   view,
   agendaWeek = null,
-  offDay = null,
   matchReported = false,
   fixture = null,
   onStart,
   onNavigate = navigateTo,
   starting = false,
   startNotice = null,
-  onRecordFootball,
-  recording = false,
-  footballNotice = null,
   onReportMatch,
   reporting = false,
   reportNotice = null,
   onPlace,
   placementNotice = null,
   onRetryPlacement,
-  onFlipWeek,
-  deletion,
+  onChooseFixture,
 }: HomeProps): React.ReactElement {
   const navigate = onNavigate;
-  // T4: the agenda's today row carries the action, so the card below draws one only when
-  // the row could not — the screen never offers two ways into the same session (§7.1).
+  // T4: the agenda's today row carries the action, so the screen below draws one only
+  // when the row could not — the screen never offers two ways into the same session
+  // (§7.1). T9 leaves the action and removes the card it used to sit in.
   const rowAction = agendaWeek?.action ?? null;
   const looseAction = rowAction === null ? view.action : null;
-  // §9 — the day sheet is `aria-modal` and traps Tab, so the screen behind it must leave
-  // the accessibility tree too. The sheet is drawn inside the agenda (the artboard wants
-  // it in the week, not over it), so this is the only place that knows both halves: the
-  // rows and the card below go `inert` and hidden from assistive technology while the
-  // dialog is open. The shell's tab bar lives in `src/app/App.tsx`, outside this screen and
-  // outside this task's edit surface; it stays reachable, which is a known gap, not a
-  // silent one.
+  const lastLine = lastVolumeLineOf(view.last);
+  // §9 — a sheet is `aria-modal` and traps Tab, so the screen behind it must leave the
+  // accessibility tree too. The sheets are drawn inside the week (the artboard wants them
+  // in the week, not over it), so this is the only place that knows both halves: the week,
+  // the line and the notices go `inert` and hidden from assistive technology while one is
+  // open. The shell's tab bar lives in `src/app/App.tsx`, outside this screen and outside
+  // this task's edit surface; it stays reachable, which is a known gap, not a silent one.
   const [sheetOpen, setSheetOpen] = useState(false);
   const background = sheetOpen ? MODAL_BACKGROUND : {};
 
@@ -848,9 +420,13 @@ export function HomeBody({
         <p className="ds-meta">{`${view.greeting} · ${view.dateLine}`}</p>
       </header>
 
-      {/* T4: the week, seven rows, under the header and above the day's detail. The day
-          the agenda does not draw (no plan, no agenda) keeps its own card below. */}
-      {agendaWeek === null ? null : (
+      {/* T4, S12: the week, seven rows, is the screen. The match row carries the fixture
+          of the week and its report; the day sheet carries the hint the list gave up. */}
+      {agendaWeek === null ? (
+        <HomeNote icon="calendar">
+          Todavía no hay rutina ni sesiones programadas. La plantilla de la semana está en Entrenar.
+        </HomeNote>
+      ) : (
         <AgendaWeek
           week={agendaWeek}
           starting={starting}
@@ -859,31 +435,35 @@ export function HomeBody({
           {...(onPlace === undefined ? {} : { onPlace })}
           placementNotice={placementNotice}
           {...(onRetryPlacement === undefined ? {} : { onRetryPlacement })}
+          fixture={fixture}
+          matchReported={matchReported}
+          {...(onChooseFixture === undefined ? {} : { onChooseFixture })}
+          {...(onReportMatch === undefined ? {} : { onReportMatch })}
+          reporting={reporting}
         />
       )}
 
-      {/* Everything the dialog covers, in one block, so one attribute hides it (T6, §9). */}
+      {/* Everything a sheet covers, in one block, so one attribute hides it (T6, §9). */}
       <div className="home__below" {...background}>
-        {/* The day, its numbers and — only when the agenda's row could not carry it — the
-            action that starts it. One accent fill on the screen at a time (§7.1). */}
-        <TodayBlock
-          view={view}
+        {/* The one filled control, and only when the week's row could not carry it: an
+            open session, the summary of a closed day, or a store with no week at all. */}
+        <TodayAction
           action={looseAction}
-          offDay={offDay}
-          matchReported={matchReported}
-          fixture={fixture}
           onStart={onStart}
           onNavigate={navigate}
-          onReportMatch={onReportMatch}
-          reporting={reporting}
-          reportNotice={reportNotice}
-          onFlipWeek={onFlipWeek}
           starting={starting}
         />
 
-        {/* Everything below is secondary to the day above: why nothing opened (§7.8) and
-            the store's own bad news. A failed write offers `Reintentar`; a missing profile
-            sends the owner to the tab that can fix it, because a retry cannot. */}
+        {/* S12: the only number left on Inicio, and a line rather than a card. With no
+            closed session the line does not exist at all. */}
+        {lastLine === null ? null : <p className="ds-meta home__last-line">{lastLine}</p>}
+
+        {/* A report that failed is said once, next to the row that can repeat it. */}
+        {reportNotice === null ? null : <p className="ds-body">{reportNotice}</p>}
+
+        {/* Why nothing opened (§7.8) and the store's own bad news. A failed start offers
+            `Reintentar`; a missing profile sends the owner to the tab that can fix it,
+            because a retry cannot. */}
         {startNotice === null ? null : startNotice.tone === 'danger' ? (
           <ErrorBanner
             message={startNotice.message}
@@ -900,8 +480,8 @@ export function HomeBody({
         )}
 
         {/* §7.8, S5: the only platform state Inicio still tells — the store opened and the
-            data is gone. The install advisory that used to sit here is Perfil's alone now
-            (S2): it explained the platform on the screen that answers «what do I do now?». */}
+            data is gone. It is the way back into a lost store, so it is not decoration and
+            it is not noise. */}
         {view.notice.evicted ? (
           <Banner
             tone="danger"
@@ -918,18 +498,6 @@ export function HomeBody({
             Todavía no hay sesiones. La primera aparecerá aquí cuando la termines.
           </HomeNote>
         )}
-
-        {/* The last session the agenda above contains, then what the store measured:
-            history, read-only context under the week. */}
-        <LastSessionCard view={view} />
-        <WeightCard view={view} />
-        <ActivitySection
-          view={view}
-          {...(onRecordFootball === undefined ? {} : { onRecordFootball })}
-          recording={recording}
-          footballNotice={footballNotice}
-          {...(deletion === undefined ? {} : { deletion })}
-        />
       </div>
     </div>
   );
@@ -961,22 +529,17 @@ export function HomeScreenWithPort({
   const start = useStartSession({ storage, clock, onNavigate });
 
   // One counter serves the retry, the re-read after a write and the re-read after a
-  // removal. It is a read, not a navigation: recording or deleting an activity must leave
-  // the owner on Inicio, on the same day.
+  // removal. It is a read, not a navigation: whatever was written must leave the owner on
+  // Inicio, on the same day.
   const refresh = useCallback(() => setAttempt((value) => value + 1), []);
-  const capture = useFootballCapture({ storage, clock, onSaved: refresh });
-  // T8/S1: the report of the match, on the day the week calls the match. It is a second
-  // instance of the same capture, guarded (`reportMatch`), so the day is informed once
-  // and the screen re-reads into the done state instead of offering it again.
+  // T8/S1: the report of the match, on the day the week calls the match. It writes the
+  // guarded row (`reportMatch`), so the day is informed once and the screen re-reads into
+  // the done state instead of offering it again. Since T9 it is drawn on the match row.
   const report = useFootballCapture({ storage, clock, onSaved: refresh, match: true });
-  // T4: the placement is written through the agenda's own seam and the screen re-reads,
-  // so the week drawn is the week saved. A failed write keeps the previous layout and
-  // leaves one sentence and one retry on screen (S5).
-  const deletion = useActivityDeletion({ storage, onDeleted: refresh });
-  // T3/S7: the fixture is a fact of the week, so the flip writes the record and the screen
-  // re-reads — the same shape the agenda's placement has. A write that did not happen
-  // re-reads nothing, so the card never shows half a cup week.
-  const flipWeek = useCallback(
+  // T3/S7, S12: the fixture is a fact of the week, so the sheet's choice writes the record
+  // and the screen re-reads — the same shape the agenda's placement has. A write that did
+  // not happen re-reads nothing, so the week never shows half a cup week.
+  const chooseFixture = useCallback(
     (match: MatchKind) => {
       void saveWeekMatch(storage, clock.now(), match).then(
         (written) => {
@@ -1026,10 +589,8 @@ export function HomeScreenWithPort({
       onStart={start.start}
       starting={start.busy}
       startNotice={start.notice}
-      capture={capture}
       report={report}
-      flipWeek={flipWeek}
-      deletion={deletion}
+      chooseFixture={chooseFixture}
       placement={placement}
       onPlacement={setPlacement}
       refresh={refresh}
@@ -1051,10 +612,8 @@ function HomeScreenBody({
   onStart,
   starting,
   startNotice,
-  capture,
   report,
-  flipWeek,
-  deletion,
+  chooseFixture,
   placement,
   onPlacement,
   refresh,
@@ -1065,10 +624,8 @@ function HomeScreenBody({
   readonly onStart: (planDayId?: string | null) => void;
   readonly starting: boolean;
   readonly startNotice: StartNotice | null;
-  readonly capture: ReturnType<typeof useFootballCapture>;
   readonly report: ReturnType<typeof useFootballCapture>;
-  readonly flipWeek: (match: MatchKind) => void;
-  readonly deletion: ActivityDeletionState;
+  readonly chooseFixture: (match: MatchKind) => void;
   readonly placement: {
     readonly failed: { readonly planDayId: string; readonly weekday: number } | null;
     readonly notice: string | null;
@@ -1113,15 +670,11 @@ function HomeScreenBody({
     <HomeBody
       view={view}
       agendaWeek={agendaWeek}
-      offDay={offDayOf(input)}
       matchReported={matchReportedOf(input)}
       fixture={weekFixtureOf(input.week)}
       onStart={onStart}
       starting={starting}
       startNotice={startNotice}
-      onRecordFootball={capture.save}
-      recording={capture.busy}
-      footballNotice={capture.notice}
       onReportMatch={report.save}
       reporting={report.busy}
       reportNotice={report.notice}
@@ -1130,8 +683,7 @@ function HomeScreenBody({
       onRetryPlacement={
         failed === null ? undefined : () => place(failed.planDayId, failed.weekday)
       }
-      onFlipWeek={flipWeek}
-      deletion={deletion}
+      onChooseFixture={chooseFixture}
       {...(onNavigate === undefined ? {} : { onNavigate })}
     />
   );

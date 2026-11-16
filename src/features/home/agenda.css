@@ -16,15 +16,6 @@
   min-width: 0;
 }
 
-/* `3 de 4 entrenos hechos` — the sentence the meter drew as segments (S2). */
-.home-agenda__count {
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: var(--text-meta);
-  line-height: var(--leading-meta);
-  color: var(--color-muted);
-}
-
 .home-agenda {
   display: flex;
   flex-direction: column;
@@ -233,8 +224,21 @@
   width: 100%;
 }
 
+/* S12 — the hint is live feedback now: it exists only while a row is in the hand, so
+   nothing permanent explains a gesture the owner already knows. */
 .home-agenda__hint {
   margin: 0;
+}
+
+/* S12 — the fixture line, when a week with no match has no row to carry it. Quiet, under
+   the rows, and it opens the same sheet the match row does. */
+.home-agenda__fixture {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+  min-width: 0;
 }
 
 /* A refusal, said once and quietly: the smallest voice the screen has (S6). */
@@ -367,6 +371,12 @@
   font-size: var(--text-meta);
   line-height: var(--leading-meta);
   font-weight: var(--weight-semibold);
+}
+
+/* S12 — the sentence about dragging, inside the day sheet: the move is explained where it
+   is made, and it is the last line of the sheet. */
+.home-agenda-sheet__hint {
+  margin: 0;
 }
 
 /* Motion is the system's, and the owner's request wins: nothing essential is animated
