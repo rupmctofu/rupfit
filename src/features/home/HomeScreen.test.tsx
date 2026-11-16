@@ -661,12 +661,16 @@ function agendaWeekOf(overrides: Partial<HomeInput>) {
   return { fixture, view, week };
 }
 
-describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10)', () => {
-  it('draws seven rows, Monday to Sunday, each with its state in words', () => {
+describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10, S11)', () => {
+  it('draws the weekdays, each with its state in words, and stops at Friday (S11)', () => {
     const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
 
-    // Seven rows, Monday first: the week is a list, not a strip (direction 02).
-    expect(markup.split('data-weekday="').length - 1).toBe(7);
+    // Monday to Friday: the owner asked for the weekend out of the list (S11), and a
+    // weekend that carries nothing has nothing to say. The derivation still holds seven
+    // days; only the list is short.
+    expect(markup.split('data-weekday="').length - 1).toBe(5);
+    expect(markup).not.toContain('data-weekday="5"');
+    expect(markup).not.toContain('data-weekday="6"');
     // The day, its number, the name in full, its numbers, then the state in one word.
     expect(rowOf(markup, 0)).toContain('LUN');
     expect(rowOf(markup, 0)).toContain('Lunes');
@@ -677,14 +681,29 @@ describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10)', () => {
     expect(rowOf(markup, 2)).toContain('Hoy');
     expect(rowOf(markup, 3)).toContain('Partido · Liga');
     expect(rowOf(markup, 3)).toContain('Fijo');
-    expect(rowOf(markup, 5)).toContain('Descanso');
-    expect(rowOf(markup, 5)).toContain('Sin entreno');
-    expect(rowOf(markup, 6)).toContain('Libre');
     // The count the meter drew is a sentence above the rows now.
     expect(markup).toContain('0 de 4 entrenos hechos');
     expect(markup).toContain(AGENDA_HINT);
     // No plan, no week to date: the honest empty state keeps its place.
     expect(render({ plan: [] })).not.toContain('home-agenda__row');
+  });
+
+  it('brings a weekend row back when the owner places a workout there (S11)', () => {
+    // A short list may never hide a training: the Saturday row returns with its workout.
+    const withSaturday = layoutWith([
+      'seed-day-leg',
+      'seed-day-torso-a',
+      'seed-day-fisico',
+      null,
+      null,
+      'seed-day-torso-b',
+      null,
+    ]);
+    const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK, weekLayout: withSaturday });
+
+    expect(rowOf(markup, 5).toLowerCase()).toContain('torso b');
+    // Sunday still carries nothing, so it stays out.
+    expect(markup).not.toContain('data-weekday="6"');
   });
 
   it('says a done day is done with the check, and refuses a drop on it', async () => {

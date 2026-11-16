@@ -169,6 +169,19 @@ export interface AgendaWeekView {
   warningFor(planDayId: string, weekday: number): string | null;
 }
 
+/**
+ * The rows the list actually draws (S11).
+ *
+ * Monday to Friday is the owner's week, and he asked for the weekend out of the list. The
+ * rule is not "cut the last two days": a Saturday or a Sunday comes back the moment it
+ * carries a plan day of his, because a shorter list may never hide a training. Nothing is
+ * filtered out of `WeekAgenda` — the derivation still holds the seven dated days, and the
+ * count, the done marks and the placement all read it — only out of the list.
+ */
+export function visibleDaysOf(agenda: WeekAgenda): WeekAgenda['days'] {
+  return agenda.days.filter((day) => day.weekday < 5 || day.planDay !== null);
+}
+
 /** The whole view model of the agenda, from the screen's own view. No plan, no agenda. */
 export function agendaWeekViewOf(input: HomeInput, view: HomeView): AgendaWeekView | null {
   const home = view.agenda;
@@ -795,7 +808,7 @@ export function AgendaWeek({
       <p className="home-agenda__count" {...background}>{countLineOf(agenda)}</p>
 
       <ol className="home-agenda" aria-label="Días de la semana" ref={rows} {...background}>
-        {agenda.days.map((day) => (
+        {visibleDaysOf(agenda).map((day) => (
           <AgendaRow
             key={day.date}
             day={day}
