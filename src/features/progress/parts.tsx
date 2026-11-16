@@ -1,10 +1,10 @@
 /**
- * The few layout pieces the Progreso tab shares between its three views.
+ * The few layout pieces the Progreso tab shares between its views.
  *
  * A screen title, the on-screen back control of a drill-down (§8: there is no browser
- * back button in standalone mode), and the segmented control that names the metric
- * being plotted (FR-11.1). Nothing here paints: the classes live in `progress.css`
- * and take every value from the design tokens.
+ * back button in standalone mode), and the segmented control that chooses the tab's panel
+ * — `Evolución`, `Sesiones`, `PRs` (T7). Nothing here paints: the classes live in
+ * `progress.css` and take every value from the design tokens.
  */
 
 import { Icon } from '../../design-system';
@@ -71,8 +71,10 @@ export interface SegmentedProps<T extends string> {
 
 /**
  * The three-way control of the artboard's `.seg`, at the 48 px floor of §3 (the
- * artboard drew 34 px). The selected option is raised and outlined *and* the group
- * reports `aria-pressed`, so the choice is never colour alone (§4).
+ * artboard drew 34 px). The chosen option takes the surface and its hairline and gains
+ * weight, and the group still reports `aria-pressed`, so the choice is never colour alone
+ * (§4). It sits directly under the screen title: three full-width options are one thumb's
+ * reach on a 390 px phone.
  */
 export function Segmented<T extends string>({
   label,

@@ -2,8 +2,10 @@
  * Historial — the session list and the read-out of one session.
  *
  * It is a view of the Progreso tab, not a fifth tab: `#/progreso/historial` (see
- * `navigation.ts`) and an on-screen `‹ Progreso` control, because standalone iOS has
- * no browser back button (§8).
+ * `navigation.ts`) and an on-screen `‹ Historial` control, because standalone iOS has
+ * no browser back button (§8). The tab is titled `Historial` (T7), so this list answers to
+ * the name of what it holds — `Todas las sesiones` — and its read-out is exported: the
+ * tab's `Sesiones` panel opens the same component instead of a second copy of it.
  *
  * The read-out is the Resumen screen's read-out: the same `summarise` of
  * `src/core/session/model.ts`, reached through `summary.ts`, so a session cannot say
@@ -27,9 +29,12 @@ import {
   DataStrip,
   EmptyState,
   ErrorBanner,
+  Icon,
+  Numeral,
   SectionLabel,
   TextButton,
 } from '../../design-system';
+import type { SessionSummary } from '../../core/session/model';
 import type { WorkoutSession } from '../../storage';
 import { exerciseKey, recordsInSession } from './aggregates';
 import {
@@ -44,7 +49,6 @@ import { exerciseUsages, type ExerciseUsage } from './exerciseDetail';
 import {
   durationMinutes,
   formatDayMonth,
-  formatDurationMinutes,
   formatHoursMinutes,
   formatLongDayMonth,
   formatMonthTitle,
@@ -55,6 +59,65 @@ import {
 import { DrilldownHeader, TrashGlyph } from './parts';
 import { historySessions, isHistorySession, sessionSummary } from './summary';
 import './progress.css';
+
+/**
+ * One session of the history, in the compact shape both lists use (T7).
+ *
+ * The workout is the title; the date and the confirmed sets are its second line; the volume
+ * is the figure on the right. The tab's `Sesiones` panel and the `Historial` drill-down draw
+ * the same row, so a session looks the same wherever it is listed — the drill-down only adds
+ * the bin beside it. The row is a real button, and its accessible name is the sentence of
+ * what it opens. The duration stays in the read-out: the row keeps to the four facts the
+ * history is scanned for.
+ */
+export interface SessionRowProps {
+  readonly session: WorkoutSession;
+  /** The stored session's read-out, from the same `summarise` the Resumen screen uses. */
+  readonly summary: SessionSummary;
+  readonly onSelect: () => void;
+  readonly selectLabel: string;
+  /**
+   * The drill-down's shape: the volume at the row's own size and no chevron, because the
+   * bin already owns the right edge of the row there and the volume is read beside it.
+   */
+  readonly dense?: boolean | undefined;
+}
+
+export function SessionRow({
+  session,
+  summary,
+  onSelect,
+  selectLabel,
+  dense = false,
+}: SessionRowProps): React.ReactElement {
+  return (
+    <button
+      type="button"
+      className="ds-action progress-session"
+      onClick={onSelect}
+      aria-label={selectLabel}
+    >
+      <span className="progress-session__main">
+        <span className="progress-session__name">{session.dayNameSnapshot}</span>
+        <span className="progress-session__meta">
+          {`${formatWeekdayDay(session.scheduledDate)} · ${String(
+            summary.setsConfirmed,
+          )} de ${String(summary.setsPrescribed)} series`}
+        </span>
+      </span>
+      <Numeral
+        value={formatVolume(summary.volumeKg)}
+        unit="kg"
+        size={dense ? 'inline' : 'metric-small'}
+      />
+      {dense ? null : (
+        <span className="progress-session__chevron" aria-hidden="true">
+          <Icon name="chevronRight" size={20} />
+        </span>
+      )}
+    </button>
+  );
+}
 
 export interface HistorialScreenProps {
   /** The sessions the tab read, newest first. */
@@ -245,7 +308,7 @@ export function HistorialScreen({
         session={open}
         all={rows}
         onBack={() => setOpenId(null)}
-        backLabel="Historial"
+        backLabel="Sesiones"
         onOpenExercise={onOpenExercise}
         deleteControl={deleteControl(open, 'readout')}
       />
@@ -255,7 +318,7 @@ export function HistorialScreen({
   if (rows.length === 0 && ghosts.length === 0) {
     return (
       <div className="progress">
-        <DrilldownHeader title="Historial" backLabel="Progreso" onBack={onBack} />
+        <DrilldownHeader title="Todas las sesiones" backLabel="Historial" onBack={onBack} />
         <EmptyState tone="primary" action={{ label: 'Empezar entrenamiento', onClick: onStartTraining }}>
           Todavía no hay sesiones. Cuando termines la primera, aparecerá aquí con su recomendación y
           sus series.
@@ -276,7 +339,7 @@ export function HistorialScreen({
 
   return (
     <div className="progress">
-      <DrilldownHeader title="Historial" backLabel="Progreso" onBack={onBack} />
+      <DrilldownHeader title="Todas las sesiones" backLabel="Historial" onBack={onBack} />
       {ghosts.length === 0 ? null : (
         <div className="progress__group">
           <SectionLabel>Sin series registradas</SectionLabel>
@@ -312,19 +375,15 @@ export function HistorialScreen({
             {group.sessions.map((session) => {
               const summary = summaries.get(session.id);
               if (summary === undefined) return null;
-              const day = formatWeekdayDay(session.scheduledDate);
               return deleteControl(
                 session,
                 'row',
-                <DataRow
-                  icon="barbell"
-                  title={`${day} · ${session.dayNameSnapshot}`}
-                  subtitle={`${
-                    summary.durationMs === null ? 'sin duración' : formatDurationMinutes(summary.durationMs)
-                  } · ${summary.setsConfirmed} de ${summary.setsPrescribed} series`}
-                  value={formatVolume(summary.volumeKg)}
-                  valueUnit="kg"
+                <SessionRow
+                  session={session}
+                  summary={summary}
                   onSelect={() => setOpenId(session.id)}
+                  selectLabel={`Abrir la sesión del ${formatLongDayMonth(session.scheduledDate)}`}
+                  dense
                 />,
               );
             })}
@@ -360,7 +419,7 @@ export function HistorialScreen({
   );
 }
 
-interface SessionReadOutProps {
+export interface SessionReadOutProps {
   readonly session: WorkoutSession;
   readonly all: readonly WorkoutSession[];
   readonly onBack: () => void;
@@ -375,7 +434,7 @@ interface SessionReadOutProps {
  * One session, read out. The same five things as `resumen`: sets against prescribed,
  * duration, volume, the records it set and the per-exercise lines.
  */
-function SessionReadOut({
+export function SessionReadOut({
   session,
   all,
   onBack,

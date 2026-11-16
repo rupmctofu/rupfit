@@ -16,14 +16,15 @@
  * contiguous series that can carry a line.
  *
  * Since the app tier gained the write path, the screen also carries the one input that
- * grows the series (`WeightEntryForm`): above the chart when there is something to draw,
+ * grows the series (`WeightEntryForm`): under the chart when there is something to read,
  * and next to the empty state when there is not, so a fresh install is not a dead end.
+ * T7 moved it under the reading: the screen opens on the evolución the tab links to.
  * Companion modules: `weightEntry.ts` for the rules, `weightSave.ts` for the write — the
  * screen itself owns neither.
  *
- * `LastWeighInTile` and `MeanAndGoalRows` are exported because the `Peso` segment of
- * the tab shows the same two blocks: one implementation, so the tab and the drill-down
- * cannot disagree about a number.
+ * `LastWeighInTile`, `MeanAndGoalRows` and `WeightChart` are exported because the tab's
+ * `Evolución` panel shows the same blocks: one implementation, so the tab and the
+ * drill-down cannot disagree about a number.
  */
 
 import { Card, ChartFrame, Chip, DataRow, EmptyState, LineChart, MetricTile } from '../../design-system';
@@ -118,6 +119,63 @@ function gapNote(series: WeightSeries): string {
   return `Media de los últimos 7 días: ${formatWeight(series.meanKg)} kg.`;
 }
 
+/**
+ * The body-weight chart on its own, with the sentence that explains its gaps.
+ *
+ * The tab's `Evolución` panel and this drill-down draw the same figure, the same axis and
+ * the same provenance line because they draw the same component. `null` when there is no
+ * measurement: an empty chart would be a curve of nothing. The series is the system's first
+ * chart colour — the product's purple — because it is the only series of the figure; the
+ * second and third colours stay for the two-series charts of the session and the exercise.
+ */
+export function WeightChart({
+  series,
+}: {
+  readonly series: WeightSeries;
+}): React.ReactElement | null {
+  const last = series.last;
+  if (last === null) return null;
+
+  const first = series.points[0] ?? last;
+  const values = series.points.map((point) => point.weightKg);
+  const line = weightLineDecision(series);
+
+  return (
+    <>
+      <ChartFrame
+        metric="Peso corporal"
+        window={
+          series.points.length === 1
+            ? '1 pesaje'
+            : `${formatDayMonth(series.windowStart)} – ${formatDayMonth(series.windowEnd)}`
+        }
+        summary={
+          series.points.length === 1
+            ? `Un solo dato: ${formatWeight(last.weightKg)} kg el ${formatDayMonth(last.dayStart)}.`
+            : `${String(values.length)} pesajes, de ${formatWeight(first.weightKg)} a ${formatWeight(
+                last.weightKg,
+              )} kg, del ${formatDayMonth(first.dayStart)} al ${formatDayMonth(last.dayStart)}.`
+        }
+        columns={['peso (kg)']}
+        rows={series.points.map((point) => ({
+          label: formatDayMonth(point.dayStart),
+          values: [formatWeight(point.weightKg)],
+        }))}
+        legend={[{ label: 'pesaje', series: 1 }]}
+      >
+        <LineChart
+          values={values}
+          xLabels={axisLabels(series)}
+          lastLabel={`${formatWeight(last.weightKg)} kg`}
+          dotSeries={1}
+          showLine={line === 'line'}
+        />
+      </ChartFrame>
+      <p className="ds-caption">{gapNote(series)}</p>
+    </>
+  );
+}
+
 export interface WeightScreenProps extends WeightViewProps {
   readonly onBack: () => void;
   /** The provider's instant: the entry's default day and its future-day rule. */
@@ -130,7 +188,7 @@ export function WeightScreen({ series, goal, onBack, now, onSaveWeight }: Weight
   if (series.last === null) {
     return (
       <div className="progress">
-        <DrilldownHeader title="Peso corporal" backLabel="Progreso" onBack={onBack} />
+        <DrilldownHeader title="Peso corporal" backLabel="Historial" onBack={onBack} />
         <EmptyState>
           Todavía no hay pesajes. Cuando guardes el primero, aquí aparecerán la serie, la media de 7
           días y el objetivo.
@@ -140,55 +198,24 @@ export function WeightScreen({ series, goal, onBack, now, onSaveWeight }: Weight
     );
   }
 
-  const last = series.last;
-  const first = series.points[0] ?? last;
-  const values = series.points.map((point) => point.weightKg);
-  const line = weightLineDecision(series);
-
   return (
     <div className="progress">
-      <DrilldownHeader title="Peso corporal" backLabel="Progreso" onBack={onBack} />
+      <DrilldownHeader title="Peso corporal" backLabel="Historial" onBack={onBack} />
 
-      <WeightEntryForm now={now} series={series} onSave={onSaveWeight} />
-
+      {/* The reading first: the weigh-in, the series and the 7-day mean. The entry comes
+          after it (T7), so the screen opens on the evolución the tab links to and the
+          keypad is reached deliberately, not by default. */}
       <Card>
         <LastWeighInTile series={series} goal={goal} />
         <div className="ds-hairline" />
-        <ChartFrame
-          metric="Peso corporal"
-          window={
-            series.points.length === 1
-              ? '1 pesaje'
-              : `${formatDayMonth(series.windowStart)} – ${formatDayMonth(series.windowEnd)}`
-          }
-          summary={
-            series.points.length === 1
-              ? `Un solo dato: ${formatWeight(last.weightKg)} kg el ${formatDayMonth(last.dayStart)}.`
-              : `${String(values.length)} pesajes, de ${formatWeight(first.weightKg)} a ${formatWeight(
-                  last.weightKg,
-                )} kg, del ${formatDayMonth(first.dayStart)} al ${formatDayMonth(last.dayStart)}.`
-          }
-          columns={['peso (kg)']}
-          rows={series.points.map((point) => ({
-            label: formatDayMonth(point.dayStart),
-            values: [formatWeight(point.weightKg)],
-          }))}
-          legend={[{ label: 'pesaje', series: 2 }]}
-        >
-          <LineChart
-            values={values}
-            xLabels={axisLabels(series)}
-            lastLabel={`${formatWeight(last.weightKg)} kg`}
-            dotSeries={2}
-            showLine={line === 'line'}
-          />
-        </ChartFrame>
-        <p className="ds-caption">{gapNote(series)}</p>
+        <WeightChart series={series} />
       </Card>
 
       <Card padding="list">
         <MeanAndGoalRows series={series} goal={goal} />
       </Card>
+
+      <WeightEntryForm now={now} series={series} onSave={onSaveWeight} />
 
       <Card padding="list" label="Pesajes">
         {series.weighIns.map((weighIn) => (

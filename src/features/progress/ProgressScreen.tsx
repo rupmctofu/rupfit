@@ -18,10 +18,23 @@
  *    the honest rendering is chosen — no line, explicit points — and the caption says
  *    why. See the report for the component limitation this does not fix.
  *
- * The segmented control is the explicit metric choice FR-11.1 asks for: `Fuerza` shows
- * the strength chart with its estimate, then the weekly volume and the records (the
- * approved render `progreso-12w`); `Volumen` leads with the bars; `Peso` shows the
- * body-weight blocks of `peso-gaps`.
+ * T7 of the redesign gives the tab its reading order and the three-way segmented control
+ * under the title — `Evolución`, `Sesiones`, `PRs` — each panel a question the aggregates
+ * already answer:
+ *
+ * - **Evolución** leads with the current week's volume (`weeklyVolume.lastVolumeKg`) over
+ *   the twelve buckets of the same aggregate, then the body weight: the latest weigh-in,
+ *   the chart of `#/progreso/peso` (one implementation, `WeightChart`) and the way into the
+ *   existing entry form.
+ * - **Sesiones** is a screenful of compact rows — date, workout, sets, volume — read out
+ *   with the same `sessionSummary` the Historial drill-down uses, and the way into
+ *   `#/progreso/historial`, which keeps the month groups, the totals and the deletion.
+ * - **PRs** gives `personalRecords` a treatment of its own: the heaviest mark as the
+ *   protagonist, then one row per record, each opening the exercise detail.
+ *
+ * No panel invents a figure: a week without volume is the 0 kg the aggregate wrote, a
+ * missing weigh-in is a sentence and never a curve, and a single point is said in words
+ * instead of being drawn as a trend.
  *
  * ## The drill-downs
  *
@@ -43,16 +56,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  BarChart,
   Card,
   ChartFrame,
   Chip,
   DataRow,
+  DataStrip,
   EmptyState,
   ErrorBanner,
   Icon,
   LineChart,
   MetricTile,
+  Numeral,
   SectionLabel,
   TextButton,
 } from '../../design-system';
@@ -79,14 +93,9 @@ import {
 import {
   isRecordedSession,
   personalRecords,
-  strengthLineDecision,
-  strengthSeries,
-  strengthState,
   topRecord,
   weeklyVolume,
   weightSeries,
-  type PersonalRecord,
-  type StrengthSeries,
   type WeeklyVolume,
   type WeightSeries,
 } from './aggregates';
@@ -94,17 +103,16 @@ import {
   formatDayMonth,
   formatDayMonthYear,
   formatGoal,
-  formatSignedWeight,
+  formatLongDayMonth,
   formatVolume,
   formatWeight,
-  monthAbbreviation,
 } from './format';
 import { ExerciseDetailScreen } from './ExerciseDetailScreen';
-import { exerciseUsages, type ExerciseUsage } from './exerciseDetail';
-import { HistorialScreen } from './HistorialScreen';
+import { HistorialScreen, SessionReadOut, SessionRow } from './HistorialScreen';
 import { deleteStoredSession } from './deleteFlow';
 import { useProgressView } from './navigation';
-import { LastWeighInTile, MeanAndGoalRows, WeightScreen } from './WeightScreen';
+import { historySessions, sessionSummary } from './summary';
+import { LastWeighInTile, WeightChart, WeightScreen } from './WeightScreen';
 import type { WeightDraft, WeightSaveOutcome } from './weightEntry';
 import { createMeasurementId, saveWeightEntry } from './weightSave';
 import { Segmented, TrashGlyph } from './parts';
@@ -118,12 +126,13 @@ export interface ProgressClock {
 /** A cap, not a window: twelve weeks and the all-time records need far fewer rows. */
 const HISTORY_LIMIT = 500;
 
-type Metric = 'fuerza' | 'volumen' | 'peso';
+/** The three panels of the tab, in the order the segment control draws them. */
+type Panel = 'evolucion' | 'sesiones' | 'prs';
 
-const METRICS: readonly { readonly value: Metric; readonly label: string }[] = [
-  { value: 'fuerza', label: 'Fuerza' },
-  { value: 'volumen', label: 'Volumen' },
-  { value: 'peso', label: 'Peso' },
+const PANELS: readonly { readonly value: Panel; readonly label: string }[] = [
+  { value: 'evolucion', label: 'Evolución' },
+  { value: 'sesiones', label: 'Sesiones' },
+  { value: 'prs', label: 'PRs' },
 ];
 
 /* ------------------------------------------------------------------ the port */
@@ -178,7 +187,7 @@ function ProgressTab({
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const navigation = useProgressView();
-  const [metric, setMetric] = useState<Metric>('fuerza');
+  const [panel, setPanel] = useState<Panel>('evolucion');
 
   useEffect(() => {
     let cancelled = false;
@@ -285,7 +294,7 @@ function ProgressTab({
   if (state.status === 'error') {
     return (
       <div className="progress">
-        <h1 className="ds-screen-title">Progreso</h1>
+        <h1 className="ds-screen-title">Historial</h1>
         <ErrorBanner message={state.message} onRetry={retry} />
       </div>
     );
@@ -295,7 +304,7 @@ function ProgressTab({
     // Local data: no spinner, no skeleton, no empty chart (§3 of the task brief).
     return (
       <div className="progress">
-        <h1 className="ds-screen-title">Progreso</h1>
+        <h1 className="ds-screen-title">Historial</h1>
       </div>
     );
   }
@@ -336,21 +345,67 @@ function ProgressTab({
     );
   }
 
+  // Nothing trained and nothing weighed: the screen says what is missing and offers the
+  // one action that fills it, instead of three panels of zeros under a segment control.
+  const nothingYet = !state.sessions.some(isRecordedSession) && weight.last === null;
+
   return (
     <div className="progress">
-      <h1 className="ds-screen-title">Progreso</h1>
-      <Summary
-        sessions={state.sessions}
-        weight={weight}
-        goal={goal}
-        now={state.now}
-        metric={metric}
-        onMetric={setMetric}
-        onOpenHistorial={() => navigation.navigate('historial')}
-        onOpenWeight={() => navigation.navigate('peso')}
-        onOpenExercise={navigation.openExercise}
-        onStartTraining={startTraining}
-      />
+      <header className="progress__top">
+        <h1 className="ds-screen-title">Historial</h1>
+        <Segmented
+          label="Vista del historial"
+          options={PANELS}
+          value={panel}
+          onChange={setPanel}
+        />
+      </header>
+
+      {nothingYet ? (
+        <>
+          <EmptyState
+            tone="primary"
+            action={{ label: 'Empezar entrenamiento', onClick: startTraining }}
+          >
+            Sin datos todavía. Registra una sesión y aquí aparecerán la evolución del volumen,
+            los récords y el peso corporal.
+          </EmptyState>
+          {/* One way in that the empty state cannot offer: the first weigh-in, which is not
+              a workout. */}
+          <Card padding="list">
+            <DataRow
+              icon="scale"
+              title="Peso corporal"
+              subtitle="Añadir el primer pesaje"
+              onSelect={() => navigation.navigate('peso')}
+              selectLabel="Abrir el peso corporal"
+            />
+          </Card>
+        </>
+      ) : (
+        <>
+          {panel === 'evolucion' ? (
+            <Evolution
+              sessions={state.sessions}
+              weight={weight}
+              goal={goal}
+              now={state.now}
+              onOpenWeight={() => navigation.navigate('peso')}
+            />
+          ) : null}
+          {panel === 'sesiones' ? (
+            <SessionsPanel
+              sessions={state.sessions}
+              onOpenExercise={navigation.openExercise}
+              onOpenHistorial={() => navigation.navigate('historial')}
+            />
+          ) : null}
+          {panel === 'prs' ? (
+            <RecordsPanel sessions={state.sessions} onOpenExercise={navigation.openExercise} />
+          ) : null}
+        </>
+      )}
+
       {/* T9 (S12): the activities and their bin, moved — not deleted — from Inicio. */}
       <ActivitySection
         view={activity}
@@ -363,371 +418,389 @@ function ProgressTab({
   );
 }
 
-/* ------------------------------------------------------------------ the tab */
+/* --------------------------------------------------------------- the panels */
 
-interface SummaryProps {
+interface EvolutionProps {
   readonly sessions: readonly WorkoutSession[];
   readonly weight: WeightSeries;
   readonly goal: string | null;
   readonly now: number;
-  readonly metric: Metric;
-  readonly onMetric: (metric: Metric) => void;
-  readonly onOpenHistorial: () => void;
+  /** `#/progreso/peso`: the series, its mean and the weigh-in entry. */
   readonly onOpenWeight: () => void;
-  /** Opens `#/progreso/ejercicio/<key>` for one exercise of the stored data. */
-  readonly onOpenExercise: (key: string) => void;
-  readonly onStartTraining: () => void;
 }
 
-function Summary({
+/**
+ * `Evolución` — the two series the tab exists to read: volume and body weight.
+ *
+ * Both are computed here from the rows the tab already read, with the same functions the
+ * drill-downs use (`weeklyVolume`, `weightSeries`), so the tab and the detail screens cannot
+ * disagree about a number.
+ */
+function Evolution({
   sessions,
   weight,
   goal,
   now,
-  metric,
-  onMetric,
-  onOpenHistorial,
   onOpenWeight,
-  onOpenExercise,
-  onStartTraining,
-}: SummaryProps): React.ReactElement {
-  const derived = useMemo(() => {
-    const recorded = sessions.filter(isRecordedSession);
-    return {
-      recorded,
-      strength: strengthSeries(sessions, { now }),
-      volume: weeklyVolume(sessions, { now }),
-      records: personalRecords(sessions),
-      // The detail's entry point: the exercises that actually have recorded sets.
-      usages: exerciseUsages(sessions),
-    };
-  }, [sessions, now]);
-
-  const drilldown = (
-    <Card padding="list" label="Ver más">
-      <DataRow
-        title="Historial"
-        subtitle={
-          derived.recorded.length === 0
-            ? 'Todavía no hay sesiones'
-            : `${String(derived.recorded.length)} ${
-                derived.recorded.length === 1 ? 'sesión registrada' : 'sesiones registradas'
-              }`
-        }
-        icon="calendar"
-        onSelect={onOpenHistorial}
-        selectLabel="Abrir el historial de sesiones"
-      />
-      <DataRow
-        title="Peso corporal"
-        subtitle={
-          weight.last === null
-            ? 'Todavía no hay pesajes'
-            : `Último pesaje ${formatWeight(weight.last.weightKg)} kg · ${formatDayMonth(weight.last.dayStart)}`
-        }
-        icon="scale"
-        onSelect={onOpenWeight}
-        selectLabel="Abrir el peso corporal"
-      />
-    </Card>
-  );
-
-  // `progreso-empty`: no session and no weigh-in. The empty screen says what is
-  // missing and offers the one action that fills it; it draws no empty axis.
-  if (derived.recorded.length === 0 && weight.last === null) {
-    return (
-      <>
-        <EmptyState tone="primary" action={{ label: 'Empezar entrenamiento', onClick: onStartTraining }}>
-          Sin datos todavía. Registra una sesión y aquí aparecerán la fuerza por ejercicio, los
-          récords y el volumen semanal.
-        </EmptyState>
-        {/* Navigation only: the empty state already said there is no data, and three rows
-            repeating `sin datos` under it said it three more times. */}
-        <Card padding="list">
-          <DataRow title="Historial" onSelect={onOpenHistorial} />
-          <DataRow title="Peso corporal" onSelect={onOpenWeight} />
-        </Card>
-      </>
-    );
-  }
+}: EvolutionProps): React.ReactElement {
+  const volume = useMemo(() => weeklyVolume(sessions, { now }), [sessions, now]);
+  const recordedCount = useMemo(() => sessions.filter(isRecordedSession).length, [sessions]);
 
   return (
-    <>
-      <Segmented label="Métrica" options={METRICS} value={metric} onChange={onMetric} />
-
-      {metric === 'fuerza' ? (
-        <>
-          <StrengthCard series={derived.strength} />
-          <VolumeCard volume={derived.volume} />
-          <RecordsCard records={derived.records} onOpenExercise={onOpenExercise} />
-        </>
-      ) : null}
-
-      {metric === 'volumen' ? (
-        <>
-          <VolumeCard volume={derived.volume} />
-          <RecordsCard records={derived.records} onOpenExercise={onOpenExercise} />
-        </>
-      ) : null}
-
-      {metric === 'peso' ? (
-        <Card>
-          {weight.last === null ? (
-            <p className="ds-body ds-body--muted">
-              Todavía no hay pesajes. Se guardan en Peso corporal y aquí aparecerán la serie y la
-              media de 7 días.
-            </p>
-          ) : (
-            <>
-              <LastWeighInTile series={weight} goal={goal} />
-              <div className="ds-hairline" />
-              <MeanAndGoalRows series={weight} goal={goal} />
-            </>
-          )}
-        </Card>
-      ) : null}
-
-      <ExerciseListCard usages={derived.usages} onOpenExercise={onOpenExercise} />
-      {drilldown}
-    </>
+    <div className="progress__panel">
+      <VolumeCard volume={volume} recordedCount={recordedCount} />
+      <WeightCard series={weight} goal={goal} onOpenWeight={onOpenWeight} />
+    </div>
   );
 }
 
-/* ------------------------------------------------------------ the strength */
-
-function monthAxis(series: StrengthSeries): readonly string[] {
-  // One point: its own date, as `progreso-single` writes `6 nov` under the point.
-  if (series.dataWeeks === 1) {
-    const only = series.weeks[series.lastIndex];
-    return only === undefined ? [] : [formatDayMonth(only.start)];
-  }
-
-  const weeks = series.weeks;
-  const first = weeks[0];
-  const middle = weeks[Math.floor((weeks.length - 1) / 2)];
-  const last = weeks[weeks.length - 1];
-  return [first, middle, last].flatMap((week) =>
-    week === undefined ? [] : [monthAbbreviation(week.start)],
-  );
+interface VolumeCardProps {
+  readonly volume: WeeklyVolume;
+  /** Sessions that happened, all-time: the count the rows hold, not a window's. */
+  readonly recordedCount: number;
 }
 
-function StrengthCard({ series }: { readonly series: StrengthSeries | null }): React.ReactElement {
-  const state = strengthState(series);
+/**
+ * `Volumen semanal` — the one chart this screen is built around.
+ *
+ * The figure above the line is the current week's volume, `weeklyVolume.lastVolumeKg`; the
+ * line is the twelve buckets of the same aggregate, holes included (a week without a session
+ * is the 0 kg the aggregate wrote, and the note says so). The three cells underneath are the
+ * numbers that aggregate exposes: sessions recorded, weeks with data in the window, and the
+ * hard sets of this week.
+ *
+ * Nothing is compared that the data cannot compare: a single week with volume gets a
+ * sentence instead of a line, and a window with no volume at all draws no axis.
+ */
+function VolumeCard({ volume, recordedCount }: VolumeCardProps): React.ReactElement {
+  const thisWeek = volume.weeks[volume.weeks.length - 1];
 
-  if (series === null || state === 'empty') {
+  if (volume.weeksWithVolume === 0) {
     return (
-      <Card>
+      <Card className="progress-hero" label="Volumen semanal">
         <div className="ds-row">
-          <span className="ds-section-label">Fuerza</span>
-          <Chip>sin datos suficientes</Chip>
+          <SectionLabel>Volumen semanal</SectionLabel>
+          <Chip>sin datos</Chip>
         </div>
         <p className="ds-caption">
-          Todavía no hay series con peso registrado. La fuerza se dibuja en cuanto apuntes una.
+          El volumen aparece con la primera sesión registrada. No se dibuja una línea plana.
         </p>
       </Card>
     );
   }
 
-  const topSets: number[] = [];
-  const estimates: number[] = [];
-  let everyEstimate = true;
-
-  for (const week of series.weeks) {
-    if (week.topSetKg === null) continue;
-    topSets.push(week.topSetKg);
-    if (week.e1rmKg === null) everyEstimate = false;
-    else estimates.push(week.e1rmKg);
-  }
-
-  const comparison = everyEstimate && estimates.length === topSets.length ? estimates : undefined;
-  const line = strengthLineDecision(series);
-  const drawsEstimate = line === 'line' && comparison !== undefined;
-  const change = series.changeKg;
+  const first = volume.weeks.find((week) => week.volumeKg > 0);
+  const values = volume.weeks.map((week) => week.volumeKg);
+  const labels = volume.weeks.map((week) => formatDayMonth(week.start));
 
   return (
-    <Card>
+    <Card className="progress-hero" label="Volumen semanal">
       <MetricTile
-        label={`${series.exerciseName} · fuerza`}
-        value={series.lastTopSetKg === null ? '—' : formatWeight(series.lastTopSetKg)}
+        label="Volumen semanal"
+        value={formatVolume(volume.lastVolumeKg)}
         unit="kg"
+        size="metric"
         caption={
-          state === 'single'
-            ? '1 sesión'
-            : `${String(series.dataWeeks)} de ${String(series.weeks.length)} semanas con datos`
-        }
-        aside={
-          change === null || state === 'single' ? undefined : (
-            <Chip tone={change < 0 ? 'danger' : 'accent'}>{formatSignedWeight(change)}</Chip>
-          )
+          thisWeek === undefined
+            ? undefined
+            : `Semana del ${formatDayMonth(thisWeek.start)} · ${String(
+                thisWeek.sessions,
+              )} ${thisWeek.sessions === 1 ? 'sesión' : 'sesiones'}`
         }
       />
-      <ChartFrame
-        metric="Peso de la serie top y e1RM"
-        window={state === 'single' ? '1 sesión' : 'últimas 12 semanas'}
-        summary={
-          state === 'single'
-            ? 'Un solo dato: todavía no hay tendencia. Con la próxima sesión empieza la línea.'
-            : `Peso de la serie top: de ${formatWeight(series.firstTopSetKg ?? 0)} a ${formatWeight(
-                series.lastTopSetKg ?? 0,
-              )} kg${state === 'gap' ? ', con semanas sin sesión en medio' : ' en 12 semanas'}.`
-        }
-        columns={comparison === undefined ? ['peso de la serie top (kg)'] : ['peso de la serie top (kg)', 'e1RM (kg)']}
-        rows={series.weeks.map((week) => ({
-          label: formatDayMonth(week.start),
-          values:
-            comparison === undefined
-              ? [week.topSetKg === null ? '—' : formatWeight(week.topSetKg)]
-              : [
-                  week.topSetKg === null ? '—' : formatWeight(week.topSetKg),
-                  week.e1rmKg === null ? '—' : formatWeight(week.e1rmKg),
-                ],
-        }))}
-        legend={
-          drawsEstimate
-            ? [
-                { label: 'peso de la serie top', series: 1 },
-                { label: 'e1RM · estimación', series: 3, dashed: true },
-              ]
-            : [{ label: 'peso de la serie top', series: 1 }]
-        }
-        note={
-          state === 'single'
-            ? undefined
-            : state === 'gap'
-              ? 'Los puntos no se unen: hay semanas sin sesión. La e1RM de cada semana está en la tabla de datos.'
-              : 'e1RM con fórmula v1. No es una prueba de 1RM.'
-        }
-      >
-        <LineChart
-          values={topSets}
-          {...(drawsEstimate && comparison !== undefined ? { comparison } : {})}
-          xLabels={monthAxis(series)}
-          lastLabel={`${formatWeight(series.lastTopSetKg ?? 0)} kg`}
-          showLine={line === 'line'}
-        />
-      </ChartFrame>
+
+      {volume.enoughToCompare ? (
+        <ChartFrame
+          metric="Evolución del volumen"
+          window="últimas 12 semanas"
+          summary={`De ${formatVolume(first?.volumeKg ?? 0)} a ${formatVolume(
+            volume.lastVolumeKg,
+          )} kg de volumen semanal.`}
+          columns={['volumen (kg)']}
+          rows={volume.weeks.map((week) => ({
+            label: formatDayMonth(week.start),
+            values: [formatVolume(week.volumeKg)],
+          }))}
+          note="Una semana sin sesión vale 0 kg: es ausencia de volumen, no un hueco."
+        >
+          <LineChart
+            values={values}
+            xLabels={labels}
+            lastLabel={`${formatVolume(volume.lastVolumeKg)} kg`}
+          />
+        </ChartFrame>
+      ) : (
+        <p className="ds-caption">
+          {`Una sola semana con volumen: ${formatVolume(
+            volume.lastVolumeKg,
+          )} kg. Con un punto no se dibuja una tendencia: la línea empieza con la segunda.`}
+        </p>
+      )}
+
+      <div className="ds-hairline" />
+      <DataStrip
+        className="progress__strip"
+        label="Lo que suma el historial"
+        items={[
+          { label: 'Sesiones', value: String(recordedCount) },
+          {
+            label: 'Semanas con datos',
+            value: `${String(volume.weeksWithVolume)}/${String(volume.weeks.length)}`,
+          },
+          { label: 'Series duras', value: String(volume.lastHardSets) },
+        ]}
+      />
+      <p className="ds-caption">
+        Series duras: las de esta semana a 1 RIR o menos, con el esfuerzo anotado.
+      </p>
     </Card>
   );
 }
 
-/* -------------------------------------------------------------- the volume */
+interface WeightCardProps {
+  readonly series: WeightSeries;
+  readonly goal: string | null;
+  readonly onOpenWeight: () => void;
+}
 
-function VolumeCard({ volume }: { readonly volume: WeeklyVolume }): React.ReactElement {
-  // `progreso-single`: one week cannot be compared with itself, and no bar is drawn.
-  if (!volume.enoughToCompare) {
+/**
+ * `Peso corporal` — the latest weigh-in, the chart of the drill-down, and the way in.
+ *
+ * The block is the tab's; the chart is `WeightChart`'s, shared with `#/progreso/peso`, so the
+ * two screens cannot disagree about a point. With no measurement the block says so and draws
+ * nothing — a fake curve is exactly what the brief forbids. `Añadir un pesaje` opens the peso
+ * screen, where `WeightEntryForm` — the one writer of a measurement — already lives.
+ */
+function WeightCard({ series, goal, onOpenWeight }: WeightCardProps): React.ReactElement {
+  const count = series.points.length;
+
+  return (
+    <Card label="Peso corporal">
+      <div className="ds-row">
+        <SectionLabel>Peso corporal</SectionLabel>
+        <span className="ds-caption">
+          {series.last === null
+            ? 'sin pesajes'
+            : `${String(count)} ${count === 1 ? 'pesaje' : 'pesajes'}`}
+        </span>
+      </div>
+
+      {series.last === null ? (
+        <p className="ds-caption">
+          Todavía no hay pesajes. Cuando guardes el primero, aquí aparecerán la serie y la media de
+          7 días.
+        </p>
+      ) : (
+        <>
+          <LastWeighInTile series={series} goal={goal} />
+          <WeightChart series={series} />
+        </>
+      )}
+
+      <div className="ds-hairline" />
+      <DataRow
+        icon="plus"
+        title="Añadir un pesaje"
+        subtitle="Kilogramos y día · media de 7 días"
+        onSelect={onOpenWeight}
+        selectLabel="Añadir un pesaje en el peso corporal"
+      />
+    </Card>
+  );
+}
+
+/* --------------------------------------------------------------- the sessions */
+
+/** A screenful of compact session rows; the complete list keeps its own drill-down. */
+const RECENT_SESSIONS = 8;
+
+interface SessionsPanelProps {
+  readonly sessions: readonly WorkoutSession[];
+  readonly onOpenExercise: (key: string) => void;
+  /** `#/progreso/historial`: the complete list, its totals and the bin. */
+  readonly onOpenHistorial: () => void;
+}
+
+/**
+ * `Sesiones` — date, workout, sets and volume of the sessions that happened.
+ *
+ * The rows are a screenful of the same `historySessions` the complete list uses, read out
+ * with the same `sessionSummary`, so a row here and the same row there cannot disagree. A tap
+ * opens the session read-out in place (`SessionReadOut`, the component behind the Historial
+ * drill-down); the card under the rows is the way into `#/progreso/historial`, where the month
+ * groups, the totals, the per-exercise loads and the deletion live.
+ */
+function SessionsPanel({
+  sessions,
+  onOpenExercise,
+  onOpenHistorial,
+}: SessionsPanelProps): React.ReactElement {
+  const rows = useMemo(() => historySessions(sessions), [sessions]);
+  const summaries = useMemo(
+    () => new Map(rows.map((row) => [row.id, sessionSummary(row)] as const)),
+    [rows],
+  );
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const open = openId === null ? undefined : rows.find((row) => row.id === openId);
+  if (open !== undefined) {
+    return (
+      <SessionReadOut
+        session={open}
+        all={rows}
+        onBack={() => setOpenId(null)}
+        backLabel="Sesiones"
+        onOpenExercise={onOpenExercise}
+      />
+    );
+  }
+
+  const recent = rows.slice(0, RECENT_SESSIONS);
+
+  return (
+    <div className="progress__panel">
+      <div className="progress__group">
+        <div className="progress__group-head">
+          <SectionLabel>Sesiones</SectionLabel>
+          <span className="ds-caption">
+            {rows.length === 0
+              ? 'sin datos'
+              : `${String(rows.length)} ${rows.length === 1 ? 'registrada' : 'registradas'}`}
+          </span>
+        </div>
+        {rows.length === 0 ? (
+          <Card padding="dense">
+            <p className="ds-caption">
+              Todavía no hay sesiones registradas. La primera aparecerá aquí con su volumen y sus
+              series.
+            </p>
+          </Card>
+        ) : (
+          <Card padding="list">
+            {recent.map((session) => {
+              const summary = summaries.get(session.id);
+              if (summary === undefined) return null;
+              return (
+                <SessionRow
+                  key={session.id}
+                  session={session}
+                  summary={summary}
+                  onSelect={() => setOpenId(session.id)}
+                  selectLabel={`Abrir la sesión del ${formatLongDayMonth(session.scheduledDate)}`}
+                />
+              );
+            })}
+          </Card>
+        )}
+        {rows.length <= RECENT_SESSIONS ? null : (
+          <p className="ds-caption">
+            {`Se muestran las ${String(RECENT_SESSIONS)} más recientes de ${String(rows.length)}.`}
+          </p>
+        )}
+      </div>
+
+      <Card padding="list">
+        <DataRow
+          icon="calendar"
+          title="Historial completo"
+          subtitle="Por meses, con los totales y el borrado de una sesión"
+          onSelect={onOpenHistorial}
+          selectLabel="Abrir el historial completo"
+        />
+      </Card>
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------------- the PRs */
+
+interface RecordsPanelProps {
+  readonly sessions: readonly WorkoutSession[];
+  readonly onOpenExercise: (key: string) => void;
+}
+
+/**
+ * `PRs` — the marks `personalRecords` derives, with a treatment of their own.
+ *
+ * The heaviest mark (`topRecord`) is the panel's protagonist: the lift, the weight at the
+ * metric size, and the day it was first reached. Under it, one row per record — the lift on
+ * the left, the target reps and the date behind it, the weight as the figure the eye lands on
+ * — and every row opens the exercise detail, where that lift's marks live. Nothing is stored:
+ * a record is recomputed from the sets every time the tab renders.
+ */
+function RecordsPanel({ sessions, onOpenExercise }: RecordsPanelProps): React.ReactElement {
+  const records = useMemo(() => personalRecords(sessions), [sessions]);
+  const top = topRecord(records);
+
+  if (top === null) {
     return (
       <Card padding="dense">
         <div className="ds-row">
-          <span className="ds-section-label">Volumen semanal</span>
-          <Chip>sin datos suficientes</Chip>
+          <SectionLabel>Récords personales</SectionLabel>
+          <Chip>sin marcas</Chip>
         </div>
-        <p className="ds-caption">Necesita al menos dos semanas para comparar.</p>
+        <p className="ds-caption">
+          Un récord es el peso máximo con un objetivo de repeticiones. Aparece en cuanto
+          registres una serie con carga.
+        </p>
       </Card>
     );
   }
 
-  const values = volume.weeks.map((week) => week.volumeKg);
-  const first = volume.weeks.find((week) => week.volumeKg > 0);
-
   return (
-    <Card>
-      <ChartFrame
-        metric="Volumen semanal"
-        window="últimas 12 semanas"
-        summary={`De ${formatVolume(first?.volumeKg ?? 0)} a ${formatVolume(volume.lastVolumeKg)} kg de volumen semanal.`}
-        columns={['volumen (kg)']}
-        rows={volume.weeks.map((week) => ({
-          label: formatDayMonth(week.start),
-          values: [formatVolume(week.volumeKg)],
-        }))}
-        note={`Series duras esta semana: ${String(volume.lastHardSets)}. Objetivo por grupo: 10–16.`}
-      >
-        <BarChart
-          values={values}
-          lastLabel={`${formatVolume(volume.lastVolumeKg)} kg`}
-          startLabel="hace 12 sem"
-          endLabel="esta sem"
-        />
-      </ChartFrame>
-    </Card>
-  );
-}
+    <div className="progress__panel">
+      <Card className="progress-hero progress-pr" label="Mejor marca">
+        <div className="ds-row">
+          <SectionLabel>Mejor marca</SectionLabel>
+          <Chip tone="success" dot>
+            Récord
+          </Chip>
+        </div>
+        <p className="progress-pr__lift">{top.exerciseName}</p>
+        <p className="progress-pr__figure">
+          <Numeral value={formatWeight(top.weightKg)} unit="kg" size="metric" />
+          <span className="ds-meta">{`× ${String(top.targetReps)} reps`}</span>
+        </p>
+        <p className="ds-caption">
+          {`El peso máximo con un objetivo de ${String(
+            top.targetReps,
+          )} repeticiones, del ${formatDayMonthYear(top.achievedAt)}.`}
+        </p>
+      </Card>
 
-/* ------------------------------------------------------------- the records */
-
-function RecordsCard({
-  records,
-  onOpenExercise,
-}: {
-  readonly records: readonly PersonalRecord[];
-  readonly onOpenExercise: (key: string) => void;
-}): React.ReactElement {
-  const top = topRecord(records);
-
-  return (
-    <Card padding="list">
-      <DataRow
-        title="Récords"
-        subtitle={
-          top === null
-            ? 'Todavía no hay marcas guardadas'
-            : `${top.exerciseName} ${formatWeight(top.weightKg)} kg × ${String(top.targetReps)} · ${formatDayMonth(
-                top.achievedAt,
-              )}`
-        }
-        {...(top === null
-          ? { status: { word: 'sin datos', tone: 'muted' as const } }
-          : {
-              value: String(records.length),
-              // The record is of one exercise: the row opens that exercise's detail.
-              onSelect: () => onOpenExercise(top.exerciseKey),
-              selectLabel: `Abrir el detalle de ${top.exerciseName}`,
-            })}
-      />
-    </Card>
-  );
-}
-
-/* ---------------------------------------------------------- by exercise */
-
-/**
- * `Por ejercicio` — the existing per-exercise history, listed. Each row is one exercise
- * with recorded sets, with the load of its last session; tapping it opens
- * `#/progreso/ejercicio/<key>`. No row is drawn for an exercise without sets, and a
- * bodyweight exercise writes `sin peso` instead of a `0 kg` it did not lift.
- */
-function ExerciseListCard({
-  usages,
-  onOpenExercise,
-}: {
-  readonly usages: readonly ExerciseUsage[];
-  readonly onOpenExercise: (key: string) => void;
-}): React.ReactElement | null {
-  if (usages.length === 0) return null;
-
-  return (
-    <Card padding="list" label="Por ejercicio">
-      <div className="ds-row">
-        <span className="ds-section-label">Por ejercicio</span>
-        <span className="ds-caption">
-          {`${String(usages.length)} ${usages.length === 1 ? 'ejercicio' : 'ejercicios'} con series`}
-        </span>
+      <div className="progress__group">
+        <div className="progress__group-head">
+          <SectionLabel>Récords</SectionLabel>
+          <span className="ds-caption">
+            {`${String(records.length)} ${records.length === 1 ? 'marca' : 'marcas'}`}
+          </span>
+        </div>
+        <Card padding="list">
+          {records.map((record) => (
+            <button
+              key={`${record.exerciseKey}-${String(record.targetReps)}`}
+              type="button"
+              className="ds-action progress-record"
+              onClick={() => onOpenExercise(record.exerciseKey)}
+              aria-label={`Abrir el detalle de ${record.exerciseName}: ${formatWeight(
+                record.weightKg,
+              )} kg × ${String(record.targetReps)} reps, ${formatDayMonthYear(record.achievedAt)}`}
+            >
+              <span className="progress-record__main">
+                <span className="progress-record__lift">{record.exerciseName}</span>
+                <span className="progress-record__meta">
+                  {`× ${String(record.targetReps)} reps · ${formatDayMonthYear(record.achievedAt)}`}
+                </span>
+              </span>
+              <Numeral value={formatWeight(record.weightKg)} unit="kg" size="metric-small" />
+              <span className="progress-record__chevron" aria-hidden="true">
+                <Icon name="chevronRight" size={20} />
+              </span>
+            </button>
+          ))}
+        </Card>
       </div>
-      {usages.map((usage) => (
-        <DataRow
-          key={usage.key}
-          title={usage.name}
-          subtitle={`Última vez · ${formatDayMonthYear(usage.lastAt)} · ${String(
-            usage.sessionCount,
-          )} ${usage.sessionCount === 1 ? 'sesión' : 'sesiones'}`}
-          {...(usage.topSetKg === null
-            ? { status: { word: 'sin peso', tone: 'muted' as const } }
-            : { value: formatWeight(usage.topSetKg), valueUnit: 'kg' })}
-          onSelect={() => onOpenExercise(usage.key)}
-          selectLabel={`Abrir el detalle de ${usage.name}`}
-        />
-      ))}
-    </Card>
+    </div>
   );
 }
 

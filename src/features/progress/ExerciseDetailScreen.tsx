@@ -2,7 +2,7 @@
  * Detalle de ejercicio — the drill-down of `#/progreso/ejercicio/<exerciseKey>`.
  *
  * It is the sixth surface of the reference artboard, inside the Progreso tab and inside
- * the tab shell: same four tabs, same hash navigation, an on-screen `‹ Progreso` because
+ * the tab shell: same four tabs, same hash navigation, an on-screen `‹ Historial` because
  * standalone iOS has no browser back button (§8).
  *
  * What it may show is decided by what is stored:
@@ -407,7 +407,7 @@ export function ExerciseDetailScreen({
 
   return (
     <div className="progress">
-      <DrilldownHeader title={name} backLabel="Progreso" onBack={onBack} />
+      <DrilldownHeader title={name} backLabel="Historial" onBack={onBack} />
 
       {art === null ? null : (
         <figure className="progress__art">
