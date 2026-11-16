@@ -16,6 +16,7 @@ import type {
   PhaseState,
   PlanDay,
   UserProfile,
+  WeekLayout,
   WorkoutSession,
 } from './entities';
 import {
@@ -28,6 +29,7 @@ import {
   planDayFromRow,
   sessionFromRow,
   setFromRow,
+  weekLayoutFromStored,
 } from './mappers';
 import { META_KEYS } from './constants';
 import type { RupfitDb, StoreName } from './records';
@@ -130,5 +132,21 @@ export async function readPhaseState<Mode extends 'readonly' | 'readwrite'>(
   const row = await tx.objectStore('meta').get(META_KEYS.phaseState);
   return row !== undefined && row.key === 'phaseState' && !isTombstone(row)
     ? phaseStateFromStored(row.value)
+    : null;
+}
+
+/**
+ * T2 (S5): the owner's fixed weekly assignment, or `null` while the template rules.
+ *
+ * `null` and not `undefined` for the same reason as the profile and the phase state: the
+ * export builds a document in which absence is a value, not a dropped key. The document
+ * then omits the key (`buildBackupDocument`), which is what an older build wrote too.
+ */
+export async function readWeekLayout<Mode extends 'readonly' | 'readwrite'>(
+  tx: Transaction<Mode>,
+): Promise<WeekLayout | null> {
+  const row = await tx.objectStore('meta').get(META_KEYS.weekLayout);
+  return row !== undefined && row.key === 'weekLayout' && !isTombstone(row)
+    ? weekLayoutFromStored(row.value)
     : null;
 }

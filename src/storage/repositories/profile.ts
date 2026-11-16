@@ -14,18 +14,25 @@
  * history, and it is deliberately outside the backup document — a restore replaces the
  * whole store, so the week record dies with the restore and the next week is planned
  * again. Nothing here may be lifted into the sync path without a server column for it.
+ *
+ * The owner's week layout (T2, S5/S6) is the other way round: a single-row record exactly
+ * like the profile, so it is stamped, queued, exported and restored through the same
+ * pipeline. The distinction is what the record *is* — a fixed decision that must travel
+ * with the owner versus a draft for this phone — not where it happens to be stored.
  */
 
 import { META_KEYS } from '../constants';
 import type { Database } from '../db';
 import { StorageError } from '../errors';
-import type { PhaseState, StorageAnswer, UserProfile, WeekRecord } from '../entities';
+import type { PhaseState, StorageAnswer, UserProfile, WeekLayout, WeekRecord } from '../entities';
 import {
   isTombstone,
   phaseStateFromStored,
   phaseStateToMetaRow,
   profileToMetaRow,
   storageAnswerToMetaRow,
+  weekLayoutFromStored,
+  weekLayoutToMetaRow,
   weekRecordFromStored,
   weekRecordToMetaRow,
 } from '../mappers';
@@ -122,6 +129,37 @@ export class MetaRepository implements MetaRepositoryPort {
   async saveWeek(week: WeekRecord): Promise<void> {
     await this.database.write(['meta'], async (tx) => {
       await tx.objectStore('meta').put(weekRecordToMetaRow(week));
+    });
+  }
+
+  /**
+   * T2 (S5, S6): the owner's fixed assignment, or `undefined` while the template rules.
+   * A tombstone is not an answer — another device deleting it leaves this one on the
+   * template default, which is the same state as never having fixed one.
+   */
+  async readWeekLayout(): Promise<WeekLayout | undefined> {
+    return this.database.read(['meta'], async (tx) => {
+      const row = await tx.objectStore('meta').get(META_KEYS.weekLayout);
+      return row !== undefined && row.key === 'weekLayout' && !isTombstone(row)
+        ? weekLayoutFromStored(row.value)
+        : undefined;
+    });
+  }
+
+  /**
+   * T2 (S5, S6): stamped and queued like the profile, because the layout must reach the
+   * account and the backup document. The mapper validates the seven slots inside this
+   * transaction, so a malformed layout is refused before anything is written.
+   */
+  async saveWeekLayout(layout: WeekLayout): Promise<void> {
+    await this.database.write(['meta'], async (tx) => {
+      await writeStamped({
+        ...this.sync,
+        tx,
+        table: 'week_layout',
+        key: META_KEYS.weekLayout,
+        row: weekLayoutToMetaRow(layout),
+      });
     });
   }
 }

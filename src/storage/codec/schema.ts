@@ -265,6 +265,30 @@ const phaseStateSchema = z.object({
   scheduledSessionsPerWeek: z.number().int().min(0).optional(),
 });
 
+/**
+ * T2 (S5, S6): the owner's fixed weekly assignment, as the document carries it.
+ *
+ * Seven slots is the rule, and so is one slot per weekday in ascending order — a layout
+ * the week derivation could not apply is refused at the boundary instead of being stored
+ * and discovered on `Inicio`. The message matches the mapper's (`weekLayoutFromStored`),
+ * so the same mistake reads the same way whichever boundary catches it.
+ */
+export const weekLayoutSchema = z
+  .object({
+    slots: z
+      .array(
+        z.object({
+          weekday: z.number().int().min(0).max(6),
+          planDayId: idSchema.nullable(),
+        }),
+      )
+      .length(7),
+  })
+  .refine((layout) => layout.slots.every((slot, weekday) => slot.weekday === weekday), {
+    message: 'A week layout is exactly seven slots, one per weekday, in ascending order.',
+  });
+
+/** The whole document, as `buildBackupDocument` writes it. */
 const documentSchema = z
   .object({
     documentType: z.literal(BACKUP_DOCUMENT_TYPE),
@@ -273,6 +297,11 @@ const documentSchema = z
     exportedAt: z.string().min(1),
     profile: profileSchema.nullable(),
     phaseState: phaseStateSchema.nullable(),
+    /**
+     * T2 (S5): optional, so a document written before the layout existed still imports and
+     * leaves the app on the template default. Never `null`: absence is the whole answer.
+     */
+    weekLayout: weekLayoutSchema.optional(),
     exercises: z.array(exerciseSchema),
     planDays: z.array(planDaySchema),
     sessions: z.array(sessionSchema),

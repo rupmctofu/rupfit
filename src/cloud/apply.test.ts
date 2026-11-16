@@ -63,6 +63,18 @@ const SAMPLE: Readonly<Record<SyncTable, SyncRowValues>> = {
     autoStartRestTimer: false,
   },
   plan_days: { name: 'Día A', order: 1 },
+  /** T2 (S5): the whole layout travels as one value, `slots`. */
+  week_layout: {
+    slots: [
+      { weekday: 0, planDayId: 'day-1' },
+      { weekday: 1, planDayId: null },
+      { weekday: 2, planDayId: null },
+      { weekday: 3, planDayId: 'day-2' },
+      { weekday: 4, planDayId: null },
+      { weekday: 5, planDayId: null },
+      { weekday: 6, planDayId: null },
+    ],
+  },
   plan_items: {
     planDayId: 'day-1',
     order: 2,
@@ -237,12 +249,13 @@ describe('applyToStorage', () => {
     expect(rows.reads).toBe(1);
   });
 
-  it('stores the two single-row tables under their meta key, wrapped in `value`', async () => {
+  it('stores the single-row tables under their meta key, wrapped in `value`', async () => {
     const rows = new MemoryRows();
     const apply = applyToStorage(rows);
 
     await apply(changeOf('profiles', 'profile-uuid', SAMPLE.profiles));
     await apply(changeOf('phase_state', 'phase-uuid', SAMPLE.phase_state));
+    await apply(changeOf('week_layout', 'weekLayout', SAMPLE.week_layout));
 
     const profile = await rows.readSyncRow('profiles', 'profile-uuid');
     expect(profile?.id).toBe('profile');
@@ -252,6 +265,12 @@ describe('applyToStorage', () => {
     const phase = await rows.readSyncRow('phase_state', 'phase-uuid');
     expect(phase?.id).toBe('phaseState');
     expect(phase?.record['value']).toEqual(SAMPLE.phase_state);
+
+    // T2: the layout is a single-row record too, so it lands under its fixed key and the
+    // seven slots are its value — the place `MetaRepository.readWeekLayout` reads.
+    const layout = await rows.readSyncRow('week_layout', 'weekLayout');
+    expect(layout?.id).toBe('weekLayout');
+    expect(layout?.record['value']).toEqual(SAMPLE.week_layout);
   });
 
   it('merges a single-row update field by field, keeping the rest of the record', async () => {
@@ -298,6 +317,18 @@ describe('syncedValues', () => {
       massUnit: 'kg',
     });
     expect(syncedValues('profiles', { key: 'profile' })).toEqual({});
+  });
+
+  it('sends the seven slots of the week layout whole, without the record identity (T2)', () => {
+    // The account holds the layout as one value; the `key` is local and the slots are the
+    // only field the migration has, so nothing else may travel.
+    expect(
+      syncedValues('week_layout', {
+        key: 'weekLayout',
+        value: SAMPLE.week_layout,
+        sync: { rev: 3, updatedAt: NOW, deletedAt: null },
+      }),
+    ).toEqual({ slots: SAMPLE.week_layout['slots'] });
   });
 });
 

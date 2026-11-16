@@ -16,6 +16,7 @@ import {
   defaultDatabaseFactory,
   DELETE_ALL_CONFIRMATION,
   isStorageError,
+  META_KEYS,
   SCHEMA,
   type DatabaseFactory,
   type DatabaseHandlers,
@@ -28,6 +29,7 @@ import {
   openRaw,
   setRecord,
   T0,
+  weekLayout,
   workoutSession,
   type RawDatabase,
 } from './harness';
@@ -199,6 +201,22 @@ describe('§5.1 the database, its stores and its indexes', () => {
 
   it('declares one database named rupfit at schema version 1', () => {
     expect(DB_NAME).toBe('rupfit');
+    expect(DB_VERSION).toBe(1);
+  });
+
+  it('keeps the week layout in `meta`, so the schema stays nine stores at version 1 (T2)', async () => {
+    // S5 wants the layout backed up and synced, and §5.1 fixes the store list: the record
+    // is a fourth fixed key in `meta`, never a tenth store and never a `DB_VERSION` bump.
+    await storage.meta.saveWeekLayout(weekLayout());
+
+    const raw = await openRaw(DB_NAME);
+    try {
+      const keys = (await raw.all<Record<string, unknown>>('meta')).map((row) => row['key']);
+      expect(keys).toContain(META_KEYS.weekLayout);
+      expect(raw.storeNames()).toHaveLength(9);
+    } finally {
+      raw.close();
+    }
     expect(DB_VERSION).toBe(1);
   });
 

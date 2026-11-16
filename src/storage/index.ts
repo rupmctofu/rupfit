@@ -44,6 +44,8 @@ export type {
   TrainingPhase,
   UserProfile,
   Uuid,
+  WeekLayout,
+  WeekLayoutSlot,
   WeekRecord,
   WeightGoal,
   WorkoutSession,

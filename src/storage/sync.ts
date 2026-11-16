@@ -85,6 +85,7 @@ const TABLE_TARGETS: Record<SyncTable, TableTarget> = {
   sets: { store: 'sets', metaKey: null },
   body_measurements: { store: 'bodyMeasurements', metaKey: null },
   activities: { store: 'activities', metaKey: null },
+  week_layout: { store: 'meta', metaKey: META_KEYS.weekLayout },
 };
 
 export function tableTarget(table: SyncTable): TableTarget {

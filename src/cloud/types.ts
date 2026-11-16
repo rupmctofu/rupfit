@@ -25,6 +25,12 @@
 export const SYNC_TABLES = [
   'profiles',
   'plan_days',
+  /**
+   * T2 (S5, S6): the owner's fixed weekly assignment. It goes right after the plan days
+   * because the slots it carries are plan day ids — the one reference it makes has to be
+   * satisfiable by the same ordered push (§1) — and before every child of a day.
+   */
+  'week_layout',
   'plan_items',
   'phase_state',
   'exercises',
@@ -55,6 +61,8 @@ export const APPEND_ONLY_TABLES = [
 export const MUTABLE_TABLES = [
   'profiles',
   'plan_days',
+  /** T2: the owner edits the assignment, so the newer copy wins instead of being frozen. */
+  'week_layout',
   'plan_items',
   'phase_state',
   'exercises',

@@ -16,6 +16,7 @@ import type {
   PhaseState,
   PlanDay,
   UserProfile,
+  WeekLayout,
   WorkoutSession,
 } from '../entities';
 import { recommendationFromStored, recommendationToStored } from '../mappers';
@@ -38,6 +39,13 @@ export interface BackupDocument {
   readonly exportedAt: string;
   readonly profile: UserProfile | null;
   readonly phaseState: PhaseState | null;
+  /**
+   * T2 (S5): the owner's fixed weekly assignment. Optional, and absent when the owner has
+   * never moved anything — a document written before the field existed has no key at all,
+   * and absence is a legitimate answer rather than a missing collection
+   * (`weekLayoutSchema.optional()` in `schema.ts`).
+   */
+  readonly weekLayout?: WeekLayout;
   readonly exercises: readonly Exercise[];
   readonly planDays: readonly PlanDay[];
   readonly sessions: readonly EncodedSession[];
@@ -48,6 +56,13 @@ export interface BackupDocument {
 export interface DocumentData {
   readonly profile: UserProfile | null;
   readonly phaseState: PhaseState | null;
+  /**
+   * T2 (S5): `null` or absent while the week is still the fixture's — the document then
+   * carries no key at all. Optional so a caller that builds a document from part of the
+   * store (a test, an export of the plan only) does not have to know about the layout: the
+   * whole document field is optional for the same reason (ADR-011, additive).
+   */
+  readonly weekLayout?: WeekLayout | null;
   readonly exercises: readonly Exercise[];
   readonly planDays: readonly PlanDay[];
   readonly sessions: readonly WorkoutSession[];
@@ -77,6 +92,11 @@ export function buildBackupDocument(
     exportedAt: new Date(metadata.exportedAt).toISOString(),
     profile: data.profile === null ? null : copyProfile(data.profile),
     phaseState: data.phaseState === null ? null : copyPhaseState(data.phaseState),
+    // T2 (S5): omitted rather than null, so a document exported by this build without a
+    // layout is byte-identical to one written before the layout existed.
+    ...(data.weekLayout === null || data.weekLayout === undefined
+      ? {}
+      : { weekLayout: copyWeekLayout(data.weekLayout) }),
     exercises: [...data.exercises].sort(byId).map(copyExercise),
     planDays: [...data.planDays].sort(byId).map(copyPlanDay),
     sessions: [...data.sessions].sort(byId).map(encodeSession),
@@ -224,6 +244,16 @@ function copyExercise(exercise: Exercise): Exercise {
   return exercise.illustration === undefined
     ? withAlternatives
     : { ...withAlternatives, illustration: exercise.illustration };
+}
+
+/**
+ * T2 (S5): the owner's fixed weekly assignment, copied out slot by slot so the document
+ * owns its arrays and cannot be mutated through the record it was built from.
+ */
+function copyWeekLayout(layout: WeekLayout): WeekLayout {
+  return {
+    slots: layout.slots.map((slot) => ({ weekday: slot.weekday, planDayId: slot.planDayId })),
+  };
 }
 
 function copyPlanDay(day: PlanDay): PlanDay {

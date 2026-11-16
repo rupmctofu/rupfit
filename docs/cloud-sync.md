@@ -14,7 +14,7 @@ synchronisation needs. It is not a second design.
 
 ## 1. Tables
 
-Ten tables, one per stored entity. Every id is the app's own
+Eleven tables, one per stored entity. Every id is the app's own
 `crypto.randomUUID()` string kept as `text`, so a row pushed from a device lands on
 the same primary key it has locally and a second push of anything is a no-op.
 
@@ -22,6 +22,7 @@ the same primary key it has locally and a second push of anything is a no-op.
 | --- | --- | --- |
 | `profiles` | `meta` → `profile` | `id`, `display_name`, `mass_unit`, `weight_goal`, `weekly_training_days`, `available_equipment`, `auto_start_rest_timer` |
 | `plan_days` | `planDays` | `id`, `name`, `day_order` |
+| `week_layout` | `meta` → `weekLayout` | `id`, `slots` (JSON text) |
 | `plan_items` | `planItems` | `id`, `plan_day_id` → `plan_days`, `item_order`, `exercise_id`, `exercise_name_snapshot`, `prescription` (jsonb) |
 | `phase_state` | `meta` → `phaseState` | `id`, `block`, `passed_blocks`, `role`, `scheduled_sessions_per_week` |
 | `exercises` | `exercises` | `id`, `name`, `primary_muscle`, `pattern`, `equipment`, `load_increment_kg`, `is_custom`, `is_archived`, `secondary_muscles`, `description`, `variant_of`, `alternatives` |
@@ -58,6 +59,11 @@ Types follow the same rule as `docs/data-model.md` §2:
   explicitly for the prescription), so mirroring them as documents keeps them lossless
   instead of inventing a column per member. `available_equipment`, `secondary_muscles`
   and `alternatives` are flat closed sets, so they are `text[]` and can be queried.
+- **One composite the client encodes itself → `text`.** `week_layout.slots` is the seven
+  slots of the owner's fixed assignment as one JSON array, written by `ENCODE` and read by
+  `DECODE` in `src/cloud/remote.ts`. It is `text` rather than `jsonb` because the shape is
+  the client's: the server stores and returns the document untouched, and the record's own
+  validator (`weekLayoutFromStored`) is what refuses a layout that is not seven weekdays.
 - **Closed value sets are `text` + `check`**, not PostgreSQL enums: adding a muscle
   group must not need an enum migration that rewrites a table.
 
@@ -136,7 +142,7 @@ values survive instead of letting the last writer silently win.
 
 ## 3. Row Level Security
 
-RLS is **enabled on all ten tables** and there is no table left without it. Each table
+RLS is **enabled on all eleven tables** and there is no table left without it. Each table
 has exactly four policies — `select`, `insert`, `update`, `delete` — scoped to the
 `authenticated` role and to one predicate:
 
@@ -188,6 +194,7 @@ One concern per file, in this order:
 | `20261109120800_sets.sql` | `sets` + FK to `session_exercises` |
 | `20261109120900_body_measurements.sql` | `body_measurements` |
 | `20261109121000_activities.sql` | `activities` + unique dedupe index |
+| `20261109121100_week_layout.sql` | `week_layout` (the owner's fixed weekly assignment) |
 
 Each table file is self-contained on purpose: a reviewer reading
 `20261109120800_sets.sql` sees the columns, the indexes, the trigger and the four

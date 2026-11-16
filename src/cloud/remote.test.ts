@@ -27,6 +27,7 @@ import type { PushRow, SyncTable, SyncRowValues } from './types';
 
 const USER_ID = '11111111-1111-4111-8111-111111111111';
 const OTHER_USER_ID = '22222222-2222-4222-8222-222222222222';
+const NOW = 1_760_000_000_000;
 
 interface UpsertOptions {
   readonly onConflict: string;
@@ -123,6 +124,35 @@ const EXERCISE: SyncRowValues = {
   secondaryMuscles: [],
   alternatives: [],
 };
+
+/** T2 (S5): the owner's fixed weekly assignment, as the record carries it. */
+const SLOTS = [
+  { weekday: 0, planDayId: 'day-lower' },
+  { weekday: 1, planDayId: null },
+  { weekday: 2, planDayId: 'day-push' },
+  { weekday: 3, planDayId: null },
+  { weekday: 4, planDayId: 'day-pull' },
+  { weekday: 5, planDayId: null },
+  { weekday: 6, planDayId: null },
+] as const;
+
+/**
+ * A client that answers one `select … gt … order … limit` with fixed rows. The chain is
+ * thenable because `pullSince` awaits it; nothing here reaches a socket.
+ */
+function pullingClient(rows: readonly Record<string, unknown>[]): unknown {
+  const chain = {
+    gt: () => chain,
+    order: () => chain,
+    limit: () => chain,
+    then: (resolve: (value: unknown) => unknown) =>
+      Promise.resolve({ data: [...rows], error: null }).then(resolve),
+  };
+  return {
+    auth: {},
+    from: () => ({ upsert: () => Promise.resolve({ error: null }), select: () => chain }),
+  };
+}
 
 describe('pushRows, the request it actually sends', () => {
   it('sends the session user id in the payload of every table', async () => {
@@ -298,5 +328,42 @@ describe('pushRows, the request it actually sends', () => {
     expect(outcome).toEqual({ acknowledged: [], error: null });
     expect(client.upserts).toEqual([]);
     expect(client.sessionReads()).toBe(0);
+  });
+});
+
+describe('the week layout column of T2 (S5, S6)', () => {
+  it('pushes the seven slots as one JSON text column, not as a shape PostgREST has to guess', async () => {
+    const client = new FakeClient();
+
+    await remote(client).pushRows([row('week_layout', 'weekLayout', { slots: SLOTS })]);
+
+    const payload = client.upserts[0]?.rows[0] ?? {};
+    // One column holding the whole assignment: the slots are never queried by weekday, and
+    // a column per day would be seven places to keep in step with the record.
+    expect(payload['slots']).toBe(JSON.stringify(SLOTS));
+    expect(typeof payload['slots']).toBe('string');
+    expect(payload['id']).toBe(`${USER_ID}:weekLayout`);
+  });
+
+  it('pulls the same column back as the slots the app reads', async () => {
+    const client = pullingClient([
+      {
+        id: `${USER_ID}:weekLayout`,
+        rev: 3,
+        updated_at: new Date(NOW).toISOString(),
+        deleted_at: null,
+        slots: JSON.stringify(SLOTS),
+      },
+    ]);
+
+    const outcome = await new SupabaseSyncRemote(
+      client as unknown as SupabaseClient<Database>,
+    ).pullSince('week_layout', 0);
+
+    // The round trip is the contract: a pull of the row this device pushed is not a
+    // conflict (see `src/cloud/apply.test.ts`).
+    expect(outcome.rows).toHaveLength(1);
+    expect(outcome.rows[0]?.rowId).toBe('weekLayout');
+    expect(outcome.rows[0]?.values).toEqual({ slots: [...SLOTS] });
   });
 });

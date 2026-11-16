@@ -16,8 +16,8 @@ import { ALL_STORES } from '../records';
 import type { Database } from '../db';
 import { StorageError } from '../errors';
 import { activityToRow, exerciseToRow, measurementToRow, phaseStateToMetaRow } from '../mappers';
-import { readAllActivities, readAllExercises, readAllMeasurements, readAllPlanDays, readAllSessions, readPhaseState, readProfile } from '../readers';
-import { writeActivities, writeMeasurements, writePlanDay, writeProfile, writeSessionAggregate } from '../writers';
+import { readAllActivities, readAllExercises, readAllMeasurements, readAllPlanDays, readAllSessions, readPhaseState, readProfile, readWeekLayout } from '../readers';
+import { writeActivities, writeMeasurements, writePlanDay, writeProfile, writeSessionAggregate, writeWeekLayout } from '../writers';
 import {
   BACKUP_COLLECTIONS,
   type BackupCollection,
@@ -39,6 +39,7 @@ export class BackupService implements BackupPort {
     const data = await this.database.read(ALL_STORES, async (tx) => ({
       profile: await readProfile(tx),
       phaseState: await readPhaseState(tx),
+      weekLayout: await readWeekLayout(tx),
       exercises: await readAllExercises(tx),
       planDays: await readAllPlanDays(tx),
       sessions: await readAllSessions(tx),
@@ -86,6 +87,11 @@ export class BackupService implements BackupPort {
       if (document.phaseState !== null) {
         await tx.objectStore('meta').put(phaseStateToMetaRow(document.phaseState));
       }
+      // T2 (S5): an absent layout is not a write. The app falls back to the fixture's
+      // template, which is exactly the state of a device that never fixed one.
+      if (document.weekLayout !== undefined) {
+        await writeWeekLayout(tx, document.weekLayout);
+      }
       for (const exercise of document.exercises) {
         await tx.objectStore('exercises').put(exerciseToRow(exercise));
       }
@@ -104,6 +110,7 @@ export class BackupService implements BackupPort {
       written: counts({
         profile: document.profile === null ? 0 : 1,
         phaseState: document.phaseState === null ? 0 : 1,
+        weekLayout: document.weekLayout === undefined ? 0 : 1,
         exercises: document.exercises.length,
         planDays: document.planDays.length,
         sessions: document.sessions.length,
@@ -150,6 +157,7 @@ export class BackupService implements BackupPort {
       skipped: counts({
         profile: document.profile === null ? 0 : 1,
         phaseState: document.phaseState === null ? 0 : 1,
+        weekLayout: document.weekLayout === undefined ? 0 : 1,
         exercises: document.exercises.length,
         planDays: document.planDays.length,
         sessions: document.sessions.length,

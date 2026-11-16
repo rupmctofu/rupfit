@@ -266,6 +266,18 @@ export interface WeekRecord {
   /** The exchanges the owner made inside this week, and only this week. */
   readonly swaps: readonly WeekSwap[];
 }
+
+/** One weekday of the owner's fixed assignment (S5, S6). `weekday` 0 is Monday, 6 Sunday. */
+export interface WeekLayoutSlot {
+  readonly weekday: number;   // 0..6, exactly one slot per weekday
+  /** The plan day the owner put on that weekday; `null` leaves the day free. */
+  readonly planDayId: string | null;
+}
+
+/** The owner's fixed weekly assignment (S5, S6): seven slots, no dates. */
+export interface WeekLayout {
+  readonly slots: readonly WeekLayoutSlot[];  // exactly 7, ascending weekday
+}
 ```
 
 `MassUnit` conversion lives in the UI layer. Storage is always kilograms as a
@@ -280,6 +292,15 @@ belongs to, which fixture it has, and the exchanges made inside it. Nothing else
 it is derived — the seven days are stamped from that record by `weekPlan`
 (`src/core/engine/week-plan.ts`), so a stored swap survives a reload and a record of
 another week says nothing about today. It lives on this device only (§5.1, §9).
+
+**`WeekLayout` is a decision, and it travels.** It holds the seven weekdays and, for each
+one, which of the plan days the owner put there — no dates, because it is the same
+assignment every week (S5). It is the owner's answer, not the app's: the fixture still
+decides which days have a match and which are rest (S4, S10), so the layout never
+overrides the match day, and `planDayId: null` on a weekday is a legitimate answer rather
+than a missing value. Unlike `WeekRecord`, it is exported with the backup document and
+mirrored to the account (§9, `docs/cloud-sync.md` §1): it has to survive a lost phone
+exactly like the profile does.
 
 `MatchKind`, `WeekSwap` and `DayOffset` are core value types — they belong to the week
 planner, which decides the layout — and the entity that stores them is storage-facing
@@ -320,12 +341,12 @@ If an audit trail of engine versions is ever needed, the addition is
 ### 5.1 Database, stores and keys
 
 One database, `rupfit`, version `1`. Every store is keyed by a string UUID except
-the single-row records (`profile`, `phaseState`, `storage`), which live in `meta`
-under fixed string keys.
+the single-row records, which live in `meta` under fixed string keys: `profile`,
+`phaseState`, `weekLayout`, `storage` and this week's plan under `week`.
 
 | Store | Key path | Purpose |
 | --- | --- | --- |
-| `meta` | `key` (`'profile'`, `'phaseState'`, `'storage'`, `'week'`) | single-row state, the storage-persistence answer and this week's plan |
+| `meta` | `key` (`'profile'`, `'phaseState'`, `'weekLayout'`, `'storage'`, `'week'`) | single-row state, the fixed weekly assignment, the storage-persistence answer and this week's plan |
 | `exercises` | `id` | the library, seeded plus custom |
 | `planDays` | `id` | weekday template days |
 | `planItems` | `id` | ordered items of a day |
@@ -380,6 +401,16 @@ free:
   `Inicio` plans the next one on first open (`currentWeekOf`,
   `src/features/home/HomeScreen.tsx`). A week is a plan for one phone, not history: it
   must never be lifted into the sync path without a server column for it.
+- **One `meta` row takes the profile's pipeline instead.** The owner's fixed weekly
+  assignment lives under the fixed key `'weekLayout'`, one row with seven slots
+  (`WeekLayout`, §3). It is written with `writeStamped` — `MetaRepository.saveWeekLayout`
+  in `src/storage/repositories/profile.ts` — so it carries `rev`/`updatedAt` and queues
+  its `week_layout` op inside the same transaction, exactly like the profile and the phase
+  state, and it is read back through `readWeekLayout`. Two consequences follow and both
+  are intended: the record is in the backup document (§9) and in the account
+  (`docs/cloud-sync.md` §1). Absence is a legitimate answer — `readWeekLayout` answers
+  `undefined` while the week is still the fixture's, and the app falls back to the
+  template the engine stamps (`src/core/engine/week-plan.ts`).
 
 ### 5.2 Records are flat, and the mappers are the boundary
 
@@ -613,6 +644,7 @@ lost storage container.
   "exportedAt": "2026-11-08T10:00:00Z",
   "profile": { },
   "phaseState": { },
+  "weekLayout": { "slots": [ ] },
   "exercises": [ ],
   "planDays": [ ],
   "sessions": [ ],
@@ -630,12 +662,17 @@ Rules:
   carry `externalSampleId` so re-import can dedupe (I-11).
 - **The week record is deliberately outside the document.** `meta.week` (§5.1) is a plan
   for one phone, not training evidence, so it is not exported and not restored. A
-  `restore` clears every store, `meta` included, and writes back only the profile and
-  the phase state; the week that follows a restore is planned again from the template of
-  its own Monday, which is what `currentWeekOf` does for any week it holds no record of.
-  No session, set or
-  frozen recommendation depends on the week record, so nothing is lost by leaving it
-  out.
+  `restore` clears every store, `meta` included, and writes back the profile, the phase
+  state and the week layout; the week that follows a restore is planned again from the
+  template of its own Monday, which is what `currentWeekOf` does for any week it holds no
+  record of. No session, set or frozen recommendation depends on the week record, so
+  nothing is lost by leaving it out.
+- **The week layout is inside the document, and absence is a legitimate answer.**
+  `weekLayout` is the owner's fixed assignment (S5, S6), so `restore` writes it back like
+  the profile. It is written as a key that is *absent* — not `null` — when the owner has
+  never moved anything, and `weekLayoutSchema` is `.optional()`: a document exported
+  before the field existed still imports, and it leaves the app on the template default,
+  which is the same state as never having fixed the assignment.
 - **Validation before writing.** The document is parsed with the `zod` schema derived
   from the domain types. An invalid document changes nothing and reports the first
   failure with its path (`sessions[3].exercises[0].sets[1].effort`), not a generic

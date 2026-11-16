@@ -209,6 +209,25 @@ export interface WeekRecord {
   readonly swaps: readonly WeekSwap[];
 }
 
+/** One weekday of the owner's layout. `weekday` 0 is Monday, 6 is Sunday. */
+export interface WeekLayoutSlot {
+  readonly weekday: number; // 0..6, exactly one slot per weekday
+  /** The plan day the owner put on that weekday; `null` leaves the day free. */
+  readonly planDayId: string | null;
+}
+/**
+ * The owner's fixed weekly assignment (S5, S6): seven slots, no dates.
+ *
+ * It is the opposite of `WeekRecord` in every way that matters to persistence: one record
+ * for every week rather than one per week, the owner's decision rather than this phone's
+ * draft, and therefore part of the backup document (§9) and of the account
+ * (`src/cloud/types.ts`). It never overrides the fixture — the match day still comes from
+ * the league calendar (S4, S10) — and `null` on a weekday is a legitimate answer.
+ */
+export interface WeekLayout {
+  readonly slots: readonly WeekLayoutSlot[]; // exactly 7, ascending weekday
+}
+
 /** Re-exported so features import one module for the shapes they read. */
 export type {
   Discomfort,

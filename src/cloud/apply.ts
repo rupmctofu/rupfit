@@ -67,6 +67,11 @@ const SYNCED_FIELDS: Readonly<Record<SyncTable, readonly string[]>> = {
     'autoStartRestTimer',
   ],
   plan_days: ['name', 'order'],
+  /**
+   * T2 (S5): the layout is one value, `slots`, so the remote holds it in one column and
+   * there is no per-weekday field to keep in step with the record.
+   */
+  week_layout: ['slots'],
   plan_items: ['planDayId', 'order', 'exerciseId', 'exerciseNameSnapshot', 'prescription'],
   phase_state: ['block', 'passedBlocks', 'role', 'scheduledSessionsPerWeek'],
   exercises: [

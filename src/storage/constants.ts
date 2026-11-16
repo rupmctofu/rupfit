@@ -44,6 +44,12 @@ export const META_KEYS = {
    * same schemaless store, so the record needs no object store and no `DB_VERSION` bump.
    */
   week: 'week',
+  /**
+   * T2 — the owner's fixed weekly assignment (S5, S6). Meta-keyed like the profile, and
+   * synced and backed up like it too: this one is not device-local, so it needs no store
+   * of its own only because `meta` is schemaless, not because it stays on this phone.
+   */
+  weekLayout: 'weekLayout',
   /** The per-table "last pushed" marks (odd/tasks/cloud-sync.md T3/T4). */
   syncWatermarks: 'syncWatermarks',
 } as const;

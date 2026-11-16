@@ -28,6 +28,7 @@ import {
   setRecord,
   T0,
   userProfile,
+  weekLayout,
   workoutSession,
   type RawDatabase,
 } from './harness';
@@ -64,6 +65,7 @@ async function openReader(): Promise<RawDatabase> {
 async function seedEverything(): Promise<void> {
   await storage.profile.save(userProfile());
   await storage.meta.savePhaseState(phaseState({ block: 2, passedBlocks: 1 }));
+  await storage.meta.saveWeekLayout(weekLayout());
 
   const library = exercise({ name: 'Sentadilla trasera', loadIncrementKg: 2.5 });
   await storage.exercises.save(library);
@@ -172,6 +174,7 @@ describe('§9 the backup document shape', () => {
       'profile',
       'schemaVersion',
       'sessions',
+      'weekLayout',
     ]);
     expect(document.appVersion).toBe(APP_VERSION);
     expect(document.exportedAt).toBe('2026-11-08T10:00:00.000Z');
@@ -405,6 +408,13 @@ describe('§9 validation before writing: one invalid document per rule', () => {
         document['sessions'] = {};
       },
       path: 'sessions',
+    },
+    {
+      rule: 'R13 a week layout is seven weekdays, Monday first',
+      breakDocument: (document) => {
+        document['weekLayout']['slots'] = document['weekLayout']['slots'].slice(0, 6);
+      },
+      path: 'weekLayout.slots',
     },
   ];
 
@@ -661,5 +671,63 @@ describe('§9 the additive library detail of T3', () => {
     expect(restored).toEqual(detailed);
     expect(await storage.exercises.byId(legacyRow.id)).toEqual(legacy);
     expect(await snapshot()).toBe(before);
+  });
+});
+
+describe('§9 the week layout of T2 (S5, S6)', () => {
+  it('exports the fixed weekly assignment and restores it after a wipe', async () => {
+    await seedEverything();
+    const before = await snapshot();
+    const parsed = JSON.parse(before) as { weekLayout?: unknown };
+    expect(parsed.weekLayout).toEqual(weekLayout());
+
+    await storage.deleteAll({ confirmation: DELETE_ALL_CONFIRMATION });
+    expect(await storage.meta.readWeekLayout()).toBeUndefined();
+
+    const report = await storage.backup.import({
+      json: before,
+      mode: 'restore',
+      confirmation: RESTORE_CONFIRMATION,
+    });
+    expect(report.written.weekLayout).toBe(1);
+    expect(await storage.meta.readWeekLayout()).toEqual(weekLayout());
+    expect(await snapshot()).toBe(before);
+  });
+
+  it('imports a document written before the layout existed and leaves the template default', async () => {
+    // An older backup carries no `weekLayout` key at all, and absence is legitimate: until
+    // the owner moves something the week is the fixture's (S4, S10).
+    const before = await snapshot();
+    expect('weekLayout' in (JSON.parse(before) as Record<string, unknown>)).toBe(false);
+    expect(storage.backup.validate(before).ok).toBe(true);
+
+    await storage.meta.saveWeekLayout(weekLayout());
+    await storage.backup.import({
+      json: before,
+      mode: 'restore',
+      confirmation: RESTORE_CONFIRMATION,
+    });
+
+    expect(await storage.meta.readWeekLayout()).toBeUndefined();
+  });
+
+  it('still leaves the device-local week record outside the document and takes it with the restore', async () => {
+    await storage.meta.saveWeek({ monday: '2026-11-02', match: 'league', swaps: [] });
+    await storage.meta.saveWeekLayout(weekLayout());
+
+    const before = await snapshot();
+    // T3 is a plan for this phone: it is neither exported nor restored, while the fixed
+    // assignment of the same store is both.
+    expect(before).not.toContain('2026-11-02');
+    expect(before).toContain('weekLayout');
+
+    await storage.backup.import({
+      json: before,
+      mode: 'restore',
+      confirmation: RESTORE_CONFIRMATION,
+    });
+
+    expect(await storage.meta.readWeek()).toBeUndefined();
+    expect(await storage.meta.readWeekLayout()).toEqual(weekLayout());
   });
 });

@@ -17,6 +17,7 @@
 import { describe, expect, it } from 'vitest';
 import { memorySyncStore } from './outbox';
 import { createSyncService } from './sync';
+import { SYNC_TABLES } from './types';
 import type {
   LocalStorePort,
   PushOutcome,
@@ -145,7 +146,8 @@ describe('a sync pass with nothing to do', () => {
     expect(result).toMatchObject({ pushed: 0, pulled: 0, conflicts: 0, failures: [] });
     expect(remote.pushes).toEqual([]);
     expect(applied.changes).toEqual([]);
-    expect(remote.pulls).toHaveLength(10);
+    // One pull per mirrored table, so an additive table is picked up without editing this.
+    expect(remote.pulls).toHaveLength(SYNC_TABLES.length);
     expect(remote.pulls.every((pull) => pull.since === 0)).toBe(true);
   });
 });
@@ -308,7 +310,7 @@ describe('pulling and the watermark', () => {
 
     expect(result.status).toBe('completed');
     expect(result.pulled).toBe(0);
-    expect(result.failures).toHaveLength(10);
+    expect(result.failures).toHaveLength(SYNC_TABLES.length);
     expect(result.failures[0]).toEqual({ stage: 'pull', table: 'profiles', message: 'offline' });
   });
 });

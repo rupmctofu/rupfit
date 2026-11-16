@@ -19,6 +19,7 @@ import type {
   PlanItem,
   SetRecord,
   UserProfile,
+  WeekLayout,
   WorkoutSession,
 } from '../../src/storage';
 import type { PhaseState, ProgressionRecommendation } from '../../src/core/domain';
@@ -248,6 +249,24 @@ export function userProfile(overrides: Partial<UserProfile> = {}): UserProfile {
 
 export function phaseState(overrides: Partial<PhaseState> = {}): PhaseState {
   return { block: 1, passedBlocks: 0, ...overrides };
+}
+
+/**
+ * The owner's fixed weekly assignment (T2, S5/S6): one plan day per weekday, Monday
+ * first, and `null` for a weekday the owner left free.
+ */
+export function weekLayout(
+  planDayIds: readonly (string | null)[] = [
+    'day-lower',
+    'day-push',
+    null,
+    'day-pull',
+    null,
+    null,
+    null,
+  ],
+): WeekLayout {
+  return { slots: planDayIds.map((planDayId, weekday) => ({ weekday, planDayId })) };
 }
 
 /* ------------------------------------------------------------------ raw reads */
