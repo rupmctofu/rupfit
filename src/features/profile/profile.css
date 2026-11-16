@@ -1,7 +1,13 @@
 /*
- * Perfil's layout: the identity card, the account card, one card of compact labelled
- * settings, then the backup, storage and install details. Tokens only — no colour,
- * radius, size or duration is written here as a literal (docs/design-system.md §12).
+ * Perfil's layout (`odd/tasks/dark-premium-redesign.md` T9): three named groups — Cuenta,
+ * Entrenamiento, Sistema — and, inside them, the identity card, one card of compact
+ * labelled settings, and the backup, storage and install details.
+ *
+ * Tokens only: no colour, radius, size, shadow or duration is written here as a literal
+ * (docs/design-system.md §12). The depth is the shipped one and arrives from tokens, not
+ * from this file: the canvas, the card one step above it, the raised ground of the one
+ * block this screen makes its lead, and the hairline that closes a surface. Nothing here
+ * floats, so nothing here needs a shadow.
  *
  * The shell already owns the horizontal padding (src/app/shell.css), so this file adds
  * rhythm and the controls' geometry, never a second gutter.
@@ -10,11 +16,54 @@
 .profile {
   display: flex;
   flex-direction: column;
-  gap: var(--space-5);
+  /* 16 px: the screen title, the platform notices, the three chapters and the trailing
+     sentence share one rhythm here; the chapters add their own air below. */
+  gap: var(--space-4);
+  min-width: 0;
   padding-top: var(--space-4);
   padding-bottom: var(--space-8);
 }
 
+/* ---------------------------------------------------------------- the groups (T9) */
+
+/*
+ * One chapter of the screen. Its heading is the name and its blocks follow it at the
+ * screen's own rhythm — no box, no rule and no ground of its own, because a chapter is a
+ * reading boundary, not a surface.
+ */
+.profile__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+/* 28 px between two chapters, on top of the 16 px above: enough that the eye reads three
+   parts of a screen instead of one long list of cards. */
+.profile__group + .profile__group {
+  margin-top: var(--space-3);
+}
+
+/*
+ * The group's name. `--text-card-title` (20 px) is the token T2 defined for exactly this
+ * role — a block named without competing with the screen title (34 px) above it or with
+ * the owner's name (26 px) inside the first group. The system's section label stays what
+ * it was: 13 px, uppercase, muted, for the sections *inside* Sistema, so the hierarchy is
+ * chapter → section → row and never two headings of the same weight.
+ */
+.profile__group-title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-card-title);
+  line-height: var(--leading-card-title);
+  letter-spacing: var(--tracking-card-title);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+/* One block of a group: a label and what it names, or a card and the sentences it cannot
+   put in a row. The blocks of a group stack closer to each other than the groups do. */
 .profile__section {
   display: flex;
   flex-direction: column;
@@ -31,11 +80,17 @@
 }
 
 /* ---------------------------------------------------------------- identity */
-/* The only mark of this screen is an `R` monogram: the app has no photo, no level and
-   no notification, so nothing else is drawn next to the name. 44 px is the compact
-   control height token, which keeps the 22 px letter at the reference's 46/21
-   proportion without inventing a size. Neutral, not violet: identity is not the action
-   or the data point of the screen, and the accent probe is right to say so. */
+/*
+ * The lead of the first group, and the only block of this screen one tonal step above the
+ * canvas — the step Inicio's today card takes. The mark itself needs no plate behind it:
+ * `logo-mark.svg` is a 44 px drawing with transparent margins and it fills the box it is
+ * given, so a ground under it was invisible by construction. Its fills are baked and are
+ * never recoloured (S2, S3).
+ */
+.profile__identity-card {
+  background: var(--color-surface-raised);
+}
+
 .profile__identity {
   display: flex;
   align-items: flex-start;
@@ -45,27 +100,18 @@
 
 .profile__monogram {
   flex: none;
-  display: grid;
-  place-items: center;
   width: var(--control-height-compact);
   height: var(--control-height-compact);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-raised);
-  color: var(--color-text);
   overflow: hidden;
-  font-family: var(--font-numeric);
-  font-size: var(--text-title);
-  line-height: var(--leading-title);
-  font-weight: var(--weight-semibold);
-  font-style: italic;
 }
 
-/* The mark fills the plate it sits on: its own lavender carries the identity, so the
-   plate behind it stops being decoration and becomes the edge of the drawing. */
+/* The mark fills the box it sits on. 44 px is the compact control height token: it keeps
+   the drawing at the size the identity was approved at, and it is a size of the mark, not
+   a spacing step. */
 .profile__mark {
   display: block;
-  width: 44px;
-  height: 44px;
+  width: var(--control-height-compact);
+  height: var(--control-height-compact);
 }
 
 .profile__identity-text {
@@ -92,21 +138,6 @@
   padding: var(--space-3) 0;
 }
 
-.profile__setting-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  min-width: 0;
-}
-
-.profile__setting-text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-width: 0;
-}
-
 /* 13 px medium ink: quiet next to the 17 px body copy, still a label and not an
    uppercase section heading. */
 .profile__setting-label {
@@ -120,11 +151,12 @@
 }
 
 /* The hairline belongs between neighbours, whichever kind of row they are — the list
-   rows of this screen use the same rule as `DataRow`. */
+   rows of this screen use the same rule as `DataRow`: `--color-hairline`, one step
+   quieter than the `border` a control is edged with. */
 .profile__setting + .profile__setting,
 .profile__setting + .ds-data-row,
 .ds-data-row + .profile__setting {
-  border-top: var(--layout-hairline) solid var(--color-border);
+  border-top: var(--layout-hairline) solid var(--color-hairline);
 }
 
 /* ------------------------------------------------------------------ fields */
@@ -135,6 +167,12 @@
   min-width: 0;
 }
 
+/*
+ * A field is a control, so its edge is `--color-border` — the one colour in this file that
+ * is not the hairline, because every control edge in the design system draws with it
+ * (`components/empty-state.css`, `components/weight-entry.css`, the session's sheet
+ * actions) and a field that whispered would stop reading as something to tap.
+ */
 .profile__input {
   width: 100%;
   /* 48 px floor: the field is a target too (§3). The box grows with the text size. */
@@ -202,14 +240,20 @@ textarea.profile__input {
 }
 
 /* ------------------------------------------------------------------- files */
-/* The native picker sits invisibly over a 48 px label: one real control, one target. */
+/* The native picker sits invisibly over a 48 px label: one real control, one target. The
+   label wears the quiet control chrome of the system (a raised ground and a control
+   edge), so the picker reads as a button rather than as the one word that happens to be
+   underlined by a box. */
 .profile__file {
   position: relative;
   display: inline-flex;
   align-items: center;
   align-self: flex-start;
   min-height: var(--target-min);
+  padding: 0 var(--space-1);
+  border: var(--layout-hairline) solid var(--color-border);
   border-radius: var(--radius-control-square);
+  background: var(--color-surface-raised);
 }
 
 .profile__file > input {
@@ -226,11 +270,13 @@ textarea.profile__input {
 }
 
 /* --------------------------------------------------------------- sentences */
+/* One sentence under a block: the role Inicio's notes use (`--leading-loose`), loose
+   enough that a two-line reason does not read as a caption. */
 .profile__note {
   margin: 0;
   font-family: var(--font-sans);
   font-size: var(--text-meta);
-  line-height: var(--leading-meta);
+  line-height: var(--leading-loose);
   color: var(--color-muted);
   overflow-wrap: anywhere;
 }
@@ -244,7 +290,7 @@ textarea.profile__input {
    controls between settings and storage. Native details/summary keeps it keyboard- and
    screen-reader-operable without adding JS or a dependency. */
 .profile__disclosure {
-  border-top: var(--layout-hairline) solid var(--color-border);
+  border-top: var(--layout-hairline) solid var(--color-hairline);
 }
 
 .profile__disclosure-trigger {
@@ -299,3 +345,29 @@ textarea.profile__input {
   outline: var(--focus-ring-width) solid var(--color-focus-ring);
   outline-offset: var(--focus-ring-offset);
 }
+
+/* The owner asked for less motion (§6.2): the chevron still opens and closes, it just
+   arrives there without travelling. */
+@media (prefers-reduced-motion: reduce) {
+  .profile__disclosure-trigger::after {
+    transition: none;
+  }
+}
+
+/* ------------------------------------------------------------- the wide window */
+/*
+ * A wide window gets a readable column instead of a 768 px card (S8). Perfil is
+ * mobile-first and has nothing to put beside its groups, so it takes the same 560 px
+ * column Inicio, Historial and Sesión already use — the four screens keep one measure.
+ * The cards inside are unchanged: only the column narrows.
+ */
+@media (min-width: 720px) {
+  .profile {
+    width: 100%;
+    max-width: 560px;
+    margin-inline: auto;
+  }
+}
+
+/* The compact gutter of the shell at 320 px is the shell's (src/app/shell.css); nothing
+   here re-adds a horizontal inset, so this file cannot double it. */

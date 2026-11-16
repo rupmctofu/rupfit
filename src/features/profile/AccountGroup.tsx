@@ -45,9 +45,19 @@ export interface AccountGroupProps {
   readonly sync?: AccountSyncView | undefined;
   /** The auth service. Defaults to the real one, which is `unconfigured` with no project. */
   readonly auth?: AuthPort | undefined;
+  /**
+   * Whether the card prints its own `Cuenta` label. Perfil groups its screen under that same
+   * name (T9), so it passes `false` and the word is said once; anywhere else the card keeps
+   * naming itself.
+   */
+  readonly showLabel?: boolean | undefined;
 }
 
-export function AccountGroup({ sync = NO_SYNC, auth = cloudAuth }: AccountGroupProps): React.ReactElement {
+export function AccountGroup({
+  sync = NO_SYNC,
+  auth = cloudAuth,
+  showLabel = true,
+}: AccountGroupProps): React.ReactElement {
   // `null` until the service has spoken: a configured project resolves its stored
   // session asynchronously, and a signed-out form must never flash over it.
   const [account, setAccount] = useState<AuthState | null>(null);
@@ -78,7 +88,7 @@ export function AccountGroup({ sync = NO_SYNC, auth = cloudAuth }: AccountGroupP
 
   return (
     <section className="profile__section">
-      <SectionLabel>Cuenta</SectionLabel>
+      {showLabel ? <SectionLabel>Cuenta</SectionLabel> : null}
 
       {account === null ? null : account.status === 'signed-in' ? (
         <SignedIn
