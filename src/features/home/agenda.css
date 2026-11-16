@@ -1,0 +1,389 @@
+/*
+ * T4 — the week agenda of Inicio. Tokens only: no colour, radius, type size or duration
+ * is written as a literal (design-system §5, §6.1).
+ *
+ * The geometry is the approved artboard (`design/week-calendar/02-agenda-semanal.html`,
+ * direction 02): a column of seven rows on the canvas, the day and its number on the left,
+ * the name in full in the middle, the state in a word on the right, and the handle last.
+ * The rows carry hairlines instead of a card so the list reads as one object, and the three
+ * states that matter are marked twice — a shape and a word — never by colour alone (§9).
+ */
+
+.home-agenda-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* `3 de 4 entrenos hechos` — the sentence the meter drew as segments (S2). */
+.home-agenda__count {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  color: var(--color-muted);
+}
+
+.home-agenda {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One day. The left edge is reserved on every row — transparent here, accent on today —
+   so marking the day never shifts the content sideways. The hairline between rows is the
+   row's own `::after` and not a border, so the accent can own the border colour of the
+   today row without painting its underside. */
+.home-agenda__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  min-height: var(--target-min);
+  padding: var(--space-1) 0 var(--space-1) var(--space-2);
+  border-left: calc(var(--layout-hairline) * 2) solid transparent;
+  border-radius: var(--radius-control-square);
+}
+
+.home-agenda__row::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--layout-hairline);
+  background: var(--color-border);
+}
+
+.home-agenda__row:last-child::after {
+  content: none;
+}
+
+/* Today (S1): the accent edge the week strip already used, plus the word `Hoy`.
+   The accent itself is declared in `home.css`, which is where this screen's accent
+   budget lives (`tests/accent-budget.test.ts`); this file only sets the geometry. */
+
+/* Done (S1, S6): green ink and the check, in a surface a step above the canvas so the row
+   reads as closed even when the colour is not available. */
+.home-agenda__row--done {
+  background: var(--color-surface);
+}
+
+.home-agenda__row--done .home-agenda__name,
+.home-agenda__row--done .home-agenda__state {
+  color: var(--color-success);
+}
+
+/* A row in the hand leaves its place; the row it is over is tinted with the accent, so
+   the drop target is one glance away without a line that would move the list. Nothing
+   moves: the row keeps its height, so the finger never chases the content. */
+.home-agenda__row--dragging {
+  opacity: 0.35;
+}
+
+/* What will not take the row while something is in the air: dimmed, and the lock and
+   `Cerrado` inside it say why (S2, S6). */
+.home-agenda__row--refusing .home-agenda__name {
+  color: var(--color-subtle);
+}
+
+.home-agenda__row--rest .home-agenda__name {
+  color: var(--color-muted);
+  font-weight: var(--weight-medium);
+}
+
+/* The row is a real control: its own content is its accessible name, and the reset comes
+   from `ds-action` so focus, activation and the 48 px target are the system's (§9). */
+.home-agenda__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  padding: 0;
+  text-align: left;
+  color: inherit;
+}
+
+/* The day column: three letters, the number, and the full weekday kept for the reader. */
+.home-agenda__day {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: var(--space-8);
+}
+
+.home-agenda__wd {
+  font-family: var(--font-sans);
+  font-size: var(--text-label);
+  line-height: var(--leading-label);
+  letter-spacing: var(--tracking-label);
+  font-weight: var(--weight-semibold);
+  color: var(--color-muted);
+}
+
+.home-agenda__num {
+  font-family: var(--font-numeric);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+}
+
+.home-agenda__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.home-agenda__name {
+  font-family: var(--font-sans);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.home-agenda__meta {
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  color: var(--color-muted);
+}
+
+/* The state in one word, with the shape that says the same thing: the check for a done
+   day, the ball for the match, the lock while the row is refused. */
+.home-agenda__state {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-sans);
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+  font-weight: var(--weight-semibold);
+  color: var(--color-muted);
+}
+
+.home-agenda__mark {
+  display: inline-flex;
+  align-items: center;
+}
+
+.home-agenda__mark--check {
+  color: var(--color-success);
+}
+
+/* `.home-agenda__mark--ball` is accent text, declared in `home.css` with the rest of the
+   screen's accent budget. */
+
+/* The handle: the only place `touch-action: none` is set, so the page keeps scrolling
+   everywhere else while a finger can take the row (S2). */
+.home-agenda__handle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-height-compact);
+  min-height: var(--target-min);
+  margin-right: calc(-1 * var(--space-2));
+  color: var(--color-border);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.home-agenda__handle:active {
+  cursor: grabbing;
+}
+
+.home-agenda__grip,
+.home-agenda__lock {
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: var(--icon-stroke);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.home-agenda__lock {
+  color: var(--color-subtle);
+}
+
+/* The start of today, on its own line inside the row: the one filled action (§7.1). */
+.home-agenda__action {
+  flex: 0 0 100%;
+  display: flex;
+  padding: var(--space-1) 0;
+}
+
+.home-agenda__action > * {
+  width: 100%;
+}
+
+.home-agenda__hint {
+  margin: 0;
+}
+
+/* A refusal, said once and quietly: the smallest voice the screen has (S6). */
+.home-agenda__refusal {
+  margin: 0;
+  color: var(--color-text);
+}
+
+/* S10: the plan day the match displaced. It sits under the rows, quiet enough that it
+   never competes with the week, and it is placed through the same sheet. */
+.home-agenda__unplaced {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.home-agenda__unplaced-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-agenda__unplaced-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+}
+
+.home-agenda__unplaced-meta {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* ------------------------------------------------------------------------- the sheet */
+
+/* «¿Qué entrenas el viernes 10?» — the accessible path: a bottom sheet inside the week,
+   not an overlay, because the rows behind it are the answer it is asking about. */
+.home-agenda-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-1);
+  padding: var(--space-3);
+  border: var(--layout-hairline) solid var(--color-border);
+  border-radius: var(--radius-sheet);
+  background: var(--color-surface);
+}
+
+.home-agenda-sheet:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.home-agenda-sheet__grab {
+  display: block;
+  width: var(--space-8);
+  height: var(--radius-track);
+  margin: 0 auto;
+  border-radius: var(--radius-track-thin);
+  background: var(--color-border);
+}
+
+.home-agenda-sheet__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.home-agenda-sheet__head > div {
+  min-width: 0;
+}
+
+.home-agenda-sheet__options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One of the four: a real button, so the 48 px target and the focus ring come free. */
+.home-agenda-sheet__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--target-min);
+  padding: var(--space-2);
+  text-align: left;
+  border: var(--layout-hairline) solid var(--color-border);
+  border-radius: var(--radius-control-square);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* Selected (never only tinted): the accent border, the lavender surface and the check —
+   declared in `home.css`. The disc is a tint of the same family, not a filled accent
+   pill, which is the system's rule for selected options (§4, `Chip`). */
+.home-agenda-sheet__radio {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-set-mark);
+  height: var(--size-set-mark);
+  border: var(--layout-hairline) solid var(--color-border);
+  border-radius: var(--radius-pill);
+}
+
+.home-agenda-sheet__option-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.home-agenda-sheet__option-name {
+  font-family: var(--font-sans);
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  font-weight: var(--weight-semibold);
+}
+
+/* Motion is the system's, and the owner's request wins: nothing essential is animated
+   in the first place, so a reduced-motion preference only has to reset what is left. */
+@media (prefers-reduced-motion: reduce) {
+  .home-agenda__row,
+  .home-agenda__handle,
+  .home-agenda-sheet,
+  .home-agenda-sheet__option {
+    transition: none;
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .home-agenda__row,
+  .home-agenda-sheet__option {
+    transition: background-color var(--motion-fast) var(--motion-ease);
+  }
+}

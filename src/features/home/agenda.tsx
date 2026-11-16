@@ -1,0 +1,878 @@
+/*
+ * T4 (S1, S2, S3, S9, S10) — the week on Inicio: seven rows, the row in the hand and the
+ * sheet that changes what a day carries.
+ *
+ * The week itself is not derived here. `features/week/agenda.ts` already answers what each
+ * dated day is, whether it is done, today, locked and what the legs rule has to say, from
+ * `now`, the fixture, the plan, the owner's layout and the sessions. This file only:
+ *
+ * 1. **Reads the effective layout once** — `weekLayout` from the store when the owner has
+ *    one, the template materialised otherwise — so the drag and the sheet both start from
+ *    the week the owner is looking at and saving never has to invent one.
+ * 2. **Turns the gesture into one operation.** A drop and a tap of the sheet both call
+ *    `placePlanDay` and write the layout it returns. A refusal changes nothing and says
+ *    one quiet sentence; a write that fails keeps the previous week on screen and offers
+ *    one retry.
+ * 3. **Draws what the artboard fixes** (`design/week-calendar/02-agenda-semanal.html`):
+ *    the weekday and its number, the name in full, its exercises and sets, the state in a
+ *    word, the ball on the match and the lock on the days that refuse the row.
+ *
+ * Three rules the code below keeps.
+ *
+ * - **Dragging is never required** (S2/S3): every change is reachable by tapping a row,
+ *   and the handle is `aria-hidden` because the row is the control. The pointer path only
+ *   names the weekday under the finger and hands it to the same placement.
+ * - **Colour is never the only carrier** (§9): a done day says `Hecho` and draws the check,
+ *   a refusing day says `Cerrado` and draws the lock, and today adds the word `Hoy` to the
+ *   accent edge.
+ * - **No clock and no port of its own.** The instant, the plan and the sessions arrive in
+ *   `HomeInput`; the write arrives as `onPlace`, performed by `HomeScreenWithPort`, which
+ *   is the only place that knows a `StoragePort` exists.
+ */
+
+import { useEffect, useRef, useState } from 'react';
+import {
+  Banner,
+  Card,
+  Chip,
+  Icon,
+  PrimaryAction,
+  SectionLabel,
+  TextButton,
+} from '../../design-system';
+import type { EpochMs, StoragePort, WeekLayout } from '../../storage';
+import type { MatchKind } from '../../core/engine/week-plan';
+import {
+  defaultLayoutOf,
+  placePlanDay,
+  weekAgendaOf,
+  type AgendaDay,
+  type AgendaPlanDay,
+  type PlacementRefusal,
+  type PlacementResult,
+  type WeekAgenda,
+} from '../week/agenda';
+import { localDayOf, mondayInstantOf } from '../week/week';
+import { formatDayName, formatExerciseCount, formatWeekdayInitial } from './format';
+import type { HomeActionView, HomeInput } from './selectors';
+import './agenda.css';
+
+/* ------------------------------------------------------------------- the words */
+
+/** How a row states itself, in one word (S1, S6, S9). */
+export type AgendaStateWord = 'Hecho' | 'Hoy' | 'Pendiente' | 'Fijo' | 'Libre';
+
+/**
+ * Today says `Hoy` even when it is the match day: the artboard's third screen does exactly
+ * that, and the ball already says what the day is. `Hecho` still wins, because a closed
+ * session is the strongest fact a row can carry.
+ */
+export function stateWordOf(day: AgendaDay): AgendaStateWord {
+  if (day.done) return 'Hecho';
+  if (day.today) return 'Hoy';
+  if (day.kind === 'match') return 'Fijo';
+  if (day.kind === 'rest') return 'Libre';
+  return 'Pendiente';
+}
+
+/** What an unchangeable row says while a row is in the air: the lock and this word. */
+export const CLOSED_WORD = 'Cerrado';
+
+/** The one sentence under the rows, in the owner's words (the artboard's hint). */
+export const AGENDA_HINT =
+  'Arrastra un renglón a otro día, o tócalo para cambiar el entreno que lleva.';
+
+/** The same hint while something is in the hand: what accepts it and what does not. */
+export const DRAG_HINT =
+  'Los días hechos llevan candado y el partido no se mueve. El resto acepta el renglón.';
+
+/** A failed write, said once, next to the retry that can fix it (S5). */
+export const PLACEMENT_FAILED_COPY =
+  'No se pudo guardar el cambio. La semana sigue como estaba.';
+
+/** Why a placement did not happen, in the owner's words, and never as a code. */
+const REFUSAL_COPY: Readonly<Record<PlacementRefusal, string | null>> = {
+  matchDay: 'El día del partido no se mueve.',
+  doneDay: 'Un día hecho no se cambia.',
+  // A row dropped on its own day asked for what is already true: nothing to explain.
+  sameDay: null,
+  unknownDay: 'Ese día no está en la semana.',
+  unknownPlanDay: 'Ese entreno no está en tu plan.',
+};
+
+/** `Partido · Liga` — the match row names the fixture it belongs to (S9). */
+const MATCH_TITLES: Readonly<Record<MatchKind, string>> = {
+  league: 'Partido · Liga',
+  cup: 'Partido · Copa',
+  none: 'Partido',
+};
+
+function seriesText(count: number): string {
+  return count === 1 ? '1 serie' : `${count} series`;
+}
+
+/**
+ * Midnight of a local `YYYY-MM-DD`.
+ *
+ * Built from calendar parts on purpose: `new Date('2023-11-06')` parses as UTC and would
+ * date one row wrong west of Greenwich, the mistake `week.ts` warns about.
+ */
+function instantOfDay(date: string): EpochMs {
+  const [year, month, day] = date.split('-');
+  return new Date(Number(year), Number(month) - 1, Number(day)).getTime();
+}
+
+/** `LUN` — the three letters of the artboard's day column. */
+export function shortWeekdayOf(day: AgendaDay): string {
+  return formatWeekdayInitial(instantOfDay(day.date));
+}
+
+/** `6` — the day of the month the row sits on. */
+export function dayNumberTextOf(day: AgendaDay): string {
+  return String(Number(day.date.slice(8, 10)));
+}
+
+/** The name in full: the plan day, the match, or the rest day. */
+export function rowTitleOf(day: AgendaDay, matchKind: MatchKind): string {
+  if (day.kind === 'match') return MATCH_TITLES[matchKind];
+  if (day.planDay === null) return 'Descanso';
+  return formatDayName(day.planDay.name);
+}
+
+/** `6 ejercicios · 18 series` — what a plan day asks for, as the row states it. */
+export function countsTextOf(exerciseCount: number, setCount: number): string {
+  return `${formatExerciseCount(exerciseCount)} · ${seriesText(setCount)}`;
+}
+
+/** The row's second line: its numbers, or what the day does instead of training. */
+export function rowMetaOf(day: AgendaDay): string {
+  if (day.planDay === null) {
+    return day.kind === 'match' ? 'Sólo se informa' : 'Sin entreno';
+  }
+  return countsTextOf(day.exerciseCount, day.setCount);
+}
+
+/* --------------------------------------------------------------- the derivation */
+
+/**
+ * The fixture of the week the owner is looking at, or none.
+ *
+ * A record of another week says nothing about this one — the same rule `weekTodayOf`
+ * applies — so a stale record draws the no-match week instead of last week's Thursday.
+ */
+function matchKindOf(input: HomeInput): MatchKind {
+  const week = input.week;
+  if (week === undefined) return 'none';
+  const monday = localDayOf(mondayInstantOf(input.now).getTime());
+  return week.monday === monday ? week.match : 'none';
+}
+
+/** The sessions the week looks at: the recent ones and the one that is open right now. */
+function sessionsOf(input: HomeInput): HomeInput['recent'] {
+  return input.inProgress === undefined ? input.recent : [...input.recent, input.inProgress];
+}
+
+/**
+ * The effective layout: the owner's, or the template materialised (S4, S5).
+ *
+ * The drag has to start somewhere, and the week on screen is the answer: when the store
+ * holds no layout the template *is* the layout, so `placePlanDay` gets a real one to move
+ * instead of a hole to fill from scratch.
+ */
+export function layoutOf(input: HomeInput): WeekLayout {
+  return (
+    input.weekLayout ?? defaultLayoutOf({ matchKind: matchKindOf(input), plan: input.plan })
+  );
+}
+
+function agendaOver(input: HomeInput, layout: WeekLayout): WeekAgenda {
+  return weekAgendaOf({
+    now: input.now,
+    matchKind: matchKindOf(input),
+    plan: input.plan,
+    layout,
+    sessions: sessionsOf(input),
+  });
+}
+
+/** The week as one row per day, over the effective layout. */
+export function agendaOf(input: HomeInput): WeekAgenda {
+  return agendaOver(input, layoutOf(input));
+}
+
+/** The one filled action a row can carry (T5's seam, drawn where the day is). */
+export interface AgendaRowAction {
+  readonly kind: 'start' | 'resume';
+  readonly label: string;
+}
+
+/**
+ * What today's row offers, or `null`.
+ *
+ * The row carries the action so the screen keeps one filled violet control (§7.1). Only a
+ * workout that is not closed can start: the match and the rest day ask nothing of the gym,
+ * and a done day has nothing left to open from here. A summary is not a row action — it
+ * belongs to the card that holds the closed session — and an open session is only resumed
+ * by a row when that row is today's, so a stale open session never borrows a day.
+ */
+export function actionOnRowOf(
+  day: AgendaDay | null,
+  action: HomeActionView | null,
+): AgendaRowAction | null {
+  if (day === null || action === null || !day.today) return null;
+  if (day.done || day.kind !== 'workout' || day.planDay === null) return null;
+  if (action.kind === 'resume') return { kind: 'resume', label: 'Continuar' };
+  if (action.kind === 'start') return { kind: 'start', label: 'Empezar' };
+  return null;
+}
+
+/** The plan day the row hands to `start.start(planDayId)` — the seam T5 opens. */
+export function startRequestOf(day: AgendaDay | null): string | null {
+  if (day === null || day.kind !== 'workout' || day.planDay === null) return null;
+  return day.planDay.id;
+}
+
+/** The plan days this week has no weekday for — the one the match displaced (S10). */
+export function unplacedPlanDaysOf(agenda: WeekAgenda): readonly AgendaPlanDay[] {
+  return agenda.planDays.filter((entry) => entry.weekday === null);
+}
+
+/** `3 de 4 entrenos hechos` — the count the meter drew, said in words above the rows. */
+export function countLineOf(agenda: WeekAgenda): string {
+  const planned = agenda.planDays.length;
+  return planned === 1
+    ? `${agenda.doneCount} de 1 entreno hecho`
+    : `${agenda.doneCount} de ${planned} entrenos hechos`;
+}
+
+/**
+ * The week Inicio draws: the agenda, the layout it came from, the action its today row
+ * carries, and the way to ask what a candidate placement would warn about.
+ *
+ * `warningFor` re-derives the week with the candidate layout so the sheet warns *before*
+ * the owner confirms (S4) — the same `weekAgendaOf` the screen already trusts, never a
+ * second opinion about the legs rule.
+ */
+export interface AgendaWeekView {
+  readonly agenda: WeekAgenda;
+  readonly layout: WeekLayout;
+  readonly action: AgendaRowAction | null;
+  warningFor(planDayId: string, weekday: number): string | null;
+}
+
+/** The whole view model of the agenda, from the screen's own input. No plan, no agenda. */
+export function agendaWeekViewOf(
+  input: HomeInput,
+  action: HomeActionView | null,
+): AgendaWeekView | null {
+  if (input.plan.length === 0) return null;
+  const layout = layoutOf(input);
+  const agenda = agendaOver(input, layout);
+  return {
+    agenda,
+    layout,
+    action: actionOnRowOf(agenda.days.find((day) => day.today) ?? null, action),
+    warningFor: (planDayId, weekday) => {
+      const attempt = placementOf({ agenda, layout, planDayId, toWeekday: weekday });
+      if (!attempt.result.ok) return null;
+      return agendaOver(input, attempt.result.layout).warning;
+    },
+  };
+}
+
+/* -------------------------------------------------------------------- the write */
+
+/** One placement, with the sentence the owner reads when it cannot happen. */
+export interface PlacementAttempt {
+  readonly result: PlacementResult;
+  readonly notice: string | null;
+}
+
+/**
+ * S2, S3, S6 — the one operation behind both the drag and the sheet.
+ *
+ * `placePlanDay` decides; this only turns its refusal into a sentence, once, quietly. A
+ * drop on the row's own day returns `sameDay` with no words: nothing happened and nothing
+ * needs explaining.
+ */
+export function placementOf(input: {
+  readonly agenda: WeekAgenda;
+  readonly layout: WeekLayout;
+  readonly planDayId: string;
+  readonly toWeekday: number;
+}): PlacementAttempt {
+  const result = placePlanDay(input);
+  return { result, notice: result.ok ? null : REFUSAL_COPY[result.reason] };
+}
+
+export type PlacementOutcome = 'saved' | 'refused' | 'failed';
+
+/** What the screen has to draw after a placement: the week, and what to say about it. */
+export interface PlacementWrite {
+  readonly outcome: PlacementOutcome;
+  /** The layout to draw: the new one when saved, the previous one otherwise. */
+  readonly layout: WeekLayout;
+  readonly notice: string | null;
+}
+
+/**
+ * S2, S5, S6 — place, then save through `storage.meta.saveWeekLayout`.
+ *
+ * The three outcomes are the only three states the screen has: a saved week (re-read), a
+ * refusal (nothing changed, one sentence) and a failed write (the previous week stays,
+ * and `placementNotice` offers the one retry).
+ */
+export async function writePlacement(input: {
+  readonly storage: StoragePort;
+  readonly agenda: WeekAgenda;
+  readonly layout: WeekLayout;
+  readonly planDayId: string;
+  readonly toWeekday: number;
+}): Promise<PlacementWrite> {
+  const attempt = placementOf(input);
+  if (!attempt.result.ok) {
+    return { outcome: 'refused', layout: input.layout, notice: attempt.notice };
+  }
+  try {
+    await input.storage.meta.saveWeekLayout(attempt.result.layout);
+    return { outcome: 'saved', layout: attempt.result.layout, notice: null };
+  } catch {
+    return { outcome: 'failed', layout: input.layout, notice: PLACEMENT_FAILED_COPY };
+  }
+}
+
+/* ------------------------------------------------------------------- the glyphs */
+
+/**
+ * The handle's grip and the lock (S9's ball is the system's `ball` icon).
+ *
+ * The design system's icon set has neither one, and §4 keeps the shared glyphs in one
+ * place while the artboard fixes these two shapes; they live here for the same reason the
+ * bin lives in `HomeScreen.tsx` — only this surface draws them.
+ */
+function GripGlyph(): React.ReactElement {
+  return (
+    <svg
+      className="home-agenda__grip"
+      viewBox="0 0 24 24"
+      width={18}
+      height={18}
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M9 7h.01M9 12h.01M9 17h.01M15 7h.01M15 12h.01M15 17h.01" />
+    </svg>
+  );
+}
+
+function LockGlyph(): React.ReactElement {
+  return (
+    <svg
+      className="home-agenda__lock"
+      viewBox="0 0 24 24"
+      width={12}
+      height={12}
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    </svg>
+  );
+}
+
+/* --------------------------------------------------------------------- the row */
+
+export interface AgendaRowProps {
+  readonly day: AgendaDay;
+  readonly matchKind: MatchKind;
+  /** This row is the one in the hand. */
+  readonly dragging?: boolean | undefined;
+  /** The finger is over this row and it can take the one in the hand. */
+  readonly over?: boolean | undefined;
+  /** A row is in the air and this one refuses it: the lock and `Cerrado`. */
+  readonly refusing?: boolean | undefined;
+  readonly action?: AgendaRowAction | null | undefined;
+  readonly starting?: boolean | undefined;
+  readonly onOpen?: ((weekday: number) => void) | undefined;
+  readonly onStart?: ((planDayId: string) => void) | undefined;
+  readonly onGrab?: ((event: React.PointerEvent<HTMLSpanElement>, day: AgendaDay) => void) | undefined;
+  readonly onDragMove?: ((event: React.PointerEvent<HTMLSpanElement>) => void) | undefined;
+  readonly onDragEnd?: ((event: React.PointerEvent<HTMLSpanElement>) => void) | undefined;
+  readonly onDragCancel?: ((event: React.PointerEvent<HTMLSpanElement>) => void) | undefined;
+}
+
+/**
+ * One day of the week, as a row.
+ *
+ * A row the owner can change is a real `<button>` whose own content is its accessible name
+ * — weekday, number, the workout and the state (§9) — and tapping it opens the day sheet.
+ * A locked row (the match, a done day) is not a control at all: it has nothing to offer,
+ * and a button that can only refuse is worse than plain text.
+ *
+ * The handle is a `<span>` beside the button, `aria-hidden`, because dragging is never
+ * required: the sheet is the accessible path and the handle only serves a finger.
+ */
+export function AgendaRow({
+  day,
+  matchKind,
+  dragging = false,
+  over = false,
+  refusing = false,
+  action = null,
+  starting = false,
+  onOpen,
+  onStart,
+  onGrab,
+  onDragMove,
+  onDragEnd,
+  onDragCancel,
+}: AgendaRowProps): React.ReactElement {
+  const state = stateWordOf(day);
+  const canChange = !day.locked && onOpen !== undefined;
+  const canDrag = !day.locked && day.planDay !== null && onGrab !== undefined;
+  const planDayId = startRequestOf(day);
+
+  const classes = [
+    'home-agenda__row',
+    `home-agenda__row--${day.kind}`,
+    day.done ? 'home-agenda__row--done' : '',
+    day.today ? 'home-agenda__row--today' : '',
+    dragging ? 'home-agenda__row--dragging' : '',
+    over ? 'home-agenda__row--over' : '',
+    refusing ? 'home-agenda__row--refusing' : '',
+  ]
+    .filter((part) => part !== '')
+    .join(' ');
+  const content = (
+    <>
+      <span className="home-agenda__day">
+        <span className="home-agenda__wd" aria-hidden="true">
+          {shortWeekdayOf(day)}
+        </span>
+        {/* The reader gets the weekday in full; the three letters are a sighted shortcut. */}
+        <span className="ds-visually-hidden">{day.weekdayName}</span>
+        <span className="home-agenda__num">{dayNumberTextOf(day)}</span>
+      </span>
+      <span className="home-agenda__main">
+        <span className="home-agenda__name">{rowTitleOf(day, matchKind)}</span>
+        <span className="home-agenda__meta">{rowMetaOf(day)}</span>
+      </span>
+      <span className="home-agenda__state">
+        {day.done ? (
+          <span className="home-agenda__mark home-agenda__mark--check">
+            <Icon name="check" size={13} />
+          </span>
+        ) : null}
+        {day.kind === 'match' ? (
+          <span className="home-agenda__mark home-agenda__mark--ball">
+            <Icon name="ball" size={13} />
+          </span>
+        ) : null}
+        {refusing ? <LockGlyph /> : null}
+        {refusing ? CLOSED_WORD : state}
+      </span>
+    </>
+  );
+
+  return (
+    <li data-weekday={day.weekday} className={classes}>
+      {canChange ? (
+        <button
+          type="button"
+          className="ds-action home-agenda__body"
+          aria-haspopup="dialog"
+          onClick={() => onOpen?.(day.weekday)}
+        >
+          {content}
+        </button>
+      ) : (
+        <div className="home-agenda__body">{content}</div>
+      )}
+      {canDrag ? (
+        <span
+          className="home-agenda__handle"
+          aria-hidden="true"
+          onPointerDown={(event) => onGrab?.(event, day)}
+          onPointerMove={(event) => onDragMove?.(event)}
+          onPointerUp={(event) => onDragEnd?.(event)}
+          onPointerCancel={(event) => onDragCancel?.(event)}
+        >
+          <GripGlyph />
+        </span>
+      ) : null}
+      {action === null || planDayId === null ? null : (
+        <span className="home-agenda__action">
+          <PrimaryAction
+            icon="play"
+            disabled={starting}
+            onClick={() => onStart?.(planDayId)}
+          >
+            {starting ? 'Empezando…' : action.label}
+          </PrimaryAction>
+        </span>
+      )}
+    </li>
+  );
+}
+
+/* ------------------------------------------------------------- the day's sheet */
+
+export interface DaySheetProps {
+  readonly week: AgendaWeekView;
+  /** 0 = Monday … 6 = Sunday: the day the owner tapped. */
+  readonly weekday: number;
+  /** The last refusal, still on screen while the sheet stays open. */
+  readonly notice?: string | null | undefined;
+  /** The plan day the sheet opens on; the day's current one unless a caller says otherwise. */
+  readonly initial?: string | null | undefined;
+  readonly onConfirm: (planDayId: string) => void;
+  readonly onClose: () => void;
+}
+
+/** What an option says about the plan day it offers, in the owner's words. */
+export function optionMetaOf(entry: AgendaPlanDay, weekday: number, agenda: WeekAgenda): string {
+  const numbers = `${formatExerciseCount(entry.exerciseCount)} · ${seriesText(entry.setCount)}`;
+  if (entry.weekday === weekday) return `Lo que toca · ${numbers}`;
+  if (entry.weekday === null) return 'Sin día esta semana · se colocaría aquí';
+  const name = agenda.days[entry.weekday]?.weekdayName.toLowerCase() ?? '';
+  return `Ya el ${name} · se cambiaría de sitio`;
+}
+
+/**
+ * «¿Qué entrenas el viernes 10?» — the same operation as the drag, without the finger.
+ *
+ * A `role="dialog"` with `aria-modal`, moved into focus on open, cycling Tab inside itself
+ * and closing on Escape: the brief's accessible path, so dragging is never required. The
+ * options are the four plan days of the week — including the one the match displaced (S10)
+ * — and the legs warning appears before the owner confirms, not after (S4).
+ */
+export function DaySheet({
+  week,
+  weekday,
+  notice = null,
+  initial = null,
+  onConfirm,
+  onClose,
+}: DaySheetProps): React.ReactElement {
+  const { agenda, warningFor } = week;
+  const day = agenda.days[weekday];
+  const currentId = day?.planDay?.id ?? null;
+  const [chosenId, setChosenId] = useState<string | null>(
+    initial ?? currentId ?? agenda.planDays[0]?.planDay.id ?? null,
+  );
+  const sheet = useRef<HTMLDivElement | null>(null);
+
+  // One small focus behaviour, the system's: the sheet takes focus when it opens so the
+  // keyboard and VoiceOver land inside it instead of staying on the row behind.
+  useEffect(() => {
+    sheet.current?.focus();
+  }, []);
+
+  const weekdayName = day?.weekdayName.toLowerCase() ?? '';
+  const chosen = agenda.planDays.find((entry) => entry.planDay.id === chosenId) ?? null;
+  const warning =
+    chosenId === null || chosenId === currentId ? null : warningFor(chosenId, weekday);
+
+  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
+    if (event.key === 'Escape') {
+      onClose();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    // The trap: the sheet is a dialog over a week that is still visible, so Tab must not
+    // walk out of it into the rows behind.
+    const focusable = Array.from(
+      event.currentTarget.querySelectorAll<HTMLElement>('button, [href], [tabindex="0"]'),
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (first === undefined || last === undefined) return;
+    if (event.shiftKey && (document.activeElement === first || document.activeElement === event.currentTarget)) {
+      event.preventDefault();
+      last.focus();
+      return;
+    }
+    if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  return (
+    <div
+      className="home-agenda-sheet"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`¿Qué entrenas el ${weekdayName} ${day === undefined ? '' : dayNumberTextOf(day)}?`}
+      tabIndex={-1}
+      ref={sheet}
+      onKeyDown={onKeyDown}
+    >
+      <span className="home-agenda-sheet__grab" aria-hidden="true" />
+      <div className="home-agenda-sheet__head">
+        <div>
+          <h2 className="ds-card-title">
+            {`¿Qué entrenas el ${weekdayName} ${day === undefined ? '' : dayNumberTextOf(day)}?`}
+          </h2>
+          <p className="ds-meta">El día no cambia: cambia lo que haces ese día.</p>
+        </div>
+        <TextButton onClick={onClose}>Cerrar</TextButton>
+      </div>
+
+      <ul className="home-agenda-sheet__options">
+        {agenda.planDays.map((entry) => {
+          const selected = entry.planDay.id === chosenId;
+          return (
+            <li key={entry.planDay.id}>
+              <button
+                type="button"
+                className={[
+                  'ds-action',
+                  'home-agenda-sheet__option',
+                  selected ? 'home-agenda-sheet__option--current' : '',
+                ]
+                  .filter((part) => part !== '')
+                  .join(' ')}
+                aria-pressed={selected}
+                onClick={() => setChosenId(entry.planDay.id)}
+              >
+                <span className="home-agenda-sheet__radio" aria-hidden="true">
+                  {selected ? <Icon name="check" size={10} /> : null}
+                </span>
+                <span className="home-agenda-sheet__option-body">
+                  <span className="home-agenda-sheet__option-name">
+                    {formatDayName(entry.planDay.name)}
+                  </span>
+                  <span className="ds-meta">{optionMetaOf(entry, weekday, agenda)}</span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+
+      {warning === null ? null : <Banner tone="warning" title={warning} />}
+      {notice === null ? null : <p className="ds-meta" role="status">{notice}</p>}
+
+      <PrimaryAction
+        disabled={chosenId === null || chosenId === currentId}
+        onClick={() => {
+          if (chosenId !== null) onConfirm(chosenId);
+        }}
+      >
+        {chosen === null
+          ? 'Poner el entreno'
+          : chosenId === currentId
+            ? 'Ya es el entreno de ese día'
+            : `Poner ${formatDayName(chosen.planDay.name)} el ${weekdayName}`}
+      </PrimaryAction>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ the week */
+
+export interface AgendaWeekProps {
+  readonly week: AgendaWeekView;
+  readonly starting?: boolean | undefined;
+  readonly onStart?: ((planDayId: string) => void) | undefined;
+  readonly onPlace?: ((planDayId: string, weekday: number) => void) | undefined;
+  /** The sentence of a write that failed; the screen keeps the previous week. */
+  readonly placementNotice?: string | null | undefined;
+  readonly onRetryPlacement?: (() => void) | undefined;
+}
+
+/** The weekday under a point, from the rows' own `data-weekday` (pointer events only). */
+function weekdayUnderPoint(x: number, y: number): number | null {
+  if (typeof document === 'undefined' || typeof document.elementFromPoint !== 'function') {
+    return null;
+  }
+  const row = document.elementFromPoint(x, y)?.closest('[data-weekday]') ?? null;
+  const raw = row?.getAttribute('data-weekday') ?? null;
+  if (raw === null) return null;
+  const weekday = Number(raw);
+  return Number.isInteger(weekday) && weekday >= 0 && weekday <= 6 ? weekday : null;
+}
+
+interface DragState {
+  readonly planDayId: string;
+  readonly over: number | null;
+}
+
+/**
+ * The seven rows, the drag in flight, the sheet and the two notices.
+ *
+ * The gesture is deliberately thin: pointer capture happens on the handle, `pointermove`
+ * names the weekday under the finger, and `pointerup` hands that weekday to `placementOf`
+ * — the same function the sheet's confirm calls. Nothing is saved here; `onPlace` belongs
+ * to the screen that owns the port.
+ */
+export function AgendaWeek({
+  week,
+  starting = false,
+  onStart,
+  onPlace,
+  placementNotice = null,
+  onRetryPlacement,
+}: AgendaWeekProps): React.ReactElement {
+  const { agenda, layout } = week;
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const [sheet, setSheet] = useState<{ readonly weekday: number; readonly notice: string | null } | null>(
+    null,
+  );
+  const [refusal, setRefusal] = useState<string | null>(null);
+  const unplaced = unplacedPlanDaysOf(agenda);
+
+  const place = (planDayId: string, weekday: number): void => {
+    const attempt = placementOf({ agenda, layout, planDayId, toWeekday: weekday });
+    if (!attempt.result.ok) {
+      setRefusal(attempt.notice);
+      return;
+    }
+    setRefusal(null);
+    onPlace?.(planDayId, weekday);
+  };
+
+  const release = (event: React.PointerEvent<HTMLSpanElement>): void => {
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // The browser had already forgotten the capture, or never took it.
+    }
+  };
+
+  const grab = (event: React.PointerEvent<HTMLSpanElement>, day: AgendaDay): void => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    const planDayId = day.planDay?.id ?? null;
+    if (planDayId === null || day.locked) return;
+    try {
+      // Pointer capture, so the finger keeps the row even when it leaves the handle: the
+      // capture is what makes this work on an iPhone and with a mouse alike.
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // A browser without capture still taps the row, which is the accessible path.
+    }
+    setRefusal(null);
+    setDrag({ planDayId, over: null });
+  };
+
+  const dragOver = (event: React.PointerEvent<HTMLSpanElement>): void => {
+    if (drag === null) return;
+    setDrag({ planDayId: drag.planDayId, over: weekdayUnderPoint(event.clientX, event.clientY) });
+  };
+
+  const dropHere = (event: React.PointerEvent<HTMLSpanElement>): void => {
+    if (drag === null) return;
+    const over = weekdayUnderPoint(event.clientX, event.clientY) ?? drag.over;
+    release(event);
+    setDrag(null);
+    if (over !== null) place(drag.planDayId, over);
+  };
+
+  const cancelDrag = (event: React.PointerEvent<HTMLSpanElement>): void => {
+    release(event);
+    setDrag(null);
+  };
+
+  const today = agenda.days.find((day) => day.today) ?? null;
+  // One filled action per screen: while the sheet is open, its confirm is the one, so the
+  // row behind it puts its own away (§7.1).
+  const rowAction = sheet === null ? week.action : null;
+
+  return (
+    <section className="home-agenda-block" aria-label="La semana">
+      <p className="home-agenda__count">{countLineOf(agenda)}</p>
+
+      <ol className="home-agenda" aria-label="Días de la semana">
+        {agenda.days.map((day) => (
+          <AgendaRow
+            key={day.date}
+            day={day}
+            matchKind={agenda.matchKind}
+            dragging={drag !== null && drag.planDayId === day.planDay?.id}
+            over={drag !== null && drag.over === day.weekday && !day.locked}
+            refusing={drag !== null && day.locked}
+            action={today?.weekday === day.weekday ? rowAction : null}
+            starting={starting}
+            {...(onStart === undefined ? {} : { onStart })}
+            onOpen={(weekday: number) => setSheet({ weekday, notice: null })}
+            onGrab={grab}
+            onDragMove={dragOver}
+            onDragEnd={dropHere}
+            onDragCancel={cancelDrag}
+          />
+        ))}
+      </ol>
+
+      <p className="ds-meta home-agenda__hint">{drag === null ? AGENDA_HINT : DRAG_HINT}</p>
+
+      {/* A refusal says itself once, in the smallest voice the screen has (S6). */}
+      {refusal === null ? null : (
+        <p className="ds-meta home-agenda__refusal" role="status">
+          {refusal}
+        </p>
+      )}
+
+      {/* S10: the day the match displaced is shown, not moved by the app on its own. */}
+      {unplaced.length === 0 ? null : (
+        <div className="home-agenda__unplaced">
+          <SectionLabel icon={<Icon name="calendar" size={14} />}>Sin día esta semana</SectionLabel>
+          <Card padding="dense">
+            <ul className="home-agenda__unplaced-list">
+              {unplaced.map((entry) => (
+                <li key={entry.planDay.id} className="home-agenda__unplaced-row">
+                  <span className="ds-body">{formatDayName(entry.planDay.name)}</span>
+                  <span className="home-agenda__unplaced-meta">
+                    <span className="ds-meta">
+                      {countsTextOf(entry.exerciseCount, entry.setCount)}
+                    </span>
+                    <Chip>Sin día</Chip>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="ds-meta">
+              El partido ocupó su día. Toca un día de la semana para colocarlo.
+            </p>
+          </Card>
+        </div>
+      )}
+
+      {/* A write that failed keeps the previous week and offers the one retry (S5). */}
+      {placementNotice === null ? null : (
+        <Banner
+          tone="danger"
+          title={placementNotice}
+          {...(onRetryPlacement === undefined
+            ? {}
+            : { action: { label: 'Reintentar el cambio', onClick: onRetryPlacement } })}
+        />
+      )}
+
+      {sheet === null ? null : (
+        <DaySheet
+          week={week}
+          weekday={sheet.weekday}
+          notice={sheet.notice}
+          onClose={() => setSheet(null)}
+          onConfirm={(planDayId) => {
+            const attempt = placementOf({
+              agenda,
+              layout,
+              planDayId,
+              toWeekday: sheet.weekday,
+            });
+            if (!attempt.result.ok) {
+              setSheet({ weekday: sheet.weekday, notice: attempt.notice });
+              return;
+            }
+            setSheet(null);
+            setRefusal(null);
+            onPlace?.(planDayId, sheet.weekday);
+          }}
+        />
+      )}
+    </section>
+  );
+}

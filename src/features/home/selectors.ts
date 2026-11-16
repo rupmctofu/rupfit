@@ -26,6 +26,7 @@ import type {
   EpochMs,
   PlanDay,
   UserProfile,
+  WeekLayout,
   WeekRecord,
   WorkoutSession,
 } from '../../storage';
@@ -117,6 +118,12 @@ export interface HomeInput {
    * rotation's answer unchanged.
    */
   readonly week?: WeekRecord | undefined;
+  /**
+   * T4 — the owner's fixed week layout, when this device has one. Optional for the same
+   * reason: with no record the agenda materialises the template of the fixture, which is
+   * the week a fresh install already shows.
+   */
+  readonly weekLayout?: WeekLayout | undefined;
 }
 
 export interface TodayView {

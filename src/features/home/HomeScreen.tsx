@@ -44,13 +44,20 @@ import {
   TextButton,
   type IconName,
 } from '../../design-system';
-import type { StoragePort, WeekRecord } from '../../storage';
-import type { MatchKind, WeekSwap } from '../../core/engine/week-plan';
+import type { StoragePort, WeekLayout, WeekRecord } from '../../storage';
+import type { MatchKind } from '../../core/engine/week-plan';
 import { useAppServices } from '../../app/providers';
 import type { Clock } from '../session/controller';
 import { useStartSession, type StartNotice } from '../session/startSession';
 import { summaryHash } from '../summary/route';
 import { weekFixtureOf, weekTodayOf, type WeekFixture, type WeekToday } from '../week/week';
+import {
+  AgendaWeek,
+  PLACEMENT_FAILED_COPY,
+  agendaWeekViewOf,
+  writePlacement,
+  type AgendaWeekView,
+} from './agenda';
 import { DemoHome } from './DemoHome';
 import { ACTIVITY_DELETE_COPY, useActivityDeletion, type ActivityDeletionState } from './deletion';
 import { FOOTBALL_DURATION_MINUTES, useFootballCapture } from './football';
@@ -60,9 +67,9 @@ import {
   homeViewOf,
   HOME_SESSION_WINDOW,
   type ActivityEntryView,
+  type HomeActionView,
   type HomeInput,
   type HomeView,
-  type TodaySwapView,
 } from './selectors';
 import './home.css';
 
@@ -108,6 +115,10 @@ async function readHome(
   // reload — the exact hole this fixes. A failed write answers `undefined` and the
   // rotation keeps naming the day (S5).
   const week = await currentWeekOf(storage, now);
+  // T4 — the owner's fixed layout, read next to the other reads. A store that cannot
+  // answer it (no record yet, a read the tier refuses) leaves the week on the template:
+  // the layout is the owner's decision, never a condition for the screen to open.
+  const weekLayout = await readWeekLayoutOf(storage);
   const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
   const measurements = await storage.measurements.between(weekAgo, now);
   const activities = await storage.activities.all();
@@ -118,6 +129,7 @@ async function readHome(
     phaseState,
     plan,
     week,
+    weekLayout,
     recent,
     inProgress,
     measurements,
@@ -212,27 +224,18 @@ export async function currentWeekOf(
 }
 
 /**
- * T5 (S6, S9) — the exchange the owner chose, written into the week record, which is the
- * week's only memory (`features/week/week.ts`). The new swap joins the ones that move
- * other weekdays; when it collides, it replaces them, because `applySwaps` refuses to move
- * one weekday twice and a record the engine rejects would drop the whole week.
+ * T4 (S4, S5) — the owner's fixed week layout, or `undefined` while the template rules.
  *
- * Returns `false` when the store has no week to change: nothing is written and the screen
- * keeps the rotation's answer (S5).
+ * A read that fails is the same answer as no record: the template materialises the week,
+ * which is exactly what a fresh install shows, and the screen is never held hostage by a
+ * meta row it could live without.
  */
-export async function saveTodaySwap(storage: StoragePort, swap: WeekSwap): Promise<boolean> {
-  const week = await storage.meta.readWeek();
-  if (week === undefined) return false;
-  const disjoint = week.swaps.every(
-    (other) =>
-      other.from !== swap.from &&
-      other.from !== swap.to &&
-      other.to !== swap.from &&
-      other.to !== swap.to,
-  );
-  const next: WeekRecord = { ...week, swaps: disjoint ? [...week.swaps, swap] : [swap] };
-  await storage.meta.saveWeek(next);
-  return true;
+async function readWeekLayoutOf(storage: StoragePort): Promise<WeekLayout | undefined> {
+  try {
+    return await storage.meta.readWeekLayout();
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -277,8 +280,11 @@ export interface HomeProps {
   readonly view: HomeView;
   /** Routes are the shell's business; a demo keeps them inside the fixture (§9). */
   readonly onNavigate?: ((href: string) => void) | undefined;
-  /** Starts the session the rotation names: create it, then open the sheet. */
-  readonly onStart: () => void;
+  /**
+   * Starts the session the row names (T5): the agenda hands the plan day of its row, and
+   * the card without an agenda hands nothing, so the rotation decides.
+   */
+  readonly onStart: (planDayId?: string | null) => void;
   /** True while the write is in flight: the action is disabled and says so (S3). */
   readonly starting?: boolean | undefined;
   readonly startNotice?: StartNotice | null | undefined;
@@ -287,10 +293,15 @@ export interface HomeProps {
   readonly recording?: boolean | undefined;
   readonly footballNotice?: string | null | undefined;
   /**
-   * T5 — the exchange the owner chose in «¿Qué toca hoy?». Absent (the gallery, a review
-   * surface with no port): the sheet still reads, and choosing closes it without writing.
+   * T4 — the week, as seven dated rows over the effective layout. Absent (an empty plan,
+   * the gallery): Inicio draws no agenda and keeps its honest empty states.
    */
-  readonly onSwapToday?: ((swap: WeekSwap) => void) | undefined;
+  readonly agendaWeek?: AgendaWeekView | null | undefined;
+  /** Writes the placement the drag or the sheet made. Absent: nothing is saved. */
+  readonly onPlace?: ((planDayId: string, weekday: number) => void) | undefined;
+  /** The sentence of a write that failed; the week on screen is still the previous one. */
+  readonly placementNotice?: string | null | undefined;
+  readonly onRetryPlacement?: (() => void) | undefined;
   /** T8 — the match or the rest day the week names, so the card can name it too. */
   readonly offDay?: OffDay | null | undefined;
   /** T8 — the match of this week has already been reported: the day is done (S1). */
@@ -330,26 +341,6 @@ interface HomeViewOnly {
 }
 
 /**
- * The week, drawn and not narrated (S2).
- *
- * One segment per session the week plans, filled when that session is closed. The
- * arithmetic is `homeViewOf`'s (`doneCount` of `plannedCount`); this only paints it. No
- * sentence sits next to it: the count lives in the accessible name, so the graphic is
- * still readable when colour alone is not available (§9, §11).
- */
-function WeekMeter({ view }: HomeViewOnly): React.ReactElement | null {
-  const week = view.week;
-  if (week === null) return null;
-  return (
-    <div className="home__meter" role="img" aria-label={week.label}>
-      {week.cells.map((cell) => (
-        <span key={cell.key} className={`home__meter-segment home__meter-segment--${cell.state}`} />
-      ))}
-    </div>
-  );
-}
-
-/**
  * An empty state, said once: a glyph and the sentence, and no box.
  *
  * The design system's `EmptyState` carries no icon slot, and S3 asks for the glyph first
@@ -377,16 +368,16 @@ function HomeNote({ icon, children }: {
  * still resumable, and that is the only way back into its sets).
  */
 function TodayAction({
-  view,
+  action,
   onStart,
   onNavigate = navigateTo,
   starting = false,
-}: HomeViewOnly & {
-  readonly onStart: () => void;
+}: {
+  readonly action: HomeActionView | null;
+  readonly onStart: (planDayId?: string | null) => void;
   readonly onNavigate?: ((href: string) => void) | undefined;
   readonly starting?: boolean | undefined;
 }): React.ReactElement | null {
-  const action = view.action;
   if (action === null) return null;
   return (
     <PrimaryAction
@@ -403,58 +394,6 @@ function TodayAction({
     >
       {starting ? 'Empezando…' : action.label}
     </PrimaryAction>
-  );
-}
-
-/** The sheet's title: the owner's question, in his words. */
-const SWAP_TITLE = '¿Qué toca hoy?';
-
-/**
- * «¿Qué toca hoy?» — the exchange, chosen from the week's own days (T5, S6).
- *
- * The routine sheet's pattern, not a second one: full height, `role="dialog"` with
- * `aria-modal`, one way out. Each row is one partner, the day and its weekday, and says
- * where today's own day goes in exchange (S9). Nothing is written here: the row hands the
- * `WeekSwap` back to the screen, which owns the port.
- */
-export function TodaySwapSheet({
-  swap,
-  onChoose,
-  onClose,
-}: {
-  readonly swap: TodaySwapView;
-  readonly onChoose: (swap: WeekSwap) => void;
-  readonly onClose: () => void;
-}): React.ReactElement {
-  return (
-    <div className="train-sheet" role="dialog" aria-modal="true" aria-label={SWAP_TITLE}>
-      <header className="train-sheet__top">
-        <h1 className="ds-screen-title">{SWAP_TITLE}</h1>
-        <button type="button" className="ds-action train-sheet__close" onClick={onClose}>
-          Cerrar
-        </button>
-      </header>
-      <div className="train-sheet__body">
-        <p className="ds-meta">{`Hoy toca ${swap.dayName}. Elige qué haces y el día de hoy se mueve al suyo.`}</p>
-        <ul className="home__swap-list">
-          {swap.options.map((option) => (
-            <li key={option.weekday}>
-              <button
-                type="button"
-                className="ds-action home__swap-option"
-                onClick={() => onChoose(option.swap)}
-              >
-                <span className="home__swap-day">
-                  <span className="ds-body">{option.dayName}</span>
-                  <span className="ds-caption">{option.weekday}</span>
-                </span>
-                <span className="ds-meta">{option.moves}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
   );
 }
 
@@ -490,36 +429,39 @@ function WeekFixtureLine({
 /**
  * Today's session as one protagonist block (S3, S4).
  *
- * The card holds the day, its short detail, the prescribed sets and the action that
- * starts it — the owner's «hoy toca esto» — and nothing sits above it: the old
- * `Tu próxima sesión` label narrated what the title already says. What remains are the
- * facts the store can prove: the phase, the prescribed sets, the completed line, and the
- * one caption that explains why a preview is not a stored session yet.
+ * The card holds the day, its short detail and the prescribed sets — the owner's «hoy
+ * toca esto» — and nothing sits above it: the old `Tu próxima sesión` label narrated what
+ * the title already says. What remains are the facts the store can prove: the phase, the
+ * prescribed sets, the completed line, and the one chip that says a preview is not a
+ * stored session yet.
  *
- * Two states T5/T8 add, both quiet: under the action, the way into the exchange of today
- * (S6), and, on the day of the match or on a rest day, a card that names the day instead
- * of borrowing the sentence a day without exercises gets.
+ * T4 moved the start of the day onto the agenda's today row, which is where the week is
+ * read: the card draws `action` only when the row could not carry it (an open session
+ * from another day, a closed session's summary), so the screen still has exactly one
+ * filled violet control (§7.1). The match day and the rest day keep their own card: the
+ * match is reported, never trained, and a rest day asks nothing of the gym.
  */
 function TodayBlock({
   view,
+  action = null,
   offDay = null,
   matchReported = false,
   fixture = null,
   onStart,
   onNavigate = navigateTo,
-  onSwapToday,
   onReportMatch,
   reporting = false,
   reportNotice = null,
   onFlipWeek,
   starting = false,
 }: HomeViewOnly & {
+  /** The action the agenda's today row could not carry, if any. */
+  readonly action?: HomeActionView | null | undefined;
   readonly offDay?: OffDay | null | undefined;
   readonly matchReported?: boolean | undefined;
   readonly fixture?: WeekFixture | null | undefined;
-  readonly onStart: () => void;
+  readonly onStart: (planDayId?: string | null) => void;
   readonly onNavigate?: ((href: string) => void) | undefined;
-  readonly onSwapToday?: ((swap: WeekSwap) => void) | undefined;
   readonly onReportMatch?: (() => void) | undefined;
   readonly reporting?: boolean | undefined;
   readonly reportNotice?: string | null | undefined;
@@ -527,12 +469,9 @@ function TodayBlock({
   readonly starting?: boolean | undefined;
 }): React.ReactElement {
   const today = view.today;
-  const exchange = today?.swap ?? null;
-  const [choosing, setChoosing] = useState(false);
   // A preview is the rotation's next day, not a stored session. The old caption said it
-  // in a sentence; a chip says the same thing in one word (S2), and it is only true
-  // while the primary action is the one that creates the day.
-  const preview = today !== null && today.state === 'preview' && view.action?.kind === 'start';
+  // in a sentence; a chip says the same thing in one word (S2).
+  const preview = today !== null && today.state === 'preview';
 
   if (today === null) {
     return (
@@ -594,7 +533,7 @@ function TodayBlock({
             Todavía no hay rutina ni sesiones programadas. La plantilla de la semana está en Entrenar.
           </HomeNote>
         )}
-        <TodayAction view={view} onStart={onStart} onNavigate={onNavigate} starting={starting} />
+        <TodayAction action={action} onStart={onStart} onNavigate={onNavigate} starting={starting} />
         {/* S7: the match day is exactly when the owner knows the cup is next, so the
             fixture and its flip stay reachable on the two days the gym does not fill. */}
         <WeekFixtureLine fixture={fixture} onFlipWeek={onFlipWeek} />
@@ -621,28 +560,9 @@ function TodayBlock({
         </div>
       )}
       {today.done === null ? null : <p className="ds-body">{today.done}</p>}
-      <TodayAction view={view} onStart={onStart} onNavigate={onNavigate} starting={starting} />
-      {/* S6: changing today's training is a quiet second decision, under the action that
-          starts it — the card keeps one accent fill (§7.1). Absent when the week offers
-          no partner (the match, a rest day, a stored session). */}
-      {exchange === null ? null : (
-        <TextButton align="start" className="home__swap-open" onClick={() => setChoosing(true)}>
-          {exchange.label}
-        </TextButton>
-      )}
-      {choosing && exchange !== null ? (
-        <TodaySwapSheet
-          swap={exchange}
-          onClose={() => setChoosing(false)}
-          onChoose={(swap) => {
-            // Close first: the sheet is the question, the re-read card is the answer.
-            setChoosing(false);
-            onSwapToday?.(swap);
-          }}
-        />
-      ) : null}
-      {/* Under the exchange, in the same quiet zone: both are decisions about the whole
-          week, and neither is the action the card exists for. */}
+      <TodayAction action={action} onStart={onStart} onNavigate={onNavigate} starting={starting} />
+      {/* T4: which workout a day carries is changed on the agenda's own sheet, so the
+          card keeps only the fixture of the week — one mechanism for one question. */}
       <WeekFixtureLine fixture={fixture} onFlipWeek={onFlipWeek} />
     </Card>
   );
@@ -671,9 +591,8 @@ function LastSessionCard({ view }: HomeViewOnly): React.ReactElement | null {
 }
 
 /**
- * The week used to be a card of its own below the fold, with the count written out as
- * `2 de 3 sesiones`. S2 moved it into the header as a graphic and the sentence went
- * with it: the days of the week are the segments of `WeekMeter`.
+ * The last closed session, as history under the week: it is the only context the agenda
+ * cannot give, because the agenda says what is planned and this says what happened.
  */
 function WeightCard({ view }: HomeViewOnly): React.ReactElement | null {
   const weight = view.weight;
@@ -872,6 +791,7 @@ function ActivitySection({
  */
 export function HomeBody({
   view,
+  agendaWeek = null,
   offDay = null,
   matchReported = false,
   fixture = null,
@@ -885,18 +805,24 @@ export function HomeBody({
   onReportMatch,
   reporting = false,
   reportNotice = null,
-  onSwapToday,
+  onPlace,
+  placementNotice = null,
+  onRetryPlacement,
   onFlipWeek,
   deletion,
 }: HomeProps): React.ReactElement {
   const navigate = onNavigate;
+  // T4: the agenda's today row carries the action, so the card below draws one only when
+  // the row could not — the screen never offers two ways into the same session (§7.1).
+  const rowAction = agendaWeek?.action ?? null;
+  const looseAction = rowAction === null ? view.action : null;
 
   return (
     <div className="home">
       {/* The reference hierarchy: the title is the screen's, not a person's, and the name
-          and the date stay one quiet line under it. The top row is the mark on the left
-          (S1) and the week on the right (S2): the one number the owner wanted to keep
-          glancing at, drawn instead of written. */}
+          and the date stay one quiet line under it. The mark stays the first thing on the
+          left; the week it used to sit next to is now the seven rows below (T4), so the
+          header keeps one object instead of a meter that repeated them. */}
       <header className="home__head">
         <div className="home__head-bar">
           {/* The owner's own mark, at header size: it identifies the app before the
@@ -907,22 +833,34 @@ export function HomeBody({
             alt="Rupfit"
             height={40}
           />
-          <WeekMeter view={view} />
         </div>
         <h1 className="ds-screen-title">{HOME_TITLE}</h1>
         <p className="ds-meta">{`${view.greeting} · ${view.dateLine}`}</p>
       </header>
 
-      {/* The day, its numbers and the action that starts it, in one card: the loudest
-          thing on the screen after the header, and the only accent fill on it. */}
+      {/* T4: the week, seven rows, under the header and above the day's detail. The day
+          the agenda does not draw (no plan, no agenda) keeps its own card below. */}
+      {agendaWeek === null ? null : (
+        <AgendaWeek
+          week={agendaWeek}
+          starting={starting}
+          onStart={onStart}
+          {...(onPlace === undefined ? {} : { onPlace })}
+          placementNotice={placementNotice}
+          {...(onRetryPlacement === undefined ? {} : { onRetryPlacement })}
+        />
+      )}
+
+      {/* The day, its numbers and — only when the agenda's row could not carry it — the
+          action that starts it. One accent fill on the screen at a time (§7.1). */}
       <TodayBlock
         view={view}
+        action={looseAction}
         offDay={offDay}
         matchReported={matchReported}
         fixture={fixture}
         onStart={onStart}
         onNavigate={navigate}
-        onSwapToday={onSwapToday}
         onReportMatch={onReportMatch}
         reporting={reporting}
         reportNotice={reportNotice}
@@ -968,8 +906,8 @@ export function HomeBody({
         </HomeNote>
       )}
 
-      {/* The week already sits in the header, so what is left is the last session it
-          contains: history, read-only context under the day. */}
+      {/* The last session the agenda above contains, then what the store measured:
+          history, read-only context under the week. */}
       <LastSessionCard view={view} />
       <WeightCard view={view} />
       <ActivitySection
@@ -1000,6 +938,12 @@ export function HomeScreenWithPort({
 }: HomeScreenWithPortProps): React.ReactElement {
   const [boot, setBoot] = useState<Boot>({ phase: 'loading', input: null });
   const [attempt, setAttempt] = useState(0);
+  // T4: the placement that did not reach the store, so the one retry can repeat it. The
+  // notice travels with it: the sentence stays on screen while the week does not change.
+  const [placement, setPlacement] = useState<{
+    readonly failed: { readonly planDayId: string; readonly weekday: number } | null;
+    readonly notice: string | null;
+  }>({ failed: null, notice: null });
   const start = useStartSession({ storage, clock, onNavigate });
 
   // One counter serves the retry, the re-read after a write and the re-read after a
@@ -1011,25 +955,13 @@ export function HomeScreenWithPort({
   // instance of the same capture, guarded (`reportMatch`), so the day is informed once
   // and the screen re-reads into the done state instead of offering it again.
   const report = useFootballCapture({ storage, clock, onSaved: refresh, match: true });
-  // T5: the exchange is written into the week record and the screen re-reads, so the card
-  // above shows the exchanged week instead of the one it was drawn from.
-  const chooseSwap = useCallback(
-    (swap: WeekSwap) => {
-      void saveTodaySwap(storage, swap).then(
-        (written) => {
-          if (written) refresh();
-        },
-        () => undefined,
-      );
-    },
-    [storage, refresh],
-  );
-  // The bin and its question live in the screen, not in the row: only one question can be
-  // open at a time, and the answer survives the re-read the removal triggers.
+  // T4: the placement is written through the agenda's own seam and the screen re-reads,
+  // so the week drawn is the week saved. A failed write keeps the previous layout and
+  // leaves one sentence and one retry on screen (S5).
   const deletion = useActivityDeletion({ storage, onDeleted: refresh });
   // T3/S7: the fixture is a fact of the week, so the flip writes the record and the screen
-  // re-reads — the same shape the exchange has. A write that did not happen re-reads
-  // nothing, so the card never shows half a cup week.
+  // re-reads — the same shape the agenda's placement has. A write that did not happen
+  // re-reads nothing, so the card never shows half a cup week.
   const flipWeek = useCallback(
     (match: MatchKind) => {
       void saveWeekMatch(storage, clock.now(), match).then(
@@ -1074,21 +1006,116 @@ export function HomeScreenWithPort({
   }
 
   return (
-    <HomeBody
-      view={homeViewOf(boot.input)}
-      offDay={offDayOf(boot.input)}
-      matchReported={matchReportedOf(boot.input)}
-      fixture={weekFixtureOf(boot.input.week)}
+    <HomeScreenBody
+      input={boot.input}
+      storage={storage}
       onStart={start.start}
       starting={start.busy}
       startNotice={start.notice}
+      capture={capture}
+      report={report}
+      flipWeek={flipWeek}
+      deletion={deletion}
+      placement={placement}
+      onPlacement={setPlacement}
+      refresh={refresh}
+      {...(onNavigate === undefined ? {} : { onNavigate })}
+    />
+  );
+}
+
+/**
+ * The screen once there is something to draw: the view, the agenda and the two writes
+ * that need the layout the render just built.
+ *
+ * It is a second component because a hook cannot capture a value computed after the
+ * early return above: the agenda is derived here, and `place` closes over it.
+ */
+function HomeScreenBody({
+  input,
+  storage,
+  onStart,
+  starting,
+  startNotice,
+  capture,
+  report,
+  flipWeek,
+  deletion,
+  placement,
+  onPlacement,
+  refresh,
+  onNavigate,
+}: {
+  readonly input: HomeInput;
+  readonly storage: StoragePort;
+  readonly onStart: (planDayId?: string | null) => void;
+  readonly starting: boolean;
+  readonly startNotice: StartNotice | null;
+  readonly capture: ReturnType<typeof useFootballCapture>;
+  readonly report: ReturnType<typeof useFootballCapture>;
+  readonly flipWeek: (match: MatchKind) => void;
+  readonly deletion: ActivityDeletionState;
+  readonly placement: {
+    readonly failed: { readonly planDayId: string; readonly weekday: number } | null;
+    readonly notice: string | null;
+  };
+  readonly onPlacement: (next: {
+    readonly failed: { readonly planDayId: string; readonly weekday: number } | null;
+    readonly notice: string | null;
+  }) => void;
+  readonly refresh: () => void;
+  readonly onNavigate?: ((href: string) => void) | undefined;
+}): React.ReactElement {
+  const view = homeViewOf(input);
+  const agendaWeek = agendaWeekViewOf(input, view.action);
+
+  const place = (planDayId: string, weekday: number): void => {
+    if (agendaWeek === null) return;
+    const request = {
+      storage,
+      agenda: agendaWeek.agenda,
+      layout: agendaWeek.layout,
+      planDayId,
+      toWeekday: weekday,
+    };
+    void writePlacement(request).then(
+      (written) => {
+        if (written.outcome === 'saved') {
+          onPlacement({ failed: null, notice: null });
+          refresh();
+          return;
+        }
+        if (written.outcome === 'failed') {
+          onPlacement({ failed: { planDayId, weekday }, notice: written.notice });
+        }
+      },
+      () => onPlacement({ failed: { planDayId, weekday }, notice: PLACEMENT_FAILED_COPY }),
+    );
+  };
+
+  const failed = placement.failed;
+
+  return (
+    <HomeBody
+      view={view}
+      agendaWeek={agendaWeek}
+      offDay={offDayOf(input)}
+      matchReported={matchReportedOf(input)}
+      fixture={weekFixtureOf(input.week)}
+      onStart={onStart}
+      starting={starting}
+      startNotice={startNotice}
       onRecordFootball={capture.save}
       recording={capture.busy}
       footballNotice={capture.notice}
       onReportMatch={report.save}
       reporting={report.busy}
       reportNotice={report.notice}
-      onSwapToday={chooseSwap}
+      onPlace={place}
+      placementNotice={placement.notice}
+      onRetryPlacement={
+        failed === null ? undefined : () => place(failed.planDayId, failed.weekday)
+      }
       onFlipWeek={flipWeek}
       deletion={deletion}
       {...(onNavigate === undefined ? {} : { onNavigate })}

@@ -28,9 +28,9 @@
   padding-top: var(--space-2);
 }
 
-/* The top row: the mark on the left, the week on the right. `flex-wrap` is the safety
-   valve at 320 px — a week of many sessions drops below the mark instead of shrinking it
-   or pushing the row past the screen. */
+/* The top row: the mark, and nothing beside it. The week the meter used to draw next to
+   the lockup is the agenda's seven rows now (T4), so the header keeps one object. The row
+   still wraps at 320 px rather than shrinking the mark. */
 .home__head-bar {
   display: flex;
   align-items: center;
@@ -38,37 +38,6 @@
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-3);
   margin-bottom: var(--space-2);
-}
-
-/* The week indicator (S2): one pill per planned session of the week, filled when that
-   session is closed. No words: the count is the accessible name of the graphic, and the
-   fill/outline difference carries the state without relying on colour alone (§9). */
-.home__meter {
-  display: flex;
-  align-items: center;
-  flex: none;
-  gap: var(--space-1);
-}
-
-/* Segments big enough to read at arm's length: the meter is a glance, not a footnote. A
-   pending segment is a hollow outline, a finished one is filled, and today's is tinted —
-   shape and fill, never colour alone. */
-.home__meter-segment {
-  width: 22px;
-  height: 12px;
-  border: var(--layout-hairline) solid var(--color-muted);
-  border-radius: var(--radius-pill);
-  background: transparent;
-}
-
-.home__meter-segment--done {
-  border-color: var(--color-success);
-  background: var(--color-success);
-}
-
-.home__meter-segment--today {
-  border-color: var(--color-accent);
-  background: var(--color-accent-muted);
 }
 
 .home__section {
@@ -217,8 +186,7 @@
   color: var(--color-text);
 }
 
-/* The week already sits in the header, so the strip that used to live here is gone: the
-   segments of `.home__meter` are the same days, drawn once. */
+/* The last closed session, under the agenda: history, read-only context. */
 
 /* One recorded activity per line: what it is, its date, and its bin. It wraps instead of
    pushing the card past a 390 px screen. */
@@ -286,47 +254,6 @@
   color: var(--color-muted);
 }
 
-/* The way into the exchange of today (T5, S6): a quiet text button under the day's
-   action, on the card's own left edge. It never takes the accent fill — the primary
-   action is the only one of those (§7.1). */
-.home__swap-open {
-  align-self: flex-start;
-}
-
-/* The rows of «¿Qué toca hoy?»: one partner per row, a real button, so the 48 px target
-   and the focus ring are the system's. */
-.home__swap-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.home__swap-option {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-1);
-  width: 100%;
-  min-height: var(--target-min);
-  padding: var(--space-3);
-  text-align: left;
-  border: var(--layout-hairline) solid var(--color-border);
-  border-radius: var(--radius-control-square);
-}
-
-/* The day and its weekday on one line: the day is what the owner chooses, the weekday is
-   where it sits in the week. */
-.home__swap-day {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-2);
-  min-width: 0;
-}
-
 /* The fixture of the week (T3, S7): `Liga · jueves` and the quiet action that flips it, on
    one line that wraps at 320 px. The line is muted and the button is the text button, so
    neither competes with the day's action for the accent fill (§7.1). */
@@ -340,4 +267,43 @@
 
 .home__fixture-flip {
   margin-left: auto;
+}
+
+/* --------------------------------------------------------------- the agenda (T4) */
+
+/* The week's accent lives here, not in `agenda.css`: this file carries Inicio's allow-list
+   (`tests/accent-budget.test.ts`), and every declaration below is one of the four roles
+   that list already argues for — today's marker, its text flavour, the tinted active state
+   of the drop target, and the selected option of the day sheet. `agenda.css` keeps the
+   geometry and calls that out where it would otherwise have painted. */
+
+/* Today's edge: the single data point Inicio exists to answer. */
+.home-agenda__row--today {
+  border-color: var(--color-accent);
+}
+
+/* And the same data point in ink, because the edge alone is one pixel of meaning. */
+.home-agenda__row--today .home-agenda__name {
+  color: var(--color-accent-text);
+}
+
+/* The row a drag would land on: the active state of the gesture. */
+.home-agenda__row--over {
+  background: var(--color-accent-muted);
+}
+
+/* The match day's ball (S9): the same marker on the day the gym does not fill. */
+.home-agenda__mark--ball {
+  color: var(--color-accent-text);
+}
+
+/* The chosen plan day of the sheet: a selected option, tinted and never a filled pill. */
+.home-agenda-sheet__option--current {
+  border-color: var(--color-accent);
+  background: var(--color-accent-muted);
+}
+
+.home-agenda-sheet__option--current .home-agenda-sheet__radio {
+  border-color: var(--color-accent);
+  color: var(--color-accent-text);
 }
