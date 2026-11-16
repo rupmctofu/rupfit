@@ -8,8 +8,9 @@
  * `design/system.md` is the generated snapshot of these shipped tokens.
  *
  * The reference-led identity is light lavender with violet accent, pill actions and
- * soft elevated surfaces. The dark peer keeps charcoal depth and the same violet identity;
- * the orange `data-skin="a"` remains a gallery-only comparison skin.
+ * soft elevated surfaces. The dark peer keeps charcoal depth and the same violet identity.
+ * One accent, one set of radii: the orange comparison skin is gone (T4b), so no stylesheet
+ * keys off a skin attribute and every screen reads the same geometry.
  *
  * Theme: dark is the product default — the reference's lilac accent on a near-black
  * canvas. `:root[data-theme="light"]` opts into the light peer; the OS preference never
@@ -24,9 +25,18 @@
      step above it, and one lilac accent for the single action. Light remains a peer,
      selected explicitly with `data-theme="light"`. */
   --color-bg: #12111b;
-  --color-surface: #1b1a27;
-  --color-surface-raised: #26243a;
+  --color-surface: #1e1c2d;
+  --color-surface-raised: #2a2740;
+  /* The fourth ground: one step above `raised`, for a surface under the pointer or under
+     the thumb. Cards separate by tone first, so the border is a decision, not the only
+     thing that says where a card ends. */
+  --color-surface-hover: #333052;
   --color-border: #3b394f;
+  /* The hairline: the edge of a surface, one step quieter than `border`. Depth arrives from
+     the ground ramp above, so the line that says where a card ends is a decision and not
+     the only thing holding the shape (T4). Components read this name in `components/*.css`;
+     the light peer is outside T4 and keeps drawing its edges with `border`. */
+  --color-hairline: #2f2c45;
   --color-text: #f6f3ff;
   --color-muted: #b4b0c9;
   --color-subtle: #858098;
@@ -45,12 +55,29 @@
   --color-focus-ring: #bbaaff;
 
   /* --------------------------------------------------------- type: families */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
-  --font-numeric: ui-rounded, -apple-system, 'SF Pro Rounded', system-ui, sans-serif;
+  /* The owner's face (odd/tasks/dark-premium-redesign.md, L1), self-hosted from
+     `public/fonts/plus-jakarta-sans/` by `fonts.css`. The system stack stays behind it, so
+     a failed load renders the platform's own text at the same sizes instead of a hole. */
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'SF Pro Text',
+    system-ui, sans-serif;
+  /* Numerals are the same face: it carries a real `tnum` feature, and every numeral role
+     asks for it (`components/numerals.css` → `font-variant-numeric: tabular-nums`), so a
+     weight column keeps its column. The rounded system faces stay as the fallback and are
+     tabular there too. */
+  --font-numeric: 'Plus Jakarta Sans', ui-rounded, -apple-system, 'SF Pro Rounded', system-ui,
+    sans-serif;
 
   /* ------------------------------------------------------------ type: scale */
   /* 1rem = 17 px (§5.1): the root is a percentage so the iOS text-size setting and
      page zoom still scale everything. Values are rem, never px. */
+
+  /* Display: a screen's own title, and nothing else. A step above `--text-screen`
+     (34 px), because the redesign gives the title the top of the screen and the numbers
+     below it the weight; the two roles stay separate tokens for exactly that reason. */
+  --text-display: 2.3529rem; /* 40 px */
+  --leading-display: 2.5882rem; /* 44 px */
+  --tracking-display: -1px;
+
   --text-screen: 2rem;
   --leading-screen: 2.3529rem;
   --tracking-screen: -0.6px;
@@ -88,14 +115,60 @@
   /* 15 px on 21 px: the empty state of §7.8 and the two-line reason of the artboard. */
   --leading-loose: 1.2353rem;
 
+  /* Micro: the smallest role, for the label under a control or the caption of a stat.
+     11 px on 15 px, uppercased tracking on top of it. */
+  --text-micro: 0.6471rem; /* 11 px */
+  --leading-micro: 0.8824rem; /* 15 px */
+  --tracking-micro: 0.4px;
+
   /* Tab bar label. The shell currently hard-codes 11 px; this is the token that
      replaces it when src/app/shell.css is owned by another task. */
   --text-tab: 0.6471rem;
   --leading-tab: 0.8235rem;
 
+  /* Card title. `app/shell.css` has read these two names since the landscape notice was
+     written and no version of this file ever defined them, so the notice fell back to the
+     body size (audit blocker 3). 20 px on 26 px names a card without competing with the
+     screen title above it. */
+  --text-card-title: 1.1765rem; /* 20 px */
+  --leading-card-title: 1.5294rem; /* 26 px */
+  --tracking-card-title: -0.2px;
+
+  /* The large numerals of a session: the load on the bar and the reps being logged. Two
+     sizes, because they are two different questions — "with how much" is the one the eye
+     finds first, "how many" sits beside it. Leading is close to 1 so the figure reads as a
+     shape; the gap is in the row, not in the line box. Tabular by construction. */
+  --text-numeral-load: 3.5294rem; /* 60 px */
+  --leading-numeral-load: 3.6471rem; /* 62 px */
+  --tracking-numeral-load: -2px;
+  --text-numeral-reps: 2.5882rem; /* 44 px */
+  --leading-numeral-reps: 2.8235rem; /* 48 px */
+  --tracking-numeral-reps: -1.2px;
+
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-semibold: 600;
+  /* 700 and 800 exist because the face does: a display title and a hero figure gain their
+     presence from the stroke, and the fallback stack synthesises both. */
+  --weight-bold: 700;
+  --weight-extrabold: 800;
+
+  /* ---------------------------------------------------------------- shadow */
+  /* Depth is a last resort: cards separate by tone (the ground ramp above) and by their
+     hairline. A shadow appears where something genuinely floats — a sheet over the
+     screen, the bar's one action lifted off the bar. Every value is two stops: a tight
+     contact edge, then a wide ambient one, which is what makes a shape read as depth
+     instead of as a dark smudge under a rectangle. */
+  --shadow-none: none;
+  --shadow-card: 0 1px 2px rgb(6 5 11 / 0.28), 0 6px 16px rgb(6 5 11 / 0.24);
+  --shadow-raised: 0 2px 6px rgb(6 5 11 / 0.32), 0 14px 32px rgb(6 5 11 / 0.34);
+  --shadow-sheet: 0 -8px 32px rgb(6 5 11 / 0.42);
+  /* The bar's centre action, lifted over the bar's edge: the exact shadow it shipped with,
+     named so the next surface asks for the same lift instead of inventing one. */
+  --shadow-lift: 0 6px 16px rgb(0 0 0 / 0.32);
+  /* An inset ring in the semantic colour, for a state that must not move anything: the
+     finished rest bar (§4, §6.3 — a colour change and two words, never a flash). */
+  --shadow-inset-success: inset 0 0 0 var(--layout-hairline) var(--color-success);
 
   /* ---------------------------------------------------------- space, layout */
   /* 4 px grid (§3). --space-1..8 keep the names the shell already references. */
@@ -205,8 +278,9 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
   --color-bg: #12111b;
-  --color-surface: #1b1a27;
-  --color-surface-raised: #26243a;
+  --color-surface: #1e1c2d;
+  --color-surface-raised: #2a2740;
+  --color-surface-hover: #333052;
   --color-border: #3b394f;
   --color-text: #f6f3ff;
   --color-muted: #b4b0c9;
@@ -225,56 +299,6 @@
   --color-focus-ring: #bbaaff;
 }
 
-/* ------------------------------------------------------- skin A (artboard `a`) */
-/* Radii and control geometry are theme-independent, so they are set once. */
-:root[data-skin='a'] {
-  --radius-card: 12px;
-  --radius-sheet: 16px;
-  --radius-control: 10px;
-  --radius-control-square: 10px;
-  --radius-badge: 9px;
-  --radius-photo: 16px;
-}
-
-:root[data-skin='a'],
-:root[data-skin='a'][data-theme='dark'] {
-  --color-accent: #f26b3a;
-  --color-accent-ink: #12100e;
-  --color-accent-text: #ff8a5c;
-  --color-accent-muted: #3a2318;
-  --color-success: #5bd98a;
-  --color-chart-1: #f26b3a;
-  --color-chart-3: #6fd08c;
-  --color-chart-4: #c08cff;
-  --color-focus-ring: #ff8a5c;
-}
-
-@media (prefers-color-scheme: light) {
-  :root[data-skin='a']:not([data-theme='dark']) {
-    --color-accent: #c24a16;
-    --color-accent-ink: #ffffff;
-    --color-accent-text: #b8430f;
-    --color-accent-muted: #f6e6df;
-    --color-success: #1a6b42;
-    --color-chart-1: #c24a16;
-    --color-chart-3: #2e8b57;
-    --color-chart-4: #7a4fbf;
-    --color-focus-ring: #b8430f;
-  }
-}
-
-:root[data-skin='a'][data-theme='light'] {
-  --color-accent: #c24a16;
-  --color-accent-ink: #ffffff;
-  --color-accent-text: #b8430f;
-  --color-accent-muted: #f6e6df;
-  --color-success: #1a6b42;
-  --color-chart-1: #c24a16;
-  --color-chart-3: #2e8b57;
-  --color-chart-4: #7a4fbf;
-  --color-focus-ring: #b8430f;
-}
-
 /* ------------------------------------------------- prefers-reduced-motion (§6.2) */
 /* Paging and every transition collapse to zero; nothing here is the only signal
    for a completed action, so removing motion loses no information. */
@@ -291,5 +315,8 @@
   :root {
     --color-muted: var(--color-text);
     --color-border: var(--color-subtle);
+    /* The surface edge is promoted with the border: the request is for fewer edges to
+       disappear, and a card is held by its ground plus this line. */
+    --color-hairline: var(--color-subtle);
   }
 }

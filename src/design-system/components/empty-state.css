@@ -4,7 +4,8 @@
    Drawn as a quiet surface, not as a dashed rectangle: a dashed outline is the visual
    language of a wireframe, and this box is the most-seen element of a fresh install,
    so it has to read as finished product (§3, «no de prototipo»). The surface is one
-   step above the background, which is what gives the dark theme its depth (§4). */
+   step above the background with the system's hairline, which is what gives the dark
+   theme its depth without a shadow (§4). */
 
 .ds-empty {
   display: flex;
@@ -13,7 +14,7 @@
   gap: var(--space-3);
   padding: var(--space-4);
   background: var(--color-surface);
-  border: var(--layout-hairline) solid var(--color-border);
+  border: var(--layout-hairline) solid var(--color-hairline);
   border-radius: var(--radius-card);
   min-width: 0;
 }
@@ -33,9 +34,10 @@
   overflow-wrap: anywhere;
 }
 
-/* Quiet by default: an outlined pill, clearly tappable, without spending the accent.
-   `primary` is for the screens where the empty state carries the only action there is
-   (Progreso before the first session), and then it is the one accent fill of the screen. */
+/* Quiet by default: an outlined pill on the raised ground, clearly tappable, without
+   spending the accent. `primary` is for the screens where the empty state carries the only
+   action there is (Progreso before the first session), and then it is the one accent fill
+   of the screen. */
 .ds-empty__action {
   display: inline-flex;
   align-items: center;
@@ -57,6 +59,7 @@
   background: var(--color-accent);
   color: var(--color-accent-ink);
   border-color: transparent;
+  font-weight: var(--weight-bold);
 }
 
 .ds-empty__action:active {

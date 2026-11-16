@@ -1,8 +1,16 @@
-/* Metric tile, data strip and the compare pair. No elevation, no shadows (§6.2). */
+/*
+ * Metric tile, data strip and the compare pair.
+ *
+ * All three are number-first: the label is the smallest thing in the block, the figure is
+ * the biggest, and the caption underneath says where it came from. No elevation and no
+ * shadows (§6.2) — a metric lives on the ground it was put on.
+ */
 
 .ds-metric {
   display: flex;
   flex-direction: column;
+  /* 4 px between the label, the figure and the caption: the figure owns the block, so
+     nothing else needs a gap of its own. */
   gap: var(--space-1);
   min-width: 0;
 }
@@ -63,10 +71,15 @@
   flex: none;
   width: var(--layout-hairline);
   align-self: stretch;
-  background: var(--color-border);
+  background: var(--color-hairline);
 }
 
-/* The pair of the decision screen: última vez / peso de hoy. */
+/*
+ * The pair of the decision screen: última vez / peso de hoy. The default tile is a surface
+ * step with its hairline; `today` is the accent-muted ground with the accent edge, and it
+ * also gains its label in full accent ink, so the chosen one is identifiable without the
+ * fill doing all the work.
+ */
 .ds-compare {
   display: flex;
   flex-direction: column;
@@ -75,7 +88,7 @@
   min-width: 0;
   padding: var(--space-3) var(--layout-card-padding-dense);
   background: var(--color-surface);
-  border: var(--layout-hairline) solid var(--color-border);
+  border: var(--layout-hairline) solid var(--color-hairline);
   border-radius: var(--radius-card);
 }
 
@@ -86,4 +99,5 @@
 
 .ds-compare--today .ds-compare__label {
   color: var(--color-accent-text);
+  font-weight: var(--weight-semibold);
 }

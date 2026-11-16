@@ -1,29 +1,42 @@
-/* Numerals: tabular figures everywhere, no letter-spacing on digits (§5.2). */
+/*
+ * Numerals: tabular figures everywhere, no letter-spacing on digits (§5.2).
+ *
+ * Every figure the app prints comes through this file one way or another, so the two rules
+ * live here: the family is `--font-numeric` (the same face, with the rounded system faces
+ * behind it) and the figures are tabular, so a column of kilos keeps its column and a stepper
+ * does not move its keys when the count gains a digit.
+ *
+ * The two large roles of a session are not sizes of this component: they are the load on the
+ * bar and the reps being logged, spent by `weight-entry.css` and `stepper.css` through
+ * `--text-numeral-load` and `--text-numeral-reps`.
+ */
 
 .ds-numeral {
   display: inline-flex;
   align-items: baseline;
   /* The value and its unit are two elements, so the space between them is a gap. */
   gap: 0.14em;
-  font-family: var(--font-sans);
+  font-family: var(--font-numeric);
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;
   white-space: nowrap; /* a weight or a timer wraps nowhere; the label beside it does */
   color: var(--color-text);
 }
 
+/* The unit is a word, not a figure: normal figures, one weight step down, so it never
+   looks like a decimal. */
 .ds-numeral__unit {
-  font-family: var(--font-sans);
+  font-family: var(--font-numeric);
   font-variant-numeric: normal;
+  font-feature-settings: normal;
   font-weight: var(--weight-medium);
   white-space: nowrap;
 }
 
 .ds-numeral--metric {
-  font-family: var(--font-numeric);
   font-size: var(--text-metric);
   line-height: var(--leading-metric);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-bold);
   letter-spacing: var(--tracking-metric);
 }
 
@@ -33,7 +46,6 @@
 }
 
 .ds-numeral--metric-small {
-  font-family: var(--font-numeric);
   font-size: var(--text-metric-sm);
   line-height: var(--leading-metric-sm);
   font-weight: var(--weight-semibold);

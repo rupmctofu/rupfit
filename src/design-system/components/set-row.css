@@ -1,11 +1,33 @@
-/* Set row: the list never reflows under the thumb — every state keeps the order. */
+/*
+ * Set row: the list never reflows under the thumb — every state keeps the order.
+ *
+ * One inset (8 px block, 12 px inline) and a transparent 1 px edge in every state, so a row
+ * that changes state never moves its own text or its neighbour's. What changes is the
+ * ground, the weight of the figure and the shape of the marker:
+ *
+ *   pending    a target, not a result: the figure one step down (22 px, secondary ink)
+ *              and an empty ring
+ *   active     raised ground, accent index, the reps stepper at numeral size
+ *   confirmed  full-ink figure at 28 px, filled success marker with the check
+ *   corrected  the same figure, an outlined accent marker (same check, different shape)
+ *   skipped    struck-through figure and the word `saltada` in its chip
+ *
+ * The figure is the set's own numeral role (`--text-metric-sm`, tabular, tracked like the
+ * session's numerals): a result is legible at arm's length without reading the label, and a
+ * weight beside it cannot jitter because both are tabular. `flex-wrap` is the safety valve —
+ * a row carrying a weight, an effort, a discomfort and `RÉCORD` grows a second line, which is
+ * where its chips already were, instead of pushing the card wider than the phone.
+ */
 
 .ds-set {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) 0;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
   min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border: var(--layout-hairline) solid transparent;
+  border-radius: var(--radius-control-square);
 }
 
 .ds-set--expanded {
@@ -25,15 +47,18 @@
   white-space: nowrap;
 }
 
+/* The label sits on the first line of an open row, beside a 48 px stepper: it takes the
+   inset plus half the difference, so its centre matches the keys'. */
 .ds-set--expanded .ds-set__index {
-  padding-top: var(--space-3);
+  padding-top: var(--space-4);
 }
 
 .ds-set__reps {
-  font-family: var(--font-sans);
-  font-size: var(--text-body);
-  line-height: var(--leading-body);
-  font-weight: var(--weight-medium);
+  font-family: var(--font-numeric);
+  font-size: var(--text-metric-sm);
+  line-height: var(--leading-metric-sm);
+  letter-spacing: var(--tracking-metric-sm);
+  font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum' 1;
   color: var(--color-text);
@@ -49,6 +74,7 @@
   line-height: var(--leading-meta);
   font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
   color: var(--color-text);
   white-space: nowrap;
 }
@@ -85,6 +111,42 @@
   align-items: center;
 }
 
+/* --------------------------------------------------------------- the five states */
+
+/* Pending: the set as prescribed, not yet done. The figure is a target, so it sits one step
+   down and in secondary ink (22 px), which is also what lets `SERIE 2 · 10 reps · 92,5 kg ·
+   ○` stay on one line in the 269 px column of a session card at 390 px. */
+.ds-set--pending .ds-set__reps {
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  letter-spacing: var(--tracking-title);
+  color: var(--color-muted);
+}
+
+/* Active: the row the owner is working on. A ground step up and an accent index; the row
+   keeps its place and its inset. */
+.ds-set--active {
+  background: var(--color-surface-raised);
+  border-color: var(--color-hairline);
+}
+
+.ds-set--active .ds-set__index {
+  color: var(--color-accent-text);
+  font-weight: var(--weight-bold);
+}
+
+.ds-set--confirmed .ds-set__reps,
+.ds-set--corrected .ds-set__reps {
+  font-weight: var(--weight-bold);
+}
+
+/* Skipped: not done, and it says so twice — the strike is the shape, `saltada` the word. */
+.ds-set--skipped .ds-set__reps {
+  color: var(--color-subtle);
+  text-decoration: line-through;
+  text-decoration-thickness: var(--layout-hairline);
+}
+
 /* The single confirm target of an active row: accent fill, 48 px tall. */
 .ds-set__confirm {
   display: flex;
@@ -99,7 +161,7 @@
   color: var(--color-accent-ink);
   font-size: var(--text-meta);
   line-height: var(--leading-meta);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-bold);
   white-space: nowrap;
 }
 
@@ -119,6 +181,7 @@
   background: none;
 }
 
+/* The marker is the shape of the state: empty ring, filled success, outlined accent. */
 .ds-set__mark {
   display: flex;
   align-items: center;
@@ -131,10 +194,24 @@
   color: var(--color-subtle);
 }
 
+/* The values before each `color-mix` are the fallback for a browser without it: a filled
+   raised disc for the confirmed set, the accent edge for the corrected one. The tint is an
+   enhancement, not the state. */
 .ds-set__mark--done {
   background: var(--color-surface-raised);
+  background: color-mix(in srgb, var(--color-success) 16%, transparent);
   border-color: transparent;
+  border-color: color-mix(in srgb, var(--color-success) 45%, transparent);
   color: var(--color-success);
+}
+
+/* A corrected set kept the work and changed the answer: the same check, drawn as a ring
+   instead of a filled disc, in the accent that belongs to the correction. */
+.ds-set--corrected .ds-set__mark--done {
+  background: none;
+  border-color: var(--color-accent);
+  border-color: color-mix(in srgb, var(--color-accent) 55%, transparent);
+  color: var(--color-accent-text);
 }
 
 /* ------------------------------------------------- a confirmed row that can be held */
@@ -159,17 +236,16 @@
 
 /*
  * A confirmed set, opened in place: the same row, the same column, the same index label —
- * so "corregir no reordena" is also what the eye sees. The tint says "this one is being
- * edited" without moving a neighbour by a pixel.
+ * so "corregir no reordena" is also what the eye sees. The raised ground and the accent
+ * edge say "this one is being edited" without moving a neighbour by a pixel.
  */
 .ds-set--editing {
-  border-radius: var(--radius-control-square);
-  background: var(--color-surface);
-  padding-inline: var(--space-2);
+  background: var(--color-surface-raised);
+  border-color: var(--color-accent);
 }
 
-/* The kilos of the set being corrected: a 48 px target around a word, because it opens
-   the pad. It is the same number the row showed before the press. */
+/* The kilos of the set being corrected: a 48 px target around a figure, because it opens
+   the pad. It is the same number the row showed before the press, now at title size. */
 .ds-set__weight-key {
   display: inline-flex;
   align-items: center;
@@ -178,14 +254,16 @@
   min-height: var(--target-min);
   min-width: var(--target-min);
   padding: 0 var(--space-3);
+  border: var(--layout-hairline) solid var(--color-hairline);
   border-radius: var(--radius-control-square);
-  background: var(--color-surface-raised);
+  background: var(--color-surface);
   color: var(--color-text);
   font-family: var(--font-numeric);
-  font-size: var(--text-meta);
-  line-height: var(--leading-meta);
-  font-weight: var(--weight-semibold);
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  font-weight: var(--weight-bold);
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
   white-space: nowrap;
 }
 

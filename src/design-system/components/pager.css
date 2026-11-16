@@ -1,4 +1,10 @@
-/* Pager: chevron, track, count, chevron. The count is decoration for VoiceOver. */
+/* Pager: chevron, track, count, chevron. The count is decoration for VoiceOver.
+ *
+ * The track is a position, not progress toward a goal: it stays in the muted ink, so the
+ * accent is not spent twice in the same screen (the session's one accent fill belongs to
+ * the action). The chevrons are quiet controls and step down to `subtle` at their ends,
+ * which is also where they are disabled.
+ */
 
 .ds-pager {
   display: flex;
@@ -15,6 +21,7 @@
   flex: none;
   width: var(--target-min);
   height: var(--target-min);
+  border-radius: var(--radius-pill);
   background: none;
   color: var(--color-muted);
 }
@@ -35,17 +42,20 @@
   display: block;
   height: 100%;
   border-radius: var(--radius-track-thin);
-  /* Navigation progress, not the data point that matters: the accent here competed
-     with the one action of the screen. */
   background: var(--color-muted);
 }
 
+/* The count is a numeral: tabular, so `1 / 6` and `10 / 12` keep the chevron where it
+   was, and one weight step up from a caption so it reads as a figure. */
 .ds-pager__count {
   flex: none;
   min-width: var(--size-badge);
   justify-content: flex-end;
+  font-family: var(--font-numeric);
   font-size: var(--text-caption);
   line-height: var(--leading-caption);
-  font-weight: var(--weight-regular);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
   color: var(--color-muted);
 }

@@ -1,4 +1,10 @@
-/* Charts: strokes and fills from tokens. No gradient, no shadow, no gridlines. */
+/* Charts: strokes and fills from tokens. No gradient, no shadow, no gridlines.
+ *
+ * A chart sits inside a card and says three things in a fixed order: what it measures, over
+ * what window, and where it ended. The frame's own text is caption-sized and muted; the last
+ * point is the only figure the chart prints in full ink, because it is the one the eye came
+ * for.
+ */
 
 .ds-chart-frame {
   display: flex;
@@ -10,6 +16,17 @@
 
 .ds-chart-frame__plot {
   min-width: 0;
+}
+
+/* The hidden data table behind every chart. It has to keep its table semantics —
+   `display: block` on a table takes the rows away from VoiceOver — and an auto-layout table
+   refuses to be narrower than its content, so an absolutely positioned 1 px box still
+   widened the document by ~140 px wherever a chart shipped. A fixed box is out of the
+   scroll container and clipped exactly the same by `ds-visually-hidden`. */
+.ds-chart-frame .ds-visually-hidden {
+  position: fixed;
+  top: 0;
+  left: 0;
 }
 
 .ds-chart-frame__legend {
@@ -58,8 +75,9 @@
 
 /* ------------------------------------------------------------------ primitives */
 
+/* The axis is the surface's own hairline, so the chart has no frame of its own. */
 .ds-chart__axis {
-  stroke: var(--color-border);
+  stroke: var(--color-hairline);
   stroke-width: 1;
 }
 
@@ -99,7 +117,7 @@
 }
 
 .ds-chart__bar {
-  fill: var(--color-surface-raised);
+  fill: var(--color-surface-hover);
 }
 
 .ds-chart__bar--last {
@@ -113,12 +131,14 @@
   font-size: var(--text-caption);
 }
 
+/* The direct label of the last point: the chart's own figure, tabular like every other. */
 .ds-chart__value {
   fill: var(--color-text);
-  font-family: var(--font-sans);
+  font-family: var(--font-numeric);
   font-size: var(--text-caption);
   font-weight: var(--weight-semibold);
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
 }
 
 /* Charts are static images of data: they are never animated on entry (§7.7, §11). */

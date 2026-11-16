@@ -1,4 +1,15 @@
-/* Cards and section labels. Elevation is a surface change, never a shadow (§6.2). */
+/*
+ * Cards and section labels.
+ *
+ * A card is a ground step and a hairline, in that order: the surface is already lighter
+ * than the canvas, so the line only closes the shape instead of doing the whole job. No
+ * shadow, no gradient, and never a card inside a card (§6.2, §11).
+ *
+ * The four densities below are the same card with a different inset, so one screen never
+ * mixes two rhythms: `default` 20 px, `dense` 14 px and a tighter internal gap, `list`
+ * for a stack of rows that bring their own vertical padding, `none` for content that
+ * bleeds to the radius (a photo, a numeral in the corner).
+ */
 
 .ds-card {
   display: flex;
@@ -6,7 +17,7 @@
   gap: var(--layout-stack-gap);
   min-width: 0;
   background: var(--color-surface);
-  border: var(--layout-hairline) solid var(--color-border);
+  border: var(--layout-hairline) solid var(--color-hairline);
   border-radius: var(--radius-card);
 }
 
@@ -15,6 +26,9 @@
 }
 
 .ds-card--dense {
+  /* The denser inset comes with the denser gap: a tight card with a loose rhythm reads as
+     a default card that lost its padding. */
+  gap: var(--space-2);
   padding: var(--layout-card-padding-dense);
 }
 
@@ -36,7 +50,7 @@
 .ds-divider {
   flex: none;
   height: var(--layout-hairline);
-  background: var(--color-border);
+  background: var(--color-hairline);
   border: 0;
   margin: 0;
 }

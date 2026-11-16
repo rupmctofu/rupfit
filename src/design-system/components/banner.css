@@ -1,4 +1,13 @@
-/* Inline banners: raised surface, no accent fill, no shadow, never a modal (§7.8). */
+/*
+ * Inline banners: a surface step, an edge in the tone's own hue, no accent fill, no
+ * shadow, never a modal (§7.8).
+ *
+ * The four tones are one shape with one variable: the edge and a 6–8 % tint of the tone
+ * over the raised ground, plus the tone's ink on the title. That keeps a stack of notices
+ * readable as a hierarchy — `info` is the plain surface, `warning`/`danger`/`success` are
+ * tinted — without turning a banner into a coloured slab. Every banner carries its sentence,
+ * so the hue is never the only signal.
+ */
 
 .ds-banner {
   display: flex;
@@ -8,7 +17,36 @@
   min-width: 0;
   padding: var(--space-3) var(--layout-card-padding-dense);
   background: var(--color-surface-raised);
+  border: var(--layout-hairline) solid var(--color-hairline);
   border-radius: var(--radius-card);
+}
+
+.ds-banner--warning,
+.ds-banner--danger,
+.ds-banner--success {
+  /* Every `color-mix` in this file is an enhancement with its plain declaration directly
+     above it: a browser without it drops the mix and keeps the raised ground and the
+     neutral hairline edge, so the notice is still a surface with an edge and its sentence. */
+  border-color: var(--color-hairline);
+  border-color: color-mix(in srgb, currentColor 30%, transparent);
+}
+
+.ds-banner--warning {
+  background: var(--color-surface-raised);
+  background: color-mix(in srgb, var(--color-warning) 7%, var(--color-surface-raised));
+  color: var(--color-warning);
+}
+
+.ds-banner--danger {
+  background: var(--color-surface-raised);
+  background: color-mix(in srgb, var(--color-danger) 7%, var(--color-surface-raised));
+  color: var(--color-danger);
+}
+
+.ds-banner--success {
+  background: var(--color-surface-raised);
+  background: color-mix(in srgb, var(--color-success) 7%, var(--color-surface-raised));
+  color: var(--color-success);
 }
 
 .ds-banner--phase {
@@ -41,15 +79,20 @@
   font-weight: var(--weight-semibold);
 }
 
+/* The error banner's title carries the tone itself, because it has no other slot. */
 .ds-banner__title--danger {
   color: var(--color-danger);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-semibold);
   font-size: var(--text-body);
   line-height: var(--leading-body);
 }
 
 .ds-banner--warning .ds-banner__title {
   color: var(--color-warning);
+}
+
+.ds-banner--danger .ds-banner__title {
+  color: var(--color-danger);
 }
 
 .ds-banner--success .ds-banner__title {

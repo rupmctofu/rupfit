@@ -6,10 +6,16 @@
  * which is why every handler prop is optional and a component degrades to a
  * read-only rendering when it is absent.
  *
- * Stylesheets: `tokens.css` and `foundation.css` are the only global files, and each
- * component imports the stylesheet it needs. `main.tsx` keeps importing
- * `tokens.css`; no other wiring is required.
+ * Stylesheets: `tokens.css`, `fonts.css` and `foundation.css` are the only global files,
+ * and each component imports the stylesheet it needs. `main.tsx` keeps importing
+ * `tokens.css`; the face arrives with this barrel (`fonts.css`), which every screen
+ * already imports for its components, so a new screen needs no wiring of its own.
  */
+
+// The self-hosted face. Imported here, not in `main.tsx`, because the barrel is what the
+// components are imported from: whoever renders a component gets the font that component
+// was measured against.
+import './fonts.css';
 
 export type { IconName, IconProps } from './components/Icon';
 export { Icon } from './components/Icon';
@@ -56,9 +62,6 @@ export type {
   WeightSummaryProps,
 } from './components/WeightEntry';
 export { KEYPAD_KEYS, LoadDecisionBar, WeightKeypad, WeightSummary } from './components/WeightEntry';
-
-export type { RestState, RestTimerBarProps } from './components/RestTimerBar';
-export { RestTimerBar } from './components/RestTimerBar';
 
 export type { EmptyStateAction, EmptyStateProps } from './components/EmptyState';
 export { EmptyState } from './components/EmptyState';

@@ -1,10 +1,18 @@
-/* Actions: the single accent fill of a screen and the quieter text button. */
+/*
+ * Actions: the single accent fill of a screen and the quieter text button.
+ *
+ * Depth here is a tone, not a shadow: the accent fill is already the loudest surface on
+ * a dark screen, and lifting it would compete with the numbers. Pressed is the shared
+ * `.ds-action` state (`foundation.css`), never a hover-only affordance (§11).
+ */
 
 .ds-primary {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-1);
+  /* 8 px between the glyph and the word: the 4 px of a chip would glue them together at
+     17 px. */
+  gap: var(--space-2);
   width: 100%;
   /* 56 px is the primary height (§3, §7.1); min-height keeps it growing with text. */
   min-height: var(--control-height);
@@ -14,15 +22,15 @@
   color: var(--color-accent-ink);
   font-size: var(--text-body);
   line-height: var(--leading-body);
-  font-weight: var(--weight-semibold);
+  /* 700 is the face's own bold: at 56 px one weight step is what makes the label sit like
+     a control instead of like body text. */
+  font-weight: var(--weight-bold);
   touch-action: manipulation;
 }
 
-.ds-primary:active:not(:disabled) {
-  opacity: 0.85;
-}
-
 .ds-primary:disabled {
+  /* A disabled fill is the raised ground, one step above the card it usually sits on:
+     still a shape, no accent spent, and the word stays legible. */
   background: var(--color-surface-raised);
   /* Disabled text is exempt from the contrast floor (WCAG 1.4.3, inactive controls). */
   color: var(--color-subtle);
@@ -33,10 +41,13 @@
   overflow-wrap: anywhere;
 }
 
-/* A text button is the quieter action, so it does not spend the accent: the accent
-   belongs to the one primary action of the screen, and a screen with a lime link in
-   every card has no primary action at all (§4, §7.1). `tone` restores colour where the
-   word alone is not enough: a destructive row, or the rare emphasis. */
+/*
+ * A text button is the quieter action, so it does not spend the accent: the accent belongs
+ * to the one primary action of the screen, and a screen with an accent link in every card
+ * has no primary action at all (§4, §7.1). `tone` restores colour where the word alone is
+ * not enough: a destructive row, or the rare emphasis. The three tones are the same shape
+ * at three weights of voice — primary ink, accent, danger — and none of them adds a fill.
+ */
 .ds-text-button {
   display: inline-flex;
   align-items: center;
@@ -61,6 +72,8 @@
   color: var(--color-danger);
 }
 
+/* The inline variant that sits on a data row: no inset of its own, so its 48 px target
+   cannot push the row's own column. */
 .ds-text-button--start {
   justify-content: flex-start;
   padding: 0;

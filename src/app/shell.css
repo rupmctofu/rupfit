@@ -80,7 +80,9 @@ body {
      destination at 320 px, ~89 px at 430 px. Nothing wraps and the four tabs never become
      five. */
   grid-template-columns: repeat(2, 1fr) auto repeat(2, 1fr);
-  border-top: var(--layout-hairline) solid var(--color-border);
+  /* The bar is the surface the screen sits on, one step above the canvas, closed by the
+     system's hairline: no blur, no glass, nothing floating over the content. */
+  border-top: var(--layout-hairline) solid var(--color-hairline);
   background: var(--color-surface);
   padding-bottom: var(--safe-bottom-padding);
 }
@@ -94,11 +96,16 @@ body {
   /* 48 CSS px minimum: chalk, sweat and cold hands cost accuracy (S4, NFR-4). */
   min-height: var(--control-height);
   text-decoration: none;
+  /* Inactive is a destination waiting, not a disabled control: it keeps the muted ink of a
+     secondary label (7:1 on the bar) so the bar is readable at a glance outdoors. */
   color: var(--color-muted);
   font-size: var(--text-tab);
+  line-height: var(--leading-tab);
   touch-action: manipulation;
 }
 
+/* Active is the corporate purple, and it is also a weight change: the two together survive
+   a greyscale screenshot, and neither is a fill in a bar that belongs to the screen. */
 .tabbar__tab[aria-current='page'] {
   color: var(--color-accent);
 }
@@ -113,31 +120,29 @@ body {
   height: var(--icon-size);
 }
 
-/* Active is a real state, not only a hue (§4, §9): the label gains weight. The icon
-   keeps the single stroke of the set — a second thickness is a second icon system. */
-@media (max-width: 374px) {
-  .shell__main {
-    padding-inline: var(--layout-screen-padding-compact);
-  }
-}
+/* Active is a real state, not only a hue (§4, §9): the label gains weight. The icon keeps
+   the single stroke of the set — a second thickness is a second icon system. */
 .tabbar__tab[aria-current='page'] .tabbar__label {
   font-weight: var(--weight-semibold);
 }
 
 .tabbar__label {
-  letter-spacing: var(--tracking-caption);
+  letter-spacing: var(--tracking-micro);
+}
+
+@media (max-width: 374px) {
+  .shell__main {
+    padding-inline: var(--layout-screen-padding-compact);
+  }
 }
 
 /* ------------------------------------------------------- Tu Entreno (S1)
-   The bar's action. It carries the design system's one primary action (`.ds-primary`, the
-   accent fill) and this file only gives it the bar's geometry: pill, 56 px box, stacked
-   glyph and label, lifted over the bar's edge. The accent is therefore spent once, by the
-   component that owns it — the four destinations keep their tinted `aria-current` state,
-   and no second accent fill exists in the bar. `.tabbar` in the selector keeps these
-   overrides above `.ds-primary` whatever order the two stylesheets load in. */
-/* The centre of the bar is the mark, not a phrase: a lilac disc lifted off the bar with the
-   R drawn in the accent's ink. It stays a 52 px circle — above the 48 px target — so the
-   affordance survives one-handed use without a label to read. */
+   The centre of the bar is the mark, not a phrase: the lilac disc lifted off the bar with
+   the R drawn in the accent's ink. It keeps its slot — the third of five columns, between
+   the second and third destination — so the four tabs stay four and the action stays where
+   the thumb already learned it. It stays a 52 px circle, above the 48 px target, so the
+   affordance survives one-handed use without a label to read; `.tabbar` in the selector
+   keeps these overrides above the component styles whatever order the sheets load in. */
 .tabbar .tabbar__train {
   align-self: center;
   justify-self: center;
@@ -150,11 +155,16 @@ body {
   padding: 0;
   border-radius: var(--radius-pill);
   background: var(--color-accent);
-  /* Lifted, never taller than its slot: nothing overlaps a destination. */
+  /* Lifted, never taller than its slot: nothing overlaps a destination. The lift is a
+     token because the same depth is the system's answer for anything raised off its own
+     ground. */
   transform: translateY(-10px);
-  box-shadow: 0 6px 16px rgb(0 0 0 / 0.32);
+  box-shadow: var(--shadow-lift);
 }
 
+/* A busy start is a disc that is still the disc: the ground drops to the raised step and
+   the mark fades, but the shape, the seat and the shadow stay, so nothing jumps when the
+   write resolves. */
 .tabbar .tabbar__train:disabled {
   background: var(--color-surface-raised);
 }

@@ -1,4 +1,11 @@
-/* Data rows: one line of title, subtitle, state, value and chevron. */
+/*
+ * Data rows: one line of title, subtitle, state, value and chevron.
+ *
+ * The rule between two rows is a hairline, not a border: a list is one surface with quiet
+ * divisions, so the rows read as a block and the value column carries the weight. The
+ * value is tabular and semibold — a column of kilos does not jitter and does not need a
+ * second colour to be found.
+ */
 
 .ds-data-row {
   display: flex;
@@ -18,7 +25,7 @@
 }
 
 .ds-data-row + .ds-data-row {
-  border-top: var(--layout-hairline) solid var(--color-border);
+  border-top: var(--layout-hairline) solid var(--color-hairline);
 }
 
 .ds-data-row__grow {
@@ -46,6 +53,7 @@
   overflow-wrap: anywhere;
 }
 
+/* The icon badge of a row: a ground step, not a button. */
 .ds-data-row__badge {
   display: flex;
   align-items: center;
@@ -58,6 +66,8 @@
   color: var(--color-muted);
 }
 
+/* The weekday marker: done is a filled ground with the check, today is the accent ring,
+   neither is empty. Fill versus ring is the difference; the hue only says which one. */
 .ds-data-row__state {
   display: flex;
   align-items: center;
@@ -65,7 +75,7 @@
   flex: none;
   width: var(--size-set-mark);
   height: var(--size-set-mark);
-  border: var(--layout-hairline) solid var(--color-border);
+  border: var(--layout-hairline) solid var(--color-hairline);
   border-radius: var(--radius-pill);
   color: var(--color-subtle);
 }
@@ -77,6 +87,7 @@
 }
 
 .ds-data-row__state--today {
+  background: var(--color-accent-muted);
   border-color: var(--color-accent);
   color: var(--color-accent-text);
 }
@@ -106,8 +117,12 @@
   color: var(--color-muted);
 }
 
+/* The value column: the numeral role of a row. */
 .ds-data-row__value {
   flex: none;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  font-weight: var(--weight-semibold);
 }
 
 .ds-data-row__chevron {

@@ -1,4 +1,12 @@
-/* Stepper: value between two 48 × 48 keys. Square for the set row, round for weight. */
+/*
+ * Stepper: value between two 48 × 48 keys. Square for the set row, round for weight.
+ *
+ * The figure between the keys is the loudest thing in an open set row — it is the reps
+ * being logged — so it takes the session's numeral role (`--text-numeral-reps`, 44 px,
+ * tabular) instead of the control's body size. Two rules keep the row still while it is
+ * being used: the value reserves two digits of width in `ch`, so 8 → 10 → 100 never moves
+ * a key, and the keys are a raised ground with the same hairline as every other control.
+ */
 
 .ds-stepper {
   display: flex;
@@ -16,6 +24,7 @@
   height: var(--target-min);
   background: var(--color-surface-raised);
   color: var(--color-text);
+  border: var(--layout-hairline) solid var(--color-hairline);
   border-radius: var(--radius-control-square);
 }
 
@@ -23,21 +32,32 @@
   border-radius: var(--radius-pill);
 }
 
+/* A key at its limit steps down to the card's own ground instead of only fading: the shape
+   still exists, the affordance does not. */
 .ds-stepper__key:disabled {
+  background: var(--color-surface);
   color: var(--color-subtle);
 }
 
 .ds-stepper__value {
-  min-width: 2.2rem;
+  /* Two digits of this face at this size. `ch` is the width of `0`, so a one-digit count is
+     centred in the space two digits need and the keys never shift under the thumb. */
+  min-width: 2ch;
   justify-content: center;
   text-align: center;
   font-family: var(--font-numeric);
-  font-size: var(--text-title);
-  line-height: var(--leading-title);
-  font-weight: var(--weight-semibold);
+  font-size: var(--text-numeral-reps);
+  line-height: var(--leading-numeral-reps);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-numeral-reps);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
   color: var(--color-text);
 }
 
 .ds-stepper__value .ds-numeral__unit {
   font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  letter-spacing: normal;
+  color: var(--color-muted);
 }

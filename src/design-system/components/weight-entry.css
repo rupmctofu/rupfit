@@ -14,6 +14,9 @@
   min-width: 0;
   min-height: var(--control-height);
   padding: var(--space-2);
+  /* The transparent edge keeps a ghost action the same size as the accent one, and lets
+     the two read as the same control at two tones. */
+  border: var(--layout-hairline) solid transparent;
   border-radius: var(--radius-control);
   font-size: var(--text-meta);
   line-height: var(--leading-meta);
@@ -31,11 +34,13 @@
 
 .ds-decision__action--ghost {
   background: var(--color-surface-raised);
+  border-color: var(--color-hairline);
   color: var(--color-text);
 }
 
 .ds-decision__action:disabled {
   background: var(--color-surface-raised);
+  border-color: transparent;
   color: var(--color-subtle);
 }
 
@@ -54,9 +59,22 @@
 }
 
 .ds-weight-summary__weight {
-  font-size: var(--text-title);
-  line-height: var(--leading-title);
-  font-weight: var(--weight-semibold);
+  /* The load on the bar: the session's largest numeral role, tabular, so nudging 90 →
+     92,5 never moves the two keys beside it. */
+  font-family: var(--font-numeric);
+  font-size: var(--text-numeral-load);
+  line-height: var(--leading-numeral-load);
+  letter-spacing: var(--tracking-numeral-load);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+.ds-weight-summary__weight .ds-numeral__unit {
+  font-size: var(--text-meta);
+  line-height: var(--leading-meta);
+  letter-spacing: normal;
+  color: var(--color-muted);
 }
 
 .ds-weight-summary__keys {
@@ -71,12 +89,14 @@
   justify-content: center;
   width: var(--target-min);
   height: var(--target-min);
+  border: var(--layout-hairline) solid var(--color-hairline);
   border-radius: var(--radius-pill);
   background: var(--color-surface-raised);
   color: var(--color-text);
 }
 
 .ds-weight-summary__key:disabled {
+  background: var(--color-surface);
   color: var(--color-subtle);
 }
 

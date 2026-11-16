@@ -1,11 +1,27 @@
-/* Chips: a word in a pill. Static chips are text; interactive chips are controls. */
+/*
+ * Chips: a word in a pill. Static chips are text; interactive chips are controls.
+ *
+ * One pill of 26 px (12 px/16 px text inside 4 px/8 px) with two families of tone:
+ *
+ *   - a neutral chip is a ground step (raised surface) with the hairline edge of any other
+ *     surface, so a row of attributes stays quiet;
+ *   - a semantic chip (`success`, `warning`, `danger`, `accent`) is a tint of its own hue
+ *     plus an edge of it. The tint is what makes MOLESTIA and RÉCORD different shapes of
+ *     colour at a glance across a row, and the hairline edge means the tone survives
+ *     `prefers-contrast: more`, where the ground is promoted under it.
+ *
+ * The hue is never the only carrier: every chip carries its word (§4, §11). `color-mix`
+ * derives the four tints from the four semantic tokens instead of adding five hard-coded
+ * hexes; where it is not supported the declaration is dropped and the neutral ground is
+ * what ships — a readable chip, never a broken one.
+ */
 
 .ds-chip {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
   padding: var(--space-1) var(--space-2);
-  border: var(--layout-hairline) solid var(--color-border);
+  border: var(--layout-hairline) solid var(--color-hairline);
   border-radius: var(--radius-pill);
   background: var(--color-surface-raised);
   color: var(--color-muted);
@@ -30,26 +46,38 @@
   overflow-wrap: anywhere;
 }
 
+/* The four semantic tones share one shape, so their weight and their edge are what make
+   them a family. */
+.ds-chip--success,
+.ds-chip--warning,
+.ds-chip--danger,
+.ds-chip--accent {
+  /* Each `color-mix` keeps its plain declaration directly above it, so a browser without
+     it ships the neutral chip the header describes instead of a chip with no ground. */
+  border-color: var(--color-hairline);
+  border-color: color-mix(in srgb, currentColor 42%, transparent);
+  background: var(--color-surface-raised);
+  background: color-mix(in srgb, currentColor 12%, var(--color-surface));
+  font-weight: var(--weight-semibold);
+}
+
 .ds-chip--success {
   color: var(--color-success);
-  border-color: transparent;
 }
 
 .ds-chip--warning {
   color: var(--color-warning);
-  border-color: transparent;
 }
 
 .ds-chip--danger {
   color: var(--color-danger);
-  border-color: transparent;
 }
 
 .ds-chip--accent {
   color: var(--color-accent-text);
-  border-color: transparent;
 }
 
+/* The one deliberate emphasis of a screen: the accent fill and its ink. */
 .ds-chip--solid {
   background: var(--color-accent);
   color: var(--color-accent-ink);
@@ -58,12 +86,13 @@
 }
 
 /* The selected state of a chip control, and the only one a selected option should use.
-   It is tinted, not filled: five lime pills in a row turn the accent into wallpaper (§4).
-   `--solid` stays available for the single deliberate emphasis in a screen. */
+   It is tinted, not filled: five accent pills in a row turn the accent into wallpaper
+   (§4). Weight and the accent edge carry the choice without the fill. */
 .ds-chip--selected {
   background: var(--color-accent-muted);
   color: var(--color-accent-text);
-  border-color: transparent;
+  border-color: var(--color-hairline);
+  border-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
   font-weight: var(--weight-semibold);
 }
 
