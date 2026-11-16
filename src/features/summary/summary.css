@@ -1,10 +1,16 @@
 /*
  * Resumen's layout: a full-height sheet over the tab bar, like Sesión (design-system §8)
- * — the summary is the end of the session, not a tab. Tokens only.
+ * — the summary is the end of the session, not a tab. Tokens only: no colour, type size,
+ * radius or duration is written here as a literal, and no accent is declared at all (the
+ * record chip borrows `chips.css`'s accent tint; `Hecho` keeps the sheet's one accent fill,
+ * which is why the accent-budget probe has nothing to allow for this file).
  *
  * Two regions: the read-out scrolls, and the one action of the sheet (`Hecho`) is pinned
  * above the home indicator. `Hecho` is where the session ends, so it must not depend on
  * how many exercises the session happened to have.
+ *
+ * The depth is the shipped ramp and nothing else (T1, T10): the canvas, the hero's raised
+ * ground, and the hairline inside it — no shadow, no gradient, no card inside a card.
  */
 
 .summary {
@@ -28,6 +34,9 @@
   gap: var(--space-4);
   padding: var(--space-2) var(--layout-screen-padding) var(--space-6);
   overflow-y: auto;
+  /* One axis, both axes: this region scrolls down and only down, so no child a pixel wide
+     can turn the read-out into a sideways scroll on a 320 px phone. */
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
 }
@@ -37,10 +46,33 @@
   flex-direction: column;
   gap: var(--space-1);
   padding-top: var(--space-2);
+  min-width: 0;
+}
+
+/*
+ * The achievement (T10, S1): the sheet's title at the display role — the one place in the
+ * app a finished thing is stated at 40 px. `--text-display` exists for exactly this and no
+ * other screen has spent it yet; `balance` keeps `Sesión completada` from leaving a lone
+ * word on the second line at 320 px, and `anywhere` is the floor under a long translation.
+ */
+.summary__title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-display);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+  text-wrap: balance;
+  overflow-wrap: anywhere;
 }
 
 .summary__bar {
   flex: none;
+  /* Closed by the same hairline as every other surface instead of by a shadow, and opaque
+     so the read-out that scrolls under it never shows through. */
+  background: var(--color-bg);
+  border-top: var(--layout-hairline) solid var(--color-hairline);
   padding: var(--space-2) var(--layout-screen-padding) var(--safe-bottom-padding);
 }
 
@@ -56,12 +88,132 @@
   color: var(--color-text);
 }
 
-/* One record of the day: the word, when it happened, the mark and the comparison. */
+/* ------------------------------------------------------- the protagonist (T10) */
+
+/*
+ * The totals of the session on the one raised ground of the sheet — the step Inicio's today
+ * card and Historial's volume card use, so the figure the screen exists to answer is the
+ * surface the eye lands on. It is a card of its own and not a hero band: the records below
+ * need to stay in the same first viewport.
+ */
+.summary__hero {
+  background: var(--color-surface-raised);
+}
+
+/* The day on the left, the records of the day on the right. The chip never shrinks (its
+   word is the message) and the day wraps instead, which is what keeps a long plan name from
+   pushing a 390 px sheet sideways. */
+.summary__hero-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.summary__hero-head > .ds-section-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.summary__hero-head > .ds-chip {
+  flex: none;
+}
+
+/* ------------------------------------------------------------ the groups of the read-out */
+
+.summary__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.summary__group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.summary__group-head > .ds-section-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.summary__group-head > .ds-caption {
+  flex: none;
+}
+
+/* ------------------------------------------------------------- one record of the day */
+
+/*
+ * The word, the day it happened, the mark and the only comparison the app computes.
+ * A block, not a row: the mark is a title and a title does not fit in the value column.
+ * The accent lives in the chip (`chips.css`), never in this file, so the sheet keeps
+ * `Hecho` as its one accent fill.
+ */
 .summary__record {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
   padding: var(--space-3) 0;
+  min-width: 0;
+}
+
+.summary__record-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.summary__record-head > .ds-chip {
+  flex: none;
+}
+
+.summary__record-head > .ds-meta {
+  min-width: 0;
+  text-align: right;
+}
+
+/* The mark of the day: one step above the row titles under it, tabular so a second record
+   does not move the first, and `pretty` so the wrap does not orphan `× 10`. */
+.summary__record-line {
+  margin: 0;
+  font-family: var(--font-numeric);
+  font-size: var(--text-title);
+  line-height: var(--leading-title);
+  letter-spacing: var(--tracking-title);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  color: var(--color-text);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+/* No records is a sentence, not a box: the quiet role of the empty state, on the canvas.
+   It keeps its own rhythm because it sits between two groups. */
+.summary__no-records {
+  padding: var(--space-1) 0;
+}
+
+/* --------------------------------------------------------- the per-exercise read-out */
+
+/*
+ * The volume of an exercise, in primary ink instead of the design system's muted one: it is
+ * the figure the row is read for, and the list is scanned for it. The size stays the inline
+ * role on purpose. The row carries a 34 px badge and a chevron, so at 320 px its name column
+ * is ~95 px; the 28 px numeral role would leave it 41 px, which is two letters of
+ * `Sentadilla`. The loud figures of the sheet are the hero's volume and the mark of a
+ * record, above this list. Scoped to this list (the row takes `className` from `DataRow`), so
+ * `data-row.css` keeps its own role everywhere else.
+ */
+.summary__row > .ds-data-row__value {
+  color: var(--color-text);
 }
 
 /* The expanded read-out of one exercise: the sets behind the row. */
@@ -74,11 +226,32 @@
   list-style: none;
 }
 
+/* The sets hang off the row that opened them, so the block reads as that row's detail and
+   not as three more rows of the list. */
 .summary__set {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--space-3);
+  min-width: 0;
+}
+
+.summary__set > .ds-caption {
+  flex: none;
+}
+
+/* `10 × 92,5 kg`: a figure, tabular, at the body role. */
+.summary__set-figure {
+  min-width: 0;
+  font-family: var(--font-numeric);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  font-weight: var(--weight-medium);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  color: var(--color-text);
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 374px) {
@@ -87,5 +260,27 @@
   .summary__top {
     padding-left: var(--layout-screen-padding-compact);
     padding-right: var(--layout-screen-padding-compact);
+  }
+}
+
+/* ------------------------------------------------------------- the wide window */
+/*
+ * A wide window gets a readable column instead of a 768 px line (S8). The sheet is
+ * mobile-first and the summary has nothing to put beside its read-out, so the read-out and
+ * the one action share the 560 px column of Inicio and Historial. The bar itself stays full
+ * width — its hairline closes the sheet, not the column — and only the action narrows.
+ */
+@media (min-width: 720px) {
+  .summary__scroll,
+  .summary__top {
+    width: 100%;
+    max-width: calc(560px + 2 * var(--layout-screen-padding));
+    margin-inline: auto;
+  }
+
+  .summary__bar > .ds-primary {
+    width: 100%;
+    max-width: 560px;
+    margin-inline: auto;
   }
 }
