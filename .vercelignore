@@ -17,3 +17,6 @@ inspiration
 design/art
 tools/.tmp
 *.zip
+# Personal health data: the Evolt 360 scans. Never an input of the build, so it must
+# never be part of a deployment upload either.
+src/Evolt Exam
