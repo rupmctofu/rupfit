@@ -42,8 +42,12 @@ import { roundDownToIncrement, stepDown, stepUp } from './rounding';
  * prescribes the block being trained instead of stepping back to `passedBlocks`: the block
  * is stored now, so the document's "Hold: last passed block" row is obsolete. §7's order
  * and the four gate criteria are unchanged.
+ * 1.4.0 — §8's rule 6 no longer applies the interval ladder to a slot prescribed by time:
+ * a `conditioning` slot keeps the plan's own sets and reps, so 20 minutes of incline walking
+ * comes back as one set instead of `2 × 2 min`. The rest of the table returns exactly the
+ * numbers 1.3.0 returned.
  */
-export const ENGINE_VERSION = '1.3.0';
+export const ENGINE_VERSION = '1.4.0';
 
 /** Products of an acceptable weight grid; a real weight is never "corrected". */
 const LOWERED_EPSILON = 1e-6;
@@ -134,6 +138,12 @@ export function recommend(input: EngineInput, computedAt: Date): ProgressionReco
   const bottom = prescription.repRange.lowerBound;
   const top = prescription.repRange.upperBound;
   const planSets = prescription.sets;
+  // A conditioning slot is prescribed by time, and its set count belongs to the plan: one
+  // continuous walk, or the intervals of an old fourth day. §8's table still decides
+  // whether the block passed, but its interval ladder (2 → 4 sets of worked minutes) may
+  // not rewrite a `1 × 20:00` walk into `2 × 20:00`: that is set arithmetic over work that
+  // is not measured in reps (odd/tasks/incline-walk.md S4).
+  const timed = role === 'conditioning';
 
   // §2: an abandoned session (zero confirmed sets) is not evidence.
   const usable = input.history.filter((outcome) => outcome.sets.length > 0);
@@ -278,12 +288,16 @@ export function recommend(input: EngineInput, computedAt: Date): ProgressionReco
     );
     const prescriptionForRepeat = decision.prescription;
     const week = Math.min(Math.max(Math.trunc(phase.week), 1), MAX_READAPTATION_WEEK);
+    // What the block prescribes, for the exercises it is allowed to prescribe for. A timed
+    // slot keeps the plan's own sets and rep target.
+    const blockSets = timed ? planSets : (prescriptionForRepeat?.sets ?? planSets);
+    const blockReps = timed ? bottom : (prescriptionForRepeat?.repRange.lowerBound ?? bottom);
 
     if (decision.kind === 'capReached') {
       return build({
         suggestedWeightKg: last.weightKg,
-        suggestedSets: prescriptionForRepeat?.sets ?? planSets,
-        suggestedTargetReps: prescriptionForRepeat?.repRange.lowerBound ?? bottom,
+        suggestedSets: blockSets,
+        suggestedTargetReps: blockReps,
         action: 'hold',
         reason: 'readaptationCapReached',
         confidence,
@@ -295,8 +309,8 @@ export function recommend(input: EngineInput, computedAt: Date): ProgressionReco
     if (decision.kind === 'repeat') {
       return build({
         suggestedWeightKg: last.weightKg,
-        suggestedSets: prescriptionForRepeat?.sets ?? planSets,
-        suggestedTargetReps: prescriptionForRepeat?.repRange.lowerBound ?? bottom,
+        suggestedSets: blockSets,
+        suggestedTargetReps: blockReps,
         action: 'hold',
         reason: 'readaptationBlockNotPassed',
         confidence,
@@ -306,12 +320,7 @@ export function recommend(input: EngineInput, computedAt: Date): ProgressionReco
     }
 
     // `.pass` and `.advanceToNormal`: one increment between blocks, and only after a pass.
-    return increase(
-      'readaptationBlockPassed',
-      { week },
-      decision.prescription?.sets ?? planSets,
-      decision.prescription?.repRange.lowerBound ?? bottom,
-    );
+    return increase('readaptationBlockPassed', { week }, blockSets, blockReps);
   }
 
   // Rule 7: a weight the user lowered on purpose is consolidated before any increase.

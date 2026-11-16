@@ -14,6 +14,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import * as fakeIndexedDb from 'fake-indexeddb';
 import { DISCOMFORT, EFFORT, type ExerciseOutcome } from '../../core/domain';
+import { SEED_EXERCISES, seedPlanDays } from '../../core/seed';
 import {
   createStorage,
   type Exercise,
@@ -685,6 +686,83 @@ describe('runStart', () => {
 
     expect(outcome).toMatchObject({ kind: 'failed', failure: 'read', message: START_COPY.readFailed });
     expect(visited).toEqual([]);
+  });
+});
+
+/* ------------------------------------------------- the closing walk of the plan */
+
+/** The walk the plan closes every day with (odd/tasks/incline-walk.md S1, S2). */
+const WALK_EXERCISE_ID = 'seed-ex-caminata-inclinada';
+
+/** The seeded `PIERNA` day, as this release writes it. */
+function seededLegDay(): PlanDay {
+  const [leg] = seedPlanDays();
+  if (leg === undefined) throw new Error('the seed lost its first day');
+  return leg;
+}
+
+/** One performed walk: no kilos, one effort, the way a time entry is stored. */
+function walkOutcome(dayOffset: number): ExerciseOutcome {
+  return {
+    date: new Date(NOW - dayOffset * DAY_MS),
+    weightKg: 0,
+    recommendedWeightKg: 0,
+    sets: [{ targetReps: 1, actualReps: 1, effort: EFFORT.correct, discomfort: DISCOMFORT.none }],
+  };
+}
+
+describe('the walk the seeded days end with', () => {
+  it('builds it as one twenty-minute entry, with no kilos to ask for', () => {
+    const built = buildSession({
+      day: seededLegDay(),
+      library: [...SEED_EXERCISES],
+      history: {},
+      profile: PROFILE,
+      phaseState: undefined,
+      now: NOW,
+      newId: ids(),
+    });
+
+    const walk = built.session.exercises.at(-1);
+    expect(walk?.exerciseId).toBe(WALK_EXERCISE_ID);
+    // S2: the minutes travel with the prescription and nothing else does.
+    expect(walk?.prescription).toEqual({
+      sets: 1,
+      repRange: { lowerBound: 1, upperBound: 1 },
+      targetRIR: { lowerBound: 4, upperBound: 5 },
+      restSeconds: 0,
+      role: 'conditioning',
+      durationSeconds: 1200,
+    });
+    // S4: a walk has no load to choose, so the screen never asks for one.
+    expect(walk?.recommendation?.suggestedWeightKg).toBeNull();
+  });
+
+  it('gives it no load and no set arithmetic, however it was answered', () => {
+    // S4: the walk is work measured in time. The engine may not put kilograms on it, and
+    // the block table's interval ladder may not turn one prescribed twenty-minute entry
+    // into two, or three.
+    const history: ProgressionHistory = {
+      [WALK_EXERCISE_ID]: [walkOutcome(1), walkOutcome(3), walkOutcome(8), walkOutcome(10)],
+    };
+
+    for (const phaseState of [{ block: 1, passedBlocks: 0 }, { block: 2, passedBlocks: 1 }, undefined]) {
+      const built = buildSession({
+        day: seededLegDay(),
+        library: [...SEED_EXERCISES],
+        history,
+        profile: PROFILE,
+        phaseState,
+        now: NOW,
+        newId: ids(),
+      });
+
+      const walk = built.session.exercises.at(-1);
+      const label = phaseState === undefined ? 'normal' : `block ${String(phaseState.block)}`;
+      expect(walk?.recommendation?.suggestedWeightKg, label).toBe(0);
+      expect(walk?.recommendation?.suggestedSets, label).toBe(1);
+      expect(walk?.recommendation?.suggestedTargetReps, label).toBe(1);
+    }
   });
 });
 

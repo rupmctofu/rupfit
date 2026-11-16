@@ -46,6 +46,8 @@ interface FakeStore {
   readonly reads: string[];
   /** The store as it stands after the refresh, by day id. */
   readonly planDays: ReadonlyMap<string, PlanDay>;
+  /** The library as it stands after the refresh, by exercise id. */
+  readonly exercises: ReadonlyMap<string, Exercise>;
 }
 
 /**
@@ -86,7 +88,7 @@ function fakeStore(options: {
     },
   } as unknown as StoragePort;
 
-  return { storage, written, reads, planDays };
+  return { storage, written, reads, planDays, exercises };
 }
 
 /** A stored day with the same id as a seed day but the owner's own items. */
@@ -368,5 +370,148 @@ describe('refreshing the seeded days on launch', () => {
     expect(await refreshSeededPlanDays(store.storage)).toBe(0);
     expect(store.written.planDays).toEqual([]);
     expect(store.planDays.get(FISICO.id)).toEqual(touched);
+  });
+});
+
+/* ------------------------------------------- the closing walk (incline-walk S5) */
+
+const WALK_EXERCISE_ID = 'seed-ex-caminata-inclinada';
+
+/**
+ * The four seeded days as the release before odd/tasks/incline-walk.md wrote them: the
+ * seed's own rows, in the seed's own order, with no closing walk.
+ *
+ * Written out by removing the walk from the seed on purpose — a device in the wild holds
+ * exactly those rows, ids included, because that is what the previous release wrote.
+ */
+function daysBeforeWalk(): readonly PlanDay[] {
+  return SEED_DAYS.map((day) => ({
+    ...day,
+    items: day.items.filter((item) => item.exerciseId !== WALK_EXERCISE_ID),
+  }));
+}
+
+/** The stored day's last row, when it is the walk. */
+function closingWalk(day: PlanDay | undefined): PlanItem | undefined {
+  const last = day?.items.at(-1);
+  return last?.exerciseId === WALK_EXERCISE_ID ? last : undefined;
+}
+
+/** The walk as the seed prescribes it: one entry of twenty minutes, nothing else. */
+const WALK_PRESCRIPTION = {
+  sets: 1,
+  repRange: { lowerBound: 1, upperBound: 1 },
+  targetRIR: { lowerBound: 4, upperBound: 5 },
+  restSeconds: 0,
+  role: 'conditioning',
+  durationSeconds: 1200,
+} as const;
+
+describe('the closing walk of the seeded days', () => {
+  it('gives a store that already has the four days the walk, once, at the end of each', async () => {
+    // S1 and S5: the twenty minutes land on the plan a device already holds, as the last
+    // row of every seeded day, without rewriting anything that was there.
+    const before = daysBeforeWalk();
+    const store = fakeStore({
+      planDays: before,
+      exercises: SEED_EXERCISES.filter((row) => row.id !== WALK_EXERCISE_ID),
+    });
+
+    expect(await refreshSeededPlanDays(store.storage)).toBe(4);
+
+    // S3: the exercise the plan now names is the library row that already exists, seeded
+    // before the plan rows because a day cannot be written before the rows it names.
+    expect(store.written.exercises).toEqual([WALK_EXERCISE_ID]);
+    expect(store.written.planDays).toEqual(SEED_DAYS.map((day) => day.id));
+
+    for (const day of before) {
+      const refreshed = store.planDays.get(day.id);
+      expect(closingWalk(refreshed)?.prescription, day.id).toEqual(WALK_PRESCRIPTION);
+      // Nothing moved: the owner's rows keep their ids, their order and their numbers.
+      expect(refreshed?.items.slice(0, day.items.length), day.id).toEqual(day.items);
+      expect(refreshed?.items, day.id).toHaveLength(day.items.length + 1);
+    }
+  });
+
+  it('adds it once: the launch after it has nothing to do', async () => {
+    const store = fakeStore({ planDays: daysBeforeWalk(), exercises: [...SEED_EXERCISES] });
+
+    expect(await refreshSeededPlanDays(store.storage)).toBe(4);
+
+    const readsAfterFirst = store.reads.length;
+    expect(await refreshSeededPlanDays(store.storage)).toBe(0);
+    // One read and no write: a store that already ends in the walk costs nothing.
+    expect(store.reads.slice(readsAfterFirst)).toEqual(['plan']);
+    expect(store.written.planDays).toHaveLength(4);
+  });
+
+  it('never gives the walk to a day the seed did not write', async () => {
+    const mine = edited({ id: 'day-mine' });
+    const store = fakeStore({
+      planDays: [...daysBeforeWalk(), mine],
+      exercises: [...SEED_EXERCISES],
+    });
+
+    expect(await refreshSeededPlanDays(store.storage)).toBe(4);
+
+    expect(store.written.planDays).not.toContain(mine.id);
+    expect(store.planDays.get(mine.id)).toEqual(mine);
+  });
+
+  it('appends the walk and rewrites nothing: ids, order and numbers stay', async () => {
+    // The owner's own numbers on a seeded day survive the append. The refresh may add one
+    // row; it may not touch the ones history was trained against.
+    const [leg] = daysBeforeWalk();
+    if (leg === undefined) throw new Error('the seed lost the leg day');
+    const [first, ...rest] = leg.items;
+    if (first === undefined) throw new Error('the leg day lost its strength lift');
+    const editedLeg: PlanDay = {
+      ...leg,
+      items: [
+        { ...first, prescription: { ...first.prescription, sets: 5, restSeconds: 240 } },
+        ...rest,
+      ],
+    };
+    const store = fakeStore({
+      planDays: [editedLeg, ...daysBeforeWalk().slice(1)],
+      exercises: [...SEED_EXERCISES],
+    });
+
+    expect(await refreshSeededPlanDays(store.storage)).toBe(4);
+
+    const refreshed = store.planDays.get(editedLeg.id);
+    expect(refreshed?.items.slice(0, editedLeg.items.length)).toEqual(editedLeg.items);
+    expect(refreshed?.name).toBe(editedLeg.name);
+    expect(refreshed?.order).toBe(editedLeg.order);
+  });
+
+  it('does not revive an archived walk row, and still closes the days with it', async () => {
+    const archived: Exercise = {
+      ...SEED_EXERCISES.filter((row) => row.id === WALK_EXERCISE_ID)[0]!,
+      isArchived: true,
+    };
+    const store = fakeStore({
+      planDays: daysBeforeWalk(),
+      exercises: SEED_EXERCISES.map((row) => (row.id === WALK_EXERCISE_ID ? archived : row)),
+    });
+
+    expect(await refreshSeededPlanDays(store.storage)).toBe(4);
+
+    // The library refresh's rule holds here too: the owner's isArchived decision wins.
+    expect(store.written.exercises).toEqual([]);
+    expect(store.exercises.get(WALK_EXERCISE_ID)?.isArchived).toBe(true);
+    expect(closingWalk(store.planDays.get(FISICO.id))).toBeDefined();
+  });
+
+  it('writes a missing day once, and closes the three it found, in one launch', async () => {
+    const store = fakeStore({
+      planDays: daysBeforeWalk().slice(0, 3),
+      exercises: SEED_EXERCISES.filter((row) => row.id !== WALK_EXERCISE_ID),
+    });
+
+    expect(await refreshSeededPlanDays(store.storage)).toBe(4);
+    expect([...store.written.planDays].sort()).toEqual(
+      SEED_DAYS.map((day) => day.id).sort(),
+    );
   });
 });

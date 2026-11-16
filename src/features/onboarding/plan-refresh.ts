@@ -13,11 +13,12 @@
  *
  * So the refresh is deliberately narrow, and it refuses more than it writes:
  *
- * - **It writes seeded days, and only in two cases.** A day whose id is absent from the
+ * - **It writes seeded days, and only in three cases.** A day whose id is absent from the
  *   store is added; a day the store still holds in a shape an earlier release shipped
- *   (`REPLACED_SEED_DAYS`) is rewritten in place. Both keep their ids, so nothing that
- *   points at a day — a session's `planDayId`, its `dayNameSnapshot` — is detached by the
- *   change. Every other stored day, including a seeded one the owner edited, is never
+ *   (`REPLACED_SEED_DAYS`) is rewritten in place; and a day the seed later gained a row for
+ *   gets that row appended (`APPENDED_SEED_ITEMS`). All three keep their ids, so nothing
+ *   that points at a day — a session's `planDayId`, its `dayNameSnapshot` — is detached by
+ *   the change. Every other stored day, including a seeded one the owner edited, is never
  *   passed to `plan.save`.
  * - **Rewriting in place needs the seed's own fingerprint.** Id, name and exercise order
  *   are what says "this row is mine": a rename, an added, removed or swapped exercise
@@ -25,13 +26,20 @@
  *   changes a seeded day must record the shape it is replacing here before shipping.
  *   A day can have more than one historical shape (the fourth day has two: `FÍSICO` and
  *   then `PREPARACIÓN FÚTBOL`), and any of them is enough to recognise it.
+ * - **It adds a row the seed appended to a day it already shipped.** `APPENDED_SEED_ITEMS`
+ *   is the record of that kind of release (odd/tasks/incline-walk.md S1, S5: the closing
+ *   twenty-minute walk). The day has to be exactly the shape the seed wrote before the
+ *   append, and only the appended row is written: the owner's own items keep their ids,
+ *   their order and their numbers, because the day is saved from the rows the store holds
+ *   plus the seed's new ones. It fires only while the day lacks them, which is what makes
+ *   this a one-time catch-up rather than a rule that re-adds a row the owner deletes.
  * - **It never deletes anything.** A day the seed no longer ships stays where it is.
  * - **It writes the exercises a written day prescribes, and nothing else.** The mobility
  *   day names rows an old library does not have, and a plan row whose library row does not
  *   exist builds a session with `exerciseId: null` and no recommendation. Those missing
  *   rows are seeded first, in the same order the first-run flow uses (library before plan),
  *   and the library refresh's rule is untouched: it still only repairs rows that already
- *   exist.
+ *   exist, so an archived row stays exactly as the owner left it.
  * - **It is idempotent and cheap.** The steady state is one read (`plan.all`) and no write:
  *   a store that already has every seeded day, in the shape this release writes, returns
  *   immediately. Only the launch that catches up reads the library as well and writes.
@@ -91,6 +99,31 @@ const REPLACED_SEED_DAYS: readonly ReplacedSeedDay[] = [
   },
 ];
 
+/**
+ * The items a release appended to a day the seed had already shipped, verbatim.
+ *
+ * Like `REPLACED_SEED_DAYS`, this is data and not a rule: on its own the refresh cannot
+ * tell a day seeded before the walk from a day the owner built without it, so the release
+ * that appends records here which item ids it is adding, and to which day.
+ */
+interface AppendedSeedItem {
+  readonly dayId: string;
+  /** The seed item ids this release adds to that day, in seed order. */
+  readonly itemIds: readonly string[];
+}
+
+/**
+ * odd/tasks/incline-walk.md S1, S2, S5: every seeded day ends with twenty minutes of
+ * inclined walking, so a store seeded before it gains that row — the last item of each of
+ * the four days, once.
+ */
+const APPENDED_SEED_ITEMS: readonly AppendedSeedItem[] = [
+  { dayId: 'seed-day-leg', itemIds: ['seed-item-leg-9'] },
+  { dayId: 'seed-day-torso-a', itemIds: ['seed-item-torso-a-8'] },
+  { dayId: 'seed-day-torso-b', itemIds: ['seed-item-torso-b-8'] },
+  { dayId: 'seed-day-fisico', itemIds: ['seed-item-fisico-7'] },
+];
+
 /** The seeded days the store does not have yet, in rotation order. */
 export function missingSeedDays(
   stored: readonly { readonly id: string }[],
@@ -108,13 +141,15 @@ export function missingSeedDays(
  * written before the exercises it names.
  */
 export function missingPrescribedExercises(
-  days: readonly SeedPlanDay[],
+  days: readonly { readonly items: readonly { readonly exerciseId: string | null }[] }[],
   stored: readonly { readonly id: string }[],
   seed: readonly Exercise[] = SEED_EXERCISES,
 ): readonly Exercise[] {
   const known = new Set(stored.map((exercise) => exercise.id));
   const prescribed = new Set(
-    days.flatMap((day) => day.items.map((item) => item.exerciseId)),
+    days.flatMap((day) =>
+      day.items.flatMap((item) => (item.exerciseId === null ? [] : [item.exerciseId])),
+    ),
   );
 
   return seed.filter((exercise) => prescribed.has(exercise.id) && !known.has(exercise.id));
@@ -155,15 +190,74 @@ export function outdatedSeedDays(
 }
 
 /**
+ * The seeded days that gained a row since the release that wrote them, as they must be
+ * stored: the rows the store already holds, then the seed's new items in seed order.
+ *
+ * The test is the one `outdatedSeedDays` makes, applied to the day as it was before the
+ * append: name, item count and exercise order have to be the seed's own. A day that
+ * differs in any way is a day the owner touched, and a row added to it would be a row added
+ * to their routine.
+ */
+export function extendedSeedDays(
+  stored: readonly PlanDay[],
+  seed: readonly SeedPlanDay[] = seedPlanDays(),
+  appended: readonly AppendedSeedItem[] = APPENDED_SEED_ITEMS,
+): readonly PlanDay[] {
+  const extensions: PlanDay[] = [];
+
+  for (const day of seed) {
+    const storedDay = stored.find((row) => row.id === day.id);
+    if (storedDay === undefined) continue;
+
+    const ids = appended.filter((row) => row.dayId === day.id).flatMap((row) => row.itemIds);
+    if (ids.length === 0) continue;
+
+    const present = new Set(storedDay.items.map((item) => item.id));
+    const added = day.items.filter((item) => ids.includes(item.id) && !present.has(item.id));
+    if (added.length === 0) continue;
+
+    const before: ReplacedSeedDay = {
+      id: day.id,
+      name: day.name,
+      items: day.items
+        .filter((item) => !added.includes(item))
+        .map((item) => ({ exerciseId: item.exerciseId })),
+    };
+    if (!stillTheShape(storedDay, before)) continue;
+
+    extensions.push({
+      id: storedDay.id,
+      name: storedDay.name,
+      order: storedDay.order,
+      // The owner's rows are copied, never rebuilt: an edited prescription on a seeded day
+      // survives the append, and history keeps pointing at the same item ids.
+      items: [
+        ...storedDay.items,
+        ...added.map((item, index) => ({ ...item, order: storedDay.items.length + index })),
+      ],
+    });
+  }
+
+  return extensions;
+}
+
+/**
  * Read, decide, write. Returns how many days were written, which is what the caller logs.
  *
  * The library is read only when there is a day to write, so a current store costs one read.
  */
 export async function refreshSeededPlanDays(storage: StoragePort): Promise<number> {
   const stored = await storage.plan.all();
-  // Two kinds of work, one writer: a day the store lacks is added, and a day it still holds
-  // in an earlier release's shape is rewritten in place under the same id.
-  const days = [...missingSeedDays(stored), ...outdatedSeedDays(stored)];
+  // Three kinds of work, one writer: a day the store lacks is added, a day it still holds
+  // in an earlier release's shape is rewritten in place under the same id, and a day that
+  // gained a row since it was written gets that row appended. A day is written once, by the
+  // narrowest rule that claims it.
+  const added = missingSeedDays(stored);
+  const rewritten = outdatedSeedDays(stored);
+  const extended = extendedSeedDays(stored).filter(
+    (day) => !added.some((row) => row.id === day.id) && !rewritten.some((row) => row.id === day.id),
+  );
+  const days = [...added, ...rewritten, ...extended];
   if (days.length === 0) return 0;
 
   // Library first: the day's items name these ids, and a session built against a dangling

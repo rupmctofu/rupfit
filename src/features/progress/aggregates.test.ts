@@ -378,3 +378,57 @@ describe('the body-weight series', () => {
     expect(stale.daysSinceLast).toBe(10);
   });
 });
+
+/* ------------------------------------- the closing walk (odd/tasks/incline-walk S4) */
+
+describe('the walk the plan ends every day with', () => {
+  // A time entry is stored the way the session screen writes it: no kilos, one effort,
+  // the effort the target asks for. `Caminata inclinada` is the seed's own row.
+  const WALK = { id: 'seed-ex-caminata-inclinada', name: 'Caminata inclinada' } as const;
+
+  function walkSession(day: number, effort: typeof EFFORT.correct | null = EFFORT.correct): WorkoutSession {
+    const confirmedAt = at(2024, 10, day, 19);
+    return session({
+      scheduledDate: confirmedAt,
+      startedAt: confirmedAt,
+      endedAt: confirmedAt + 20 * 60_000,
+      exercises: [
+        exerciseSession({
+          exerciseId: WALK.id,
+          name: WALK.name,
+          sets: [set({ weightKg: 0, actualReps: 1, effort, targetReps: 1, confirmedAt })],
+        }),
+      ],
+    });
+  }
+
+  it('adds no volume and no hard set to the week it was walked in', () => {
+    // S4: the walk is time, not work against a load. It has no kilograms to multiply and
+    // no rep set to count, so `series durs` and the volume the chart draws do not move.
+    const walked = weeklyVolume([walkSession(4), walkSession(6)], { now: NOW });
+    const nothing = weeklyVolume([], { now: NOW });
+
+    expect(walked.lastVolumeKg).toBe(nothing.lastVolumeKg);
+    expect(walked.lastHardSets).toBe(0);
+    expect(walked.weeks.every((week) => week.volumeKg === 0)).toBe(true);
+  });
+
+  it('never appears as the exercise of the strength chart', () => {
+    // The chart plots a weighted exercise. A walk-only window has nothing to plot.
+    const walked = [walkSession(4), walkSession(6)];
+
+    expect(strengthSeries(walked, { now: NOW })).toBeNull();
+    expect(strengthState(strengthSeries(walked, { now: NOW }))).toBe('empty');
+  });
+
+  it('sets no personal record and beats none', () => {
+    const lifted = squatSession({ day: 4, weightKg: 100, reps: 6 });
+    const walkedLater = walkSession(6);
+
+    // Zero kilos is not a mark: it neither creates a record nor beats the squat's.
+    const records = personalRecords([lifted, walkedLater]);
+    expect(records.every((record) => record.exerciseKey !== WALK.id)).toBe(true);
+    expect(topRecord(records)?.exerciseKey).toBe(SQUAT.id);
+    expect(recordsInSession(walkedLater, [lifted, walkedLater])).toEqual([]);
+  });
+});
