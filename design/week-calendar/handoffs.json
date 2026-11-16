@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "chosen": "02-agenda-semanal.html",
+  "handoffs": {
+    "02-agenda-semanal.html": {
+      "status": "in_progress",
+      "queued": false,
+      "sentAt": "2026-11-16T09:07:11.027Z",
+      "startedAt": "2026-11-16T09:08:32.577Z",
+      "implementedAt": null,
+      "feature": "odd/tasks/week-calendar.md",
+      "note": "Implementando la agenda de siete renglones en Inicio: arrastre entre días, días cerrados bloqueados y hoja para cambiar el entreno."
+    }
+  }
+}

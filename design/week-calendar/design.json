@@ -1,0 +1,28 @@
+{
+  "title": "Rupfit · calendario de la semana",
+  "brief": "La semana en Inicio: los cuatro entrenos en su día, en verde los hechos, y el dueño puede arrastrarlos a otro día o cambiar cuál va en cada hueco sin perder la semana que deduce el calendario de partidos.",
+  "feature": "odd/tasks/week-calendar.md",
+  "artboards": [
+    {
+      "file": "01-semana-en-regla.html",
+      "title": "La semana en regla · tira en Inicio",
+      "tradeoff": "La semana se lee de un vistazo y el gesto es directo; siete tarjetas no caben y hay que deslizar para ver el fin de semana.",
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "file": "02-agenda-semanal.html",
+      "title": "Agenda de la semana · siete renglones",
+      "tradeoff": "Nombres enteros y bloqueos explicados con palabras; deja de ser un vistazo y empuja el resto de Inicio debajo del pliegue.",
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "file": "03-mesa-semanal.html",
+      "title": "La mesa de la semana · planificar aparte",
+      "tradeoff": "Inicio sigue corto y planificar tiene su pantalla; el cambio de día deja de estar a un gesto del vistazo.",
+      "width": 1440,
+      "height": 960
+    }
+  ]
+}
