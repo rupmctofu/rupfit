@@ -1,12 +1,18 @@
 /**
  * The Sesión screen — the one that matters.
  *
- * A full-height sheet over the tab bar (design-system §8): the exit control and the day
- * on top, the phase banner, the paged exercise cards, the pager, and one bottom bar that
- * changes with what the owner has to decide next — the load decision, the next set, or
+ * A full-height sheet over the tab bar (design-system §8): one compact header — the workout's
+ * name, its progress and the exit control — the phase banner, the exercise on screen (its
+ * artwork, its name and its material), the paged exercise cards, the pager, and one bottom bar
+ * that changes with what the owner has to decide next — the load decision, the next set, or
  * the end of the session. The end of the session is not a dead end: it offers the summary
  * of the session that was just written (`#/resumen/<id>`) and, second, the way back to
  * Inicio.
+ *
+ * The numbers are the screen (T6): the planned sets and the target reps at the rep numeral
+ * (44 px) inside the card, the load at the load numeral (60 px) right under them, and the set
+ * rows one hairline below. Everything is tabular, so a count that changes never moves the
+ * thing beside it.
  *
  * There is no rest timer here (S5): a confirmed set never blocks the session, never opens
  * a countdown and never asks to be dismissed — the next set is registrable immediately.
@@ -48,7 +54,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Discomfort, Effort, Equipment, Exercise } from '../../core/domain';
+import type { Discomfort, Effort, Exercise } from '../../core/domain';
 import {
   activeExercise,
   isSessionAnswered,
@@ -60,6 +66,7 @@ import {
 import {
   Banner,
   Card,
+  Chip,
   DataStrip,
   EmptyState,
   ErrorBanner,
@@ -71,10 +78,17 @@ import {
   SectionLabel,
   TextButton,
   WeightKeypad,
-  type IconName,
 } from '../../design-system';
 import type { StoragePort } from '../../storage';
-import { ExerciseCard, type SetDraft } from './ExerciseCard';
+import {
+  EQUIPMENT_ICON,
+  EQUIPMENT_LABEL,
+  MUSCLE_LABEL,
+  ExerciseCard,
+  type SetDraft,
+} from './ExerciseCard';
+import { ExerciseIllustration } from './ExerciseIllustration';
+import { illustrationKeyOf } from './illustrationKey';
 import {
   CORRECTION_HINT,
   correctSet,
@@ -108,7 +122,6 @@ import {
   formatWeekdayTime,
   formatWeight,
   parseWeight,
-  prescriptionLine,
   type DiscomfortChip,
   type EffortChip,
 } from './format';
@@ -128,25 +141,11 @@ const READAPTATION_WEEKS = 4;
 /** The fallback step when the library entry is not known: the smallest plate pair. */
 const DEFAULT_INCREMENT_KG = 2.5;
 
-/** The equipment of the library row, in the words the picker and the card use. */
-const EQUIPMENT_LABEL: Record<Equipment, string> = {
-  barbell: 'Barra',
-  dumbbell: 'Mancuerna',
-  machine: 'Máquina',
-  cable: 'Polea',
-  bodyweight: 'Peso corporal',
-  band: 'Banda',
-};
-
-const EQUIPMENT_ICON: Record<Equipment, IconName> = {
-  barbell: 'barbell',
-  dumbbell: 'dumbbell',
-  machine: 'machine',
-  cable: 'cable',
-  bodyweight: 'person',
-  band: 'band',
-};
-
+/**
+ * The equipment words and icons, and the muscle labels, live with the card that draws them
+ * (`ExerciseCard.tsx`): the hero, the set rows and the substitution picker all name the same
+ * library row, and one copy of the table is the only way they cannot drift apart.
+ */
 export interface SessionScreenProps {
   readonly storage: StoragePort;
   readonly clock: Clock;
@@ -402,6 +401,19 @@ export function finishEvent(session: SessionState): SessionEvent {
     type: 'session-finished',
     outcome: isSessionAnswered(session) ? 'completed' : 'partial',
   };
+}
+
+/**
+ * `3 de 10 series` — the session's progress in the header, read off the reducer's own tally
+ * (`summarise`). Nothing is invented and nothing is stored: it is the same pair the terminal
+ * summary shows, written while the session is still open. Module-local on purpose: it is a
+ * sentence this screen writes, not an API another one calls.
+ */
+function headlineProgress(session: SessionState): string {
+  const { setsConfirmed, setsPrescribed } = summarise(session);
+  return `${String(setsConfirmed)} de ${String(setsPrescribed)} ${
+    setsPrescribed === 1 ? 'serie' : 'series'
+  }`;
 }
 
 export interface ExitActions {
@@ -967,6 +979,15 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
     [onOpenSummary],
   );
 
+  /**
+   * The header (T6, S1): the workout's own name, how far through the session it is, and the
+   * one control that opens the way out. Three things, one row, nothing else — the workout
+   * below owns the screen.
+   *
+   * The session's progress is written here (`3 de 10 series`, off the reducer's own tally)
+   * and drawn in the hero, where the ring's arcs count the exercises. Two scales of one fact,
+   * and neither of them is a control.
+   */
   const topBar = (
     <header className="session__top">
       <SessionExit
@@ -980,8 +1001,14 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
         onFinish={chooseFinish}
         onConfirm={closeAndFinish}
       />
-      <span className="session__when">{formatWeekdayTime(now)}</span>
-      <span className="session__top-spacer" aria-hidden="true" />
+      <div className="session__identity">
+        <p className="session__day">{session === null ? 'Sesión' : session.dayNameSnapshot}</p>
+        <p className="session__meta">
+          {session === null
+            ? formatWeekdayTime(now)
+            : `${formatWeekdayTime(now)} · ${headlineProgress(session)}`}
+        </p>
+      </div>
     </header>
   );
 
@@ -1017,17 +1044,16 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
     ? null
     : previousPoint(historyFor(runtime, exerciseOnScreen.exerciseId, exerciseOnScreen.exerciseNameSnapshot));
   const suggestion = exerciseOnScreen?.recommendation?.suggestedWeightKg ?? null;
-  const todayWeightKg =
-    exerciseOnScreen === null
-      ? null
-      : exerciseOnScreen.usedWeightKg ?? exerciseOnScreen.recommendedWeightKg ?? suggestion;
   const decided = exerciseOnScreen !== null && exerciseOnScreen.decision !== null;
   const slot = exerciseOnScreen === null ? null : nextSlotOf(exerciseOnScreen);
   const lastSlot = exerciseOnScreen?.prescription.sets ?? 0;
 
   // ---------------------------------------------------------------- the visual core
-  const segments = ringSegments(session);
   const heroDetail = exerciseOnScreen === null ? undefined : runtime.exercises[exerciseOnScreen.id];
+  // The artwork the library already maps to this exercise, or nothing at all: a row the
+  // library no longer has falls back to its equipment icon instead of somebody else's
+  // drawing (`illustrationKeyOf`).
+  const heroIllustration = illustrationKeyOf(heroDetail);
   const swappingExercise =
     swapping === null
       ? null
@@ -1176,14 +1202,20 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
     }
 
     const isLast = (session.activeIndex ?? 0) + 1 >= total;
+    if (isLast) {
+      // Nothing is left to answer in this exercise and there is no next one: the verdict row
+      // above the bar and the exit control at the top are the two things left to do, and
+      // neither belongs in a pinned bar (S6). The bar stays empty instead of inventing a
+      // third way out.
+      return <div className="session__actions" />;
+    }
+
+    // The exercise is answered and another one is waiting: continuing *is* the next decision,
+    // so it takes the pinned fill — one accent, one action, where the thumb already is. It is
+    // the bar's only control here, so the screen still shows exactly one accent fill.
     return (
-      <div className="session__actions session__actions--split">
-        {/* Navigating to the next exercise is not the primary action: the pinned
-            `Registrar serie` owns the accent, and two accent fills in one viewport is
-            exactly the budget the design contract forbids. */}
-        {isLast ? null : (
-          <TextButton onClick={() => goTo((session.activeIndex ?? 0) + 1)}>Siguiente</TextButton>
-        )}
+      <div className="session__actions">
+        <PrimaryAction onClick={() => goTo((session.activeIndex ?? 0) + 1)}>Siguiente</PrimaryAction>
       </div>
     );
   })();
@@ -1231,10 +1263,10 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
         </div>
       ) : null}
 
-      {/* S2: the visual core of the session. Outside the paged track on purpose — the
-          ring, the current variant, its name and its prescribed work are read at a
-          glance, one hand, 390 px, with no scrolling at all. The paged cards below keep
-          the sets, the compare tiles and the history. */}
+      {/* T6: the exercise on screen, read at a glance — the artwork the library already maps
+          to it (`illustrationKeyOf`), its name, its material and its muscle group. The
+          numbers live in the card below and the session's progress in the header, so the
+          first viewport is identity, prescription and set rows instead of a 34dvh circle. */}
       {terminal || exerciseOnScreen === null ? null : (
         <section
           className="session-hero"
@@ -1243,31 +1275,41 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
           onPointerUp={onHeroPointerUp}
           onPointerCancel={onHeroPointerCancel}
         >
-          <SessionRing segments={segments}>
-            {/* The centre of the circle is the whole question: the material, the exercise and
-                the work of today. The owner asked for all of it inside the ring, so the
-                screen that says "hoy toca esto" is one shape instead of a circle with a
-                caption under it. A row the library no longer has shows nothing rather than
-                somebody else's kit. */}
-            <div className="session-hero__center">
-              {heroDetail === undefined ? null : (
-                <span className="session-hero__icon">
-                  <Icon name={EQUIPMENT_ICON[heroDetail.equipment]} size={40} />
-                </span>
-              )}
-              <div className="session-hero__text">
-                <h2 className="session-hero__name">{exerciseOnScreen.exerciseNameSnapshot}</h2>
-                <p className="session-hero__prescription">
-                  {prescriptionLine(exerciseOnScreen.prescription)}
-                </p>
-                <p className="ds-caption session-hero__weight">
-                  {todayWeightKg === null
-                    ? 'Peso de hoy por decidir'
-                    : `Hoy ${formatWeight(todayWeightKg)} kg`}
-                </p>
+          <div className="session-hero__dial">
+            <SessionRing segments={ringSegments(session)}>
+              {/* The centre of the circle is the movement itself: the artwork the library
+                  already maps to it, or its equipment when the row names none. Nothing else
+                  — the numbers are in the card and the name is beside it. */}
+              <div className="session-hero__art">
+                {heroIllustration === null ? (
+                  heroDetail === undefined ? null : (
+                    <Icon
+                      className="session-hero__icon"
+                      name={EQUIPMENT_ICON[heroDetail.equipment]}
+                      size={40}
+                    />
+                  )
+                ) : (
+                  <ExerciseIllustration
+                    className="session-hero__picture"
+                    illustration={heroIllustration}
+                    label={exerciseOnScreen.exerciseNameSnapshot}
+                  />
+                )}
               </div>
-            </div>
-          </SessionRing>
+            </SessionRing>
+          </div>
+          <div className="session-hero__copy">
+            <h2 className="session-hero__name">{exerciseOnScreen.exerciseNameSnapshot}</h2>
+            {heroDetail === undefined ? null : (
+              <div className="session-hero__chips">
+                <Chip>{MUSCLE_LABEL[heroDetail.primaryMuscle]}</Chip>
+                <Chip icon={EQUIPMENT_ICON[heroDetail.equipment]}>
+                  {EQUIPMENT_LABEL[heroDetail.equipment]}
+                </Chip>
+              </div>
+            )}
+          </div>
         </section>
       )}
 
@@ -1288,9 +1330,11 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
               // While one row is open in its editor the card answers for that row only
               // (S2): nothing else on it can be confirmed by accident.
               interactive={!terminal && index === session.activeIndex && editing === null}
-              // The hero above already names the exercise, its prescription and the weight
-              // of the day; the card starts at the chips when it is on screen.
-              heroShown
+              // The hero above already names the exercise on screen and its material; that
+              // card starts at its numbers. A neighbour slid halfway into view still names
+              // itself, and so does every card once the hero is gone (a finished session), so
+              // no slide is ever a set list without a title.
+              heroShown={!terminal && exerciseOnScreen !== null && index === session.activeIndex}
               onRepsChange={(reps) => patchDraft(exercise, { reps })}
               onEffortChange={(effort: EffortChip | null) => patchDraft(exercise, { effort })}
               onDiscomfortChange={(discomfort: DiscomfortChip | null) =>
@@ -1391,18 +1435,16 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
 
       {keypad === null ? null : (
         <div className="session__keypad">
-          <Card>
-            <WeightKeypad
-              value={keypad.value}
-              onChange={(value) =>
-                setKeypad({ ...keypad, value })
-              }
-              onSubmit={submitKeypad}
-              label="Peso en kilogramos"
-              hint="Ajusta con la coma decimal"
-            />
-            <TextButton onClick={() => setKeypad(null)}>Cancelar</TextButton>
-          </Card>
+          <WeightKeypad
+            value={keypad.value}
+            onChange={(value) =>
+              setKeypad({ ...keypad, value })
+            }
+            onSubmit={submitKeypad}
+            label="Peso en kilogramos"
+            hint="Ajusta con la coma decimal"
+          />
+          <TextButton onClick={() => setKeypad(null)}>Cancelar</TextButton>
         </div>
       )}
 

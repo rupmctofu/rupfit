@@ -1,13 +1,19 @@
 /**
- * One exercise card of the session sheet (§7.2): name, position, previous session,
- * the two compare tiles, the one-line reason, the last-six-sessions strip, the set rows
- * and the weight summary once the load is decided. The strip is context and steps aside
- * while a set row is being filled; `stripBars` below still computes it either way.
+ * One exercise card of the session sheet (§7.2): the prescription as figures (planned sets and
+ * target reps at the rep numeral), the load once it is decided, the two compare tiles while it
+ * is not, the one-line reason, the set rows, and the last-six-sessions strip at the end as
+ * context. The strip steps aside while a set row is being filled; `stripBars` below still
+ * computes it either way.
  *
  * The card is composed here rather than in `src/design-system`, exactly as that library
  * documents: the page container and its state machine belong to the screen. Everything
  * visual comes from a component or a token; the only numbers this file decides are the
  * bar heights of the strip, which are data.
+ *
+ * The head — artwork, name, muscle and material — is drawn only when the screen's hero is not
+ * already naming this exercise: the card on screen defers its identity to the hero, and a
+ * slide slid halfway into view (or a finished session, where the hero is gone) still names
+ * itself.
  *
  * Read-only when it is not the card on screen: a card you swiped away from still shows
  * its sets, but nothing on it can be confirmed by accident.
@@ -34,6 +40,7 @@ import {
   Card,
   Chip,
   CompareTile,
+  Icon,
   SectionLabel,
   SetEditor,
   SetRow,
@@ -44,6 +51,8 @@ import {
 } from '../../design-system';
 import type { HistoryPoint } from './controller';
 import { substitutionNote } from './substitution';
+import { ExerciseIllustration } from './ExerciseIllustration';
+import { illustrationKeyOf } from './illustrationKey';
 import {
   LONG_PRESS_MS,
   pressCancelled,
@@ -55,6 +64,7 @@ import {
 import {
   formatDiscomfort,
   formatEffort,
+  formatMinutes,
   formatWeight,
   setsAndWork,
   spanishDecimals,
@@ -123,7 +133,12 @@ export interface ExerciseCardProps {
   readonly editing?: EditingSet | undefined;
 }
 
-const EQUIPMENT_LABEL: Record<Exercise['equipment'], string> = {
+/**
+ * The library row in words and glyphs. Exported because three places name the same row —
+ * the session's hero, its set rows and the substitution picker — and one table is the only
+ * way those three cannot end up calling a barbell a machine.
+ */
+export const EQUIPMENT_LABEL: Record<Exercise['equipment'], string> = {
   barbell: 'Barra',
   dumbbell: 'Mancuerna',
   machine: 'Máquina',
@@ -132,7 +147,7 @@ const EQUIPMENT_LABEL: Record<Exercise['equipment'], string> = {
   band: 'Banda',
 };
 
-const EQUIPMENT_ICON: Record<Exercise['equipment'], IconName> = {
+export const EQUIPMENT_ICON: Record<Exercise['equipment'], IconName> = {
   barbell: 'barbell',
   dumbbell: 'dumbbell',
   machine: 'machine',
@@ -141,7 +156,8 @@ const EQUIPMENT_ICON: Record<Exercise['equipment'], IconName> = {
   band: 'band',
 };
 
-const MUSCLE_LABEL: Record<Exercise['primaryMuscle'], string> = {
+/** The muscle group of the row, in the words the chips and the hero use. */
+export const MUSCLE_LABEL: Record<Exercise['primaryMuscle'], string> = {
   quadriceps: 'Cuádriceps',
   hamstrings: 'Cadena posterior',
   glutes: 'Glúteos',
@@ -412,6 +428,13 @@ export function ExerciseCard(props: ExerciseCardProps): React.ReactElement {
   const targetReps = exercise.recommendation?.suggestedTargetReps ?? prescription.repRange.lowerBound;
   const decided = exercise.decision !== null;
   const firstTime = previous === null;
+  // A timed block has no reps to claim (format.ts `workOf`): its figure is the minutes the
+  // plan prescribes, and the label says so instead of pretending it counted anything.
+  const timedSeconds = prescription.durationSeconds;
+  const timed = timedSeconds !== undefined;
+  const repsValue = timedSeconds === undefined ? String(targetReps) : formatMinutes(timedSeconds);
+  const repsLabel = timed ? 'Tiempo' : 'Reps';
+  const illustration = illustrationKeyOf(detail);
   // No decision, no set: the render `sesion-decision` shows three untouched rows until
   // the owner picks a weight, and the first confirmation is what records the decision.
   const activeSlot = interactive && decided ? nextSlotOf(exercise) : null;
@@ -429,22 +452,69 @@ export function ExerciseCard(props: ExerciseCardProps): React.ReactElement {
   const slots: number[] = [];
   for (let slot = 1; slot <= prescription.sets; slot += 1) slots.push(slot);
 
-  const title = (
+  const title = heroShown === true ? null : (
     <div className="session-card__head">
-      {heroShown === true ? null : (
-        <h1 className="ds-card-title ds-card-title--large">{exercise.exerciseNameSnapshot}</h1>
-      )}
-      {/* No subtitle restating the previous session: the compare tiles below already say
-          `Última vez 90 kg · 3 × 10` and the reason line says why today's weight changed.
-          Three restatements of the same two numbers was the loudest thing on the screen. */}
+      {/* The head is only drawn when the hero above is not naming this exercise (a slide
+          slid halfway into view): the same picture, the same name, the same two facts. */}
       {detail === undefined ? null : (
-        <div className="session-card__chips">
-          <Chip icon={EQUIPMENT_ICON[detail.equipment]}>
-            {EQUIPMENT_LABEL[detail.equipment]}
-          </Chip>
-          <Chip>{MUSCLE_LABEL[detail.primaryMuscle]}</Chip>
+        <div className="session-card__art">
+          {illustration === null ? (
+            <Icon
+              className="session-card__art-icon"
+              name={EQUIPMENT_ICON[detail.equipment]}
+              size={32}
+            />
+          ) : (
+            <ExerciseIllustration
+              className="session-card__art-picture"
+              illustration={illustration}
+              label={exercise.exerciseNameSnapshot}
+            />
+          )}
         </div>
       )}
+      <div className="session-card__titles">
+        <h1 className="ds-card-title ds-card-title--large">{exercise.exerciseNameSnapshot}</h1>
+        {/* No subtitle restating the previous session: the compare tiles below already say
+            `Última vez 90 kg · 3 × 10` and the reason line says why today's weight changed.
+            Three restatements of the same two numbers was the loudest thing on the screen. */}
+        {detail === undefined ? null : (
+          <div className="session-card__chips">
+            <Chip>{MUSCLE_LABEL[detail.primaryMuscle]}</Chip>
+            <Chip icon={EQUIPMENT_ICON[detail.equipment]}>
+              {EQUIPMENT_LABEL[detail.equipment]}
+            </Chip>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  /**
+   * T6: the prescription as figures. The planned sets and the target reps are read at arm's
+   * length, in the session's rep numeral (44 px, tabular), one line above the load — which
+   * the weight summary below sets at 60 px. `flex-wrap` is the safety valve: a long label or
+   * an enlarged text setting moves the second figure to its own column instead of pushing the
+   * card past the phone's width.
+   */
+  const figures = (
+    <div
+      className="session-card__prescription"
+      role="group"
+      aria-label={
+        timed
+          ? `Prescripción: ${String(prescription.sets)} series de ${repsValue}`
+          : `Prescripción: ${String(prescription.sets)} series de ${String(targetReps)} repeticiones`
+      }
+    >
+      <p className="session-card__figure">
+        <span className="session-card__figure-label">Series</span>
+        <span className="session-card__figure-value">{prescription.sets}</span>
+      </p>
+      <p className="session-card__figure">
+        <span className="session-card__figure-label">{repsLabel}</span>
+        <span className="session-card__figure-value">{repsValue}</span>
+      </p>
     </div>
   );
 
@@ -461,10 +531,10 @@ export function ExerciseCard(props: ExerciseCardProps): React.ReactElement {
           {substitutionNote(props.substitutedFromName)}
         </p>
       )}
-      {/* The rule under the head belongs to the block that follows it: the weight
-          summary, or the first-time explanation. With history and no decision the
-          compare tiles sit directly under the chips, as the render draws them. */}
-      {decided || firstTime ? <hr className="ds-hairline" /> : null}
+      {figures}
+      {/* The rule closes the figures and opens the load they are performed at: the planned
+          sets and reps first, then the kilos (60 px, with its keys), then the set rows. */}
+      <hr className="ds-hairline" />
 
       {decided ? (
         <WeightSummary
@@ -503,18 +573,10 @@ export function ExerciseCard(props: ExerciseCardProps): React.ReactElement {
         </div>
       )}
 
-      {showHistoryStrip ? (
-        bars.length === 0 ? (
-          <hr className="ds-hairline" />
-        ) : (
-          <>
-            <hr className="ds-hairline" />
-            <HistoryStrip bars={bars} sets={prescription.sets} />
-            <hr className="ds-hairline" />
-          </>
-        )
-      ) : null}
+      <hr className="ds-hairline" />
 
+      {/* The work comes before the context: the set rows are what the thumb touches, and the
+          six-session strip is reference nobody acts on mid-set. */}
       <div className="session-card__sets">
         {slots.map((slot) => setRowFor(slot, entryAt(exercise, slot), props, targetReps, activeSlot, best))}
       </div>
@@ -527,6 +589,13 @@ export function ExerciseCard(props: ExerciseCardProps): React.ReactElement {
       {props.onSuggestAlternative === undefined ? null : (
         <TextButton onClick={props.onSuggestAlternative}>Sugerir otro ejercicio</TextButton>
       )}
+
+      {showHistoryStrip && bars.length > 0 ? (
+        <>
+          <hr className="ds-hairline" />
+          <HistoryStrip bars={bars} sets={prescription.sets} />
+        </>
+      ) : null}
     </Card>
   );
 }

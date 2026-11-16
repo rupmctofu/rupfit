@@ -51,25 +51,51 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  /* §3 / S4: a 48 px target, even though the glyph is 22 px. */
+  flex: none;
+  /* §3 / S4: a 48 px target, even though the glyph is 22 px. A quiet ground, not a filled
+     control: the accent belongs to the pinned action. */
   width: var(--target-min);
   height: var(--target-min);
+  border: var(--layout-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
   color: var(--color-muted);
-  border-radius: var(--radius-control);
 }
 
-.session__when {
-  flex: 1;
-  text-align: center;
+.session__identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The plan day's own snapshot — `PIERNA`, `TORSO A`, `MOVILIDAD Y CORE`. One step under the
+   exercise's name in the hero, so the two never compete for the same glance. */
+.session__day {
+  margin: 0;
   font-family: var(--font-sans);
-  font-size: var(--text-meta);
-  line-height: var(--leading-meta);
-  color: var(--color-muted);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  letter-spacing: var(--tracking-label);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
 }
 
-.session__top-spacer {
-  width: var(--target-min);
-  flex: none;
+/* `Lunes · 17:00 · 3 de 10 series`: the clock the sheet has always shown, and the session's
+   own tally (`headlineProgress`, off the reducer's `summarise`). Tabular, so the figures do
+   not jump as the session advances. */
+.session__meta {
+  margin: 0;
+  font-family: var(--font-numeric);
+  font-size: var(--text-micro);
+  line-height: var(--leading-micro);
+  letter-spacing: var(--tracking-caption);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
 }
 
 .session__notice,
@@ -138,16 +164,114 @@
 
 .session-card__head {
   display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/*
+ * The card's target line (`Objetivo · 3 × 10 a 3–4 RIR · descanso 180 s`) restates the
+ * prescription in words, and it is the line that keeps the prescribed rest as information
+ * (S5: text, never a timer). At 390 px it wraps, and the shipped `overflow-wrap: anywhere`
+ * cut `descanso 180 s` into `descanso 180` + a lone `s`; `break-word` only breaks a word that
+ * cannot fit at all, and `pretty` rebalances the last line instead of leaving an orphan.
+ */
+.session-card .ds-weight-summary__target {
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+}
+
+/* The same plate as the hero's, one step smaller: this head is only drawn for the cards the
+   hero is not naming (a slide slid halfway into view). */
+.session-card__art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  flex: none;
+  border: var(--layout-hairline) solid var(--color-hairline);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-raised);
+  overflow: hidden;
+}
+
+.session-card__art > img,
+.session-card__art > svg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.session-card__art > img.session-card__art-picture {
+  transform: scale(1.08);
+}
+
+.session-card__art > .session-card__art-icon {
+  width: 38%;
+  height: 38%;
+  color: var(--color-muted);
+}
+
+.session-card__titles {
+  display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  flex: 1 1 auto;
   min-width: 0;
 }
 
 .session-card__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
-  padding-top: var(--space-1);
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/*
+ * The prescription as figures (T6, S1): the planned sets and the target reps side by side at
+ * the session's rep numeral — 44 px, tabular, so `8` → `10` never moves a neighbour — one
+ * hairline above the load, which the weight summary sets at 60 px. Numbers first, words as
+ * their labels.
+ *
+ * `flex-wrap` is the safety valve: a wider label, a translated one or an enlarged text
+ * setting wraps the second figure onto its own column instead of pushing the card past the
+ * phone, and `min-width: 0` on the cells is what lets it wrap at all.
+ */
+.session-card__prescription {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-8);
+  min-width: 0;
+}
+
+.session-card__figure {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  min-width: 0;
+}
+
+.session-card__figure-label {
+  font-family: var(--font-sans);
+  font-size: var(--text-micro);
+  line-height: var(--leading-micro);
+  letter-spacing: var(--tracking-micro);
+  font-weight: var(--weight-medium);
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.session-card__figure-value {
+  font-family: var(--font-numeric);
+  font-size: var(--text-numeral-reps);
+  line-height: var(--leading-numeral-reps);
+  letter-spacing: var(--tracking-numeral-reps);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  color: var(--color-text);
 }
 
 .session-card__compare {
@@ -261,49 +385,109 @@
 
 /* ------------------------------------------------------------------ the hero */
 /*
- * The visual core of S2, outside the paged track: the ring, the current variant, its
- * name and its prescribed work are on the first screenful at 390 px, with no scrolling
- * and no tap — the sets and the history live in the cards below.
+ * The exercise on screen (T6): the artwork the library already maps to it, its name, its
+ * material and its muscle group. Two columns on the canvas, no card of its own — the depth
+ * of the screen is the tonal ramp (canvas → card → raised) plus the two hairlines inside the
+ * card below, so nothing here floats and nothing needs a shadow.
+ *
+ * It is also the swipe surface (see `swipe.ts`): a vertical drag still scrolls the sheet and
+ * a horizontal one moves one exercise.
  */
 .session-hero {
   flex: none;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-3);
   padding: 0 var(--layout-screen-padding);
   min-width: 0;
-  /* The hero is the swipe surface: a vertical drag still scrolls the page, a horizontal
-     one moves one exercise (see swipe.ts). */
   touch-action: pan-y;
 }
 
 /*
- * The ring is the screen's visual core, so it takes 90% of the viewport width: `90vw`
- * measured against the screen, not against the padded column. The cap is what keeps that
- * literal reading sane on a window the app is not designed for: at 1024 px, 90vw would be
- * a 922 px circle, so it stops at a phone-sized 420 px. `aspect-ratio` keeps it round now
- * that the size is no longer fixed at 140 px.
- *
- * The `dvh` term is the bug of the 390 x 844 phone, not a nicety: the ring is `flex: none`,
- * so it never shrinks, and it was eating 351 of the 844 px before the card's strip — the
- * only vertical scroller on the screen — got its height. Measured on that viewport, the
- * strip fell to 127 px against a 596 px card, and on a real iPhone with the safe areas the
- * owner was left with a band too thin to even find: «no puedo deslizar hacia abajo». Tying
- * the ring to the height gives the card back its half of the screen.
- *
- * The `100%` term is the sheet's width guard: `90vw` is measured against the screen while
- * the ring sits in a column that already spent 20 px of it on each side, so on the target
- * 390 px phone the circle came out a pixel wider than the column it lives in. `100%` is
- * that column, so no width the screen can have makes the ring — or anything under it —
- * widen the sheet into a sideways scroll.
+ * The plate: the ring's centre holds the movement itself, so the picture is sized to the
+ * circle the arcs leave free (about 72 px at this dial) and carries no ground of its own: the
+ * cut-outs arrive with their transparency and the pictograms with their own strokes, and both
+ * are read against the canvas the same way the chips and the name are.
+ */
+.session-hero__art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  flex: none;
+  overflow: hidden;
+}
+
+.session-hero__art > img,
+.session-hero__art > svg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* The cut-outs are square with transparent margins around the athlete, so the picture is
+   scaled a touch past its box to fill the frame — the same trick Inicio's plate uses. */
+.session-hero__art > img.session-hero__picture {
+  transform: scale(1.08);
+}
+
+/* A row the library no longer has draws its equipment, never somebody else's movement. */
+.session-hero__art > .session-hero__icon {
+  width: 70%;
+  height: 70%;
+  color: var(--color-muted);
+}
+
+/* The dial: the session's own progress, one arc per exercise. 116 px is what makes the arc
+   thickness the ring was drawn with (`RING_STROKE_WIDTH`, 2.5 units of a 120 unit box) read
+   as a line instead of a whisper; 64 px turned it into a 1.3 px hairline nobody could see. */
+.session-hero__dial {
+  flex: none;
+  width: 116px;
+  height: 116px;
+}
+
+.session-hero__copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/* The loudest text of the screen after the numerals: the title-large role (26 px), bold.
+   The name wraps instead of ellipsizing — a long library name is read, not truncated. */
+.session-hero__name {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-title-lg);
+  line-height: var(--leading-title-lg);
+  letter-spacing: var(--tracking-title-lg);
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+/* The muscle group and the material: the two attributes the set rows never say. */
+.session-hero__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+/*
+ * The ring is sized by its slot — the hero's 116 px dial — and keeps every arc and every state
+ * (`SessionRing`). The spoken list it carries is unchanged, and the arcs keep the thickness
+ * `ring.ts` draws (2.5 units of a 120 unit box), so nothing about its meaning depends on this
+ * width.
  */
 .session-ring {
   position: relative;
-  width: min(90vw, 420px, 34dvh, 100%);
-  max-width: 420px;
+  width: 100%;
   aspect-ratio: 1 / 1;
-  margin-inline: auto;
   flex: none;
 }
 
@@ -357,79 +541,14 @@
   animation: session-ring-breathe 3.5s ease-in-out infinite;
 }
 
+/* The centre slot exists for the dial's empty middle and for nothing else now; it stays so a
+   later ring with something inside it needs no new rule. */
 .session-ring__center {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-/* The material, drawn inside the arcs and scaled to the ring rather than frozen at 40 px.
-   Muted, because the accent already belongs to the ring and to `Registrar serie`. */
-/* The centre slot holds the whole question — the material, the name, today's work and
-   today's load — so its column is sized to the ring's inner circle (about 85% of the box)
-   with room to breathe, and everything inside steps down to fit a column of ~230 px. */
-.session-hero__center {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-1);
-  width: 74%;
-  min-width: 0;
-  text-align: center;
-}
-
-.session-hero__icon {
-  display: inline-flex;
-  color: var(--color-muted);
-  width: 28%;
-  aspect-ratio: 1 / 1;
-}
-
-.session-hero__icon > svg {
-  width: 100%;
-  height: 100%;
-}
-
-.session-hero__text {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-1);
-  min-width: 0;
-  text-align: center;
-}
-
-/* The owner asked for twice the type inside the circle, saw it and asked for the middle
-   point instead: half again on the name, and the prescribed work — "2 × 10", "3 × 12" — one
-   step below the name because it is read once and then known. Each size is scaled together
-   with its own leading, since doubling the body alone makes the lines collide. */
-.session-hero__name {
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: calc(var(--text-title) * 1.5);
-  line-height: 1.2;
-  letter-spacing: var(--tracking-title);
-  font-weight: var(--weight-semibold);
-  color: var(--color-text);
-  text-wrap: balance;
-}
-
-.session-hero__prescription {
-  margin: 0;
-  font-family: var(--font-numeric);
-  font-size: calc(var(--text-meta) * 1.25);
-  line-height: 1.25;
-  font-weight: var(--weight-medium);
-  color: var(--color-text);
-}
-
-/* Two classes deep: `ds-caption` sets a caption size and the step up has to win over it. */
-.session-hero__text .session-hero__weight {
-  font-size: calc(var(--text-caption) * 1.3);
-  line-height: 1.3;
-  color: var(--color-muted);
 }
 
 /* No ring transition at all when the owner asked for less motion (§6.2), and no breath:
@@ -488,11 +607,13 @@
 .session__bar {
   flex: none;
   /* The action bar never scrolls away: it is the one control the owner needs while the
-     card moves under it. Opaque, because cards pass beneath it. */
+     card moves under it. Opaque, because cards pass beneath it, and closed by the same
+     hairline as every other surface instead of by a shadow. */
   position: sticky;
   bottom: 0;
   z-index: 1;
   background: var(--color-bg);
+  border-top: var(--layout-hairline) solid var(--color-hairline);
   padding: var(--space-2) var(--layout-screen-padding) var(--safe-bottom-padding);
 }
 
@@ -508,7 +629,19 @@
 }
 
 .session__actions--split > :last-child {
-  flex: 1 1 auto;
+  /*
+   * `0`, never `auto`: the primary action writes `width: 100%` (design-system `actions.css`),
+   * and an `auto` basis turns that into the whole row — which pushed the secondary action out
+   * through the sheet's left edge at 320 px, half of `Descartar y guardar parcial` gone. The
+   * primary still fills everything the secondary leaves; it just no longer claims the row by
+   * its own width. Measured: 320 px, `.session__actions--split`, ghost 200 + primary 88 = 288
+   * of the 288 px the compact padding leaves.
+   */
+  flex: 1 1 0;
+  /* And the primary never wraps its own label: `Seguir` broke into `Se/gu/ir` in an 80 px
+     column before this floor. The secondary action wraps instead, which is what a longer
+     sentence like `Descartar y guardar parcial` can afford. */
+  min-width: max-content;
 }
 
 /* ------------------------------------------------------------- the way out (T1) */
@@ -620,7 +753,9 @@
   margin: 0;
 }
 
-/* The quieter of two competing actions (§7.1): a pill, never a second accent fill. */
+/* The quieter of two competing actions (§7.1): a pill, never a second accent fill. Its words
+   wrap instead of ellipsizing — a clipped control says nothing, and a two-line label is what
+   `Descartar y guardar parcial` needs at 320 px. */
 .session__ghost {
   flex: 0 1 auto;
   display: inline-flex;
@@ -634,9 +769,9 @@
   font-size: var(--text-meta);
   line-height: var(--leading-meta);
   font-weight: var(--weight-semibold);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  text-align: center;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .session__keypad {
@@ -648,10 +783,25 @@
   position: sticky;
   bottom: 0;
   z-index: 2;
-  background: var(--color-bg);
-  padding: 0 var(--layout-screen-padding) var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  /* A sheet, not a card over a card: the pad arrives as one rounded surface with the app's
+     top hairline, and the pad's own ground and radius are dropped below so the two do not
+     draw the same edge twice (design-system §6.2: never a card inside a card). */
+  background: var(--color-surface-raised);
+  border-top: var(--layout-hairline) solid var(--color-border);
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  padding: var(--space-2) var(--layout-screen-padding) var(--space-2);
   max-height: 60dvh;
   overflow-y: auto;
+}
+
+.session__keypad .ds-keypad {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
 }
 
 /* ---------------------------------------------------------------- the demo strip */
@@ -715,6 +865,37 @@
   .session__demo {
     padding-left: var(--layout-screen-padding-compact);
     padding-right: var(--layout-screen-padding-compact);
+  }
+}
+
+/* ------------------------------------------------------------- the wide window */
+/*
+ * A wide window gets a readable column instead of a 768 px card (S8). The sheet is
+ * mobile-first and the session has nothing to put beside the work, so the card, its hero and
+ * the action bar share one 560 px column — the column Inicio already uses, so the two screens
+ * read as one product at the same width. The paging is untouched: the slides stay 100 % of the
+ * track and only the card inside them narrows, so `goTo`'s arithmetic still holds.
+ */
+@media (min-width: 720px) {
+  .session__top,
+  .session__notice,
+  .session__body,
+  .session-hero,
+  .session__substitute,
+  .session__keypad {
+    width: 100%;
+    max-width: calc(560px + 2 * var(--layout-screen-padding));
+    margin-inline: auto;
+  }
+
+  .session-card,
+  .session__actions,
+  .session-verdict,
+  .session__correction-hint,
+  .session > .ds-pager {
+    width: 100%;
+    max-width: 560px;
+    margin-inline: auto;
   }
 }
 
