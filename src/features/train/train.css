@@ -1,12 +1,29 @@
 /*
- * Ejercicios' layout. Tokens only (design-system §6.1); the shell already provides the
- * horizontal screen padding.
+ * Ejercicios' layout (odd/tasks/dark-premium-redesign.md T8). Tokens only (design-system
+ * §6.1): no colour, radius, type size or duration is written here as a literal, and the
+ * shell already provides the horizontal screen padding.
+ *
+ * The composition is Inicio's, one screen over, so the app reads as one product:
+ *
+ *   canvas `--color-bg` → today's card `--color-surface-raised` → every routine day
+ *   `--color-surface` (the `Card` default) → the row badge `--color-surface-raised` again,
+ *   so a plate sits in its surface instead of floating on it.
+ *
+ * Depth is a tonal step and the hairline: nothing here floats, so nothing here carries a
+ * shadow. Every flex child that holds type gets `min-width: 0`, because a card that
+ * refuses to shrink is how a 390 px phone ends up scrolling sideways (S8).
+ *
+ * The accent is not spelled in this file at all: the one filled action is
+ * `PrimaryAction`'s, and a day's `hoy` state arrives as the system's `accent` chip. The
+ * per-screen accent budget (`tests/accent-budget.test.ts`) therefore passes with the file
+ * spending none of it.
  */
 
 .train {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-5);
+  min-width: 0;
   padding-bottom: var(--space-8);
 }
 
@@ -14,24 +31,145 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  min-width: 0;
   padding-top: var(--space-2);
+}
+
+/*
+ * The screen's own name at the top of the scale (T3's `--text-display`, 40 px): Ejercicios
+ * is the screen where the owner decides what he trains, and the scale's first role is
+ * exactly "a screen's own title, and nothing else". Every card below stays under it.
+ */
+.train__title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-display);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  font-weight: var(--weight-bold);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
 }
 
 .train__section {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  min-width: 0;
+}
+
+/* --------------------------------------------------- the session of today (T8) */
+
+/*
+ * The protagonist, as on Inicio: one tonal step above the canvas and the tighter inset, so
+ * the four things inside it (title, count, action) stay one glance tall. The action lives
+ * inside the card it starts; the screen still spends one accent fill and no more.
+ */
+.train-today {
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-surface-raised);
+}
+
+.train-today__title {
+  /* The largest title on the screen, and never louder than the screen's own name. */
+  font-weight: var(--weight-bold);
+}
+
+.train-today__action {
+  width: 100%;
+}
+
+/* ------------------------------------------------------------ the routine (T8) */
+
+/*
+ * One card per day. The gap is the space between two surfaces; the inset lives on the
+ * button, which fills the card edge to edge so the whole surface is the target (S8) and
+ * not only the words on it.
+ */
+.train-days {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.train-days__item {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.train-day {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  /* 48 px floor on top of the inset: the card is 74 px tall at 390 with one subtitle line,
+     and it grows by a line rather than clipping one. */
+  min-height: var(--target-min);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-card);
+  text-align: left;
+  min-width: 0;
+}
+
+/* The day's plate: the same badge a data row draws, one ground step inside the card. */
+.train-day__badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--size-badge);
+  height: var(--size-badge);
+  border-radius: var(--radius-badge);
+  background: var(--color-surface-raised);
+  color: var(--color-muted);
+}
+
+.train-day__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 /*
- * The real session for today: one compact lavender surface, the day's title at the
- * readable card size, and the exercise count underneath. The hairline stays so the card
- * still has an edge on the lavender canvas; it is not a card of cards, and it never draws
- * a chevron: the violet action below it is the only way in.
+ * `Peso muerto / Tracción` is a real day name and one long token is possible (S8): the
+ * title keeps the card-title role and wraps instead of pushing the chevron out.
  */
-.train__today {
-  gap: var(--space-1);
-  background: var(--color-surface-raised);
+.train-day__title {
+  font-size: var(--text-card-title);
+  line-height: var(--leading-card-title);
+  letter-spacing: var(--tracking-card-title);
+  overflow-wrap: break-word;
+}
+
+.train-day__status {
+  flex: none;
+}
+
+/* A chevron promises navigation, and the card keeps that promise: it opens the day. */
+.train-day__chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  color: var(--color-subtle);
+}
+
+/* A day with nothing scheduled, said once: one muted line under the routine, no card. */
+.train__no-session {
+  padding-top: var(--space-1);
+}
+
+/* The readaptation block: a fact the screen quotes, not a card it argues for. */
+.train-phase {
+  min-width: 0;
 }
 
 /* The read-only routine sheet: full height, above the tab bar, like Sesión (§8). */
@@ -45,20 +183,26 @@
   color: var(--color-text);
   padding-top: var(--safe-top);
   overscroll-behavior: contain;
+  /* One axis, and only the body scrolls: the header stays where the thumb last saw it. */
+  overflow: hidden;
 }
 
+/* The sheet's header, closed by the same hairline that closes the tab bar. */
 .train-sheet__top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-2) var(--layout-screen-padding) 0;
+  flex: none;
+  padding: var(--space-2) var(--layout-screen-padding);
+  border-bottom: var(--layout-hairline) solid var(--color-hairline);
 }
 
 .train-sheet__close {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: none;
   /* 48 px target, kept through padding so the row does not shift (§3). */
   min-height: var(--target-min);
   padding: 0 var(--space-3);
@@ -70,24 +214,50 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  padding: var(--space-3) var(--layout-screen-padding) calc(var(--space-8) + var(--safe-bottom));
+  /* The body is the sheet's one scroller: `min-height: 0` is what lets a flex child shrink
+     below its content so the overflow belongs to this box instead of the viewport. */
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: var(--space-4) var(--layout-screen-padding)
+    calc(var(--space-8) + var(--safe-bottom));
   overflow-y: auto;
+  overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
+  min-width: 0;
 }
 
+/*
+ * The stored day's exercises: one list, divided by hairlines, so the names read as a block
+ * and each prescription line belongs to the name above it. A list is not a card of cards.
+ */
 .train-sheet__items {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: 0;
   margin: 0;
   padding: 0;
   list-style: none;
+  min-width: 0;
 }
 
 .train-sheet__item {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3) 0;
+}
+
+.train-sheet__item:first-child {
+  padding-top: 0;
+}
+
+.train-sheet__item:last-child {
+  padding-bottom: 0;
+}
+
+.train-sheet__item + .train-sheet__item {
+  border-top: var(--layout-hairline) solid var(--color-hairline);
 }
 
 /* ---------------------------------------------------------- the routine editor */
@@ -106,6 +276,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
+  min-width: 0;
 }
 
 .train-edit__item {
@@ -113,6 +284,12 @@
   flex-direction: column;
   gap: var(--space-2);
   min-width: 0;
+}
+
+/* Two items of the editor are two decisions: the hairline says where one ends. */
+.train-edit__item + .train-edit__item {
+  padding-top: var(--space-4);
+  border-top: var(--layout-hairline) solid var(--color-hairline);
 }
 
 .train-edit__head {
@@ -138,13 +315,14 @@
   min-width: 0;
 }
 
+/* The prescription, one ground step above the card it sits in, closed by the hairline. */
 .train-edit__prescription {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   min-width: 0;
   padding: var(--space-3);
-  border: var(--layout-hairline) solid var(--color-border);
+  border: var(--layout-hairline) solid var(--color-hairline);
   border-radius: var(--radius-card);
   background: var(--color-surface-raised);
 }
@@ -159,4 +337,25 @@
 /* `Guardar la rutina` fills the width of the sheet, like the primary action of a screen. */
 .train-edit__save {
   width: 100%;
+}
+
+/* ------------------------------------------------------------ the wide window */
+
+/*
+ * One readable column at 720 px and up, the same 560 px Inicio and Sesión use at that
+ * breakpoint: the app is mobile-first (S8) and Ejercicios has nothing to put beside the
+ * routine, so a tablet gets a phone-shaped column instead of a 768 px line of text. The
+ * sheet is `position: fixed` and takes the whole width either way; only its body narrows.
+ */
+@media (min-width: 720px) {
+  .train {
+    max-width: 560px;
+    margin-inline: auto;
+  }
+
+  .train-sheet__body {
+    width: 100%;
+    max-width: 600px;
+    margin-inline: auto;
+  }
 }

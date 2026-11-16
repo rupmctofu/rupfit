@@ -1,6 +1,6 @@
 /*
  * Ejercicios — the routine the owner can train from, and the real session for today
- * (design-system §8).
+ * (design-system §8, odd/tasks/dark-premium-redesign.md T8).
  *
  * The tab is called `Ejercicios`, so the screen opens the way the reference's chosen
  * direction does: the session that really exists today (or no session at all), then the
@@ -8,14 +8,26 @@
  * day is one sentence under the routine, never the hero of the screen; a day that says
  * nothing keeps saying nothing (`pendiente` is not repeated down the list).
  *
+ * Since T8 the composition is the redesign's: the screen names itself at `--text-display`,
+ * today's session is the protagonist card one tonal step above the canvas (its one action
+ * inside it, as on Inicio), and every routine day is a card of its own — the whole card is
+ * the target, and the state that carries a fact is a chip. Depth is a tonal step plus the
+ * hairline; nothing here floats.
+ *
  * One filled violet action at most: `Abrir la sesión de hoy`, and only when a session for
  * today exists. Every other action of the screen — including opening a day to reorder,
  * edit or start it — lives in the routine sheet, where it already did.
  *
+ * The library is browsable where it always was: inside that sheet's `Añadir un ejercicio`
+ * block, which lists every library row with its own prescription line. It is not hoisted
+ * onto the screen, because a read-only dump of the 68 seeded rows is a list with no action
+ * and no purpose; the sheet is the surface that can use it.
+ *
  * The management sheet is a real editor (`RoutineEditor.tsx`): it reorders, adds,
  * removes and re-prescribes through `plan.save`, one day per call. Its rules live in
  * `editor.ts`; this file boots the screen, reads what the sheet needs, and performs the
- * one write.
+ * one write. Nothing of that changed in T8: every handler, read and write is the one that
+ * was here before.
  *
  * Like Inicio: no `Date.now()`, no port construction — both arrive from `AppProvider`,
  * and a demo mounts the same screen with fixtures through the same props.
@@ -26,7 +38,6 @@ import {
   Banner,
   Card,
   Chip,
-  DataRow,
   EmptyState,
   ErrorBanner,
   Icon,
@@ -113,8 +124,11 @@ export function TrainBody(props: TrainBodyProps): React.ReactElement {
 
   return (
     <div className="train">
+      {/* The screen's own name, at the top of the type scale (T3's `--text-display`):
+          Ejercicios is the tab the owner opens to decide what he trains, so it names
+          itself once and lets the cards below carry the weight. */}
       <header className="train__head">
-        <h1 className="ds-screen-title">Ejercicios</h1>
+        <h1 className="train__title">Ejercicios</h1>
         <p className="ds-meta">{view.weekLabel}</p>
       </header>
 
@@ -132,24 +146,35 @@ export function TrainBody(props: TrainBodyProps): React.ReactElement {
       {todaySession === null ? null : (
         <section className="train__section">
           <SectionLabel icon={<Icon name="calendar" size={14} />}>Hoy</SectionLabel>
-          <Card padding="dense" className="train__today">
-            <h2 className="ds-card-title">{todaySession.title}</h2>
+          {/* The protagonist, as on Inicio: one step above the canvas, the day at the large
+              card title, and its one action inside the card it starts. */}
+          <Card className="train-today">
+            <h2 className="ds-card-title ds-card-title--large train-today__title">
+              {todaySession.title}
+            </h2>
             {todayDay === null || todayClosed ? null : (
               <p className="ds-meta">{formatExerciseCount(todayDay.items.length)}</p>
             )}
-          </Card>
 
-          {todayDay === null ? null : todayClosed ? (
-            <TextButton onClick={() => onOpenSession(todaySession.sessionId)}>Ver el resumen</TextButton>
-          ) : (
-            <PrimaryAction
-              icon="play"
-              disabled={starting}
-              onClick={() => onStartDay(todayDay.planDayId)}
-            >
-              {starting ? 'Abriendo…' : 'Abrir la sesión de hoy'}
-            </PrimaryAction>
-          )}
+            {todayDay === null ? null : todayClosed ? (
+              <TextButton
+                align="start"
+                className="train-today__action"
+                onClick={() => onOpenSession(todaySession.sessionId)}
+              >
+                Ver el resumen
+              </TextButton>
+            ) : (
+              <PrimaryAction
+                icon="play"
+                className="train-today__action"
+                disabled={starting}
+                onClick={() => onStartDay(todayDay.planDayId)}
+              >
+                {starting ? 'Abriendo…' : 'Abrir la sesión de hoy'}
+              </PrimaryAction>
+            )}
+          </Card>
 
           {/* Why nothing opened. The sheet repeats the same sentence when it is open, so
               this one only belongs to the screen behind it. */}
@@ -166,33 +191,62 @@ export function TrainBody(props: TrainBodyProps): React.ReactElement {
         </section>
       )}
 
+      {/* One card per routine day: the week is the body of the screen, and each day is a
+          surface the thumb can aim at instead of a line inside one long list. The card is
+          the whole target, and it is still the same `onOpenRoutine(day.planDayId)` the row
+          called; only the shape and the state's carrier changed. */}
       {view.days.length === 0 ? null : (
         <section className="train__section">
           <SectionLabel>Tu rutina</SectionLabel>
-          <Card padding="list" label="Días de la rutina">
+          <ul className="train-days">
             {view.days.map((day) => {
-              // S3: `pendiente` is the ordinary state of a fresh week, so three identical
-              // words in a fixed right-hand column said nothing and cost the titles their
-              // line (`Peso muerto / Tracción` wrapped). Only the states that carry a fact
-              // are written: `hoy` and `hecha`. `statusOf` still decides all three.
+              // `pendiente` is the ordinary state of a fresh week, so three identical words
+              // in a fixed right-hand column said nothing and cost the titles their line.
+              // Only the states that carry a fact are written: `hoy` and `hecha`, now as the
+              // system's chips, which tint their own hue inside `chips.css` — the accent
+              // budget of a screen file stays the screen file's business. `statusOf` still
+              // decides all three.
               const quiet = day.status.word === 'pendiente';
+              const tone =
+                day.status.tone === 'success'
+                  ? 'success'
+                  : day.status.tone === 'accent'
+                    ? 'accent'
+                    : 'neutral';
               return (
-                <DataRow
-                  key={day.planDayId}
-                  icon="dumbbell"
-                  title={day.title}
-                  subtitle={day.subtitle}
-                  {...(quiet ? {} : { status: { word: day.status.word, tone: day.status.tone } })}
-                  onSelect={() => onOpenRoutine(day.planDayId)}
-                  selectLabel={
-                    quiet
-                      ? `${day.title}. ${day.subtitle}.`
-                      : `${day.title}. ${day.subtitle}. ${day.status.word}`
-                  }
-                />
+                <li key={day.planDayId} className="train-days__item">
+                  <Card padding="none">
+                    <button
+                      type="button"
+                      className="ds-action train-day"
+                      onClick={() => onOpenRoutine(day.planDayId)}
+                      aria-label={
+                        quiet
+                          ? `${day.title}. ${day.subtitle}.`
+                          : `${day.title}. ${day.subtitle}. ${day.status.word}`
+                      }
+                    >
+                      <span className="train-day__badge" aria-hidden="true">
+                        <Icon name="dumbbell" size={20} />
+                      </span>
+                      <span className="train-day__text">
+                        <span className="ds-card-title train-day__title">{day.title}</span>
+                        <span className="ds-meta">{day.subtitle}</span>
+                      </span>
+                      {quiet ? null : (
+                        <Chip className="train-day__status" tone={tone}>
+                          {day.status.word}
+                        </Chip>
+                      )}
+                      <span className="train-day__chevron" aria-hidden="true">
+                        <Icon name="chevronRight" size={20} />
+                      </span>
+                    </button>
+                  </Card>
+                </li>
               );
             })}
-          </Card>
+          </ul>
           <TextButton onClick={() => onOpenRoutine(null)}>Ver y editar la rutina</TextButton>
         </section>
       )}
@@ -200,14 +254,14 @@ export function TrainBody(props: TrainBodyProps): React.ReactElement {
       {/* A rest day is not the headline of the screen: the routine days above are. One
           quiet sentence, after them, and no card to announce it. */}
       {view.today !== null && view.today.kind === 'rest' ? (
-        <p className="ds-meta">
+        <p className="ds-meta train__no-session">
           Hoy no hay ninguna sesión programada. Descansa, o adelanta un día desde tu rutina.
         </p>
       ) : null}
 
       {view.phase === null ? null : (
         <section className="train__section">
-          <Card>
+          <Card className="train-phase">
             <div className="ds-row">
               <span className="ds-body">{view.phase.label}</span>
               <Chip>{view.phase.chip}</Chip>
