@@ -46,11 +46,12 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Banner, Card, DataRow, ErrorBanner, Stepper, TextButton } from '../../design-system';
 import { EQUIPMENT_TYPES, type Equipment } from '../../core/domain';
+import { OWNER_NAME } from '../../core/owner';
 import { BACKUP_SCHEMA_VERSION, type UserProfile } from '../../storage';
 import { useAppServices } from '../../app/providers';
 import { useSync } from '../../cloud/useSync';
 import { createProfileId } from './browser-edges';
-import { ChipChoices, CommitField, Note } from './fields';
+import { ChipChoices, Note } from './fields';
 import { dataState, evictionCopy } from './launch-marker';
 import { installState } from './device-mode';
 import { updateState } from './update-state';
@@ -352,18 +353,18 @@ interface ProfileSectionProps {
  *  not a photo; the summary under the name is derived from `UserProfile` (`goalsLine`) so
  *  no decorative sentence has to be invented.
  *
- *  El nombre es un dato, no un campo (spec S1, L3): llega de la cuenta al entrar y se
- *  enseña aquí, sin entrada que lo cambie, porque ya es suyo. Solo cuando no hay nombre —
- *  modo local, o un perfil que nunca tuvo uno — queda el campo, que es la última forma de
- *  ponerlo. `displayName` se queda en el modelo y en la copia de seguridad. */
-function ProfileSection({
+ *  El nombre es el de la app, no el del perfil (spec S4): `OWNER_NAME` sale de
+ *  `src/core/owner.ts` y se imprime siempre, con una línea que dice lo único que hay que
+ *  saber de él —que no se cambia—. El campo que había aquí desapareció con la regla que lo
+ *  justificaba (el nombre derivado de la cuenta, ya retirado), así que la tarjeta no tiene
+ *  nada en lo que escribir. `profile.displayName` se queda en el modelo, en la copia y en
+ *  la nube sin que nadie lo reescriba. */
+export function ProfileSection({
   profile,
   saveFailed,
   onWrite,
   onRetry,
 }: ProfileSectionProps): React.ReactElement {
-  const name = profile?.displayName ?? null;
-
   return (
     <section className="profile__section">
       <Card className="profile__identity-card">
@@ -390,22 +391,8 @@ function ProfileSection({
               </>
             ) : (
               <>
-                {name === null ? (
-                  <CommitField
-                    label="Nombre"
-                    hint="Opcional. Solo se usa para saludarte en Inicio."
-                    value=""
-                    placeholder="Sin nombre"
-                    onCommit={(value) =>
-                      onWrite({ displayName: value.trim() === '' ? null : value.trim() })
-                    }
-                  />
-                ) : (
-                  <>
-                    <p className="ds-card-title ds-card-title--large">{name}</p>
-                    <span className="ds-meta">El nombre viene de tu cuenta.</span>
-                  </>
-                )}
+                <p className="ds-card-title ds-card-title--large">{OWNER_NAME}</p>
+                <span className="ds-meta">Así te saluda Inicio. No se cambia.</span>
                 <p className="ds-caption">{goalsLine(profile)}</p>
               </>
             )}

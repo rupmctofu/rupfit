@@ -19,6 +19,7 @@
 
 import type { PhaseState } from '../../core/domain';
 import type { MatchKind } from '../../core/engine/week-plan';
+import { OWNER_NAME } from '../../core/owner';
 import type {
   ActivityRecord,
   BodyMeasurement,
@@ -725,7 +726,7 @@ export function activityViewOf(activities: readonly ActivityRecord[]): ActivityV
 }
 
 export function homeViewOf(input: HomeInput): HomeView {
-  const { now, recent, inProgress, profile, phaseState } = input;
+  const { now, recent, inProgress, phaseState } = input;
   const pool = inProgress === undefined ? recent : [...recent, inProgress];
   // T4, T6: the week is derived once, from the owner's layout, and both the rows and the
   // card of today read that one object. The card no longer asks the template, the stored
@@ -736,7 +737,10 @@ export function homeViewOf(input: HomeInput): HomeView {
   const today = todayCardOf(todayRow, pool, phaseState, now);
 
   return {
-    greeting: greeting(profile?.displayName ?? null),
+    // S4: el saludo lleva el nombre de la app, no el que la cuenta derivó y quedó guardado
+    // en `profile.displayName`. El campo sigue en el modelo y en la copia; aquí solo deja
+    // de decidir qué se enseña (`src/core/owner.ts`).
+    greeting: greeting(OWNER_NAME),
     dateLine: formatLongDate(now),
     today,
     // Two honest states remain once the card has nothing to draw: no plan at all, or the

@@ -24,8 +24,6 @@ import { SetupScreen } from '../features/onboarding/SetupScreen';
 import { useSetupGate } from '../features/onboarding/useSetupGate';
 import { AccountScreen } from '../features/onboarding/AccountScreen';
 import { useAccountGate } from '../features/onboarding/useAccountGate';
-import { accountNameOf } from '../features/profile/account-name';
-import { useAccountName } from '../features/profile/useAccountName';
 import { refreshSeededLibrary } from '../features/onboarding/library-refresh';
 import { refreshSeededPlanDays } from '../features/onboarding/plan-refresh';
 import { registerServiceWorker } from '../pwa';
@@ -208,8 +206,9 @@ function AppShell(): React.ReactElement {
    * proveedor no llega no se dibuja ni el formulario ni Inicio, así que una sesión
    * restaurada entra sin ver el formulario un solo fotograma.
    *
-   * El nombre es lo único que se escribe al entrar, y solo si el perfil no tenía uno
-   * (`useAccountName`). Va en la misma puerta porque es el mismo hecho: hay cuenta.
+   * Entrar ya no escribe nada: el nombre que la app enseña es `OWNER_NAME`
+   * (`src/core/owner.ts`, S4), no el que se derivaba de la cuenta, así que la puerta solo
+   * decide si hay sesión.
    */
   const accountGate = useAccountGate(tabShell);
 
@@ -218,9 +217,6 @@ function AppShell(): React.ReactElement {
   // answers arrive before the first paint.
   const answering = gate.phase === 'loading' || accountGate.offer.kind === 'waiting';
   const booted = useBootLatch(answering);
-  useAccountName(storage, accountGate.account);
-  const accountName =
-    accountGate.account === null ? null : accountNameOf(accountGate.account);
   // La entrada solo se dibuja con el servicio ya cargado; si no lo estuviera, la app entra:
   // una pantalla en blanco es la única forma de bloquear el entrenamiento (S4).
   const entry =
@@ -309,7 +305,7 @@ function AppShell(): React.ReactElement {
             onSkip={accountGate.dismiss}
           />
         ) : showSetup ? (
-          <SetupScreen gate={gate} onDone={leaveSetup} accountName={accountName} />
+          <SetupScreen gate={gate} onDone={leaveSetup} />
         ) : gate.phase === 'loading' || accountGate.offer.kind === 'waiting' ? (
           // The mark while the shell answers the two questions it cannot paint without.
           // `Splash` also keeps itself for a moment shorter than the eye needs to notice a

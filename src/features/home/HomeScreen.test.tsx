@@ -1303,7 +1303,7 @@ describe('the redesign composition (T5)', () => {
 
     // The owner's asset, never redrawn: the lockup is the same file the app has always shipped.
     expect(markup).toContain('logo-lockup.svg');
-    // The greeting the profile already personalises, and the date under it.
+    // The greeting the app names itself, and the date under it.
     expect(markup).toContain('Hola, Rup');
     expect(markup).toContain('Miércoles, 8 de noviembre');
     // One control into Perfil, where every setting lives, with its accessible name.
@@ -1424,5 +1424,23 @@ describe('the redesign composition (T5)', () => {
     expect(markup).not.toContain('Empezar entrenamiento');
     // The closed line the view already wrote, in the card.
     expect(markup).toContain('Sesión completada hoy');
+  });
+});
+
+/* ----------------------------------------------------------------------------
+ * S4 (odd/tasks/home-feedback.md) — the name is the app's, not the account's.
+ *
+ * The owner read his own handle in the greeting and asked for `Rup` and for nothing
+ * editable: «pon rup y que no sea editable». What is pinned here is the visible half —
+ * the greeting says `Rup` whatever the stored profile holds. The stored field is not
+ * touched by this task, so the fixture below is deliberately the old derived name.
+ * ------------------------------------------------------------------------- */
+
+describe('the greeting shows the app name, not the stored one (S4)', () => {
+  it('greets with Rup even when the profile still holds the account-derived name', () => {
+    const markup = render({ profile: { ...PROFILE, displayName: 'robertovlopez' } });
+
+    expect(markup).toContain('Hola, Rup');
+    expect(markup).not.toContain('robertovlopez');
   });
 });

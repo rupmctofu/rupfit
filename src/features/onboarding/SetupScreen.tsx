@@ -8,7 +8,7 @@
  *
  * | state the owner sees | when |
  * | --- | --- |
- * | the form, with the four fields of FR-1.1 | no profile yet |
+ * | the form, with the fields of FR-1.1 the app still asks (goal and equipment) | no profile yet |
  * | the form, with the stored profile prefilled and a banner saying what is missing | a profile but no plan |
  * | the summary and one additive action | reached at `#/empezar` with everything already there |
  * | `No se pudieron leer tus datos` and `Reintentar` | the read failed |
@@ -37,11 +37,12 @@ import {
   TextButton,
 } from '../../design-system';
 import { EQUIPMENT_TYPES, type Equipment } from '../../core/domain';
+import { OWNER_NAME } from '../../core/owner';
 import { SEED_EXERCISES, START_PHASE_STATE, seedPlanDays } from '../../core/seed';
 import type { UserProfile, WeightGoal } from '../../storage';
 import { useAppServices } from '../../app/providers';
 import { createProfileId } from './browser-edges';
-import { ChipChoices, NameField } from './fields';
+import { ChipChoices } from './fields';
 import { writeStartingPoint } from './starting-point';
 import type { SetupGate } from './useSetupGate';
 import './onboarding.css';
@@ -88,14 +89,9 @@ export interface SetupScreenProps {
   readonly gate: SetupGate;
   /** Called once the last write resolved: the shell reloads the gate and lands on Inicio. */
   readonly onDone: () => void;
-  /**
-   * El nombre de la cuenta, cuando hay una (L3). El primer arranque con sesión no pregunta
-   * el nombre: lo trae puesto. Un perfil que ya lo tiene manda, siempre.
-   */
-  readonly accountName?: string | null | undefined;
 }
 
-export function SetupScreen({ gate, onDone, accountName }: SetupScreenProps): React.ReactElement {
+export function SetupScreen({ gate, onDone }: SetupScreenProps): React.ReactElement {
   if (gate.phase === 'loading') {
     // Not a spinner (S3 forbids one for local data) and not the form: a flash of default
     // values over a store that is about to say otherwise would be a lie either way.
@@ -117,7 +113,7 @@ export function SetupScreen({ gate, onDone, accountName }: SetupScreenProps): Re
   if (gate.offer.kind === 'setup') {
     // `noPlan` means a profile exists already (Perfil can write one on its own): the form
     // starts from the stored values and the intro says what is still missing.
-    return <SetupForm gate={gate} onDone={onDone} accountName={accountName} />;
+    return <SetupForm gate={gate} onDone={onDone} />;
   }
 
   // The only other state that reaches `#/empezar` is a store that can already train: the
@@ -127,13 +123,14 @@ export function SetupScreen({ gate, onDone, accountName }: SetupScreenProps): Re
 
 /* ------------------------------------------------------------------- the form */
 
-function SetupForm({ gate, onDone, accountName }: SetupScreenProps): React.ReactElement {
+function SetupForm({ gate, onDone }: SetupScreenProps): React.ReactElement {
   const { storage, clock } = useAppServices();
   const stored = gate.profile;
 
-  // El nombre del perfil manda; si no hay perfil todavía, el de la cuenta, ya derivado
-  // (`accountNameOf`): la primera pantalla no vuelve a preguntar lo que la cuenta ya sabe.
-  const [name, setName] = useState(stored?.displayName ?? accountName ?? '');
+  // S4: el nombre no se pregunta aquí. La app enseña `OWNER_NAME` y no hay campo que lo
+  // cambie —«pon rup y que no sea editable»—, así que el primer arranque escribe el perfil
+  // sin nombre y una segunda pasada conserva el que ya hubiera: la fila guardada no se
+  // reescribe nunca por esto.
   const [goal, setGoal] = useState<WeightGoal | null>(stored?.weightGoal ?? null);
   const [days, setDays] = useState(stored?.weeklyTrainingDays ?? 3);
   const [equipment, setEquipment] = useState<readonly Equipment[]>(
@@ -153,7 +150,8 @@ function SetupForm({ gate, onDone, accountName }: SetupScreenProps): React.React
     idRef.current ??= createProfileId(clock.now());
     const profile: UserProfile = {
       id: idRef.current,
-      displayName: name.trim() === '' ? null : name.trim(),
+      // Sin nombre nuevo: el que hubiera se queda exactamente como estaba (S4).
+      displayName: stored?.displayName ?? null,
       // Units and the rest timer are Perfil's, not the first run's (FR-1.1 lists four
       // fields, not six); keeping the stored values means a rerun loses nothing.
       massUnit: stored?.massUnit ?? 'kilograms',
@@ -175,7 +173,7 @@ function SetupForm({ gate, onDone, accountName }: SetupScreenProps): React.React
       setBusy(false);
       onDone();
     })();
-  }, [clock, days, equipment, goal, name, onDone, storage, stored]);
+  }, [clock, days, equipment, goal, onDone, storage, stored]);
 
   const noEquipment = equipment.length === 0;
 
@@ -186,21 +184,13 @@ function SetupForm({ gate, onDone, accountName }: SetupScreenProps): React.React
       </h1>
       <p className="ds-body ds-body--muted">
         {stored === undefined
-          ? `Cuatro respuestas y tendrás una biblioteca de ejercicios, tus ${String(seedPlanDays().length)} días de rutina y un punto de partida para la primera sesión.`
+          ? `Dos respuestas y tendrás una biblioteca de ejercicios, tus ${String(seedPlanDays().length)} días de rutina y un punto de partida para la primera sesión.`
           : 'Tu perfil ya está guardado. Falta la biblioteca de ejercicios y la rutina, y con esto se escriben.'}
       </p>
 
       <section className="setup__section">
         <SectionLabel>Tú</SectionLabel>
         <Card>
-          <NameField
-            label="Nombre"
-            hint="Opcional. Solo se usa para saludarte en Inicio."
-            placeholder="Sin nombre"
-            value={name}
-            onChange={setName}
-          />
-
           <span className="ds-meta">Objetivo de peso</span>
           <ChipChoices
             label="Objetivo de peso"
@@ -328,7 +318,7 @@ function AlreadyStarted({ gate, onDone }: SetupScreenProps): React.ReactElement 
       <Card>
         <div className="setup__row">
           <span className="ds-body">Perfil</span>
-          <span className="ds-meta">{stored?.displayName ?? 'Sin nombre'}</span>
+          <span className="ds-meta">{OWNER_NAME}</span>
         </div>
         <hr className="ds-hairline" />
         <div className="setup__row">

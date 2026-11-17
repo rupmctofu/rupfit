@@ -25,7 +25,7 @@ function capitalise(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-/** `Hola, Rup` when the profile knows the name, `Hola` when it does not. */
+/** `Hola, Rup` — the name is the app's own (S4, `src/core/owner.ts`), never the stored one. */
 export function greeting(displayName: string | null): string {
   const name = displayName?.trim() ?? '';
   return name === '' ? 'Hola' : `Hola, ${name}`;

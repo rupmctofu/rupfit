@@ -60,7 +60,7 @@ swallow a block: the training group is not drawn at all while there is no profil
 
 | On screen | Source at render time |
 |---|---|
-| the name, `El nombre viene de tu cuenta.` | `profile.displayName`; the field appears only when it is `null` |
+| the name, `Así te saluda Inicio. No se cambia.` | `OWNER_NAME` (`src/core/owner.ts`); there is no field, and `profile.displayName` is still stored and synced but no longer shown |
 | `Mantener peso · 4 equipos` | `goalsLine(profile)` — `weightGoal` and `availableEquipment.length` |
 | `Ejercicios 9` / `Biblioteca y rutina · 2 propios` | `data.snapshot.exercises` / `data.snapshot.customExercises` |
 | the equipment, goal and unit chips and their pressed state | `profile.availableEquipment`, `weightGoal`, `massUnit` |

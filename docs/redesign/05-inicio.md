@@ -22,7 +22,7 @@ today.
 
 | On screen | Source |
 |---|---|
-| `Hola, Rup` | `profile.displayName` through `greeting()` (unchanged) |
+| `Hola, Rup` | `OWNER_NAME` through `greeting()` (`src/core/owner.ts`): the name is the app's, not the account's, and it is not editable |
 | `HOY · LUNES`, `Pierna` | the agenda's today row (`rowTitleOf`, `AgendaDay.weekdayName`) |
 | `Ejercicios 9` / `Series 20` | the same row's `exerciseCount` / `setCount` (the plan day's prescription) |
 | `Readaptación · semana 1 de 4` | `TodayView.phase`, as before |
