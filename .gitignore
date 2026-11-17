@@ -56,3 +56,6 @@ tools/.tmp/
 .worktrees/
 .edge-tmp/
 .playwright-mcp/
+
+.vercel
+.env*
