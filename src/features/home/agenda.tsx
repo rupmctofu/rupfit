@@ -1084,10 +1084,15 @@ export function AgendaWeek({
         </p>
       )}
 
-      {/* S10: the day the match displaced is shown, not moved by the app on its own. */}
+      {/* S10: the day the match displaced is shown, not moved by the app on its own.
+          home-feedback S2: the label names what the block holds — training days the match
+          left without a date. Read as "days without a weekday" it was taken for a list of
+          exercises without a day, so the words name the cause instead. */}
       {unplaced.length === 0 ? null : (
         <div className="home-agenda__unplaced" {...background}>
-          <SectionLabel icon={<Icon name="calendar" size={14} />}>Sin día esta semana</SectionLabel>
+          <SectionLabel icon={<Icon name="calendar" size={14} />}>
+            Días que el partido dejó sin fecha
+          </SectionLabel>
           <Card padding="dense">
             <ul className="home-agenda__unplaced-list">
               {unplaced.map((entry) => (
@@ -1097,13 +1102,13 @@ export function AgendaWeek({
                     <span className="ds-meta">
                       {countsTextOf(entry.exerciseCount, entry.setCount)}
                     </span>
-                    <Chip>Sin día</Chip>
+                    <Chip>Sin fecha</Chip>
                   </span>
                 </li>
               ))}
             </ul>
             <p className="ds-meta">
-              El partido ocupó su día. Toca un día de la semana para colocarlo.
+              Toca un día de la semana para colocarlo en su sitio.
             </p>
           </Card>
         </div>

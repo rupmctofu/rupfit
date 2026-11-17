@@ -961,7 +961,11 @@ describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10, S11)', () => {
     const markup = render({ plan: WEEK_PLAN, week: CUP_WEEK, weekLayout: LEAGUE_LAYOUT });
     expect(rowOf(markup, 1)).toContain('Partido · Copa');
     expect(rowOf(markup, 3)).toContain('Descanso');
-    expect(markup).toContain('Sin día esta semana');
+    // home-feedback S2: the block is about the days the match left without a date, and its
+    // words must not read as "exercises without a day".
+    expect(markup).toContain('Días que el partido dejó sin fecha');
+    expect(markup).toContain('Sin fecha');
+    expect(markup).not.toContain('Sin día esta semana');
     expect(markup).toContain('Torso A');
 
     // It is one of the four of the sheet, and the sheet says it has no day yet.
