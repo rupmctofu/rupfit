@@ -79,7 +79,7 @@ import {
   TextButton,
   WeightKeypad,
 } from '../../design-system';
-import type { StoragePort } from '../../storage';
+import { deleteSessionConfirmation, type StoragePort } from '../../storage';
 import {
   EQUIPMENT_ICON,
   EQUIPMENT_LABEL,
@@ -342,16 +342,37 @@ function prefersReducedMotion(): boolean {
  */
 export const EXIT_LEAVE_LABEL = 'Salir y seguir luego';
 export const EXIT_FINISH_LABEL = 'Terminar la sesión';
+/**
+ * S3: the third way out, and the only one that removes something. It is offered only for a
+ * session that exists because it was opened by accident — still open, not a single set
+ * confirmed — because that is the only session with nothing a close could save.
+ */
+export const EXIT_DISCARD_LABEL = 'Descartar sesión';
 /** The control's own name: one control, and it announces both outcomes before it opens. */
 export const EXIT_CONTROL_LABEL = 'Salir de la sesión o terminarla';
 
-/** Where the sheet is: the two named actions, or the one question before closing. */
-export type SheetStep = 'actions' | 'confirm';
+/**
+ * The sentence a failed discard leaves in the sheet: the store still has the session, so
+ * the sheet stays open on it and says so instead of walking away from a write that lost.
+ */
+export const DISCARD_FAILED_MESSAGE =
+  'No se pudo descartar la sesión: sigue ahí y puedes volver a intentarlo.';
+
+/**
+ * What the sheet says when a discard is asked of a session that no longer qualifies — a
+ * guard, not a state: the row is not drawn for a session with a confirmed set or a settled
+ * one, so this sentence only answers a tap that raced the store.
+ */
+export const DISCARD_REFUSED_MESSAGE =
+  'Solo se puede descartar una sesión abierta y sin ninguna serie confirmada.';
+
+/** Where the sheet is: the three named actions, or the one question before a close/discard. */
+export type SheetStep = 'actions' | 'confirm' | 'discard';
 /** S5: what `Terminar la sesión` does the moment it is chosen. */
 export type FinishStep = 'confirm' | 'close';
 
 export interface ExitAction {
-  readonly id: 'leave' | 'finish';
+  readonly id: 'leave' | 'finish' | 'discard';
   readonly label: string;
 }
 
@@ -371,14 +392,91 @@ export function canFinishSession(session: SessionState | null): boolean {
  * including with no weight decided and not a single set logged. Nothing but a settled
  * session hides an action (S2): whether the close asks first is `finishStepFor`'s business
  * (S5), never the offer's.
+ *
+ * S3 adds one row, and defaulted on purpose: `canDiscard` is a session with nothing to
+ * save, so every caller that has not asked about a discard keeps the two rows it had, and
+ * a session with a confirmed set or a settled one can never offer the destructive one.
  */
-export function exitOffer(canFinish: boolean): readonly ExitAction[] {
-  return canFinish
-    ? [
-        { id: 'leave', label: EXIT_LEAVE_LABEL },
-        { id: 'finish', label: EXIT_FINISH_LABEL },
-      ]
-    : [{ id: 'leave', label: EXIT_LEAVE_LABEL }];
+export function exitOffer(canFinish: boolean, canDiscard = false): readonly ExitAction[] {
+  return [
+    { id: 'leave', label: EXIT_LEAVE_LABEL },
+    ...(canFinish ? [{ id: 'finish' as const, label: EXIT_FINISH_LABEL }] : []),
+    // Destructive last: the sheet's final row is the one that removes a record, never the
+    // one that saves it.
+    ...(canDiscard ? [{ id: 'discard' as const, label: EXIT_DISCARD_LABEL }] : []),
+  ];
+}
+
+/**
+ * S3: a session that only exists because it was opened by accident. It has to be still open
+ * (a settled one is a record, not a mistake) and it cannot have a single confirmed set —
+ * from the first one on, there is work to keep and discarding would throw it away.
+ */
+export function canDiscardSession(session: SessionState | null): boolean {
+  if (session === null) return false;
+  if (!canFinishSession(session)) return false;
+  return summarise(session).setsConfirmed === 0;
+}
+
+/**
+ * S3: what the discard asks before it writes — the owner is not asked to type, but the
+ * sentence the store demands is shown in full, so nothing is removed without that exact
+ * word on screen first. `confirmation` is `deleteSessionConfirmation(dayNameSnapshot)`.
+ */
+export function discardQuestion(confirmation: string): string {
+  return `¿Descartar esta sesión? No hay ninguna serie confirmada que guardar: se borra con ${confirmation}.`;
+}
+
+/** The two methods of `storage.sessions` a discard needs, named for what they must do. */
+export interface SessionDiscardPort {
+  readonly markDeletionPending: (id: string) => Promise<void>;
+  readonly delete: (id: string, input: { readonly confirmation: string }) => Promise<void>;
+}
+
+/**
+ * I-5's two calls, in the only order the repository accepts (see `src/storage/constants.ts`
+ * and `docs/architecture.md` I-5). The session feature cannot reuse
+ * `features/progress/deleteFlow.ts` — a feature folder may not import another one
+ * (`docs/architecture.md` §4) — so the order is restated here rather than moved, and the
+ * sentence is still the store's own `deleteSessionConfirmation`, never a literal.
+ */
+export async function discardStoredSession(
+  port: SessionDiscardPort,
+  session: Pick<SessionState, 'id' | 'dayNameSnapshot'>,
+): Promise<void> {
+  await port.markDeletionPending(session.id);
+  await port.delete(session.id, {
+    confirmation: deleteSessionConfirmation(session.dayNameSnapshot),
+  });
+}
+
+export interface DiscardOutcome {
+  /** True only once the store removed the session and the owner left the screen. */
+  readonly discarded: boolean;
+  /** The sentence the sheet keeps when the discard did not happen; `null` on success. */
+  readonly failure: string | null;
+}
+
+/**
+ * S3: the whole discard, and the only door into it. A session with a confirmed set, or one
+ * the table already settled, writes nothing at all; a failed write leaves the owner on the
+ * session the store kept, with a sentence, and never navigates.
+ */
+export async function discardSession(input: {
+  readonly port: SessionDiscardPort;
+  readonly session: SessionState | null;
+  readonly onExit: () => void;
+}): Promise<DiscardOutcome> {
+  const { session } = input;
+  if (session === null) return { discarded: false, failure: DISCARD_REFUSED_MESSAGE };
+  if (!canDiscardSession(session)) return { discarded: false, failure: DISCARD_REFUSED_MESSAGE };
+  try {
+    await discardStoredSession(input.port, session);
+  } catch {
+    return { discarded: false, failure: DISCARD_FAILED_MESSAGE };
+  }
+  input.onExit();
+  return { discarded: true, failure: null };
 }
 
 /**
@@ -456,6 +554,14 @@ export interface SessionExitProps {
   readonly onFinish: () => void;
   /** `Terminar la sesión` in the question, once the owner has already chosen to close. */
   readonly onConfirm: () => void;
+  /** S3: whether the session can only be thrown away — open, and not a single set. */
+  readonly canDiscard?: boolean;
+  /** S3: the word the store demands, `BORRAR <day>`, shown in the discard question. */
+  readonly discardConfirmation?: string;
+  /** S3: the sentence a failed discard leaves in the sheet, still open on the session. */
+  readonly discardFailure?: string | null;
+  /** `Descartar sesión` in the question: the only tap that removes a session. */
+  readonly onDiscard?: () => void;
 }
 
 /**
@@ -466,12 +572,28 @@ export interface SessionExitProps {
  * group inside the same sheet, never a second dialog over a set.
  */
 export function SessionExit(props: SessionExitProps): React.ReactElement {
-  const { open, step, setsConfirmed, canFinish, onOpen, onClose, onLeave, onFinish, onConfirm } =
-    props;
+  const {
+    open,
+    step,
+    setsConfirmed,
+    canFinish,
+    onOpen,
+    onClose,
+    onLeave,
+    onFinish,
+    onConfirm,
+  } = props;
+  // S3's three inputs, defaulted so a sheet that has not asked about a discard is the two
+  // rows it always had: the row is drawn only when the session can actually be thrown away.
+  const canDiscard = props.canDiscard ?? false;
+  const discardConfirmation = props.discardConfirmation ?? '';
+  const discardFailure = props.discardFailure ?? null;
+  const onDiscard = props.onDiscard ?? onClose;
   const trigger = useRef<HTMLButtonElement | null>(null);
   const sheet = useRef<HTMLDivElement | null>(null);
   const wasOpen = useRef(false);
   const asking = step === 'confirm';
+  const discarding = step === 'discard';
   const sets = `${String(setsConfirmed)} ${setsConfirmed === 1 ? 'serie' : 'series'}`;
 
   // The day sheet's own focus behaviour, plus the way back: closing returns the keyboard
@@ -551,7 +673,30 @@ export function SessionExit(props: SessionExitProps): React.ReactElement {
                 <TextButton onClick={onClose}>Cerrar</TextButton>
               </div>
 
-              {asking ? (
+              {discarding ? (
+                /*
+                 * S3: the one question before a session is removed. The word the store
+                 * demands (I-5) is written in full — the owner does not type it, so this is
+                 * the last place it can be seen — and a failure keeps the question, and the
+                 * session, exactly where they are.
+                 */
+                <div
+                  className="session-exit__question"
+                  role="group"
+                  aria-label="Confirmar el descarte de la sesión"
+                >
+                  <p className="ds-body">{discardQuestion(discardConfirmation)}</p>
+                  {discardFailure === null ? null : (
+                    <p className="ds-meta" role="alert">
+                      {discardFailure}
+                    </p>
+                  )}
+                  <div className="session-exit__actions">
+                    <PrimaryAction onClick={onDiscard}>{EXIT_DISCARD_LABEL}</PrimaryAction>
+                    <TextButton onClick={onClose}>Cancelar</TextButton>
+                  </div>
+                </div>
+              ) : asking ? (
                 <div
                   className="session-exit__question"
                   role="group"
@@ -566,17 +711,25 @@ export function SessionExit(props: SessionExitProps): React.ReactElement {
               ) : (
                 <>
                   <p className="ds-meta">
-                    {canFinish
-                      ? 'Puedes dejarla abierta y seguir otro día, o cerrarla con lo que lleves.'
-                      : 'Esta sesión ya está cerrada: salir te deja en Inicio.'}
+                    {canDiscard
+                      ? 'Puedes dejarla abierta y seguir otro día, o descartarla: no hay ninguna serie confirmada.'
+                      : canFinish
+                        ? 'Puedes dejarla abierta y seguir otro día, o cerrarla con lo que lleves.'
+                        : 'Esta sesión ya está cerrada: salir te deja en Inicio.'}
                   </p>
                   <div className="session-exit__actions">
-                    {exitOffer(canFinish).map((action) => (
+                    {exitOffer(canFinish, canDiscard).map((action) => (
                       <button
                         key={action.id}
                         type="button"
                         className="ds-action session-exit__action"
-                        onClick={action.id === 'leave' ? onLeave : onFinish}
+                        onClick={
+                          action.id === 'leave'
+                            ? onLeave
+                            : action.id === 'discard'
+                              ? onDiscard
+                              : onFinish
+                        }
                       >
                         {action.label}
                       </button>
@@ -626,12 +779,19 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
    */
   const [swapping, setSwapping] = useState<{ readonly exerciseSessionId: string } | null>(null);
   /**
-   * The exit sheet (S2, S3): closed until the top control is tapped, and on the two named
-   * actions until closing is chosen with something to lose (S5).
+   * The exit sheet (S2, S3): closed until the top control is tapped, on the named actions
+   * until closing is chosen with something to lose (S5) or until an empty session is
+   * answered with a discard (S3). `discardFailure` is the sentence a failed write leaves in
+   * the sheet, and it is nulled on every way into the sheet.
    */
-  const [exit, setExit] = useState<{ readonly open: boolean; readonly step: SheetStep }>({
+  const [exit, setExit] = useState<{
+    readonly open: boolean;
+    readonly step: SheetStep;
+    readonly discardFailure: string | null;
+  }>({
     open: false,
     step: 'actions',
+    discardFailure: null,
   });
   const [library, setLibrary] = useState<readonly Exercise[]>([]);
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -752,22 +912,22 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
   );
 
   const openExit = useCallback(() => {
-    setExit({ open: true, step: 'actions' });
+    setExit({ open: true, step: 'actions', discardFailure: null });
   }, []);
 
   const closeExit = useCallback(() => {
-    setExit({ open: false, step: 'actions' });
+    setExit({ open: false, step: 'actions', discardFailure: null });
   }, []);
 
   /** `Salir y seguir luego`: the host leaves and the session stays open and resumable. */
   const leaveSession = useCallback(() => {
-    setExit({ open: false, step: 'actions' });
+    setExit({ open: false, step: 'actions', discardFailure: null });
     exitActions.leave();
   }, [exitActions]);
 
   /** `Terminar la sesión`, confirmed or on its own: the table's event, then the sheet goes. */
   const closeAndFinish = useCallback(() => {
-    setExit({ open: false, step: 'actions' });
+    setExit({ open: false, step: 'actions', discardFailure: null });
     void exitActions.finish();
   }, [exitActions]);
 
@@ -780,11 +940,40 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
   const chooseFinish = useCallback(() => {
     if (session === null) return;
     if (finishStepFor(session) === 'confirm') {
-      setExit({ open: true, step: 'confirm' });
+      setExit({ open: true, step: 'confirm', discardFailure: null });
       return;
     }
     closeAndFinish();
   }, [closeAndFinish, session]);
+
+  /**
+   * S3: `Descartar sesión` asks once, and the question shows the word the store demands.
+   * Nothing is written here; the row is only offered for a session with nothing to save.
+   */
+  const chooseDiscard = useCallback(() => {
+    if (!canDiscardSession(session)) return;
+    setExit({ open: true, step: 'discard', discardFailure: null });
+  }, [session]);
+
+  /**
+   * S3: the only tap that removes a session. The sheet closes only when the store actually
+   * removed it and the host is leaving; a failure leaves it open, on the same question,
+   * with the sentence and with the way to try again.
+   */
+  const confirmDiscard = useCallback(() => {
+    if (session === null) return;
+    void discardSession({
+      port: storage.sessions,
+      session,
+      onExit: () => {
+        setExit({ open: false, step: 'actions', discardFailure: null });
+        onExit();
+      },
+    }).then((outcome) => {
+      if (outcome.discarded) return;
+      setExit({ open: true, step: 'discard', discardFailure: outcome.failure });
+    });
+  }, [onExit, session, storage]);
 
   const readyRef = useRef(false);
   useEffect(() => {
@@ -995,11 +1184,17 @@ export function SessionScreen(props: SessionScreenProps): React.ReactElement {
         step={exit.step}
         canFinish={canFinishSession(session)}
         setsConfirmed={session === null ? 0 : summarise(session).setsConfirmed}
+        canDiscard={canDiscardSession(session)}
+        discardConfirmation={
+          session === null ? '' : deleteSessionConfirmation(session.dayNameSnapshot)
+        }
+        discardFailure={exit.discardFailure}
         onOpen={openExit}
         onClose={closeExit}
         onLeave={leaveSession}
         onFinish={chooseFinish}
         onConfirm={closeAndFinish}
+        onDiscard={confirmDiscard}
       />
       <div className="session__identity">
         <p className="session__day">{session === null ? 'Sesión' : session.dayNameSnapshot}</p>

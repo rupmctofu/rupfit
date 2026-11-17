@@ -19,9 +19,13 @@ import { summarise } from '../../core/session/model';
 import type { ExerciseState, SessionEvent, SessionState } from '../../core/session/model';
 import type { SetRecord, WorkoutSession } from '../../storage';
 import {
+  canDiscardSession,
   canFinishSession,
   CorrectionHint,
+  DISCARD_FAILED_MESSAGE,
+  discardSession,
   EXIT_CONTROL_LABEL,
+  EXIT_DISCARD_LABEL,
   EXIT_FINISH_LABEL,
   EXIT_LEAVE_LABEL,
   exitActionsFor,
@@ -453,6 +457,9 @@ describe('saving a correction (S6)', () => {
 
 /* ------------------------------------------------------------- the way out (T1) */
 
+/** The day name the discard question has to spell out, in the store's own sentence. */
+const SHEET_DAY = 'MIÉRCOLES / CUERPO COMPLETO';
+
 /** The exit control and its sheet, with everything closed: each test opens what it needs. */
 const SHEET: SessionExitProps = {
   open: false,
@@ -638,6 +645,170 @@ describe('the question before closing (S5)', () => {
       <SessionExit {...SHEET} open step="confirm" setsConfirmed={3} />,
     );
     expect(plural).toContain('3 series');
+  });
+});
+
+/* ------------------------------------- descartar una sesión abierta sin querer (T3, S3) */
+
+describe('descartar la sesión (S3)', () => {
+  /**
+   * I-5's two calls, recorded in the order the store accepts them. The real store is not
+   * reachable from this suite (no IndexedDB), so the port is a recorder: what is pinned is
+   * the order and the sentence, which is exactly what the invariant is about.
+   */
+  function discardPort(failOn: 'markDeletionPending' | 'delete' | null = null): {
+    readonly calls: readonly string[];
+    readonly port: {
+      readonly markDeletionPending: (id: string) => Promise<void>;
+      readonly delete: (id: string, input: { readonly confirmation: string }) => Promise<void>;
+    };
+  } {
+    const calls: string[] = [];
+    return {
+      calls,
+      port: {
+        async markDeletionPending(id) {
+          if (failOn === 'markDeletionPending') throw new Error('markDeletionPending failed');
+          calls.push(`markDeletionPending:${id}`);
+        },
+        async delete(id, input) {
+          if (failOn === 'delete') throw new Error('delete failed');
+          calls.push(`delete:${id}:${input.confirmation}`);
+        },
+      },
+    };
+  }
+
+  it('is offered only while the session has no confirmed set and is still open', async () => {
+    // RED (T3): the sheet had two rows, so a session opened by accident could only be
+    // left (and came back) or closed (and the table refused it for having nothing).
+    const empty = await booted();
+    const withWork = await booted([storedSet(1, 55, 4)]);
+
+    expect(canDiscardSession(empty.session)).toBe(true);
+    expect(canDiscardSession(withWork.session)).toBe(false);
+    expect(canDiscardSession(null)).toBe(false);
+    // A settled session is not a session opened by accident: it is a record.
+    expect(canDiscardSession({ ...empty.session, status: 'completed' })).toBe(false);
+
+    // The offer keeps its own two rows by default, so the sheet's existing states are
+    // untouched, and gains the third only when the discard is possible.
+    expect(exitOffer(true).map((action) => action.id)).toEqual(['leave', 'finish']);
+    expect(exitOffer(true, true).map((action) => action.id)).toEqual([
+      'leave',
+      'finish',
+      'discard',
+    ]);
+    expect(exitOffer(true, true).at(-1)?.label).toBe(EXIT_DISCARD_LABEL);
+    expect(EXIT_DISCARD_LABEL).toBe('Descartar sesión');
+    // And a settled session never offers it, whatever else it offers.
+    expect(exitOffer(false, false).map((action) => action.id)).toEqual(['leave']);
+  });
+
+  it('draws the discard row in the sheet, and the question it opens names the word', () => {
+    const offers = renderToStaticMarkup(<SessionExit {...SHEET} open canDiscard />);
+
+    expect(offers).toContain(EXIT_DISCARD_LABEL);
+    // The discard is the last row, and the line above it says what it costs.
+    expect(offers).toContain('no hay ninguna serie confirmada');
+
+    // And a sheet that was not told about a discard draws no such row: the sheet never
+    // offers what the session cannot have.
+    const withoutDiscard = renderToStaticMarkup(<SessionExit {...SHEET} open />);
+    expect(withoutDiscard).not.toContain(EXIT_DISCARD_LABEL);
+
+    const question = renderToStaticMarkup(
+      <SessionExit
+        {...SHEET}
+        open
+        step="discard"
+        canDiscard
+        discardConfirmation={`BORRAR ${SHEET_DAY}`}
+      />,
+    );
+
+    // One dialog, never a modal over a modal: the question replaces the rows in place.
+    expect(question.match(/role="dialog"/g)).toHaveLength(1);
+    // The exact sentence the store demands (I-5), shown before anything is written.
+    expect(question).toContain(`BORRAR ${SHEET_DAY}`);
+    expect(question).toContain(EXIT_DISCARD_LABEL);
+    expect(question).toContain('Cancelar');
+    expect(question).not.toContain(EXIT_FINISH_LABEL);
+
+    // A failed discard keeps the sheet open with its sentence, and with the way to retry.
+    const failed = renderToStaticMarkup(
+      <SessionExit
+        {...SHEET}
+        open
+        step="discard"
+        canDiscard
+        discardConfirmation={`BORRAR ${SHEET_DAY}`}
+        discardFailure={DISCARD_FAILED_MESSAGE}
+      />,
+    );
+    expect(failed).toContain(DISCARD_FAILED_MESSAGE);
+    expect(failed).toContain(EXIT_DISCARD_LABEL);
+  });
+
+  it('writes in the order the store demands, and only then leaves the screen', async () => {
+    const { session } = await booted();
+    const { calls, port } = discardPort();
+    let left = 0;
+
+    const outcome = await discardSession({
+      port,
+      session,
+      onExit: () => {
+        left += 1;
+      },
+    });
+
+    expect(outcome).toEqual({ discarded: true, failure: null });
+    // I-5: flagged in one committed step, removed in the next, with the derived sentence.
+    expect(calls).toEqual([
+      `markDeletionPending:${session.id}`,
+      `delete:${session.id}:BORRAR ${session.dayNameSnapshot}`,
+    ]);
+    expect(left).toBe(1);
+  });
+
+  it('keeps the sheet open and navigates nowhere when the store refuses', async () => {
+    const { session } = await booted();
+    const { port } = discardPort('delete');
+    let left = 0;
+
+    const outcome = await discardSession({
+      port,
+      session,
+      onExit: () => {
+        left += 1;
+      },
+    });
+
+    expect(outcome).toEqual({ discarded: false, failure: DISCARD_FAILED_MESSAGE });
+    // No navigation on a failure: the owner is still on the session the store kept.
+    expect(left).toBe(0);
+  });
+
+  it('never writes for a session with a confirmed set, and never for a settled one', async () => {
+    const withWork = await booted([storedSet(1, 55, 4)]);
+    const { calls, port } = discardPort();
+    let left = 0;
+    const onExit = (): void => {
+      left += 1;
+    };
+
+    const confirmed = await discardSession({ port, session: withWork.session, onExit });
+    const settled = await discardSession({
+      port,
+      session: { ...withWork.session, status: 'completed' },
+      onExit,
+    });
+
+    expect(confirmed.discarded).toBe(false);
+    expect(settled.discarded).toBe(false);
+    expect(calls).toEqual([]);
+    expect(left).toBe(0);
   });
 });
 
