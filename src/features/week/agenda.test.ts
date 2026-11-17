@@ -304,6 +304,30 @@ describe('weekAgendaOf marks a day done by its plan day and this week (S1, S6)',
     expect(agenda.doneCount).toBe(1);
   });
 
+  it('T1 closes the row on its own date, not one minute before (home-feedback S1)', () => {
+    // The guard is the date, so the boundary has to be the boundary: the Friday row is
+    // still open at 23:59 on Thursday and closes a minute into Friday.
+    const own = layout([LEG.id, null, PREP.id, UPPER_A.id, UPPER_B.id, null, null]);
+    const sessions = [session(UPPER_B.id, TUESDAY)];
+    const eve = weekAgendaOf({
+      now: new Date(2026, 2, 5, 23, 59).getTime(),
+      matchKind: 'league',
+      plan: PLAN,
+      layout: own,
+      sessions,
+    });
+    const day = weekAgendaOf({
+      now: new Date(2026, 2, 6, 0, 1).getTime(),
+      matchKind: 'league',
+      plan: PLAN,
+      layout: own,
+      sessions,
+    });
+    expect(eve.days[4]?.done).toBe(false);
+    expect(day.days[4]?.done).toBe(true);
+    expect(day.days[4]?.lockReason).toBe('done');
+  });
+
   it('T3 follows the plan day once that date has arrived (S1)', () => {
     // The legs were trained on Monday and the owner then moved the day to Friday: from
     // Friday on, the row that shows the legs reads done. Before Friday it does not, however

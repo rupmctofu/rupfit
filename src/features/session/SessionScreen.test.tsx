@@ -690,6 +690,10 @@ describe('descartar la sesión (S3)', () => {
     expect(canDiscardSession(null)).toBe(false);
     // A settled session is not a session opened by accident: it is a record.
     expect(canDiscardSession({ ...empty.session, status: 'completed' })).toBe(false);
+    // Every settled status is a record, not an accident: the refusal is not only `completed`.
+    for (const settled of ['partial', 'abandoned'] as const) {
+      expect(canDiscardSession({ ...empty.session, status: settled })).toBe(false);
+    }
 
     // The offer keeps its own two rows by default, so the sheet's existing states are
     // untouched, and gains the third only when the discard is possible.
