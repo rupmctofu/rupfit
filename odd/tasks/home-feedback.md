@@ -18,6 +18,11 @@ log as scope decisions, not as pending work.
   and only while it has no confirmed set. Owner's words: «cuando entro en un entreno sin
   querer y quiero salir ... no puedo salir nunca porque terminarse ... no hay ninguna serie
   confirmada y no puedo salir ... que saliera como descartar sesión o lo que sea».
+- **S4** — The name the app shows is `Rup`, always, and there is no way to change it: not in
+  Perfil and not in the starting-point screen. Owner's words: «porque poe que mi nombre es
+  robertovlopez? pon rup y que no sea editable». The stored `displayName` stays in the model,
+  the backup and the cloud, but it stops deciding what is shown; the account-derived name
+  (`accountNameOf`, `nameToWrite`) is retired.
 
 Out of scope for this batch, in the owner's own words: «el historial de momento ... de
 momento no toquemos nada»; «el listado de ejercicios tampoco me sirve mucho ... no tocamos
@@ -28,6 +33,7 @@ nada»; and «No lo toco, como dijiste» for Ejercicios, Historial and Perfil.
 - **T1** — S1 — inline — `a787d89`
 - **T2** — S2 — inline — `b66f1c9`
 - **T3** — S3 — worker `gentle-ai-worker` — `3462678`
+- **T4** — S4 — worker `gentle-ai-worker` — `89e9953`
 
 ## Log
 
@@ -71,11 +77,15 @@ nada»; and «No lo toco, como dijiste» for Ejercicios, Historial and Perfil.
   T3 restates the two port calls inside the session feature instead of importing
   `features/progress/deleteFlow.ts`, because architecture §4 forbids a feature importing
   another feature.
-- **L5** (evidence, 2026-11-17, independent verification): S1, S2 and S3 confirmed with the
-  guards intact — the store itself refuses `delete` before `markDeletionPending` and refuses
+- **L5** (evidence, 2026-11-17, independent verification): S1, S2 and S3 confirmed with the guards intact: the store itself refuses `delete` before `markDeletionPending` and refuses
   a wrong sentence; a failed discard keeps the question and navigates nowhere; the discard
   refusal covers `null`, `completed`, `partial`, `abandoned` and any confirmed set. It found
   two unpinned halves, closed in `4215254`: the date boundary (23:59 before, 00:01 after)
   and the `partial`/`abandoned` refusals. Suite at `4215254`: 79 files / 1219 tests, typecheck
   clean. Known residual: a successful discard leaves the controller's in-memory session
   until the screen unmounts; the next mount boots from storage and finds no row.
+- **L6** (owner, 2026-11-17, verbatim): «porque poe que mi nombre es robertovlopez? pon rup y
+  que no sea editable. No veo mucha actualizacion en la app». The name came from the account
+  (`roberto.vlopez@…` → `robertovlopez`), written by `SetupScreen` and editable in Perfil; S4
+  fixes it to `Rup` and removes both ways to change it. The second sentence is not a defect:
+  S1, S2 and S3 are deliberately quiet — no new screen, no new colour, no new data.
