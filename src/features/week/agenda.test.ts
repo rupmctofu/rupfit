@@ -284,12 +284,33 @@ describe('weekAgendaOf marks a day done by its plan day and this week (S1, S6)',
     expect(agenda.doneCount).toBe(2);
   });
 
-  it('T3 follows the plan day, not the weekday it used to sit on (S1)', () => {
-    // The legs were trained on Monday and the owner then moved the day to Friday: the row
-    // that shows the legs is the one that reads done.
+  it('T1 never closes a row whose date has not arrived (home-feedback S1)', () => {
+    // The owner trained TORSO B on Tuesday from the tab bar while the layout keeps it on
+    // Friday: the session is of this week and of that plan day, but Friday has not come,
+    // so the row cannot claim a training that the calendar has not reached.
+    const own = layout([LEG.id, null, PREP.id, UPPER_A.id, UPPER_B.id, null, null]);
+    const agenda = weekAgendaOf({
+      now: TUESDAY,
+      matchKind: 'cup',
+      plan: PLAN,
+      layout: own,
+      sessions: [session(UPPER_B.id, TUESDAY)],
+    });
+    expect(agenda.days[4]?.planDay?.id).toBe(UPPER_B.id);
+    expect(agenda.days[4]?.done).toBe(false);
+    expect(agenda.days[4]?.locked).toBe(false);
+    expect(agenda.days[4]?.lockReason).toBeNull();
+    // The tally counts plan days trained this week, so the session still counts there.
+    expect(agenda.doneCount).toBe(1);
+  });
+
+  it('T3 follows the plan day once that date has arrived (S1)', () => {
+    // The legs were trained on Monday and the owner then moved the day to Friday: from
+    // Friday on, the row that shows the legs reads done. Before Friday it does not, however
+    // trained the plan day already is (home-feedback S1).
     const own = layout([UPPER_B.id, UPPER_A.id, PREP.id, null, LEG.id, null, null]);
     const agenda = weekAgendaOf({
-      now: WEDNESDAY,
+      now: SATURDAY,
       matchKind: 'league',
       plan: PLAN,
       layout: own,
@@ -334,7 +355,8 @@ describe('weekAgendaOf marks a day done by its plan day and this week (S1, S6)',
     const sunday = new Date(2026, 2, 8, 20, 0).getTime();
     const nextMonday = new Date(2026, 2, 9, 0, 30).getTime();
     const closedOnSunday = weekAgendaOf({
-      now: WEDNESDAY,
+      // Sunday, so the Friday row's own date has already arrived (home-feedback S1).
+      now: sunday,
       matchKind: 'league',
       plan: PLAN,
       layout: LEAGUE_LAYOUT,

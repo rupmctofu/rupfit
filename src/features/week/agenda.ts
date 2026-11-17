@@ -202,6 +202,10 @@ function legWarningOf(days: readonly AgendaDay[], plan: readonly PlanDay[]): str
  * week is the one `dates` names, so a session of last Monday neither marks this Monday nor
  * unlocks anything; and only a closed session counts — `scheduled`, `inProgress` and
  * `abandoned` are not a training that happened.
+ *
+ * This set answers "what has been trained this week", which is not the same question as
+ * "is this row done": the row reads it through `dateText <= todayText` (`weekAgendaOf`),
+ * because a session of Tuesday cannot close a Friday that has not arrived (home-feedback S1).
  */
 function donePlanDayIdsOf(
   sessions: readonly WorkoutSession[],
@@ -239,7 +243,9 @@ export function weekAgendaOf(input: {
     // A stored id the plan no longer holds is not a training day: the slot goes free
     // rather than the agenda inventing a name for a day that is gone.
     const planDay = placedId === null ? null : (planById.get(placedId) ?? null);
-    const done = planDay !== null && donePlanDayIds.has(planDay.id);
+    // The set answers the week; the row answers its own date. A row whose day has not come
+    // is never closed, however trained that plan day already is (home-feedback S1).
+    const done = planDay !== null && donePlanDayIds.has(planDay.id) && dateText <= todayText;
     return {
       weekday,
       weekdayName: formatWeekdayName(date.getTime()),
