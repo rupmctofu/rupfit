@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { PlanDay, WeekLayout, WeekRecord, WorkoutSession } from '../../storage';
+import type { PlanDay, WeekRecord, WorkoutSession } from '../../storage';
 import { homeViewOf, type HomeInput } from './selectors';
 import { EMPTY_DAY_NOTE, NO_PLAN_TITLE, NO_PLAN_NOTE, todayHeroOf, weekProgressOf } from './today';
 
@@ -19,6 +19,7 @@ import { EMPTY_DAY_NOTE, NO_PLAN_TITLE, NO_PLAN_NOTE, todayHeroOf, weekProgressO
 const NOW = new Date(2023, 10, 8, 18, 0, 0).getTime();
 const MONDAY = new Date(2023, 10, 6, 18, 0, 0).getTime();
 const THURSDAY = new Date(2023, 10, 9, 18, 0, 0).getTime();
+const FRIDAY = new Date(2023, 10, 10, 18, 0, 0).getTime();
 const SATURDAY = new Date(2023, 10, 11, 12, 0, 0).getTime();
 
 function planDay(id: string, name: string, order: number, exercises: number): PlanDay {
@@ -76,11 +77,6 @@ const CLOSED_TODAY: WorkoutSession = {
   endedAt: NOW + 30 * 60 * 1000,
 };
 
-/** A layout written as the seven weekdays read, so an expectation says what it means. */
-function layoutWith(days: readonly (string | null)[]): WeekLayout {
-  return { slots: days.map((planDayId, weekday) => ({ weekday, planDayId })) };
-}
-
 function input(overrides: Partial<HomeInput> = {}): HomeInput {
   return {
     now: NOW,
@@ -119,15 +115,12 @@ describe('todayHeroOf', () => {
   });
 
   it('says the muscle group when the day name carries one', () => {
+    // `SENTADILLA / PIERNA` is the leg day, and the league template trains it on Monday
+    // (S2, S3): the card is read from the derived week, so the fixture asks for the day the
+    // template puts the day on instead of placing one itself.
     const compound = planDay('day-compound', 'SENTADILLA / PIERNA', 0, 2);
     const hero = todayHeroOf(
-      homeViewOf(
-        input({
-          plan: [compound],
-          phaseState: undefined,
-          weekLayout: layoutWith([null, null, 'day-compound', null, null, null, null]),
-        }),
-      ),
+      homeViewOf(input({ now: MONDAY, plan: [compound], phaseState: undefined })),
     );
 
     expect(hero.title).toBe('Sentadilla / Pierna');
@@ -165,15 +158,11 @@ describe('todayHeroOf', () => {
   });
 
   it('says a day with no exercises is one, rather than offering to start nothing', () => {
+    // `TORSO B` still names the third strength day, and the league template trains it on
+    // Friday (S2, S3). A plan day with no exercises on the day the week gives it is the
+    // state the title is about.
     const empty = planDay('day-empty', 'TORSO B', 0, 0);
-    const hero = todayHeroOf(
-      homeViewOf(
-        input({
-          plan: [empty],
-          weekLayout: layoutWith([null, null, 'day-empty', null, null, null, null]),
-        }),
-      ),
-    );
+    const hero = todayHeroOf(homeViewOf(input({ now: FRIDAY, plan: [empty] })));
 
     expect(hero.kind).toBe('emptyDay');
     expect(hero.title).toBe('Torso B');

@@ -13,7 +13,7 @@
  *    sessions that exist, not from the weekday template (`PlanDay` carries no weekday);
  *    the estimate says `aprox.`; a duration is only written when `startedAt` and an end
  *    instant are both stored. With a plan and no session today the card reads the day from
- *    the same `WeekAgenda` the rows read (T4, T6): the week's layout answers what the day
+ *    the same `WeekAgenda` the rows read (T4, T6): the week's rows answer what the day
  *    carries, so the card and the row below it can never name two different days.
  */
 
@@ -122,9 +122,10 @@ export interface HomeInput {
    */
   readonly week?: WeekRecord | undefined;
   /**
-   * T4 — the owner's fixed week layout, when this device has one. Optional for the same
-   * reason: with no record the agenda materialises the template of the fixture, which is
-   * the week a fresh install already shows.
+   * T4 — the week layout the store holds, when this device has one. Optional for the same
+   * reason as `week`, and **never consulted** (S2): `layoutOf` derives the template of the
+   * fixture. It stays in the input so the read path keeps carrying what the store holds
+   * (S5 deletes nothing) while the week stops honouring it.
    */
   readonly weekLayout?: WeekLayout | undefined;
 }
@@ -182,7 +183,7 @@ export interface LastSessionView {
  * (T6). `null` on a screen with no plan, which draws no week at all.
  */
 export interface HomeWeek {
-  /** The effective layout: the owner's, or the template materialised (S4, S5). */
+  /** The layout the week was derived from: the template of this week's fixture (S2, S3). */
   readonly layout: WeekLayout;
   readonly agenda: WeekAgenda;
 }
@@ -299,14 +300,17 @@ export function sessionsOf(input: HomeInput): readonly WorkoutSession[] {
 }
 
 /**
- * The effective layout: the owner's, or the template materialised (S4, S5).
+ * The layout of this week: the fixture's template, derived every time (S2, S3).
  *
- * The drag has to start somewhere, and the week on screen is the answer: when the store
- * holds no layout the template *is* the layout, so `placePlanDay` gets a real one to move
- * instead of a hole to fill from scratch.
+ * The stored `WeekLayout` is never consulted. A placement saved under another fixture
+ * displaced days — a league layout read in a cup week put the match on top of a training
+ * day and left that day without a weekday, which is the section the owner asked about —
+ * and he chose a week that is always derived: «que se calcule sola». So the template of
+ * this week's fixture is the only answer, whatever `input.weekLayout` still holds. The
+ * record itself is not deleted (S5); it simply stops deciding anything here.
  */
 export function layoutOf(input: HomeInput): WeekLayout {
-  return input.weekLayout ?? defaultLayoutOf({ matchKind: matchKindOf(input), plan: input.plan });
+  return defaultLayoutOf({ matchKind: matchKindOf(input), plan: input.plan });
 }
 
 /** The seven dated rows of a week, over a given layout — the one derivation of `now`. */
@@ -323,9 +327,10 @@ export function agendaOver(input: HomeInput, layout: WeekLayout): WeekAgenda {
 /**
  * T4, T6 — the week of this screen, derived exactly once.
  *
- * The rows and the day card both read this object: the layout decides what each weekday
- * carries, and the card no longer asks the template or the rotation what today is. With
- * no plan there is no week to date, and the screen keeps its honest empty state.
+ * The rows and the day card both read this object: the template of this week's fixture
+ * decides what each weekday carries (S2), and the card no longer asks the template or the
+ * rotation what today is. With no plan there is no week to date, and the screen keeps its
+ * honest empty state.
  */
 export function homeAgendaOf(input: HomeInput): HomeWeek | null {
   if (input.plan.length === 0) return null;
@@ -574,7 +579,7 @@ function previewDayOf(day: PlanDay, phaseState: PhaseState | undefined): TodayVi
 }
 
 /**
- * The closed session of a plan day this week, wherever the owner moved the day to.
+ * The closed session of a plan day this week, wherever inside the week it happened.
  *
  * The agenda already said the row is done; this finds the training that closed it so the
  * card can name the weekday it happened on and offer its summary.
@@ -599,18 +604,18 @@ function closingSessionOf(
  * T6 — the card of today, read from the agenda's today row.
  *
  * This is the repair of the verifier's blocker: the card used to ask the template and the
- * stored `WeekRecord` what today was, while the row above it asked the owner's layout, so a
- * day the owner moved away still appeared below as the day to train. Now the row is the
- * only source of "what today carries":
+ * stored `WeekRecord` what today was, while the row above it asked a stored layout, so a
+ * day that layout did not place still appeared below as the day to train. Now the row is
+ * the only source of "what today carries":
  *
  * - a rest day or the match asks the agenda, and the card says so with nothing to start;
  * - a workout day shows *its* plan day — a stored session of that same plan day if there is
  *   one, the closed session that made it done if it is done, and the preview otherwise.
  *
- * A session scheduled for today whose plan day the owner moved off today is not the card:
- * the store's row is still there, but today's plan says rest. An open session stays
- * reachable through `actionOf`'s `resume`, which is the one action that does not claim a
- * day.
+ * A session scheduled for today whose plan day the template puts on another weekday is not
+ * the card: the store's row is still there, but the day it belongs to is another. An open
+ * session stays reachable through `actionOf`'s `resume`, which is the one action that does
+ * not claim a day.
  */
 function todayCardOf(
   row: AgendaDay | null,
@@ -727,10 +732,11 @@ export function activityViewOf(activities: readonly ActivityRecord[]): ActivityV
 export function homeViewOf(input: HomeInput): HomeView {
   const { now, recent, inProgress, phaseState } = input;
   const pool = inProgress === undefined ? recent : [...recent, inProgress];
-  // T4, T6: the week is derived once, from the owner's layout, and both the rows and the
-  // card of today read that one object. The card no longer asks the template, the stored
+  // T4, T6: the week is derived once, from the fixture's template, and both the rows and
+  // the card of today read that one object. The card no longer asks the template, the stored
   // `WeekRecord` or the rotation what today is: those three answered the same question a
-  // second time, and disagreed with the rows the moment the owner moved a day.
+  // second time. Since the week is always derived (S2) there is no stored placement left
+  // for them to disagree with.
   const agenda = homeAgendaOf(input);
   const todayRow = agenda === null ? null : (agenda.agenda.days.find((day) => day.today) ?? null);
   const today = todayCardOf(todayRow, pool, phaseState, now);

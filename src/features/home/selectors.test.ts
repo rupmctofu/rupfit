@@ -24,6 +24,7 @@ import {
   estimateMinutes,
   hardSetCount,
   homeViewOf,
+  layoutOf,
   prescribedSets,
   sessionVolumeKg,
   startOfWeek,
@@ -32,7 +33,9 @@ import {
   confirmedSetCount,
   lastVolumeLineOf,
   type HomeInput,
+  type HomeView,
 } from './selectors';
+import { defaultLayoutOf } from '../week/agenda';
 
 /* ------------------------------------------------------------------ fixtures */
 
@@ -424,10 +427,29 @@ describe('homeViewOf', () => {
 
   describe('the week the rows read (T3, T4, T6)', () => {
     const LEAGUE_WEEK: WeekRecord = { ...NO_MATCH_WEEK, match: 'league' };
+    const CUP_WEEK: WeekRecord = { ...NO_MATCH_WEEK, match: 'cup' };
 
-    /** The owner's layout, written as the seven weekdays read. */
+    /** A saved placement, written as the seven weekdays read. */
     function layoutWith(days: readonly (string | null)[]): WeekLayout {
       return { slots: days.map((planDayId, weekday) => ({ weekday, planDayId })) };
+    }
+
+    /** A saved placement, saved under this fixture and different from its template. */
+    const SAVED_LAYOUT = layoutWith([
+      'seed-day-leg',
+      'seed-day-torso-a',
+      'seed-day-torso-b',
+      null,
+      'seed-day-fisico',
+      null,
+      null,
+    ]);
+
+    /** Every seeded day with the weekday it holds this week, so a wrong one names itself. */
+    function placedOf(view: HomeView): readonly string[] {
+      return (view.agenda?.agenda.planDays ?? []).map(
+        (entry) => `${entry.planDay.name}@${String(entry.weekday)}`,
+      );
     }
 
     it('T4 takes today from the week instead of the rotation (S5)', () => {
@@ -454,45 +476,57 @@ describe('homeViewOf', () => {
       expect(view.today?.dayName).toBe('PREPARACIÓN FÚTBOL');
     });
 
-    it('says today is rest when the owner moved the day away from today (S1, S4)', () => {
-      const moved = layoutWith([
-        'seed-day-leg',
-        'seed-day-torso-a',
-        null,
-        null,
-        'seed-day-torso-b',
-        'seed-day-fisico',
-        null,
-      ]);
+    it('says a saved placement under another fixture displaces nothing (S2)', () => {
+      // The league week has no saved layout; the cup week is handed the league's one, which
+      // puts TORSO A on the day the cup match takes. Read, it left the day without a
+      // weekday; derived, the four days still land Monday to Friday.
       const view = homeViewOf(
-        input({ recent: [], plan: SEED_PLAN, week: LEAGUE_WEEK, weekLayout: moved }),
+        input({ recent: [], plan: SEED_PLAN, week: CUP_WEEK, weekLayout: SAVED_LAYOUT }),
       );
 
-      // The verifier's blocker: the row said `Descanso` and the card named the mobility
-      // day with a way to start it. One week, one answer.
-      expect(view.agenda?.agenda.days[2]?.kind).toBe('rest');
-      expect(view.today).toBeNull();
-      expect(view.nothingToday).toBeNull();
-      expect(view.action).toBeNull();
+      expect(view.agenda?.agenda.days[1]?.kind).toBe('match');
+      expect(placedOf(view)).toEqual([
+        'PIERNA@3',
+        'TORSO A@2',
+        'TORSO B@4',
+        'PREPARACIÓN FÚTBOL@0',
+      ]);
+      expect(view.agenda?.agenda.planDays.filter((entry) => entry.weekday === null)).toEqual([]);
     });
 
-    it('names the day the owner placed on today (S3)', () => {
-      const changed = layoutWith([
-        'seed-day-leg',
-        'seed-day-torso-a',
-        'seed-day-leg',
-        null,
-        'seed-day-torso-b',
-        'seed-day-fisico',
-        null,
-      ]);
+    it('derives the week from the template even when the store holds a saved layout (S2)', () => {
       const view = homeViewOf(
-        input({ recent: [], plan: SEED_PLAN, week: LEAGUE_WEEK, weekLayout: changed }),
+        input({ recent: [], plan: SEED_PLAN, week: LEAGUE_WEEK, weekLayout: SAVED_LAYOUT }),
       );
 
-      expect(view.today?.dayName).toBe('PIERNA');
+      // The owner chose a week that is always derived: the template answers, and today is
+      // the day it places on Wednesday whatever the record says.
+      expect(placedOf(view)).toEqual([
+        'PIERNA@0',
+        'TORSO A@1',
+        'TORSO B@4',
+        'PREPARACIÓN FÚTBOL@2',
+      ]);
+      expect(view.today?.dayName).toBe('PREPARACIÓN FÚTBOL');
       expect(view.today?.state).toBe('preview');
       expect(view.action?.kind).toBe('start');
+    });
+
+    it('places the four days Monday to Friday in all three fixtures (S3)', () => {
+      const expected = [
+        ['league', ['PIERNA@0', 'TORSO A@1', 'TORSO B@4', 'PREPARACIÓN FÚTBOL@2']],
+        ['cup', ['PIERNA@3', 'TORSO A@2', 'TORSO B@4', 'PREPARACIÓN FÚTBOL@0']],
+        ['none', ['PIERNA@0', 'TORSO A@1', 'TORSO B@3', 'PREPARACIÓN FÚTBOL@2']],
+      ] as const;
+
+      for (const [match, placed] of expected) {
+        const view = homeViewOf(
+          input({ recent: [], plan: SEED_PLAN, week: { ...NO_MATCH_WEEK, match } }),
+        );
+        expect(placedOf(view), match).toEqual(placed);
+        // No plan day is left without a weekday, and none lands on the weekend.
+        expect(view.agenda?.agenda.planDays.every((entry) => entry.weekday !== null)).toBe(true);
+      }
     });
 
     it('does not let a legacy exchange in the week record bend the card (S4)', () => {
@@ -508,54 +542,35 @@ describe('homeViewOf', () => {
       expect(view.today?.dayName).toBe('PREPARACIÓN FÚTBOL');
     });
 
-    it('does not make a session of a moved-away day today’s card (S1, S4)', () => {
-      const moved = layoutWith([
-        'seed-day-leg',
-        null,
-        null,
-        null,
-        'seed-day-torso-b',
-        'seed-day-fisico',
-        null,
-      ]);
+    it('does not hand today’s card to a stored row of another plan day (S2)', () => {
       const stale = session({
         id: 'stale',
         status: 'scheduled',
         scheduledDate: NOW,
         startedAt: null,
         endedAt: null,
-        planDayId: 'seed-day-fisico',
+        planDayId: 'seed-day-leg',
       });
       const view = homeViewOf(
-        input({ recent: [stale], plan: SEED_PLAN, week: LEAGUE_WEEK, weekLayout: moved }),
+        input({ recent: [stale], plan: SEED_PLAN, week: LEAGUE_WEEK, weekLayout: SAVED_LAYOUT }),
       );
 
-      // Today carries nothing; the scheduled row still exists, but it is not the day.
-      expect(view.today).toBeNull();
-      expect(view.action).toBeNull();
+      // Wednesday carries the preparation day, so the legs stored for today are not the
+      // card: the week answers what the day is, and the row still holds its own session.
+      expect(view.today?.dayName).toBe('PREPARACIÓN FÚTBOL');
+      expect(view.today?.state).toBe('preview');
     });
 
     it('says when a day was trained when it was closed on another weekday (S6)', () => {
-      const moved = layoutWith([
-        'seed-day-torso-a',
-        'seed-day-torso-b',
-        'seed-day-leg',
-        null,
-        'seed-day-fisico',
-        null,
-        null,
-      ]);
       const closed = session({
         id: 'closed',
         status: 'completed',
         scheduledDate: MONDAY,
         endedAt: MONDAY,
-        planDayId: 'seed-day-leg',
+        planDayId: 'seed-day-fisico',
         exercises: WEDNESDAY_PREP.exercises,
       });
-      const view = homeViewOf(
-        input({ recent: [closed], plan: SEED_PLAN, week: LEAGUE_WEEK, weekLayout: moved }),
-      );
+      const view = homeViewOf(input({ recent: [closed], plan: SEED_PLAN, week: LEAGUE_WEEK }));
 
       expect(view.today?.state).toBe('done');
       expect(view.today?.done).toBe('Sesión completada el lunes · 0 de 5 series.');
@@ -569,6 +584,29 @@ describe('homeViewOf', () => {
         input({ now: THURSDAY, recent: [], plan: SEED_PLAN, week: LEAGUE_WEEK }),
       );
       expect(view.today).toBeNull();
+    });
+  });
+
+  describe('the layout the week draws (S2)', () => {
+    it('is the fixture’s template, whatever placement the store holds', () => {
+      const saved: WeekLayout = {
+        slots: ['seed-day-fisico', null, null, null, null, null, null].map(
+          (planDayId, weekday) => ({ weekday, planDayId }),
+        ),
+      };
+
+      // A placement saved under another fixture used to displace days. The layout is read
+      // from the fixture now, so the record changes nothing in either week.
+      expect(layoutOf(input({ plan: SEED_PLAN, week: NO_MATCH_WEEK, weekLayout: saved }))).toEqual(
+        defaultLayoutOf({ matchKind: 'none', plan: SEED_PLAN }),
+      );
+      expect(
+        layoutOf(input({ plan: SEED_PLAN, week: { ...NO_MATCH_WEEK, match: 'cup' }, weekLayout: saved })),
+      ).toEqual(defaultLayoutOf({ matchKind: 'cup', plan: SEED_PLAN }));
+      // And with no record at all the same template answers.
+      expect(layoutOf(input({ plan: SEED_PLAN, week: undefined }))).toEqual(
+        defaultLayoutOf({ matchKind: 'none', plan: SEED_PLAN }),
+      );
     });
   });
 

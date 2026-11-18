@@ -27,16 +27,11 @@ import type {
 import { createFakeStorage } from '../session/fake-port';
 import { HomeBody, currentWeekOf, matchReportedOf, saveWeekMatch } from './HomeScreen';
 import {
-  AGENDA_HINT,
   AgendaRow,
   AgendaWeek,
-  DaySheet,
   MatchSheet,
-  PLACEMENT_FAILED_COPY,
   agendaWeekViewOf,
-  placementOf,
   startRequestOf,
-  writePlacement,
 } from './agenda';
 import { defaultLayoutOf } from '../week/agenda';
 import { weekFixtureOf } from '../week/week';
@@ -172,7 +167,9 @@ function input(overrides: Partial<HomeInput> = {}): HomeInput {
   };
 }
 
-/** The screen's markup for a fixture, with the actions a phone would have. */
+/**
+ * The screen's markup for a fixture, with the actions a phone would have.
+ */
 function render(overrides: Partial<HomeInput> = {}): string {
   const fixture = input(overrides);
   const view = homeViewOf(fixture);
@@ -185,7 +182,6 @@ function render(overrides: Partial<HomeInput> = {}): string {
       onStart={() => undefined}
       onReportMatch={() => undefined}
       onChooseFixture={() => undefined}
-      onPlace={() => undefined}
     />,
   );
 }
@@ -208,29 +204,6 @@ function controlAround(markup: string, label: string): string {
   const end = markup.indexOf('</button>', at);
   if (start === -1 || end === -1) throw new Error(`${label} is not inside a button`);
   return markup.slice(start, end + '</button>'.length);
-}
-
-/**
- * A port holding only the owner's layout: the one write the agenda performs (T4).
- *
- * The session fake refuses `meta.saveWeekLayout` because the session screen never needs
- * it, so the write the drag makes gets its own small port here — the same shape
- * `weekPort` already has for the week record.
- */
-function layoutPort(failing = false): {
-  readonly port: StoragePort;
-  readonly writes: readonly WeekLayout[];
-} {
-  const writes: WeekLayout[] = [];
-  const port = {
-    meta: {
-      saveWeekLayout: async (layout: WeekLayout): Promise<void> => {
-        if (failing) throw new Error('denied');
-        writes.push(layout);
-      },
-    },
-  } as unknown as StoragePort;
-  return { port, writes };
 }
 
 /** A port holding only the week record: what `currentWeekOf` and `saveWeekMatch` use. */
@@ -641,16 +614,15 @@ describe('the football row writes through the port', () => {
  * T4 — the week agenda.
  *
  * The screen has no DOM environment (see the header), so what is pinned here is the
- * markup the seven rows draw and the two pure steps the gesture goes through: the
- * placement (`placementOf`, which refuses) and the write (`writePlacement`, which saves
- * the layout through `storage.meta.saveWeekLayout`). The pointer wiring itself is thin on
- * purpose: it only names the weekday under the finger and hands it to those two.
+ * markup the rows draw and the one seam a row's press goes through (`startRequestOf`).
+ * The week is derived from the fixture's template every time (S2, S3): nothing here drags
+ * a day, swaps two of them or writes a layout.
  * ------------------------------------------------------------------------- */
 
-/** The owner's league layout materialised: Monday legs … Friday TORSO B (L7). */
+/** The league template materialised: Monday legs … Friday TORSO B (L7). */
 const LEAGUE_LAYOUT: WeekLayout = defaultLayoutOf({ matchKind: 'league', plan: WEEK_PLAN });
 
-/** A cup week still carrying the league layout: the match takes TORSO A's Tuesday (S10). */
+/** A cup week: the match takes Tuesday, and the league layout has nothing to say about it. */
 const CUP_WEEK: WeekRecord = { ...LEAGUE_WEEK, match: 'cup' };
 
 /** A layout written as the seven weekdays read, so an expectation says what it means. */
@@ -689,30 +661,22 @@ describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10, S11)', () => {
     expect(rowOf(markup, 3)).toContain('Fijo');
     // S12: neither the count the meter drew nor the hint paragraph is on Inicio any more.
     expect(markup).not.toContain('entrenos hechos');
-    expect(markup).not.toContain(AGENDA_HINT);
+    expect(markup).not.toContain('Arrastra un renglón');
     // No plan, no week to date: the honest empty state keeps its place.
     expect(render({ plan: [] })).not.toContain('home-agenda__row');
   });
 
-  it('brings a weekend row back when the owner places a workout there (S11)', () => {
-    // A short list may never hide a training: the Saturday row returns with its workout.
-    const withSaturday = layoutWith([
-      'seed-day-leg',
-      'seed-day-torso-a',
-      'seed-day-fisico',
-      null,
-      null,
-      'seed-day-torso-b',
-      null,
-    ]);
-    const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK, weekLayout: withSaturday });
-
-    expect(rowOf(markup, 5).toLowerCase()).toContain('torso b');
-    // Sunday still carries nothing, so it stays out.
-    expect(markup).not.toContain('data-weekday="6"');
+  it('keeps the weekend out of the list in all three fixtures, because the template never places a day there (S3, S11)', () => {
+    // A short list may never hide a training: the four days are placed Monday to Friday in
+    // a league week, in a cup week and in a week with no match, so no row is hidden.
+    for (const week of [LEAGUE_WEEK, CUP_WEEK, { ...LEAGUE_WEEK, match: 'none' }] as const) {
+      const markup = render({ plan: WEEK_PLAN, week });
+      expect(markup, week.match).not.toContain('data-weekday="5"');
+      expect(markup, week.match).not.toContain('data-weekday="6"');
+    }
   });
 
-  it('says a done day is done with the check, and refuses a drop on it', async () => {
+  it('says a done day is done with the check, and draws no control that could move it', () => {
     const done = session({
       id: 'closed',
       status: 'completed',
@@ -729,275 +693,80 @@ describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10, S11)', () => {
     expect(monday).toContain('Hecho');
     expect(monday).toContain('home-agenda__row--done');
     expect(monday).toContain('home-agenda__mark--check');
+    // A row with nothing to offer is not a control, and it carries no placement handle.
     expect(monday).not.toContain('<button');
-
-    const { week } = agendaWeekOf({ plan: WEEK_PLAN, week: LEAGUE_WEEK, recent: [done] });
-    const onto = placementOf({
-      agenda: week.agenda,
-      layout: week.layout,
-      planDayId: 'seed-day-torso-b',
-      toWeekday: 0,
-    });
-    expect(onto.result).toEqual({ ok: false, reason: 'doneDay' });
-    expect(onto.notice).toBe('Un día hecho no se cambia.');
-
-    // S6: the closed day cannot leave either, from any end of the move.
-    const away = placementOf({
-      agenda: week.agenda,
-      layout: week.layout,
-      planDayId: 'seed-day-leg',
-      toWeekday: 5,
-    });
-    expect(away.result).toEqual({ ok: false, reason: 'doneDay' });
+    expect(monday).not.toContain('home-agenda__handle');
   });
 
-  it('puts the ball on the match day and refuses a drop there', () => {
+  it('puts the ball on the match day, and no handle on it', () => {
     const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
     const thursday = rowOf(markup, 3);
 
     // S9: the ball is the system's icon, and the word says the same thing.
     expect(thursday).toContain('home-agenda__mark--ball');
     expect(thursday).toContain('Fijo');
-    // S12: the match row is a control now — it opens the fixture sheet — but never a
-    // handle: the match does not move.
+    // S12: the match row stays a control — it opens the fixture sheet, which writes the
+    // week's fixture and never a layout — and the match itself does not move.
     expect(thursday).toContain('aria-haspopup="dialog"');
     expect(thursday).not.toContain('home-agenda__handle');
-
-    const { week } = agendaWeekOf({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
-    const drop = placementOf({
-      agenda: week.agenda,
-      layout: week.layout,
-      planDayId: 'seed-day-leg',
-      toWeekday: 3,
-    });
-    expect(drop.result).toEqual({ ok: false, reason: 'matchDay' });
-    expect(drop.notice).toBe('El día del partido no se mueve.');
   });
 
-  it('moves a workout to a free day and saves the layout', async () => {
-    const { week } = agendaWeekOf({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
-    const port = layoutPort();
+  it('draws no placement control and no displaced-days section (S4)', () => {
+    // A cup week carrying the league layout: the placement the old read honoured, and the
+    // exact case that produced the section the owner asked about.
+    const markup = render({ plan: WEEK_PLAN, week: CUP_WEEK, weekLayout: LEAGUE_LAYOUT });
 
-    const write = await writePlacement({
-      storage: port.port,
-      agenda: week.agenda,
-      layout: week.layout,
-      planDayId: 'seed-day-leg',
-      toWeekday: 5,
-    });
-
-    expect(write.outcome).toBe('saved');
-    expect(write.notice).toBeNull();
-    // S2: Saturday was free, so Monday goes without a day and Saturday gets the legs.
-    expect(port.writes).toEqual([
-      layoutWith([null, 'seed-day-torso-a', 'seed-day-fisico', null, 'seed-day-torso-b', 'seed-day-leg', null]),
-    ]);
-
-    // The week the screen re-reads is the one just saved, not the template.
-    const after = agendaWeekOf({ plan: WEEK_PLAN, week: LEAGUE_WEEK, weekLayout: port.writes[0] });
-    expect(after.week.agenda.days[5]?.planDay?.name).toBe('PIERNA');
-    expect(after.week.agenda.days[0]?.kind).toBe('rest');
+    // Nothing on the week writes a layout any more: no handle, no grip, no hint, no sheet.
+    expect(markup).not.toContain('home-agenda__handle');
+    expect(markup).not.toContain('home-agenda__grip');
+    expect(markup).not.toContain('Arrastra un renglón');
+    expect(markup).not.toContain('¿Qué entrenas el');
+    // A workout row asks nothing of the owner: it is not a control, and the only row that
+    // opens a dialog is the match, whose sheet writes the fixture and never a layout.
+    expect(rowOf(markup, 0)).not.toContain('<button');
+    expect(rowOf(markup, 2)).not.toContain('<button');
+    expect(rowOf(markup, 1)).toContain('aria-haspopup="dialog"');
+    // And the block that listed the days the match left without a date is gone with it.
+    expect(markup).not.toContain('Días que el partido dejó sin fecha');
+    expect(markup).not.toContain('Sin fecha');
+    expect(markup).not.toContain('home-agenda__unplaced');
   });
 
-  it('swaps the two workouts when the day already carries one', async () => {
-    const { week } = agendaWeekOf({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
-    const port = layoutPort();
+  it('places the four days by the template, whatever layout the store holds (S2, S3)', () => {
+    const markup = render({ plan: WEEK_PLAN, week: CUP_WEEK, weekLayout: LEAGUE_LAYOUT });
 
-    const write = await writePlacement({
-      storage: port.port,
-      agenda: week.agenda,
-      layout: week.layout,
-      planDayId: 'seed-day-leg',
-      toWeekday: 4,
-    });
+    expect(rowOf(markup, 1)).toContain('Partido · Copa');
+    // The league layout put TORSO A on Tuesday, under the cup match. Derived, it is on
+    // Wednesday and Thursday carries the legs: the four days are all beside the match.
+    expect(rowOf(markup, 0)).toContain('Movilidad y core');
+    expect(rowOf(markup, 2)).toContain('Torso A');
+    expect(rowOf(markup, 3)).toContain('Pierna');
+    expect(rowOf(markup, 3)).not.toContain('Descanso');
 
-    expect(write.outcome).toBe('saved');
-    // S3: the two days trade weekdays instead of one of them vanishing.
-    expect(port.writes).toEqual([
-      layoutWith([
-        'seed-day-torso-b',
-        'seed-day-torso-a',
-        'seed-day-fisico',
-        null,
-        'seed-day-leg',
-        null,
-        null,
-      ]),
-    ]);
-
-    // S4: the legs on Friday warn — and the move still happens, above.
-    expect(week.warningFor('seed-day-leg', 4)).toBe(
-      'Pierna el viernes cae el día después del partido. Se puede, pero la app prefiere las piernas lejos del partido.',
-    );
+    const { week } = agendaWeekOf({ plan: WEEK_PLAN, week: CUP_WEEK, weekLayout: LEAGUE_LAYOUT });
+    expect(week.agenda.planDays.every((entry) => entry.weekday !== null)).toBe(true);
   });
 
-  it('opens the day sheet with the four plan days, the current one marked, and saves the choice', async () => {
-    const { week } = agendaWeekOf({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
-    const markup = renderToStaticMarkup(
-      <DaySheet week={week} weekday={4} onConfirm={() => undefined} onClose={() => undefined} />,
-    );
-
-    expect(markup).toContain('role="dialog"');
-    expect(markup).toContain('aria-modal="true"');
-    expect(markup).toContain('¿Qué entrenas el viernes 10?');
-    // S12: the sentence about dragging lives in the sheet, where the change is made.
-    expect(markup).toContain(AGENDA_HINT);
-    // The one that is there already, and the one that would be exchanged.
-    expect(markup).toContain('Lo que toca');
-    expect(markup).toContain('Ya el lunes · se cambiaría de sitio');
-    // Friday already carries TORSO B, so the sheet does not offer to put it there again.
-    expect(markup).toContain('Ya es el entreno de ese día');
-    expect(markup).toContain('disabled=""');
-
-    // S4: choosing the legs on the day after the match warns before confirming, and the
-    // confirm is still there — the rule advises, it never blocks.
-    const warned = renderToStaticMarkup(
-      <DaySheet
-        week={week}
-        weekday={4}
-        initial="seed-day-leg"
-        onConfirm={() => undefined}
-        onClose={() => undefined}
-      />,
-    );
-    expect(warned).toContain('Pierna el viernes cae el día después del partido');
-    expect(warned).toContain('Poner Pierna el viernes');
-    expect(warned).not.toContain('disabled=""');
-
-    // The sheet and the drag are the same operation: one placement, one saved layout.
-    const port = layoutPort();
-    const write = await writePlacement({
-      storage: port.port,
-      agenda: week.agenda,
-      layout: week.layout,
-      planDayId: 'seed-day-fisico',
-      toWeekday: 4,
-    });
-    expect(write.outcome).toBe('saved');
-    expect(port.writes).toEqual([
-      layoutWith([
-        'seed-day-leg',
-        'seed-day-torso-a',
-        'seed-day-torso-b',
-        null,
-        'seed-day-fisico',
-        null,
-        null,
-      ]),
-    ]);
-  });
-
-  it('changes nothing when the placement is refused', async () => {
-    const { week } = agendaWeekOf({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
-    const port = layoutPort();
-
-    const write = await writePlacement({
-      storage: port.port,
-      agenda: week.agenda,
-      layout: week.layout,
-      planDayId: 'seed-day-leg',
-      toWeekday: 3,
-    });
-
-    // The same layout comes back by identity, and nothing was written.
-    expect(write).toEqual({
-      outcome: 'refused',
-      layout: week.layout,
-      notice: 'El día del partido no se mueve.',
-    });
-    expect(port.writes).toEqual([]);
-
-    // Dropping a row on its own day is not even worth a sentence.
-    const itself = placementOf({
-      agenda: week.agenda,
-      layout: week.layout,
-      planDayId: 'seed-day-leg',
-      toWeekday: 0,
-    });
-    expect(itself.result).toEqual({ ok: false, reason: 'sameDay' });
-    expect(itself.notice).toBeNull();
-  });
-
-  it('never names a day the owner moved away from today (S1, S4, S12)', () => {
+  it('names the day the template places when the store holds a layout that moved it (S2)', () => {
     const moved = layoutWith(['seed-day-leg', 'seed-day-torso-a', null, null, 'seed-day-torso-b', 'seed-day-fisico', null]);
     const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK, weekLayout: moved });
-    // Wednesday is the day after the move: the row says rest, and no second reading of
-    // "today" exists to contradict it any more (T9 took the card away).
-    expect(rowOf(markup, 2)).toContain('Descanso');
-    // The workout it used to carry is on Saturday, where the owner put it.
-    expect(rowOf(markup, 2)).not.toContain('Movilidad y core');
-    expect(rowOf(markup, 5)).toContain('Movilidad y core');
-    expect(markup).not.toContain('Empezar entrenamiento');
+
+    // The stored placement put the preparation on Saturday and left Wednesday empty. The
+    // week no longer reads it: Wednesday is the prep day, and today is placed.
+    expect(rowOf(markup, 2)).toContain('Movilidad y core');
+    expect(rowOf(markup, 2)).toContain('Hoy');
+    expect(rowOf(markup, 2)).not.toContain('Descanso');
+    expect(markup).not.toContain('data-weekday="5"');
+    expect(markup).toContain('Empezar entrenamiento');
   });
 
-  it('names what the day carries when the owner changes it (S3)', () => {
-    const changed = layoutWith(['seed-day-leg', 'seed-day-torso-a', 'seed-day-leg', null, 'seed-day-torso-b', 'seed-day-fisico', null]);
-    const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK, weekLayout: changed });
-    expect(rowOf(markup, 2)).toContain('Pierna');
-    // The row is the only place today is named: the mobility day is on Saturday in this
-    // layout, and nothing says it is Wednesday's.
-    expect(rowOf(markup, 5)).toContain('Movilidad y core');
-    expect(rowOf(markup, 2)).not.toContain('Movilidad y core');
-  });
-
-  it('refuses the sheet\'s confirm on a closed day without writing (S6)', async () => {
-    const closed = session({ id: 'closed', status: 'completed', planDayId: 'seed-day-leg',
-      dayNameSnapshot: 'PIERNA', scheduledDate: MONDAY });
-    const { week } = agendaWeekOf({ plan: WEEK_PLAN, week: LEAGUE_WEEK, recent: [closed] });
-    const port = layoutPort();
-    const onto = await writePlacement({ storage: port.port, agenda: week.agenda, layout: week.layout,
-      planDayId: 'seed-day-torso-a', toWeekday: 0 });
-    expect(onto).toEqual({ outcome: 'refused', layout: week.layout, notice: 'Un día hecho no se cambia.' });
-    const away = await writePlacement({ storage: port.port, agenda: week.agenda, layout: week.layout,
-      planDayId: 'seed-day-leg', toWeekday: 5 });
-    expect(away.outcome).toBe('refused');
-    expect(port.writes).toEqual([]);
-  });
-
-  it('starts exactly the day the owner put on today (T5, T6)', () => {
-    const changed = layoutWith(['seed-day-leg', 'seed-day-torso-a', 'seed-day-leg', null, 'seed-day-torso-b', 'seed-day-fisico', null]);
-    const { week } = agendaWeekOf({ plan: WEEK_PLAN, week: LEAGUE_WEEK, weekLayout: changed });
+  it('starts exactly the day the template puts on today (T5, T6)', () => {
+    const { week } = agendaWeekOf({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
     const today = week.agenda.days.find((day) => day.today) ?? null;
 
     // The row carries the one filled action and hands `start.start` the day it names.
     expect(week.action).toEqual({ kind: 'start', label: 'Empezar' });
-    expect(startRequestOf(today)).toBe('seed-day-leg');
-  });
-
-  it('shows the plan day the match displaced, and the sheet can place it', async () => {
-    const { week } = agendaWeekOf({ plan: WEEK_PLAN, week: CUP_WEEK, weekLayout: LEAGUE_LAYOUT });
-
-    // S10: the cup match lands on Tuesday, so TORSO A keeps no weekday at all.
-    expect(
-      week.agenda.planDays.find((entry) => entry.planDay.id === 'seed-day-torso-a')?.weekday,
-    ).toBeNull();
-
-    const markup = render({ plan: WEEK_PLAN, week: CUP_WEEK, weekLayout: LEAGUE_LAYOUT });
-    expect(rowOf(markup, 1)).toContain('Partido · Copa');
-    expect(rowOf(markup, 3)).toContain('Descanso');
-    // home-feedback S2: the block is about the days the match left without a date, and its
-    // words must not read as "exercises without a day".
-    expect(markup).toContain('Días que el partido dejó sin fecha');
-    expect(markup).toContain('Sin fecha');
-    expect(markup).not.toContain('Sin día esta semana');
-    expect(markup).toContain('Torso A');
-
-    // It is one of the four of the sheet, and the sheet says it has no day yet.
-    const sheet = renderToStaticMarkup(
-      <DaySheet week={week} weekday={4} onConfirm={() => undefined} onClose={() => undefined} />,
-    );
-    expect(sheet).toContain('Sin día esta semana · se colocaría aquí');
-
-    const port = layoutPort();
-    const write = await writePlacement({
-      storage: port.port,
-      agenda: week.agenda,
-      layout: week.layout,
-      planDayId: 'seed-day-torso-a',
-      toWeekday: 5,
-    });
-    expect(write.outcome).toBe('saved');
-    expect(port.writes).toHaveLength(1);
+    expect(startRequestOf(today)).toBe('seed-day-fisico');
   });
 
   it('carries the action of today into the card, as the one filled action', () => {
@@ -1019,41 +788,21 @@ describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10, S11)', () => {
     expect(view.today?.dayName).toBe('MOVILIDAD Y CORE');
   });
 
-  it('keeps the previous week and offers one retry when the save fails', async () => {
-    const { week } = agendaWeekOf({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
-
-    const write = await writePlacement({
-      storage: layoutPort(true).port,
-      agenda: week.agenda,
-      layout: week.layout,
-      planDayId: 'seed-day-leg',
-      toWeekday: 5,
-    });
-
-    expect(write).toEqual({ outcome: 'failed', layout: week.layout, notice: PLACEMENT_FAILED_COPY });
-
-    const markup = renderToStaticMarkup(
-      <AgendaWeek
-        week={week}
-        placementNotice={PLACEMENT_FAILED_COPY}
-        onRetryPlacement={() => undefined}
-      />,
-    );
-    expect(markup).toContain(PLACEMENT_FAILED_COPY);
-    expect(markup).toContain('Reintentar el cambio');
-  });
-
-  it('locks the days that refuse the row while it is in the air', () => {
+  it('keeps the match row a control and the rows plain text, with no lock state left over (S4)', () => {
     const { week } = agendaWeekOf({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
     const match = week.agenda.days[3];
     if (match === undefined) throw new Error('the week has no Thursday');
 
-    const markup = renderToStaticMarkup(<AgendaRow day={match} matchKind="league" refusing />);
+    const markup = renderToStaticMarkup(
+      <AgendaRow day={match} matchKind="league" onOpenFixture={() => undefined} />,
+    );
 
-    // The artboard's drag state: the lock and the word carry the refusal, not the colour.
-    expect(markup).toContain('home-agenda__lock');
-    expect(markup).toContain('Cerrado');
+    // The match row opens the fixture sheet; the lock and `Cerrado` belonged to a drag
+    // that could be refused, and there is no drag left to refuse it.
     expect(markup).toContain('home-agenda__mark--ball');
+    expect(markup).toContain('aria-haspopup="dialog"');
+    expect(markup).not.toContain('home-agenda__lock');
+    expect(markup).not.toContain('Cerrado');
   });
 
   it('leaves the week meter and the old swap sheet behind, and keeps the rest of Inicio', () => {
@@ -1197,7 +946,7 @@ describe('Inicio is the week and very little else (T9, S12)', () => {
     expect(markup).not.toContain('home__hero');
     expect(markup).not.toContain('home-agenda__count');
     expect(markup).not.toContain('entrenos hechos');
-    expect(markup).not.toContain(AGENDA_HINT);
+    expect(markup).not.toContain('Arrastra un renglón');
     // The day is still named, by the row that is now the only thing holding it.
     expect(rowOf(markup, 2)).toContain('Movilidad y core');
     expect(rowOf(markup, 2)).toContain('Hoy');
@@ -1362,18 +1111,9 @@ describe('the redesign composition (T5)', () => {
         },
       ],
     };
-    // Today is the fifth day of the week, so the layout puts the legs on it: the card reads
-    // the week the owner actually has, not the template.
-    const markup = render({
-      plan: [legDay],
-      week: LEAGUE_WEEK,
-      weekLayout: {
-        slots: [null, null, 'seed-day-leg', null, null, null, null].map((planDayId, weekday) => ({
-          weekday,
-          planDayId,
-        })),
-      },
-    });
+    // Monday is the day the league template gives the legs, so it is the day the card
+    // names: the artboard reads the week the app derives, not a stored placement.
+    const markup = render({ now: MONDAY, plan: [legDay], week: LEAGUE_WEEK });
 
     expect(markup).toContain('Pierna');
     expect(markup).toContain('art/squat-back.webp');
@@ -1573,8 +1313,7 @@ describe('the match row offers to train (T2, T4)', () => {
     expect(thursday).not.toContain('home-agenda__row--done');
   });
 
-  it('moves nothing when it starts: same match weekday, same four weekdays, no layout write (S5)', async () => {
-    const port = layoutPort();
+  it('moves nothing when it starts: same match weekday, same four weekdays, no layout write (S5)', () => {
     const { week } = agendaWeekOf({ now: THURSDAY, plan: WEEK_PLAN, week: LEAGUE_WEEK });
     const match = week.agenda.days[MATCH_WEEKDAY];
     if (match === undefined) throw new Error('the week has no Thursday');
@@ -1618,22 +1357,8 @@ describe('the match row offers to train (T2, T4)', () => {
     expect(
       after.week.agenda.planDays.map((entry) => `${entry.planDay.id}@${String(entry.weekday)}`),
     ).toEqual(weekdaysBefore);
-    expect(after.week.layout).toEqual(week.layout);
-
-    // And the lock that keeps the match in place still answers: nothing lands on it, and
-    // no `WeekLayout` is written by any of it.
-    const refused = await writePlacement({
-      storage: port.port,
-      agenda: week.agenda,
-      layout: week.layout,
-      planDayId: 'seed-day-leg',
-      toWeekday: MATCH_WEEKDAY,
-    });
-    expect(refused).toEqual({
-      outcome: 'refused',
-      layout: week.layout,
-      notice: 'El día del partido no se mueve.',
-    });
-    expect(port.writes).toEqual([]);
+    // The week is still the template of its fixture: nothing about a start redraws it, and
+    // no `WeekLayout` is written by any of it — the week holds no write path at all (S4).
+    expect(after.view.agenda?.layout).toEqual(LEAGUE_LAYOUT);
   });
 });

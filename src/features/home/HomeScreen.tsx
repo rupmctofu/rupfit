@@ -52,9 +52,7 @@ import { summaryHash } from '../summary/route';
 import { reportedMatchOf, weekFixtureOf, type WeekFixture } from '../week/week';
 import {
   AgendaWeek,
-  PLACEMENT_FAILED_COPY,
   agendaWeekViewOf,
-  writePlacement,
   type AgendaWeekView,
 } from './agenda';
 import { DemoHome } from './DemoHome';
@@ -116,9 +114,11 @@ async function readHome(
   // reload — the exact hole this fixes. A failed write answers `undefined` and the
   // rotation keeps naming the day (S5).
   const week = await currentWeekOf(storage, now);
-  // T4 — the owner's fixed layout, read next to the other reads. A store that cannot
-  // answer it (no record yet, a read the tier refuses) leaves the week on the template:
-  // the layout is the owner's decision, never a condition for the screen to open.
+  // T4 — a stored placement, read next to the other reads and **never consulted** (S2).
+  // The week is derived from the fixture's template every time, so what this record holds
+  // cannot displace a day. It is still read so the store keeps what it holds and the read
+  // path can be pinned against a stale placement (S5 deletes nothing); the week stops
+  // honouring it, and nothing here writes one.
   const weekLayout = await readWeekLayoutOf(storage);
   const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
   const measurements = await storage.measurements.between(weekAgo, now);
@@ -203,11 +203,13 @@ export async function currentWeekOf(
 }
 
 /**
- * T4 (S4, S5) — the owner's fixed week layout, or `undefined` while the template rules.
+ * T4 (S2, S5) — the stored week layout, read and never consulted.
  *
- * A read that fails is the same answer as no record: the template materialises the week,
- * which is exactly what a fresh install shows, and the screen is never held hostage by a
- * meta row it could live without.
+ * The week no longer remembers a placement: `layoutOf` derives the fixture's template, so
+ * this value decides nothing. The read stays because the unit that stops reading the meta
+ * row is the one that announces removing it, with its migration — not this behaviour
+ * change, which deletes nothing from the store. A read that fails answers `undefined` and
+ * is just as uninteresting as one that succeeds.
  */
 async function readWeekLayoutOf(storage: StoragePort): Promise<WeekLayout | undefined> {
   try {
@@ -268,15 +270,10 @@ export interface HomeProps {
   readonly starting?: boolean | undefined;
   readonly startNotice?: StartNotice | null | undefined;
   /**
-   * T4 — the week, as seven dated rows over the effective layout. Absent (an empty plan,
+   * T4 — the week, as seven dated rows over the fixture's template. Absent (an empty plan,
    * the gallery): Inicio draws no agenda and keeps its honest empty states.
    */
   readonly agendaWeek?: AgendaWeekView | null | undefined;
-  /** Writes the placement the drag or the sheet made. Absent: nothing is saved. */
-  readonly onPlace?: ((planDayId: string, weekday: number) => void) | undefined;
-  /** The sentence of a write that failed; the week on screen is still the previous one. */
-  readonly placementNotice?: string | null | undefined;
-  readonly onRetryPlacement?: (() => void) | undefined;
   /** T8 — the match of this week has already been reported: the row is done (S1). */
   readonly matchReported?: boolean | undefined;
   /**
@@ -576,9 +573,6 @@ export function HomeBody({
   onReportMatch,
   reporting = false,
   reportNotice = null,
-  onPlace,
-  placementNotice = null,
-  onRetryPlacement,
   onChooseFixture,
 }: HomeProps): React.ReactElement {
   const navigate = onNavigate;
@@ -696,16 +690,13 @@ export function HomeBody({
       )}
 
       {/* T4, S12: the week, seven rows. The match row carries the fixture of the week and
-          its report; the day sheet carries the hint the list gave up. The rows keep every
-          gesture they had — the tap, the drag, the fixture sheet — and lose only the
-          action, which the card above now carries. */}
+          its report. The week is derived from the fixture's template (S2), so the rows keep
+          no gesture that would write a layout (S4): they read, and the card above carries
+          the one action. */}
       {agendaWeek === null ? null : (
         <AgendaWeek
           week={agendaWeek}
           onSheetChange={setSheetOpen}
-          {...(onPlace === undefined ? {} : { onPlace })}
-          placementNotice={placementNotice}
-          {...(onRetryPlacement === undefined ? {} : { onRetryPlacement })}
           fixture={fixture}
           matchReported={matchReported}
           {...(onChooseFixture === undefined ? {} : { onChooseFixture })}
@@ -758,12 +749,6 @@ export function HomeScreenWithPort({
 }: HomeScreenWithPortProps): React.ReactElement {
   const [boot, setBoot] = useState<Boot>({ phase: 'loading', input: null });
   const [attempt, setAttempt] = useState(0);
-  // T4: the placement that did not reach the store, so the one retry can repeat it. The
-  // notice travels with it: the sentence stays on screen while the week does not change.
-  const [placement, setPlacement] = useState<{
-    readonly failed: { readonly planDayId: string; readonly weekday: number } | null;
-    readonly notice: string | null;
-  }>({ failed: null, notice: null });
   const start = useStartSession({ storage, clock, onNavigate });
 
   // One counter serves the retry, the re-read after a write and the re-read after a
@@ -775,8 +760,8 @@ export function HomeScreenWithPort({
   // the done state instead of offering it again. Since T9 it is drawn on the match row.
   const report = useFootballCapture({ storage, clock, onSaved: refresh, match: true });
   // T3/S7, S12: the fixture is a fact of the week, so the sheet's choice writes the record
-  // and the screen re-reads — the same shape the agenda's placement has. A write that did
-  // not happen re-reads nothing, so the week never shows half a cup week.
+  // and the screen re-reads. A write that did not happen re-reads nothing, so the week never
+  // shows half a cup week.
   const chooseFixture = useCallback(
     (match: MatchKind) => {
       void saveWeekMatch(storage, clock.now(), match).then(
@@ -820,107 +805,23 @@ export function HomeScreenWithPort({
     );
   }
 
-  return (
-    <HomeScreenBody
-      input={boot.input}
-      storage={storage}
-      onStart={start.start}
-      starting={start.busy}
-      startNotice={start.notice}
-      report={report}
-      chooseFixture={chooseFixture}
-      placement={placement}
-      onPlacement={setPlacement}
-      refresh={refresh}
-      {...(onNavigate === undefined ? {} : { onNavigate })}
-    />
-  );
-}
-
-/**
- * The screen once there is something to draw: the view, the agenda and the two writes
- * that need the layout the render just built.
- *
- * It is a second component because a hook cannot capture a value computed after the
- * early return above: the agenda is derived here, and `place` closes over it.
- */
-function HomeScreenBody({
-  input,
-  storage,
-  onStart,
-  starting,
-  startNotice,
-  report,
-  chooseFixture,
-  placement,
-  onPlacement,
-  refresh,
-  onNavigate,
-}: {
-  readonly input: HomeInput;
-  readonly storage: StoragePort;
-  readonly onStart: (planDayId?: string | null) => void;
-  readonly starting: boolean;
-  readonly startNotice: StartNotice | null;
-  readonly report: ReturnType<typeof useFootballCapture>;
-  readonly chooseFixture: (match: MatchKind) => void;
-  readonly placement: {
-    readonly failed: { readonly planDayId: string; readonly weekday: number } | null;
-    readonly notice: string | null;
-  };
-  readonly onPlacement: (next: {
-    readonly failed: { readonly planDayId: string; readonly weekday: number } | null;
-    readonly notice: string | null;
-  }) => void;
-  readonly refresh: () => void;
-  readonly onNavigate?: ((href: string) => void) | undefined;
-}): React.ReactElement {
-  const view = homeViewOf(input);
-  const agendaWeek = agendaWeekViewOf(input, view);
-
-  const place = (planDayId: string, weekday: number): void => {
-    if (agendaWeek === null) return;
-    const request = {
-      storage,
-      agenda: agendaWeek.agenda,
-      layout: agendaWeek.layout,
-      planDayId,
-      toWeekday: weekday,
-    };
-    void writePlacement(request).then(
-      (written) => {
-        if (written.outcome === 'saved') {
-          onPlacement({ failed: null, notice: null });
-          refresh();
-          return;
-        }
-        if (written.outcome === 'failed') {
-          onPlacement({ failed: { planDayId, weekday }, notice: written.notice });
-        }
-      },
-      () => onPlacement({ failed: { planDayId, weekday }, notice: PLACEMENT_FAILED_COPY }),
-    );
-  };
-
-  const failed = placement.failed;
+  // The week is derived from the same view the body draws (T4, T6): one answer for the rows
+  // and for the card above them. Nothing here needs a second pass over the input, so the
+  // body is drawn from this render — the placement closure that needed one is gone (S4).
+  const view = homeViewOf(boot.input);
 
   return (
     <HomeBody
       view={view}
-      agendaWeek={agendaWeek}
-      matchReported={matchReportedOf(input)}
-      fixture={weekFixtureOf(input.week)}
-      onStart={onStart}
-      starting={starting}
-      startNotice={startNotice}
+      agendaWeek={agendaWeekViewOf(boot.input, view)}
+      matchReported={matchReportedOf(boot.input)}
+      fixture={weekFixtureOf(boot.input.week)}
+      onStart={start.start}
+      starting={start.busy}
+      startNotice={start.notice}
       onReportMatch={report.save}
       reporting={report.busy}
       reportNotice={report.notice}
-      onPlace={place}
-      placementNotice={placement.notice}
-      onRetryPlacement={
-        failed === null ? undefined : () => place(failed.planDayId, failed.weekday)
-      }
       onChooseFixture={chooseFixture}
       {...(onNavigate === undefined ? {} : { onNavigate })}
     />
