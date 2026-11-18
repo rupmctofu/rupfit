@@ -42,13 +42,13 @@ Specs are the contract; the Log is the record. Subagents read until `## Log`.
 
 | ID | Spec | Route | Commit |
 | --- | --- | --- | --- |
-| T1 | S1-S8 | inline | pending: pin the four days the owner asked for (RED) |
-| T2 | S2-S8 | inline | pending: rewrite the seed day table and its names |
-| T3 | S2, S11, S12 | inline | pending: bridge the retired names into the engine's roles |
-| T4 | S3, S9, S10 | inline | pending: teach the launch refresh the shapes of the release before |
-| T5 | S2-S7 | inline | pending: move the demo plan and the suite to the new days |
-| T6 | S1-S12 | inline | pending: bring the docs and the design notes up to date |
-| T7 | S1-S12 | inline | pending: run the suite and the focused checks |
+| T1 | S1-S8 | inline | d080819: `tests/training-program.test.ts` pins the four days, RED first |
+| T2 | S2-S8 | inline | d080819: `src/core/seed/plan.ts` |
+| T3 | S2, S11, S12 | inline | d080819: `src/features/week/week.ts` plus the bridge test |
+| T4 | S3, S9, S10 | inline | d080819: `src/features/onboarding/plan-refresh.ts` plus two tests |
+| T5 | S2-S7 | inline | d080819: `src/features/home/demo.tsx` and the suite |
+| T6 | S1-S12 | inline | d080819: `docs/product-requirements.md`, `odd/tasks/five-day-plan.md` |
+| T7 | S1-S12 | inline | d080819: 1220 tests, typecheck and build see L8 |
 
 ## Log
 
@@ -84,3 +84,20 @@ Specs are the contract; the Log is the record. Subagents read until `## Log`.
 - **L7.** `WEEK_TEMPLATES` is role-based, and `week-plan.ts:223` protects `role: 'leg'` from the
   day after the match while knowing nothing about a deadlift on `upper-b`. With S12 that gap is
   accepted, not fixed.
+- **L8.** Implemented in `d080819` on `feature/pwa-platform`: the four seed days renamed and
+  redistributed, the role bridge (`ROLE_NAMES` plus the three retired names in
+  `PREVIOUS_ROLE_NAMES`), six entries in `REPLACED_SEED_DAYS` covering the two previous
+  generations of the three strength days, the walk append re-pointed to the new tail positions,
+  the demo plan, FR-3.1 and FR-3.2, and two tests that did not exist: the migration of a
+  previous-release store, and `weekDaysOf(seedPlanDays())`. Checks: 1220 tests (79 files),
+  `tsc` in both projects, `build` — all clean. `src/core/seed/plan.ts`'s `fisico` entry is
+  identical to the one in `d080819^`, and `week-plan.ts` is not in the commit.
+- **L9.** The independent verifier was not admitted (the launch was refused for lacking the
+  `Risk: item N` declaration in its own text, and the instruction was not to retry), so the
+  checks are inline and not independent. Found while doing them, and recorded rather than
+  fixed: `stillTheShape` compares name, item count and exercise order, so a day whose owner
+  changed only sets, reps or rest — without renaming, adding, removing or reordering an
+  exercise — is still "the shape the previous release wrote" and gets rewritten. What is lost
+  is those numbers; logged weights and session history are not in the plan and are untouched.
+  Tightening the test would stop the rename reaching any device that ever tweaked a
+  prescription, which defeats the release, so the cost is accepted and named here.
