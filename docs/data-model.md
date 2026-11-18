@@ -293,14 +293,18 @@ it is derived — the seven days are stamped from that record by `weekPlan`
 (`src/core/engine/week-plan.ts`), so a stored swap survives a reload and a record of
 another week says nothing about today. It lives on this device only (§5.1, §9).
 
-**`WeekLayout` is a decision, and it travels.** It holds the seven weekdays and, for each
-one, which of the plan days the owner put there — no dates, because it is the same
-assignment every week (S5). It is the owner's answer, not the app's: the fixture still
-decides which days have a match and which are rest (S4, S10), so the layout never
-overrides the match day, and `planDayId: null` on a weekday is a legitimate answer rather
-than a missing value. Unlike `WeekRecord`, it is exported with the backup document and
-mirrored to the account (§9, `docs/cloud-sync.md` §1): it has to survive a lost phone
-exactly like the profile does.
+**`WeekLayout` is still stored and synced, and no longer decides anything.** It holds the
+seven weekdays and, for each one, which of the plan days the owner put there — no dates,
+because it is the same assignment every week (S5). The record keeps its whole
+place in the pipeline: `MetaRepository.saveWeekLayout` still writes it with `writeStamped`,
+still queues its `week_layout` op and is still applied when a synced one arrives, so it
+travels with the backup document and the account exactly like the profile (§9,
+`docs/cloud-sync.md` §1). It is read on the way to `Inicio` and **never consulted**: the
+week is derived from this week's fixture template on every read
+(`src/features/home/selectors.ts`), so a placement saved under another fixture cannot
+displace a day and no plan day can be left without a weekday. Deleting the record from the
+schema, and its `week_layout` table from the cloud, is a separate unit that must announce
+its own migration.
 
 `MatchKind`, `WeekSwap` and `DayOffset` are core value types — they belong to the week
 planner, which decides the layout — and the entity that stores them is storage-facing
@@ -407,10 +411,12 @@ free:
   in `src/storage/repositories/profile.ts` — so it carries `rev`/`updatedAt` and queues
   its `week_layout` op inside the same transaction, exactly like the profile and the phase
   state, and it is read back through `readWeekLayout`. Two consequences follow and both
-  are intended: the record is in the backup document (§9) and in the account
-  (`docs/cloud-sync.md` §1). Absence is a legitimate answer — `readWeekLayout` answers
-  `undefined` while the week is still the fixture's, and the app falls back to the
-  template the engine stamps (`src/core/engine/week-plan.ts`).
+  are intended: the record is still in the backup document (§9) and in the account
+  (`docs/cloud-sync.md` §1). Nothing derives from it, though: the week is this week's
+  fixture template on every read (`src/features/home/selectors.ts`), so `undefined` and a
+  stored placement answer the same week, and no plan day can be left without a weekday.
+  Deleting the row — and the `week_layout` table it syncs to — is a separate unit that must
+  announce its migration.
 
 ### 5.2 Records are flat, and the mappers are the boundary
 

@@ -142,9 +142,14 @@ Consequences the requirements below depend on:
   layouts as they were when the third day stopped being an upper-body day, with the cost in
   front of him (`odd/tasks/three-lift-plan.md` S12). The layouts are a table
   (`WEEK_TEMPLATES` in `src/core/engine/week-plan.ts`), not the result of rules derived from
-  priorities: changing a day means editing the table. `PlanDay` still stores no weekday —
-  the weekday comes from the template and the Monday of the week — so a layout change moves
-  a session without rewriting a stored day.
+  priorities: changing a day means editing the table, and the app honours it. `PlanDay`
+  still stores no weekday — the weekday comes from the template and the Monday of the week —
+  and the week is derived from this week's fixture template **on every read**, so no plan day
+  can be left without a weekday: the four days and the match always land Monday to Friday. A
+  `WeekLayout` is still written and synced by the store, but it is never consulted, so a
+  placement saved under another fixture cannot displace a day; deleting it from the schema
+  and from the cloud is a separate unit that must announce its own migration
+  (`odd/tasks/derived-week.md` S2, S5, S8).
 - **FR-3.2 MUST** ship these accessories per day, editable and reorderable, each with its
   own prescription profile (`progression-engine.md §8`):
   *Sentadilla / Pierna* — prensa (hypertrophy), curl femoral sentado (accessory), nordic curl
