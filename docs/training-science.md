@@ -170,6 +170,15 @@ Each week is a *block* repeated across the three sessions. Sets are per exercise
 | W4 | 4 × 8 @ 2 | 3 × 10 @ 2 | 12–14 | gate passes → normal phase |
 | Hold | repeat the last passed block | repeat | unchanged | cap or owner review |
 
+> **This is not what the app prescribes.** The table above is this document's evidence-based
+> ladder. The owner replaced it with a fixed prescription: three sets of eight at 1 RIR in
+> every block, no ladder, no `8-10` range, the squat no longer an exception
+> (`odd/tasks/prescription-3x8.md` S2-S5). So the numbers `BLOCK_TABLE` ships are not these,
+> and `docs/progression-engine.md` says so in its status paragraph. What still holds here is
+> the reasoning behind the ladder's shape — volume rising across blocks and proximity to
+> failure tightening. The owner chose to hold both constant and raise load instead, which is
+> a decision about his training, not a claim about the science.
+
 **Load per block:** W1 establishes a working weight by conservative estimate
 (`docs/progression-engine.md` §5) and never adds load inside the block. From W2
 on, the load increases by one increment only if the previous block's gate passed.

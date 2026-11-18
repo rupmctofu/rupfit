@@ -175,10 +175,13 @@ function AppShell(): React.ReactElement {
 
   // A release can also add a whole day to the programme (L11's `FÍSICO`), and a device
   // seeded before it would keep three gym days: the first-run flow never runs again there
-  // by design. This is the same launch refresh for days, with the same narrowness — the
-  // seeded days that are *missing* are written, an existing day is never passed to
-  // `plan.save` (it would replace the owner's items), nothing is deleted, and a current
-  // store costs one read and no write.
+  // by design. This is the same launch refresh for days, with the same narrowness — a day
+  // the store lacks is written, a day still exactly in the shape an earlier release wrote
+  // is rewritten in place under its own id, a day that gained a row gets that row appended,
+  // and a seeded item still carrying an earlier release's prescription is brought up to
+  // date (`odd/tasks/prescription-3x8.md`). A day or a row the owner touched is never
+  // passed to `plan.save`, because that would replace their items; nothing is deleted; and
+  // a current store costs one read and no write.
   useEffect(() => {
     void refreshSeededPlanDays(storage).catch(() => {
       // A missing day is not the session and not the profile: the app opens with the days
