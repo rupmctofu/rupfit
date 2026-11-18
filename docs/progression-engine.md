@@ -320,7 +320,9 @@ unmet criteria for the reason line. `now` is injected so the two weekly windows 
 deterministic — the engine still owns no clock.
 
 Block prescriptions (from `training-science.md` §6), **four repetition profiles since
-1.1.0**, plus the `conditioning` column 1.2.0 added:
+1.1.0**, plus the `conditioning` column 1.2.0 added. The table is §6's, printed as it
+stands: the rows `BLOCK_TABLE` holds today for the first three columns are not these, and
+*Status of the numbers above* at the end of this section says what they are.
 
 | Block | `strength` | `hypertrophy` | `accessory` | `preventive` |
 | --- | --- | --- | --- | --- |
@@ -351,14 +353,24 @@ while a `strength` lift needs three sets of eight in the same block
 (`tests/readaptation.test.ts`).
 
 **Status of the numbers above.** They are `training-science.md` §6's, and `BLOCK_TABLE`
-no longer holds them for three of the four repetition columns: `strength`,
-`hypertrophy` and `accessory` prescribe 3–4 × 8–10 at 0 RIR in every block (3, 3, 4 and
-4 sets; `accessory` 2, 3, 3 and 3), the owner's own decision in
-`odd/tasks/five-day-plan.md` S6 and S7. The columns are stale in their numbers, not in
-their meaning, and nothing in §8's gate or in §7's order depends on which numbers they
-hold. Correcting this table and carrying the squat's 1 RIR exception into the engine
-belong to `odd/tasks/five-day-plan.md` T7, which is open; `preventive` is the one
-column that still reads as printed here.
+no longer holds them for three of the four repetition columns. `odd/tasks/prescription-3x8.md`
+S2-S4 — the owner's own decision, asked and corrected before any code changed — gives
+`strength`, `hypertrophy` and `accessory` one prescription in every block: **three sets of
+eight repetitions at 1 RIR**. There is no ladder left to walk: no block raises the sets from
+three, no block widens `8–8`, and the RIR does not walk down, because what the owner asked
+for is the same prescription in every block. The only number that still changes between
+blocks is the load, one increment after `.pass`. The consequence is recorded rather than
+hidden (S8 of the same document): the three columns carry numerically identical rows, so
+they can no longer prescribe different volume — the role still travels on the prescription
+and still decides the rest interval (§7) and rule 6's increment. `preventive` (two sets far
+from failure) and `conditioning` (one repetition of work, prescribed by time) did not move
+in the same decision and are the two columns that still have a shape of their own.
+
+Until S5 the squat carried a 1 RIR override in `seed/plan.ts`, because the `strength` column
+said 0 RIR and the owner had asked for one rep in reserve on the squat alone. With the
+column itself at 1 RIR the override said nothing, so it is gone and the squat reads the
+column like every other exercise; the comment left at the seed's prescription builder says
+why, so that it is not reintroduced without a column that means something else.
 
 Gate (all four must hold across two consecutive weeks):
 

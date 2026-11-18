@@ -40,6 +40,11 @@ S6. Las series de fuerza son de **8–10 repeticiones intentando llegar al fallo
 (`targetRIR = 0`), con una excepción: **sentadilla a 1 RIR**. Decisión del dueño, tomada
 sabiendo que desactiva la autoregulación de RIR del motor.
 
+> Revocado en parte: `odd/tasks/prescription-3x8.md` S2-S5 fija **3 series × 8 repeticiones
+> fijas × RIR 1** en los cuatro bloques, sin escalera de series. La sentadilla deja de ser
+> excepción porque la columna ya dice 1 RIR. Lo que esta especificación defiende —series
+> llevadas cerca del fallo, la décima repetición como objetivo— se mantiene.
+
 S8. **El fallo temprano se tiene que poder anotar.** El objetivo es que la décima
 repetición sea la última posible; si el dueño falla en la sexta, la app debe dejar
 registrarlo, no solo marcar «completado». `setAtFailure` **sigue siendo criterio** de la

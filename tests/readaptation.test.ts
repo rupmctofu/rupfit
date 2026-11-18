@@ -120,77 +120,46 @@ function setsEndingWithDiscomfort(block: number, role: BlockRole = DEFAULT_ROLE)
 }
 
 describe('§8 block prescriptions', () => {
-  it('the strength column is 8-10 to failure in every block (five-day-plan S6, S7)', () => {
-    // odd/tasks/five-day-plan.md replaces §6's ladder for this column: the owner asked for
-    // 8-10 repetitions taken to failure, and S7 keeps that true past block 1.
-    expect(blockPrescription(1, 'strength')).toEqual({
-      sets: 3,
-      repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 0, upperBound: 0 },
-    });
-    expect(blockPrescription(2, 'strength')).toEqual({
-      sets: 3,
-      repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 0, upperBound: 0 },
-    });
-    expect(blockPrescription(3, 'strength')).toEqual({
-      sets: 4,
-      repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 0, upperBound: 0 },
-    });
-    expect(blockPrescription(4, 'strength')).toEqual({
-      sets: 4,
-      repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 0, upperBound: 0 },
-    });
+  it('the strength column is three sets of eight at 1 RIR in every block (prescription-3x8 S2-S4)', () => {
+    // odd/tasks/prescription-3x8.md S2-S4 replaces §6's ladder for this column: three sets
+    // of eight repetitions at one rep in reserve, in every block. Nothing walks — no block
+    // raises the sets, widens the range or lowers the RIR — because the owner asked for the
+    // same prescription in every block; the load is the only number that moves between them.
+    for (const block of [1, 2, 3, 4]) {
+      expect(blockPrescription(block, 'strength'), `block ${String(block)}`).toEqual({
+        sets: 3,
+        repRange: { lowerBound: 8, upperBound: 8 },
+        targetRIR: { lowerBound: 1, upperBound: 1 },
+      });
+    }
   });
 
-  it('the hypertrophy column is 8-10 to failure in every block (five-day-plan S6, S7)', () => {
-    expect(blockPrescription(1, 'hypertrophy')).toEqual({
-      sets: 3,
-      repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 0, upperBound: 0 },
-    });
-    expect(blockPrescription(2, 'hypertrophy')).toEqual({
-      sets: 3,
-      repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 0, upperBound: 0 },
-    });
-    expect(blockPrescription(3, 'hypertrophy')).toEqual({
-      sets: 4,
-      repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 0, upperBound: 0 },
-    });
-    expect(blockPrescription(4, 'hypertrophy')).toEqual({
-      sets: 4,
-      repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 0, upperBound: 0 },
-    });
+  it('the hypertrophy column is three sets of eight at 1 RIR in every block (prescription-3x8 S2-S4)', () => {
+    // The same decision as `strength`, column for column: S8 of the same document records
+    // that the two can no longer prescribe different volume, and the role that still
+    // separates them lives on the prescription, not in these numbers.
+    for (const block of [1, 2, 3, 4]) {
+      expect(blockPrescription(block, 'hypertrophy'), `block ${String(block)}`).toEqual({
+        sets: 3,
+        repRange: { lowerBound: 8, upperBound: 8 },
+        targetRIR: { lowerBound: 1, upperBound: 1 },
+      });
+      expect(blockPrescription(block, 'hypertrophy')).toEqual(blockPrescription(block, 'strength'));
+    }
   });
 
-  it('the accessory column is 8-10 to failure in every block (five-day-plan S6, S7)', () => {
-    // S6 says every set of the strength days, isolation included, so this column loses its
-    // higher rep ranges as well.
-    expect(blockPrescription(1, 'accessory')).toEqual({
-      sets: 2,
-      repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 0, upperBound: 0 },
-    });
-    expect(blockPrescription(2, 'accessory')).toEqual({
-      sets: 3,
-      repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 0, upperBound: 0 },
-    });
-    expect(blockPrescription(3, 'accessory')).toEqual({
-      sets: 3,
-      repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 0, upperBound: 0 },
-    });
-    expect(blockPrescription(4, 'accessory')).toEqual({
-      sets: 3,
-      repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 0, upperBound: 0 },
-    });
+  it('the accessory column is three sets of eight at 1 RIR in every block (prescription-3x8 S2-S4)', () => {
+    // The owner's words were about every set of the strength days, isolation included, so
+    // this column loses both its wider rep ranges and its two-set start: block 1 is three
+    // sets like the rest, and no block climbs to a fourth.
+    for (const block of [1, 2, 3, 4]) {
+      expect(blockPrescription(block, 'accessory'), `block ${String(block)}`).toEqual({
+        sets: 3,
+        repRange: { lowerBound: 8, upperBound: 8 },
+        targetRIR: { lowerBound: 1, upperBound: 1 },
+      });
+      expect(blockPrescription(block, 'accessory')).toEqual(blockPrescription(block, 'strength'));
+    }
   });
 
   it('§8 reproduces the preventive block table', () => {
@@ -218,16 +187,15 @@ describe('§8 block prescriptions', () => {
 
   it('§8 the hypertrophy prescription is the default role', () => {
     expect(DEFAULT_BLOCK_ROLE).toBe('hypertrophy');
-    expect(blockPrescription(1)).toEqual({
-      sets: 3,
-      repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 0, upperBound: 0 },
-    });
-    expect(blockPrescription(4)).toEqual({
-      sets: 4,
-      repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 0, upperBound: 0 },
-    });
+    // The default column carries the owner's prescription too (prescription-3x8 S2-S4): a
+    // caller that declares no profile gets three sets of eight at 1 RIR in every block.
+    for (const block of [1, 2, 3, 4]) {
+      expect(blockPrescription(block), `block ${String(block)}`).toEqual({
+        sets: 3,
+        repRange: { lowerBound: 8, upperBound: 8 },
+        targetRIR: { lowerBound: 1, upperBound: 1 },
+      });
+    }
   });
 });
 
@@ -348,11 +316,11 @@ describe('§8 decisions', () => {
     expect(decision.kind).toBe('pass');
     expect(decision.block).toBe(1);
     expect(decision.prescriptionBlock).toBe(2);
-    // Block 2 of the default (hypertrophy) column: 3 × 8–10 @ 0 RIR (five-day-plan S7).
+    // Block 2 of the default (hypertrophy) column: 3 × 8 @ 1 RIR (prescription-3x8 S2-S4).
     expect(decision.prescription).toEqual({
       sets: 3,
-      repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 0, upperBound: 0 },
+      repRange: { lowerBound: 8, upperBound: 8 },
+      targetRIR: { lowerBound: 1, upperBound: 1 },
     });
     expect(decision.failedCriteria).toEqual([]);
   });
@@ -369,11 +337,11 @@ describe('§8 decisions', () => {
     // The block is stored now, so the prescription names it instead of stepping back to the
     // last passed one — a block in progress is trained at its own volume, not behind it.
     expect(decision.prescriptionBlock).toBe(2);
-    // Block 2 of the default column: 3 × 8–10 @ 0 RIR.
+    // Block 2 of the default column: 3 × 8 @ 1 RIR (prescription-3x8 S2-S4).
     expect(decision.prescription).toEqual({
       sets: 3,
-      repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 0, upperBound: 0 },
+      repRange: { lowerBound: 8, upperBound: 8 },
+      targetRIR: { lowerBound: 1, upperBound: 1 },
     });
   });
 
@@ -410,10 +378,11 @@ describe('§8 decisions', () => {
     expect(decision.kind).toBe('capReached');
     // The frozen prescription is the block being trained (T7: it is persisted now).
     expect(decision.prescriptionBlock).toBe(2);
+    // 3 × 8 @ 1 RIR: block 2 is the same row as block 1 (prescription-3x8 S2-S4).
     expect(decision.prescription).toEqual({
       sets: 3,
-      repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 0, upperBound: 0 },
+      repRange: { lowerBound: 8, upperBound: 8 },
+      targetRIR: { lowerBound: 1, upperBound: 1 },
     });
   });
 
@@ -460,11 +429,13 @@ describe('§8 decisions', () => {
     const decision = evaluateBlock(readaptationPhase(2), { block: 1, passedBlocks: 0, role }, history, NOW);
 
     expect(decision.kind).toBe('pass');
-    // Block 2 of the accessory column: 3 × 8–10 @ 0 RIR (five-day-plan S6).
+    // Block 2 of the accessory column: 3 × 8 @ 1 RIR (prescription-3x8 S2-S4), the same
+    // numbers the strength column prescribes. What the profile still buys is the rest
+    // interval the plan gives an isolation slot and the increment rule the engine reads.
     expect(decision.prescription).toEqual({
       sets: 3,
-      repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 0, upperBound: 0 },
+      repRange: { lowerBound: 8, upperBound: 8 },
+      targetRIR: { lowerBound: 1, upperBound: 1 },
     });
   });
 });
@@ -474,11 +445,13 @@ describe('§8 per-exercise profile', () => {
     const strength = blockPrescription(1, 'strength');
     const preventive = blockPrescription(1, 'preventive');
 
-    // Same block, same exercise count: the squat and the Nordic curl are not the same session.
+    // Same block, same exercise count, and still not the same session: the strength column
+    // is the owner's 3 × 8 @ 1 RIR (prescription-3x8 S2-S4), the preventive pair stays two
+    // sets of six to eight, five to six reps from failure.
     expect(strength).toEqual({
       sets: 3,
-      repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 0, upperBound: 0 },
+      repRange: { lowerBound: 8, upperBound: 8 },
+      targetRIR: { lowerBound: 1, upperBound: 1 },
     });
     expect(preventive).toEqual({
       sets: 2,
@@ -539,7 +512,7 @@ describe('§7 rule 6: readaptation inside the recommendation', () => {
 
     expect(recommendation.action).toBe('increase');
     expect(recommendation.suggestedWeightKg).toBe(102.5);
-    // Block 2 of the default column: 3 × 8–10.
+    // Block 2 of the default column: 3 × 8 @ 1 RIR.
     expect(recommendation.suggestedSets).toBe(3);
     expect(recommendation.suggestedTargetReps).toBe(8);
     expect(recommendation.reason).toBe('readaptationBlockPassed');
@@ -562,7 +535,7 @@ describe('§7 rule 6: readaptation inside the recommendation', () => {
 
     expect(recommendation.action).toBe('hold');
     expect(recommendation.suggestedWeightKg).toBe(100);
-    // Block 2's own volume, 3 × 8–10: the block being trained, not an earlier one.
+    // Block 2's own volume, 3 × 8 @ 1 RIR: the block being trained, not an earlier one.
     expect(recommendation.suggestedSets).toBe(3);
     expect(recommendation.suggestedTargetReps).toBe(8);
     expect(recommendation.reason).toBe('readaptationBlockNotPassed');
@@ -797,11 +770,12 @@ describe('§8 the gate measures the block it is training', () => {
 
     expect(decision.kind).toBe('repeat');
     expect(decision.prescriptionBlock).toBe(3);
-    // Block 3 of the hypertrophy column: 4 × 8–10 (five-day-plan S7).
+    // Block 3 of the hypertrophy column: 3 × 8 @ 1 RIR. The third block is the one that
+    // used to climb to four sets; after prescription-3x8 S2-S4 it is the same row as block 1.
     expect(decision.prescription).toEqual({
-      sets: 4,
-      repRange: { lowerBound: 8, upperBound: 10 },
-      targetRIR: { lowerBound: 0, upperBound: 0 },
+      sets: 3,
+      repRange: { lowerBound: 8, upperBound: 8 },
+      targetRIR: { lowerBound: 1, upperBound: 1 },
     });
   });
 

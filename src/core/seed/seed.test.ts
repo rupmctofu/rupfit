@@ -18,14 +18,16 @@ import {
   seedRows,
 } from './index';
 
-// Block 1 of each profile of the block table (src/core/engine/readaptation.ts), copied as
-// literals on purpose: a test that reads the table would agree with any change to it.
-const STRENGTH_REPS: RepRange = { lowerBound: 8, upperBound: 10 };
-const STRENGTH_RIR: RepRange = { lowerBound: 0, upperBound: 0 };
-const HYPERTROPHY_REPS: RepRange = { lowerBound: 8, upperBound: 10 };
-const HYPERTROPHY_RIR: RepRange = { lowerBound: 0, upperBound: 0 };
-const ACCESSORY_REPS: RepRange = { lowerBound: 8, upperBound: 10 };
-const ACCESSORY_RIR: RepRange = { lowerBound: 0, upperBound: 0 };
+// Block 1 of the block table (src/core/engine/readaptation.ts), copied as literals on
+// purpose: a test that reads the table would agree with any change to it.
+//
+// odd/tasks/prescription-3x8.md S2-S4 gives `strength`, `hypertrophy` and `accessory` one
+// prescription — three sets of eight at one rep in reserve, in every block — so these
+// literals are named after the rule they carry and not after a column: no single column
+// owns them any more. `preventive` keeps its own, and S6 is why.
+const HARD_SETS = 3;
+const HARD_REPS: RepRange = { lowerBound: 8, upperBound: 8 };
+const HARD_RIR: RepRange = { lowerBound: 1, upperBound: 1 };
 const PREVENTIVE_REPS: RepRange = { lowerBound: 6, upperBound: 8 };
 const PREVENTIVE_RIR: RepRange = { lowerBound: 5, upperBound: 6 };
 
@@ -308,31 +310,40 @@ describe('the starter plan', () => {
   });
 
   it('writes the block-1 prescription of each profile, with the rest of §7', () => {
-    // Five profiles, five different answers at the same block: this is the whole point of
-    // odd/tasks/training-program.md S2 and L11 — a strength lift, a Copenhagen plank and a
-    // treadmill interval can no longer share one row of numbers.
-    // The squat is the only lift the owner leaves one rep short of failure (S6), so it
-    // does not read the strength column's RIR even though it reads its reps.
+    // odd/tasks/training-program.md S2 and L11 wanted five answers here; the owner's own
+    // decision in odd/tasks/prescription-3x8.md (S2-S4, S8) collapses three of them: a
+    // strength lift, an accessory and a compound now read the very same numbers, and only
+    // the rest interval and the profile say which is which. The Copenhagen plank and the
+    // walk keep the two shapes they had (S6, S7).
     expect(itemByName('Sentadilla trasera').prescription).toEqual({
-      sets: 3,
-      repRange: STRENGTH_REPS,
-      targetRIR: { lowerBound: 1, upperBound: 1 },
+      sets: HARD_SETS,
+      repRange: HARD_REPS,
+      targetRIR: HARD_RIR,
       restSeconds: 180,
       role: 'strength',
     });
 
+    // S5: the squat stopped being a special case. While the column said 0 RIR it needed an
+    // override of its own; at 1 RIR it reads the column like the press, and the two rows
+    // are equal for that reason and not by accident.
+    expect(itemByName('Sentadilla trasera').prescription).toEqual(
+      itemByName('Press banca').prescription,
+    );
+
     expect(itemByName('Prensa').prescription).toEqual({
-      sets: 3,
-      repRange: HYPERTROPHY_REPS,
-      targetRIR: HYPERTROPHY_RIR,
+      sets: HARD_SETS,
+      repRange: HARD_REPS,
+      targetRIR: HARD_RIR,
       restSeconds: 120,
       role: 'hypertrophy',
     });
 
+    // The accessory column used to start at two sets and climb to three; S2 gives every
+    // block three, so block 1 is three here as well.
     expect(itemByName('Elevación de sóleo sentado').prescription).toEqual({
-      sets: 2,
-      repRange: ACCESSORY_REPS,
-      targetRIR: ACCESSORY_RIR,
+      sets: HARD_SETS,
+      repRange: HARD_REPS,
+      targetRIR: HARD_RIR,
       restSeconds: 90,
       role: 'accessory',
     });

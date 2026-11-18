@@ -125,21 +125,53 @@ describe('S2-S8 each strength day is named after the lift it opens with', () => 
 });
 
 describe('S2 the prescription profile', () => {
-  it('gives the five profiles four different prescriptions', () => {
-    // odd/tasks/five-day-plan.md S6/S7 collapsed two of them: strength and hypertrophy are
-    // both 8-10 to failure in every block, so only the set count told them apart before and
-    // now nothing does. The role still travels on the prescription (see the round-trip test
-    // below) and `conditioning` still refuses an increment, so the profile is not lost; what
-    // changed is that two columns are deliberately the same numbers.
+  it('gives the five profiles three distinct prescriptions', () => {
+    // odd/tasks/prescription-3x8.md S2-S4 gives `strength`, `hypertrophy` and `accessory`
+    // the same row — three sets of eight at 1 RIR, in every block — and its S8 records the
+    // consequence instead of hiding it: three of the five profiles can no longer prescribe
+    // different volume. The role still travels on the prescription (see the round-trip test
+    // below) and still decides the rest interval and rule 6's increment, so the profile is
+    // not lost. `preventive` and `conditioning` did not move (S6, S7) and are the two shapes
+    // that are still their own.
+    const roles = ['strength', 'hypertrophy', 'accessory', 'preventive', 'conditioning'] as const;
     const shape = (role: BlockRole): string => JSON.stringify(blockPrescription(1, role));
 
-    const shapes = new Set(
-      (
-        ['strength', 'hypertrophy', 'accessory', 'preventive', 'conditioning'] as const
-      ).map(shape),
-    );
-    expect(shapes.size).toBe(4);
-    expect(blockPrescription(1, 'strength')).toEqual(blockPrescription(1, 'hypertrophy'));
+    const shapes = new Set(roles.map(shape));
+    expect(shapes.size).toBe(3);
+
+    // The three coincide, by the owner's decision, in every block and not only in block 1:
+    // nothing walks any more, so no block separates them by sets, reps or RIR.
+    const hard = ['strength', 'hypertrophy', 'accessory'] as const;
+    for (const block of [1, 2, 3, 4]) {
+      const strength = blockPrescription(block, 'strength');
+      expect(strength).toEqual({
+        sets: 3,
+        repRange: { lowerBound: 8, upperBound: 8 },
+        targetRIR: { lowerBound: 1, upperBound: 1 },
+      });
+      for (const role of hard) {
+        expect(blockPrescription(block, role), `${role} ${String(block)}`).toEqual(strength);
+      }
+    }
+
+    // What tells the other two apart from the hard columns, and from each other: the
+    // preventive pair stays two sets far from failure, the intervals stay one repetition
+    // of work prescribed by time.
+    for (const block of [1, 2, 3, 4]) {
+      const label = `block ${String(block)}`;
+      expect(shape('preventive'), label).not.toBe(shape('hypertrophy'));
+      expect(shape('conditioning'), label).not.toBe(shape('hypertrophy'));
+      expect(shape('preventive'), label).not.toBe(shape('conditioning'));
+    }
+    expect(blockPrescription(1, 'preventive').sets).toBe(2);
+    expect(blockPrescription(1, 'preventive').targetRIR).toEqual({
+      lowerBound: 5,
+      upperBound: 6,
+    });
+    expect(blockPrescription(1, 'conditioning').repRange).toEqual({
+      lowerBound: 1,
+      upperBound: 1,
+    });
   });
 
   it('carries a profile on every plan item', () => {
@@ -182,9 +214,9 @@ describe('S2 the prescription profile', () => {
       NOW,
     );
 
-    // Three sets of eight is the strength prescription of block 1 after
-    // odd/tasks/five-day-plan.md S6 (8-10 to failure): complete sets, no failure, no
-    // discomfort, both weeks trained → the gate passes.
+    // Three sets of eight at 1 RIR is the strength prescription of block 1 after
+    // odd/tasks/prescription-3x8.md S2-S4 (8 reps, RIR 1, three sets in every block):
+    // complete sets, no failure, no discomfort, both weeks trained → the gate passes.
     expect(recommendation.reason).toBe('readaptationBlockPassed');
   });
 });

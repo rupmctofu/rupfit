@@ -67,33 +67,39 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
  * block the phase state stores (T7 made that number real, so there is nothing to infer).
  */
 const BLOCK_TABLE: Record<BlockRole, readonly BlockPrescription[]> = {
-  // The main lift of the day. The owner's prescription (odd/tasks/five-day-plan.md S6 and
-  // S7) replaces §6's conservative ladder here: 8–10 repetitions with every set taken to
-  // failure, in every block, so the RIR no longer walks down as the phase advances. The
-  // one exception, the squat at 1 RIR, is applied by the seed row (`plan.ts`), not by a
-  // column, because it belongs to an exercise and not to a role.
+  // The main lift of the day. The owner's prescription (odd/tasks/prescription-3x8.md S2-S4)
+  // replaces §6's conservative ladder here: three sets of eight repetitions at 1 RIR, in
+  // every block. Nothing walks — no block raises the sets, widens the range or lowers the
+  // RIR — because the owner asked for the same prescription in every block, and the load is
+  // the only number the engine moves (one increment, after `.pass`). The 1 RIR is the
+  // column's, so it is the prescription of every exercise that reads this column; the squat
+  // needed an override of its own only while this column still said 0 RIR (S5).
   strength: [
-    { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
-    { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
-    { sets: 4, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
-    { sets: 4, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
+    { sets: 3, repRange: repRange(8, 8), targetRIR: repRange(1, 1) },
+    { sets: 3, repRange: repRange(8, 8), targetRIR: repRange(1, 1) },
+    { sets: 3, repRange: repRange(8, 8), targetRIR: repRange(1, 1) },
+    { sets: 3, repRange: repRange(8, 8), targetRIR: repRange(1, 1) },
   ],
-  // Compound volume: the column every undeclared exercise gets. Same owner's rule as
-  // `strength`: 8–10 repetitions to failure in every block (S6, S7).
+  // Compound volume: the column every undeclared exercise gets. Same prescription as
+  // `strength` (S2-S4) — three sets of eight at 1 RIR in every block — for the same reason:
+  // the owner wants one prescription, not a ladder. What still separates this column from
+  // `strength` is the rest interval the plan gives it (§7) and the profile the engine reads,
+  // not the numbers.
   hypertrophy: [
-    { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
-    { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
-    { sets: 4, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
-    { sets: 4, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
+    { sets: 3, repRange: repRange(8, 8), targetRIR: repRange(1, 1) },
+    { sets: 3, repRange: repRange(8, 8), targetRIR: repRange(1, 1) },
+    { sets: 3, repRange: repRange(8, 8), targetRIR: repRange(1, 1) },
+    { sets: 3, repRange: repRange(8, 8), targetRIR: repRange(1, 1) },
   ],
-  // Isolation: calves, arms, femoral curls. The owner asked for the same 8–10 to failure
-  // on every set of the strength days, isolation included (S6), so this column loses its
-  // higher rep ranges too.
+  // Isolation: calves, arms, femoral curls. It reads the same row as the two columns above
+  // (S2-S4): the owner's "3 series de 8 reps en cada serie" and then "todo rir1" were about
+  // every set of the strength days, isolation included, so this column lost its wider rep
+  // ranges and its two-set start, and it walks no more than the others do.
   accessory: [
-    { sets: 2, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
-    { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
-    { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
-    { sets: 3, repRange: repRange(8, 10), targetRIR: repRange(0, 0) },
+    { sets: 3, repRange: repRange(8, 8), targetRIR: repRange(1, 1) },
+    { sets: 3, repRange: repRange(8, 8), targetRIR: repRange(1, 1) },
+    { sets: 3, repRange: repRange(8, 8), targetRIR: repRange(1, 1) },
+    { sets: 3, repRange: repRange(8, 8), targetRIR: repRange(1, 1) },
   ],
   // Hamstrings and adductors worked for tissue tolerance: two sets, far from failure, and
   // deliberately without a rep target that invites load chasing (Nordic, Copenhagen).

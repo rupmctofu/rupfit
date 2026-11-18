@@ -32,14 +32,14 @@
  * **The prescriptions are block 1 of the readaptation protocol, not a normal-phase
  * guess.** FR-4.1 starts every new user in readaptation, so the plan is written for the
  * week the owner actually begins in. The rows still take their numbers from
- * `blockPrescription(1, role)` rather than repeating them, but that table no longer holds
- * §6's ladder: `odd/tasks/five-day-plan.md` S6 and S7 replace it with 8–10 repetitions to
- * failure in every block, and the squat alone keeps 1 RIR (applied below, per exercise). Volume-wise that is 4–6
- * hard sets per muscle group per week across the three lifting sessions, which is exactly
- * the readaptation floor §4 sets ("4–6 sets per muscle group per week") and not the normal
- * phase's 10–16. The engine moves the volume from block 1 to block 4 on its own; the plan
- * only has to be right for the block the owner starts in. The fourth day reads its own
- * column the same way: block 1 is `2 × 6–8`, and the reps grow with the blocks while the
+ * `blockPrescription(1, role)` rather than repeating them, and that table no longer holds
+ * §6's ladder at all: `odd/tasks/prescription-3x8.md` S2-S4 gives every strength day three
+ * sets of eight at 1 RIR in every block, the squat included, so no row here is an exception.
+ * Volume-wise that is above the readaptation floor §4 sets ("4–6 sets per muscle group per
+ * week") and still below the normal phase's 10–16: the owner's number, not the floor's.
+ * The volume no longer grows from block 1 to block 4 — nothing in that table walks — so the
+ * plan's job is only to be right for the block the owner starts in. The fourth day reads its
+ * own column the same way: block 1 is `2 × 6–8`, and the reps grow with the blocks while the
  * load stays at zero. The two planks and the walk are the exception: their work is time,
  * so they carry a `fixed` slot (`3 × 30 s`, `2 × 25 s`, `1 × 20:00`) instead of reading a
  * rep ladder that would turn a hold into fake repetitions.
@@ -307,21 +307,20 @@ function nameOf(exerciseId: string): string {
 }
 
 /**
- * The one exercise that keeps a repetition in reserve: `odd/tasks/five-day-plan.md` S6,
- * the owner's own words ("En sentadilla dejarme un rir1 para no morir en el intento").
- * It is a property of the exercise, so it lives in the row and not in a block column.
+ * The block prescription of one slot, with the §7 rest interval added.
+ *
+ * The squat used to override the column's RIR here, because `odd/tasks/five-day-plan.md` S6
+ * asked it for one rep in reserve while `strength` said 0. `odd/tasks/prescription-3x8.md`
+ * S4 puts the column itself at 1 RIR, so S5 removes the override: an exception that applies
+ * to every exercise reading the column is a line that says nothing. It existed only while
+ * the column said 0 — do not reintroduce it without a column that means something else.
  */
-const SQUAT_EXERCISE_ID = 'seed-ex-sentadilla-trasera';
-
-/** The block prescription of one slot, with the §7 rest interval added. */
 function prescriptionOf(slot: SeedSlot): ExercisePrescription {
   const block = blockPrescription(START_BLOCK, slot.role);
-  const squat = slot.exerciseId === SQUAT_EXERCISE_ID;
   const prescription: ExercisePrescription = {
     sets: slot.fixed?.sets ?? block.sets,
     repRange: slot.fixed?.repRange === undefined ? { ...block.repRange } : { ...slot.fixed.repRange },
-    // The squat is the only lift the owner asked to leave one rep short of failure (S6).
-    targetRIR: squat ? { lowerBound: 1, upperBound: 1 } : { ...block.targetRIR },
+    targetRIR: { ...block.targetRIR },
     restSeconds: slot.restSeconds,
     // The profile travels with the prescription: the engine reads it per exercise, so a
     // strength lift and a Copenhagen plank stop sharing one column.
