@@ -142,6 +142,9 @@ export function CommitField({
         enterKeyHint="done"
         autoCapitalize={capitalise ? 'characters' : 'sentences'}
         onKeyDown={(event) => {
+          // An IME uses Enter to confirm the composition; blurring here would cut the word
+          // short. See modern-web-guidance, `ime-safe-enter-submit`.
+          if (event.nativeEvent.isComposing) return;
           if (event.key === 'Enter') event.currentTarget.blur();
         }}
       />

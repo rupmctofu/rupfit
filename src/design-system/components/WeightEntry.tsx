@@ -205,6 +205,10 @@ export function WeightKeypad({
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
     if (disabled) return;
+    // An IME uses Enter to confirm the composition, and the keydown that carries it is not
+    // the owner pressing submit: acting on it would send a half-typed number. A composing
+    // keystroke is never ours (modern-web-guidance, `ime-safe-enter-submit`).
+    if (event.nativeEvent.isComposing) return;
     if (event.key >= '0' && event.key <= '9') {
       event.preventDefault();
       append(event.key);
