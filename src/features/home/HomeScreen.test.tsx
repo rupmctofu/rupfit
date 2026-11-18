@@ -200,6 +200,16 @@ function rowOf(markup: string, weekday: number): string {
   return found;
 }
 
+/** The `<button>` that carries a label, so a test can say what kind of control it is. */
+function controlAround(markup: string, label: string): string {
+  const at = markup.indexOf(label);
+  if (at === -1) throw new Error(`no control reads ${label}`);
+  const start = markup.lastIndexOf('<button', at);
+  const end = markup.indexOf('</button>', at);
+  if (start === -1 || end === -1) throw new Error(`${label} is not inside a button`);
+  return markup.slice(start, end + '</button>'.length);
+}
+
 /**
  * A port holding only the owner's layout: the one write the agenda performs (T4).
  *
@@ -331,15 +341,16 @@ describe('Inicio after the purge (S2, S3)', () => {
 });
 
 describe('the match day and the rest day have their own state (T8, S1, S12)', () => {
-  it('says the match is today on its row instead of «no exercises», and offers nothing', () => {
+  it('says the match is today on its row, and offers the training the app proposes', () => {
     const markup = render({ now: THURSDAY, plan: WEEK_PLAN, week: LEAGUE_WEEK });
 
-    // S12: the row is the day. The match, its fixture, its ball and its word — and no
-    // training to start, because the fifth day of the week is informed.
+    // S12: the row is the day. The match, its fixture, its ball and its word — and, since
+    // T2, the way to train on it (S2). The card's filled action is not one of them.
     const thursday = rowOf(markup, 3);
     expect(thursday).toContain('Partido · Liga');
     expect(thursday).toContain('Hoy');
     expect(thursday).toContain('home-agenda__mark--ball');
+    expect(thursday).toContain('Entrenar también');
     expect(markup).not.toContain('El siguiente día de tu rutina todavía no tiene ejercicios');
     expect(markup).not.toContain('Empezar entrenamiento');
   });
@@ -361,11 +372,14 @@ describe('the match is reported, never trained (T8, S1)', () => {
   const matchClock = { now: () => THURSDAY };
   const report = (storage: StoragePort, id: string) => ({ storage, clock: matchClock, newId: () => id });
 
-  it('offers the report on the match day, and no way to start a training', () => {
+  it('offers the report and the training on the match day', () => {
     const markup = render({ now: THURSDAY, plan: WEEK_PLAN, week: LEAGUE_WEEK });
 
-    // S1: the fifth day of the week is informed, in the owner's words, from its own row.
-    expect(rowOf(markup, 3)).toContain('Informar el partido');
+    // T8 gave the fifth day its report and T2 gave it the day the rotation proposes: both
+    // are on the same row, and neither borrows the card's filled control.
+    const thursday = rowOf(markup, 3);
+    expect(thursday).toContain('Informar el partido');
+    expect(thursday).toContain('Entrenar también');
     expect(markup).not.toContain('Empezar entrenamiento');
   });
 
@@ -1398,14 +1412,17 @@ describe('the redesign composition (T5)', () => {
     expect(markup).not.toContain('Ejercicios');
   });
 
-  it('names the match on its day, and keeps the report on its row', () => {
+  it('names the match on its day, and keeps the report and the training on its row', () => {
     const markup = render({ now: THURSDAY, plan: WEEK_PLAN, week: LEAGUE_WEEK });
 
     expect(markup).toContain('HOY · JUEVES');
     expect(markup).toContain('Partido · Liga');
     expect(markup).toContain('Sólo se informa');
-    // One report, where it already was, and no way to start a training.
-    expect(rowOf(markup, 3)).toContain('Informar el partido');
+    // The report stays where it was, the training joins it (S2), and the screen keeps one
+    // filled action: the report itself, because the card has nothing to start today.
+    const thursday = rowOf(markup, 3);
+    expect(thursday).toContain('Informar el partido');
+    expect(thursday).toContain('Entrenar también');
     expect(markup.split('ds-action ds-primary').length - 1).toBe(1);
     expect(markup).not.toContain('Empezar entrenamiento');
   });
@@ -1442,5 +1459,181 @@ describe('the greeting shows the app name, not the stored one (S4)', () => {
 
     expect(markup).toContain('Hola, Rup');
     expect(markup).not.toContain('robertovlopez');
+  });
+});
+
+/* ----------------------------------------------------------------------------
+ * T2, T4 (odd/tasks/match-day-training.md S2, S3, S5, S6, S7) — the match day trains.
+ *
+ * The match row used to be the one day of the week with nothing to start. It now offers
+ * the plan day the rotation proposes — without moving the match, the layout or the four
+ * seeded days — and it says both things once that date has been trained.
+ *
+ * As everywhere in this file there is no DOM: what is pinned is the markup the row draws
+ * and the pure seam the press goes through (`startRequestOf`, exactly the one the today
+ * row already used), plus the write the press must not perform.
+ * ------------------------------------------------------------------------- */
+
+describe('the match row offers to train (T2, T4)', () => {
+  /** The day of the week the match sits on in a league week. */
+  const MATCH_WEEKDAY = 3;
+
+  it('starts the day the week proposes, and not the first day of the plan', () => {
+    // The week already closed its leg day, so the proposal is TORSO A: the row reads the
+    // week (S4), it does not simply name the first day of the rotation.
+    const closedMonday = session({
+      id: 'closed-monday',
+      status: 'completed',
+      planDayId: 'seed-day-leg',
+      dayNameSnapshot: 'PIERNA',
+      scheduledDate: MONDAY,
+    });
+    const { week } = agendaWeekOf({
+      now: THURSDAY,
+      plan: WEEK_PLAN,
+      week: LEAGUE_WEEK,
+      recent: [closedMonday],
+    });
+    const match = week.agenda.days[MATCH_WEEKDAY];
+    if (match === undefined) throw new Error('the week has no Thursday');
+
+    expect(match.proposal?.id).toBe('seed-day-torso-a');
+    // The seam the row's press calls: the day the row would start (`start.start` on the
+    // real screen, which is the same call the today row makes).
+    expect(startRequestOf(match)).toBe('seed-day-torso-a');
+
+    const markup = render({
+      now: THURSDAY,
+      plan: WEEK_PLAN,
+      week: LEAGUE_WEEK,
+      recent: [closedMonday],
+    });
+    expect(rowOf(markup, MATCH_WEEKDAY)).toContain('Entrenar también');
+  });
+
+  it('draws that action as the secondary control, never as the filled primary', () => {
+    // Whatever the day is, the action of the match row is a quiet control: Wednesday's
+    // filled action is the card's, Thursday's is the report.
+    for (const [label, overrides] of [
+      ['the card', { plan: WEEK_PLAN, week: LEAGUE_WEEK }],
+      ['the report', { now: THURSDAY, plan: WEEK_PLAN, week: LEAGUE_WEEK }],
+    ] as const) {
+      const markup = render(overrides);
+      const train = controlAround(markup, 'Entrenar también');
+
+      expect(markup.split('ds-action ds-primary').length - 1).toBe(1);
+      expect(train).toContain('ds-text-button');
+      expect(train).not.toContain('ds-primary');
+      // The play glyph of the primary start, so the two read as the same kind of action.
+      expect(train).toContain('M8 5.5v13l11-6.5Z');
+      expect(train, label).not.toContain('disabled');
+    }
+  });
+
+  it('says both things on a match day that was trained (S6)', () => {
+    const closedOnThursday = session({
+      id: 'closed-thursday',
+      status: 'completed',
+      planDayId: 'seed-day-leg',
+      dayNameSnapshot: 'PIERNA',
+      scheduledDate: THURSDAY,
+    });
+    const markup = render({
+      now: THURSDAY,
+      plan: WEEK_PLAN,
+      week: LEAGUE_WEEK,
+      recent: [closedOnThursday],
+    });
+    const thursday = rowOf(markup, MATCH_WEEKDAY);
+
+    // The fixture and its identity, as it always said them…
+    expect(thursday).toContain('Partido · Liga');
+    expect(thursday).toContain('Liga · jueves');
+    expect(thursday).toContain('home-agenda__mark--ball');
+    // …and the fact that the date was trained, in the words every other trained day uses.
+    expect(thursday).toContain('Hecho');
+    expect(thursday).toContain('home-agenda__mark--check');
+    expect(thursday).not.toContain('Fijo');
+    // Its report is still its own (S6).
+    expect(thursday).toContain('Informar el partido');
+  });
+
+  it('leaves an untrained match day reading exactly as it read before (S7)', () => {
+    const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
+    const thursday = rowOf(markup, MATCH_WEEKDAY);
+
+    expect(thursday).toContain('Partido · Liga');
+    expect(thursday).toContain('Liga · jueves');
+    expect(thursday).toContain('Fijo');
+    expect(thursday).toContain('home-agenda__mark--ball');
+    // Nothing says it trained: no check, no extra word, and no state of its own.
+    expect(thursday).not.toContain('Hecho');
+    expect(thursday).not.toContain('Entrenado');
+    expect(thursday).not.toContain('home-agenda__mark--check');
+    expect(thursday).not.toContain('home-agenda__row--done');
+  });
+
+  it('moves nothing when it starts: same match weekday, same four weekdays, no layout write (S5)', async () => {
+    const port = layoutPort();
+    const { week } = agendaWeekOf({ now: THURSDAY, plan: WEEK_PLAN, week: LEAGUE_WEEK });
+    const match = week.agenda.days[MATCH_WEEKDAY];
+    if (match === undefined) throw new Error('the week has no Thursday');
+
+    const weekdaysBefore = week.agenda.planDays.map(
+      (entry) => `${entry.planDay.id}@${String(entry.weekday)}`,
+    );
+    const matchWeekdayBefore = week.agenda.days.find((day) => day.kind === 'match')?.weekday;
+
+    const started: string[] = [];
+    const onStart = (planDayId: string): void => {
+      started.push(planDayId);
+    };
+    const markup = renderToStaticMarkup(<AgendaWeek week={week} onStart={onStart} />);
+    expect(rowOf(markup, MATCH_WEEKDAY)).toContain('Entrenar también');
+
+    // The press, as the row wires it: the day it would start, handed to `onStart`.
+    const request = startRequestOf(match);
+    if (request === null) throw new Error('the match row offers nothing to start');
+    onStart(request);
+    expect(started).toHaveLength(1);
+
+    // The session a start writes is open, so the week a moment later is the same week: the
+    // match keeps its weekday and the four days keep theirs.
+    const startedSession = session({
+      id: 'started-on-the-match-day',
+      status: 'inProgress',
+      planDayId: started[0] ?? 'seed-day-leg',
+      scheduledDate: THURSDAY,
+    });
+    const after = agendaWeekOf({
+      now: THURSDAY,
+      plan: WEEK_PLAN,
+      week: LEAGUE_WEEK,
+      recent: [startedSession],
+      inProgress: startedSession,
+    });
+    expect(after.week.agenda.days.find((day) => day.kind === 'match')?.weekday).toBe(
+      matchWeekdayBefore,
+    );
+    expect(
+      after.week.agenda.planDays.map((entry) => `${entry.planDay.id}@${String(entry.weekday)}`),
+    ).toEqual(weekdaysBefore);
+    expect(after.week.layout).toEqual(week.layout);
+
+    // And the lock that keeps the match in place still answers: nothing lands on it, and
+    // no `WeekLayout` is written by any of it.
+    const refused = await writePlacement({
+      storage: port.port,
+      agenda: week.agenda,
+      layout: week.layout,
+      planDayId: 'seed-day-leg',
+      toWeekday: MATCH_WEEKDAY,
+    });
+    expect(refused).toEqual({
+      outcome: 'refused',
+      layout: week.layout,
+      notice: 'El día del partido no se mueve.',
+    });
+    expect(port.writes).toEqual([]);
   });
 });

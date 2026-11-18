@@ -120,7 +120,8 @@ Consequences the requirements below depend on:
 ### FR-3 Routine and schedule — MVP
 
 - **FR-3.1 MUST** ship the owner's four training days inside Monday to Friday, and the
-  match as a fifth day that is only reported (S1, S12). The layout depends on the week's
+  match as a fifth day that is reported and can also be trained, on the session the app
+  proposes (`odd/tasks/match-day-training.md` S2-S4; S1, S12). The layout depends on the week's
   fixture (S11):
 
   | Weekday | League week (`jueves`) | Cup week (`martes`) | No fixture |

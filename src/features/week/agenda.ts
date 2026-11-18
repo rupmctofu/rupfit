@@ -33,6 +33,7 @@ import {
 } from '../../core/engine/week-plan';
 import type { EpochMs, PlanDay, WeekLayout, WeekLayoutSlot, WorkoutSession } from '../../storage';
 import { formatDayName, formatWeekdayName } from '../home/format';
+import { nextPlanDay } from '../session/start';
 import { localDayOf, mondayInstantOf, planDayIdOfRole } from './week';
 
 /** What a day is. The preparation and a strength day are both `workout` here (S4). */
@@ -49,12 +50,29 @@ export interface AgendaDay {
   readonly kind: AgendaKind;
   /** Present on `workout` only. */
   readonly planDay: PlanDay | null;
+  /**
+   * T2 (S2, S3) — the plan day this row would start when it has no plan day of its own.
+   *
+   * Only the match row carries one: on every other row `planDay` already answers, and a
+   * second answer would be a second rotation rule. It is `weekProposalOf`'s day, never a
+   * figure re-derived here, and `null` on a week whose plan proposes nothing.
+   */
+  readonly proposal: PlanDay | null;
   /** 0 when there is no plan day. */
   readonly exerciseCount: number;
   /** 0 when there is no plan day. */
   readonly setCount: number;
   /** S1: a closed session of that plan day was scheduled inside this week. */
   readonly done: boolean;
+  /**
+   * T4 (S6) — a closed session was scheduled on this row's own date.
+   *
+   * About the date and not about the plan day, which is why the match row can be trained
+   * and still `done: false`: what `done` answers is «this row's day has been trained», and
+   * the match row has no day of the owner's to be done with. Read by the row that has no
+   * plan day, and true on any row a closed session happened on.
+   */
+  readonly trained: boolean;
   readonly today: boolean;
   /** S6. */
   readonly locked: boolean;
@@ -195,6 +213,23 @@ function legWarningOf(days: readonly AgendaDay[], plan: readonly PlanDay[]): str
 }
 
 /**
+ * T4 (S6) — the dates a closed session was scheduled on, as local `YYYY-MM-DD`.
+ *
+ * The same two statuses `donePlanDayIdsOf` counts as closed, keyed by the date instead of
+ * by the plan day: the match row has no plan day of its own, so the date is the only thing
+ * that can tell it a training happened on it. Open, scheduled and abandoned sessions are
+ * not a training that happened.
+ */
+function closedDateTextsOf(sessions: readonly WorkoutSession[]): ReadonlySet<string> {
+  const dates = new Set<string>();
+  for (const session of sessions) {
+    if (session.status !== 'completed' && session.status !== 'partial') continue;
+    dates.add(localDayOf(session.scheduledDate));
+  }
+  return dates;
+}
+
+/**
  * S1 — the plan days this week has already trained, from the sessions themselves.
  *
  * Keyed by the plan day and not by the weekday, because the owner may move a day after
@@ -235,6 +270,11 @@ export function weekAgendaOf(input: {
   const planById = new Map(input.plan.map((planDay) => [planDay.id, planDay]));
   const weekDateTexts = new Set(dates.map((date) => localDayOf(date.getTime())));
   const donePlanDayIds = donePlanDayIdsOf(input.sessions, weekDateTexts);
+  const closedDateTexts = closedDateTextsOf(input.sessions);
+  // S2, S3 — the day the match row would start, read from the one rule that answers it
+  // (`weekProposalOf`) and only on a week that has a match row at all.
+  const proposal =
+    matchWeekday === null ? null : weekProposalOf(input.plan, input.sessions, localDayOf(monday.getTime()));
 
   const days = dates.map((date, weekday): AgendaDay => {
     const dateText = localDayOf(date.getTime());
@@ -252,8 +292,10 @@ export function weekAgendaOf(input: {
       date: dateText,
       kind: isMatch ? 'match' : planDay === null ? 'rest' : 'workout',
       planDay,
+      proposal: isMatch ? proposal : null,
       ...countsOf(planDay),
       done,
+      trained: closedDateTexts.has(dateText),
       today: dateText === todayText,
       locked: isMatch || done,
       // A done day is done: the reason names the training that closed it, and the match
@@ -276,6 +318,49 @@ export function weekAgendaOf(input: {
     // still counts as done instead of vanishing from the tally.
     doneCount: input.plan.filter((planDay) => donePlanDayIds.has(planDay.id)).length,
   };
+}
+
+/**
+ * Local midnight of the Monday a local `YYYY-MM-DD` week starts on.
+ *
+ * Built from the calendar parts and never from `new Date('2026-03-02')`, which is UTC and
+ * would date the week a day off west of Greenwich. `mondayInstantOf` snaps the answer to
+ * the Monday, so the week asked about is the same week the agenda of that Monday shows.
+ */
+function mondayOfText(monday: string): Date {
+  const [year = 1970, month = 1, day = 1] = monday.split('-').map(Number);
+  return mondayInstantOf(new Date(year, month - 1, day).getTime());
+}
+
+/**
+ * S4 — the plan day the app proposes when the owner asks to train on the match day.
+ *
+ * The week, not the history, decides first: the proposal is the first day of the rotation
+ * that this week has no closed session for, so pressing the match row twice in a week
+ * walks the four days instead of proposing the same one again. Closed is the same word
+ * the agenda uses (`donePlanDayIdsOf`): `completed` or `partial`, keyed by the plan day and
+ * inside this week only, so a session of last week neither marks nor unmarks anything.
+ *
+ * With all four closed the week is done and the answer is the app's own rotation, called
+ * and never copied (S3): the day the training day would propose, which is also why a fifth
+ * session stays possible. An empty plan has no first undone day and no rotation to fall
+ * back on, so it proposes nothing.
+ */
+export function weekProposalOf(
+  plan: readonly PlanDay[],
+  sessions: readonly WorkoutSession[],
+  monday: string,
+): PlanDay | null {
+  const weekDateTexts = new Set(
+    weekDatesOf(mondayOfText(monday)).map((date) => localDayOf(date.getTime())),
+  );
+  const done = donePlanDayIdsOf(sessions, weekDateTexts);
+  // `order` is the rotation and the id only settles a tie: two days cannot share a place
+  // in the cycle, and a stored pair that does must still be answered the same way twice.
+  const rotation = [...plan].sort(
+    (left, right) => left.order - right.order || left.id.localeCompare(right.id),
+  );
+  return rotation.find((planDay) => !done.has(planDay.id)) ?? nextPlanDay(plan, sessions);
 }
 
 export type PlacementRefusal =

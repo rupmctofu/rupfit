@@ -711,6 +711,8 @@ export function HomeBody({
           {...(onChooseFixture === undefined ? {} : { onChooseFixture })}
           {...(onReportMatch === undefined ? {} : { onReportMatch })}
           reporting={reporting}
+          onStart={onStart}
+          starting={starting}
         />
       )}
 

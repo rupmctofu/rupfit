@@ -10,7 +10,14 @@
 import { describe, expect, it } from 'vitest';
 import type { MatchKind } from '../../core/engine/week-plan';
 import type { PlanDay, SessionStatus, WeekLayout, WorkoutSession } from '../../storage';
-import { defaultLayoutOf, placePlanDay, weekAgendaOf, type WeekAgenda } from './agenda';
+import { nextPlanDay } from '../session/start';
+import {
+  defaultLayoutOf,
+  placePlanDay,
+  weekAgendaOf,
+  weekProposalOf,
+  type WeekAgenda,
+} from './agenda';
 
 /** Monday 2 March 2026 … Sunday 8 March, mid-morning local. */
 const MONDAY = new Date(2026, 2, 2, 9, 0).getTime();
@@ -704,5 +711,143 @@ describe('the agenda keeps its edges (T3)', () => {
     expect(moved.days[6]?.kind).toBe('workout');
     expect(moved.days[6]?.planDay?.name).toBe('TORSO B');
     expect(moved.days[3]?.kind).toBe('rest');
+  });
+});
+
+/**
+ * T1 (S3, S4) — the day the match row proposes.
+ *
+ * The proposal is read from the week's own sessions: the first day of the rotation the
+ * week has no closed session for, and the rotation's next day once the week has all four.
+ * `monday` is the local `YYYY-MM-DD` the agenda already dates the week with.
+ */
+describe('weekProposalOf proposes the first undone day of the week (S3, S4)', () => {
+  const MONDAY_TEXT = '2026-03-02';
+  /** The Monday of the week before, same weekday, so only the week separates the two. */
+  const LAST_WEEK_MONDAY = new Date(2026, 1, 23, 9, 0).getTime();
+
+  it('T1 proposes the first day of the rotation when the week has closed nothing', () => {
+    expect(weekProposalOf(PLAN, [], MONDAY_TEXT)).toBe(LEG);
+  });
+
+  it('T1 follows the rotation order, not the order the plan was handed in', () => {
+    const shuffled: readonly PlanDay[] = [PREP, UPPER_B, UPPER_A, LEG];
+    expect(weekProposalOf(shuffled, [], MONDAY_TEXT)).toBe(LEG);
+  });
+
+  it('T1 skips the day this week already closed and proposes the next one', () => {
+    expect(weekProposalOf(PLAN, [session(LEG.id, MONDAY)], MONDAY_TEXT)).toBe(UPPER_A);
+  });
+
+  it('T1 does not skip the day that was closed last week', () => {
+    // Same weekday, same day of the plan, one week earlier: another week says nothing.
+    expect(weekProposalOf(PLAN, [session(LEG.id, LAST_WEEK_MONDAY)], MONDAY_TEXT)).toBe(LEG);
+  });
+
+  it('T1 counts only a closed session: in progress and scheduled are not training', () => {
+    const untrained = [
+      session(LEG.id, MONDAY, 'inProgress'),
+      session(LEG.id, TUESDAY, 'scheduled'),
+    ];
+    expect(weekProposalOf(PLAN, untrained, MONDAY_TEXT)).toBe(LEG);
+  });
+
+  it('T1 counts a partial session as closed, exactly as the rotation does', () => {
+    expect(weekProposalOf(PLAN, [session(LEG.id, MONDAY, 'partial')], MONDAY_TEXT)).toBe(UPPER_A);
+  });
+
+  it('T1 breaks a tie in order by id', () => {
+    const first = planDay('tie-a', 'A', 0, 1, 1);
+    const second = planDay('tie-b', 'B', 0, 1, 1);
+    expect(weekProposalOf([second, first], [], MONDAY_TEXT)).toBe(first);
+  });
+
+  it('T1 falls back to the rotation when the week already has all four', () => {
+    // The last closed day of the week is TORSO B, so the rotation's next day is the
+    // preparation day — a fifth session is still possible, and it is not the first day.
+    const allTrained = [
+      session(LEG.id, MONDAY),
+      session(UPPER_A.id, TUESDAY),
+      session(PREP.id, WEDNESDAY),
+      session(UPPER_B.id, THURSDAY),
+    ];
+    expect(weekProposalOf(PLAN, allTrained, MONDAY_TEXT)).toBe(PREP);
+    expect(weekProposalOf(PLAN, allTrained, MONDAY_TEXT)).toBe(nextPlanDay(PLAN, allTrained));
+  });
+
+  it('T1 proposes nothing when the plan is empty', () => {
+    expect(weekProposalOf([], [], MONDAY_TEXT)).toBeNull();
+  });
+});
+
+/**
+ * T2, T4 (S2, S5, S6) — what the match row carries: the day the app proposes for it, and
+ * whether that date was trained.
+ *
+ * Both are read from the sessions the week already has. The proposal is the one T1 pinned
+ * (`weekProposalOf`, called and not copied) and it reaches the match row and no other row;
+ * `trained` is about one date, not about one plan day, because the match row has no plan
+ * day of its own.
+ */
+describe('the match row carries the proposal and its training (S2, S5, S6)', () => {
+  /** Thursday 26 February 2026 — the same weekday, one week before `THURSDAY`. */
+  const LAST_WEEK_THURSDAY = new Date(2026, 1, 26, 9, 0).getTime();
+
+  const weekOf = (sessions: readonly WorkoutSession[]): WeekAgenda =>
+    weekAgendaOf({
+      now: THURSDAY,
+      matchKind: 'league',
+      plan: PLAN,
+      layout: LEAGUE_LAYOUT,
+      sessions,
+    });
+
+  it('T2 puts the proposal on the match row, and on no other row', () => {
+    const agenda = weekOf([]);
+
+    expect(agenda.days[3]?.proposal).toBe(LEG);
+    expect(agenda.days.filter((day) => day.proposal !== null).map((day) => day.weekday)).toEqual([3]);
+  });
+
+  it('T2 proposes the next day of the rotation once the week has closed the first', () => {
+    // The same answer `weekProposalOf` gives: the match row reads it, it does not decide.
+    expect(weekOf([session(LEG.id, MONDAY)]).days[3]?.proposal).toBe(UPPER_A);
+  });
+
+  it('T2 proposes nothing on a week with no plan', () => {
+    const agenda = weekAgendaOf({
+      now: THURSDAY,
+      matchKind: 'league',
+      plan: [],
+      layout: undefined,
+      sessions: [],
+    });
+
+    expect(agenda.days[3]?.proposal).toBeNull();
+  });
+
+  it('T2 calls the row trained when a closed session sits on its own date', () => {
+    expect(weekOf([session(LEG.id, THURSDAY, 'completed')]).days[3]?.trained).toBe(true);
+    expect(weekOf([session(LEG.id, THURSDAY, 'partial')]).days[3]?.trained).toBe(true);
+  });
+
+  it('T2 does not call it trained for an open session, a scheduled one, or another date', () => {
+    expect(weekOf([session(LEG.id, THURSDAY, 'inProgress')]).days[3]?.trained).toBe(false);
+    expect(weekOf([session(LEG.id, THURSDAY, 'scheduled')]).days[3]?.trained).toBe(false);
+    expect(weekOf([session(LEG.id, TUESDAY)]).days[3]?.trained).toBe(false);
+    // Same weekday, same plan day, one week earlier: another week trained nothing here.
+    expect(weekOf([session(LEG.id, LAST_WEEK_THURSDAY)]).days[3]?.trained).toBe(false);
+  });
+
+  it('T2 leaves the trained match row locked, with no plan day of its own', () => {
+    const match = weekOf([session(LEG.id, THURSDAY)]).days[3];
+
+    // The placement lock and the `done` semantics are the match's own (S5): training on it
+    // makes it a trained day to read, never a movable workout row.
+    expect(match?.kind).toBe('match');
+    expect(match?.planDay).toBeNull();
+    expect(match?.done).toBe(false);
+    expect(match?.locked).toBe(true);
+    expect(match?.lockReason).toBe('match');
   });
 });

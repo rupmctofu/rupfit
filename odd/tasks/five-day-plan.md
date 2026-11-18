@@ -18,6 +18,12 @@ carga. **El día de partido no tiene entreno**: se deja libre. El número de dí
 > `SENTADILLA / PIERNA`, `PRESS BANCA / EMPUJE` y `PESO MUERTO / TRACCIÓN`, y reparte el
 > peso entre ellos. El split que fija esta especificación (PPL, cuatro días, el partido
 > libre) no cambia.
+>
+> Revocado en parte: `odd/tasks/match-day-training.md` S2-S4 permite entrenar el día de
+> partido, con la sesión que la app propone. La fila del partido sigue siendo el partido —
+> no se mueve, no cambia la semana y no es un quinto día del plan —, pero deja de estar
+> cerrada al entreno. Lo demás de esta especificación (cuatro días, tres de fuerza, uno sin
+> carga, el partido como fila propia) se mantiene.
 
 S2. **20 minutos de cardio después de cada entreno**: caminar a 5–6 km/h en pendiente,
 «caminar con prisa en pendiente». Va al final de la sesión, no como día aparte.

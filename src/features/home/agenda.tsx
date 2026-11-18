@@ -70,9 +70,13 @@ export type AgendaStateWord = 'Hecho' | 'Hoy' | 'Pendiente' | 'Fijo' | 'Libre';
  * Today says `Hoy` even when it is the match day: the artboard's third screen does exactly
  * that, and the ball already says what the day is. `Hecho` still wins, because a closed
  * session is the strongest fact a row can carry.
+ *
+ * T4 (S6) — a match day whose date was trained reads `Hecho` too, in the same word every
+ * other trained day uses: closing the session updates the row like any other day.
  */
 export function stateWordOf(day: AgendaDay): AgendaStateWord {
   if (day.done) return 'Hecho';
+  if (day.kind === 'match' && day.trained) return 'Hecho';
   if (day.today) return 'Hoy';
   if (day.kind === 'match') return 'Fijo';
   if (day.kind === 'rest') return 'Libre';
@@ -139,6 +143,14 @@ const MATCH_TITLES: Readonly<Record<MatchKind, string>> = {
   cup: 'Partido · Copa',
   none: 'Partido',
 };
+
+/**
+ * T2 (S2) — what the match row offers, in the owner's words.
+ *
+ * «Entrenar también», and not «Empezar entrenamiento»: the filled word belongs to the today
+ * card, and this one is the extra session of a day that already carries its match.
+ */
+export const MATCH_TRAIN_LABEL = 'Entrenar también';
 
 function seriesText(count: number): string {
   return count === 1 ? '1 serie' : `${count} series`;
@@ -234,10 +246,18 @@ export function agendaWeekViewOf(input: HomeInput, view: HomeView): AgendaWeekVi
   };
 }
 
-/** The one filled action a row can carry (T5's seam, drawn where the day is). */
+/** The one action a row can carry (T5's seam, drawn where the day is). */
 export interface AgendaRowAction {
   readonly kind: 'start' | 'resume';
   readonly label: string;
+  /**
+   * T2 (S2) — `quiet` draws the action as the secondary control instead of the filled one.
+   *
+   * Only the match row asks for it: Inicio keeps exactly one filled action, and that one
+   * is the today card's (or the report's, on a match day with nothing to start). A row
+   * that says nothing keeps the filled control it always had.
+   */
+  readonly weight?: 'filled' | 'quiet' | undefined;
 }
 
 /**
@@ -260,10 +280,17 @@ export function actionOnRowOf(
   return null;
 }
 
-/** The plan day the row hands to `start.start(planDayId)` — the seam T5 opens. */
+/**
+ * The plan day the row hands to `start.start(planDayId)` — the seam T5 opens, and the one
+ * T2 reads for the match row.
+ *
+ * The row's own plan day when it has one, and otherwise the day the week proposes for it
+ * (S2): the match row has no day of the owner's, so the rotation's answer is the day it
+ * would start. `null` when the row has neither — a rest day, or a week with no plan.
+ */
 export function startRequestOf(day: AgendaDay | null): string | null {
-  if (day === null || day.kind !== 'workout' || day.planDay === null) return null;
-  return day.planDay.id;
+  if (day === null) return null;
+  return day.planDay?.id ?? day.proposal?.id ?? null;
 }
 
 /** The plan days this week has no weekday for — the one the match displaced (S10). */
@@ -451,6 +478,9 @@ export function AgendaRow({
   const opensMatch = day.kind === 'match' && onOpenFixture !== undefined;
   const canDrag = !day.locked && day.planDay !== null && onGrab !== undefined;
   const planDayId = startRequestOf(day);
+  // T4 (S6): the match row has no plan day of the owner's, so its training is read from
+  // its date — and it reads as closed, with the check and the word, like any other day.
+  const closed = day.done || (day.kind === 'match' && day.trained);
   // S12: the match row's second line is the fixture it belongs to. It replaces the old
   // `Sólo se informa`, which said what the row does instead of which match it is.
   const meta =
@@ -463,7 +493,7 @@ export function AgendaRow({
   const classes = [
     'home-agenda__row',
     `home-agenda__row--${day.kind}`,
-    day.done ? 'home-agenda__row--done' : '',
+    closed ? 'home-agenda__row--done' : '',
     day.today ? 'home-agenda__row--today' : '',
     dragging ? 'home-agenda__row--dragging' : '',
     over ? 'home-agenda__row--over' : '',
@@ -486,7 +516,7 @@ export function AgendaRow({
         <span className="home-agenda__meta">{meta}</span>
       </span>
       <span className="home-agenda__state">
-        {day.done ? (
+        {closed ? (
           <span className="home-agenda__mark home-agenda__mark--check">
             <Icon name="check" size={13} />
           </span>
@@ -539,13 +569,22 @@ export function AgendaRow({
       ) : null}
       {action === null || planDayId === null ? null : (
         <span className="home-agenda__action">
-          <PrimaryAction
-            icon="play"
-            disabled={starting}
-            onClick={() => onStart?.(planDayId)}
-          >
-            {starting ? 'Empezando…' : action.label}
-          </PrimaryAction>
+          {action.weight === 'quiet' ? (
+            // T2 (S2): the match row's action is the secondary control — the accent fill
+            // stays on the screen's one filled action and this one never competes for it.
+            <TextButton
+              icon="play"
+              tone="accent"
+              disabled={starting}
+              onClick={() => onStart?.(planDayId)}
+            >
+              {starting ? 'Empezando…' : action.label}
+            </TextButton>
+          ) : (
+            <PrimaryAction icon="play" disabled={starting} onClick={() => onStart?.(planDayId)}>
+              {starting ? 'Empezando…' : action.label}
+            </PrimaryAction>
+          )}
         </span>
       )}
       {report === null ? null : (
@@ -857,6 +896,12 @@ export interface AgendaWeekProps {
   /** S12 — reports the match of the day, from the match row. */
   readonly onReportMatch?: (() => void) | undefined;
   readonly reporting?: boolean | undefined;
+  /**
+   * T2 (S2) — the way into a session, for the one row that offers it without owning a day:
+   * the match row hands `start.start` the day the week proposes for it.
+   */
+  readonly onStart?: ((planDayId: string) => void) | undefined;
+  readonly starting?: boolean | undefined;
 }
 
 /**
@@ -904,6 +949,8 @@ export function AgendaWeek({
   onChooseFixture,
   onReportMatch,
   reporting = false,
+  onStart,
+  starting = false,
 }: AgendaWeekProps): React.ReactElement {
   const { agenda, layout } = week;
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -1020,6 +1067,19 @@ export function AgendaWeek({
     };
   };
 
+  /**
+   * T2 (S2) — the action the match row carries.
+   *
+   * Only the match row gets one here: every other row either carries its own plan day (and
+   * today's action lives on the card) or has nothing to start. It is drawn quiet, because
+   * the screen keeps one filled control. A week with no proposal, or a screen that cannot
+   * start anything, offers nothing — exactly as the row read before (S7).
+   */
+  const trainActionOf = (day: AgendaDay): AgendaRowAction | null => {
+    if (day.kind !== 'match' || day.proposal === null || onStart === undefined) return null;
+    return { kind: 'start', label: MATCH_TRAIN_LABEL, weight: 'quiet' };
+  };
+
   // A week with no fixture has no match day, and therefore no row to carry the line: one
   // quiet line under the rows opens the same sheet, so the owner can always say what he
   // plays (S7). It keeps the flip's own words.
@@ -1053,6 +1113,9 @@ export function AgendaWeek({
             fixture={day.kind === 'match' ? (fixture?.label ?? null) : null}
             reported={day.kind === 'match' && matchReported}
             report={reportOf(day)}
+            action={trainActionOf(day)}
+            starting={starting}
+            onStart={onStart}
             onOpenFixture={
               day.kind === 'match' && onChooseFixture !== undefined
                 ? () => setMatchSheet(true)
