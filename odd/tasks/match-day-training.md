@@ -35,11 +35,11 @@ Specs are the contract; the Log is the record. Subagents read until `## Log`.
 
 | ID | Spec | Route | Commit |
 | --- | --- | --- | --- |
-| T1 | S1-S4 | worker | pending: pin the proposal rule and the startable match row |
-| T2 | S2, S3, S5 | worker | pending: make the match row start a session |
-| T3 | S4 | worker | pending: the week-aware proposal |
-| T4 | S6, S7 | worker | pending: the row that says both things |
-| T5 | S8 | inline | pending: the documents |
+| T1 | S1-S4 | worker | c7829a5: `weekProposalOf` and its nine cases |
+| T2 | S2, S3, S5 | worker | c7829a5: `agenda.tsx` and `HomeScreen.tsx` |
+| T3 | S4 | worker | c7829a5: the week-aware rule, falling back to `nextPlanDay` |
+| T4 | S6, S7 | worker | c7829a5: `proposal` and `trained` on the row |
+| T5 | S8 | inline | c7829a5: FR-3.1 and five-day-plan S1 |
 
 ## Log
 
@@ -71,3 +71,8 @@ Specs are the contract; the Log is the record. Subagents read until `## Log`.
 - **L9.** Known gap, not fixed: `stateWordOf`'s new branch also reaches the progress strip, so
   a trained match day reads `Jueves, hecho` there. It is the same fact stated twice; if the
   strip should say something else, that is its own unit (`src/features/home/today.ts`).
+- **L10.** Shipped as `c7829a5` on `feature/pwa-platform` with the documents in the same unit,
+  because the code and the sentences it contradicts belong together in review. Checks before
+  the commit: 1240 tests in 79 files, `tsc` in both projects, `build`. `Risk: none`: the diff
+  writes no stored data, adds two fields to an internal type, and a session started from the
+  match row names a real seeded plan day.
