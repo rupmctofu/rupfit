@@ -13,10 +13,12 @@
  *
  * So the refresh is deliberately narrow, and it refuses more than it writes:
  *
- * - **It writes seeded days, and only in three cases.** A day whose id is absent from the
+ * - **It writes seeded days, and only in four cases.** A day whose id is absent from the
  *   store is added; a day the store still holds in a shape an earlier release shipped
- *   (`REPLACED_SEED_DAYS`) is rewritten in place; and a day the seed later gained a row for
- *   gets that row appended (`APPENDED_SEED_ITEMS`). All three keep their ids, so nothing
+ *   (`REPLACED_SEED_DAYS`) is rewritten in place; a day the seed later gained a row for
+ *   gets that row appended (`APPENDED_SEED_ITEMS`); and a row the store still holds with
+ *   the prescription an earlier release wrote (`REPLACED_SEED_PRESCRIPTIONS`) gets the
+ *   prescription of today's seed row with the same id. All four keep their ids, so nothing
  *   that points at a day — a session's `planDayId`, its `dayNameSnapshot` — is detached by
  *   the change. Every other stored day, including a seeded one the owner edited, is never
  *   passed to `plan.save`.
@@ -34,6 +36,11 @@
  *   plus the seed's new ones. It fires only while the day lacks them, which is what makes
  *   this a one-time catch-up rather than a rule that re-adds a row the owner deletes.
  * - **It never deletes anything.** A day the seed no longer ships stays where it is.
+ * - **It updates a prescription, never a row.** A day is written because one of its rows
+ *   carries an old prescription verbatim; that row keeps its id, its day, its order and its
+ *   exercise name snapshot, and only its numbers change. A row that differs in any field
+ *   from the recorded shape, a row whose id is not the seed's, and every row of a day the
+ *   owner renamed are left alone.
  * - **It writes the exercises a written day prescribes, and nothing else.** The mobility
  *   day names rows an old library does not have, and a plan row whose library row does not
  *   exist builds a session with `exerciseId: null` and no recommendation. Those missing
@@ -47,7 +54,13 @@
  * Failure is never fatal: the caller runs it once per launch, and a store that could not be
  * refreshed opens with the days it has.
  */
-import type { Exercise, PlanDay, StoragePort } from '../../storage';
+import type {
+  Exercise,
+  ExercisePrescription,
+  PlanDay,
+  RepRange,
+  StoragePort,
+} from '../../storage';
 import { SEED_EXERCISES, seedPlanDays, type SeedPlanDay } from '../../core/seed';
 
 /** The part of a stored day the refresh reads to recognise its own earlier row. */
@@ -220,6 +233,58 @@ const APPENDED_SEED_ITEMS: readonly AppendedSeedItem[] = [
   { dayId: 'seed-day-fisico', itemIds: ['seed-item-fisico-7'] },
 ];
 
+/**
+ * The prescriptions an earlier release wrote on the seeded lifting rows, verbatim, with
+ * every field of the row's `prescription` — `durationSeconds` included, as absent.
+ *
+ * Like `REPLACED_SEED_DAYS` this is data, not a rule: the refresh cannot tell an outdated
+ * prescription from one the owner typed by comparing with today's seed — both differ from it
+ * — so the shape the previous release shipped has to be recorded here before a release
+ * changes the numbers it prescribes. `preventive` and `conditioning` are absent on purpose:
+ * odd/tasks/prescription-3x8.md S6 and S7 leave those columns exactly as they were, so a
+ * device that holds them holds today's numbers and needs no write.
+ */
+const REPLACED_SEED_PRESCRIPTIONS: readonly ExercisePrescription[] = [
+  // odd/tasks/five-day-plan.md S6/S7, still the block-1 row of the `strength` column in the
+  // release before odd/tasks/prescription-3x8.md: 8–10 repetitions to failure.
+  {
+    sets: 3,
+    repRange: { lowerBound: 8, upperBound: 10 },
+    targetRIR: { lowerBound: 0, upperBound: 0 },
+    restSeconds: 180,
+    role: 'strength',
+  },
+  // The same release, the same numbers, on the `hypertrophy` column.
+  {
+    sets: 3,
+    repRange: { lowerBound: 8, upperBound: 10 },
+    targetRIR: { lowerBound: 0, upperBound: 0 },
+    restSeconds: 120,
+    role: 'hypertrophy',
+  },
+  // The same release on the `accessory` column, whose block 1 still started at two sets.
+  {
+    sets: 2,
+    repRange: { lowerBound: 8, upperBound: 10 },
+    targetRIR: { lowerBound: 0, upperBound: 0 },
+    restSeconds: 90,
+    role: 'accessory',
+  },
+  // The squat's own override of the same release (`src/core/seed/plan.ts`, S6: "En
+  // sentadilla dejarme un rir1"): the `strength` column with one repetition in reserve. The
+  // seed no longer special-cases it, but a device in the wild still holds this row.
+  {
+    sets: 3,
+    repRange: { lowerBound: 8, upperBound: 10 },
+    targetRIR: { lowerBound: 1, upperBound: 1 },
+    restSeconds: 180,
+    role: 'strength',
+  },
+];
+
+/** The prefix a row the seed wrote carries; the owner's own rows never match it. */
+const SEED_ITEM_PREFIX = 'seed-item-';
+
 /** The seeded days the store does not have yet, in rotation order. */
 export function missingSeedDays(
   stored: readonly { readonly id: string }[],
@@ -338,31 +403,116 @@ export function extendedSeedDays(
 }
 
 /**
+ * Do two rep ranges say the same thing? The stored row is compared field by field against
+ * the recorded shape, never by reference.
+ */
+function sameRange(stored: RepRange, previous: RepRange): boolean {
+  return stored.lowerBound === previous.lowerBound && stored.upperBound === previous.upperBound;
+}
+
+/** Is this stored row still carrying exactly one of the recorded old prescriptions? */
+function stillThePrescription(
+  stored: { readonly prescription: ExercisePrescription },
+  previous: ExercisePrescription,
+): boolean {
+  const prescription = stored.prescription;
+  return (
+    prescription.sets === previous.sets &&
+    sameRange(prescription.repRange, previous.repRange) &&
+    sameRange(prescription.targetRIR, previous.targetRIR) &&
+    prescription.restSeconds === previous.restSeconds &&
+    prescription.role === previous.role &&
+    prescription.durationSeconds === previous.durationSeconds
+  );
+}
+
+/**
+ * The seeded days the store still holds with a prescription an earlier release wrote, as
+ * they must be stored: the rows the store holds, with today's prescription on the rows that
+ * are verbatim old ones.
+ *
+ * The test is exact, twice over, for the reason `outdatedSeedDays` is. The day has to carry
+ * the seed's own name: a seeded day the owner renamed is theirs, and nothing about its rows
+ * says otherwise. The row has to carry a recorded old prescription in every field — sets,
+ * reps, RIR, rest and profile — because a row that differs in any of them is a row the
+ * owner edited, and rewriting it back would overwrite a decision they made. A row whose id
+ * is not the seed's (`seed-item-…`) is never touched either, whatever it prescribes.
+ *
+ * The item id is the identity, not the position: a day may have been reordered, and a row
+ * the seed no longer ships keeps whatever it says, because this rule brings a row up to
+ * date and never removes one.
+ */
+export function represcribedSeedDays(
+  stored: readonly PlanDay[],
+  seed: readonly SeedPlanDay[] = seedPlanDays(),
+  replaced: readonly ExercisePrescription[] = REPLACED_SEED_PRESCRIPTIONS,
+): readonly PlanDay[] {
+  const updated: PlanDay[] = [];
+
+  for (const day of seed) {
+    const storedDay = stored.find((row) => row.id === day.id);
+    if (storedDay === undefined || storedDay.name !== day.name) continue;
+
+    const today = new Map(day.items.map((item) => [item.id, item.prescription]));
+    let changed = false;
+    const items = storedDay.items.map((item) => {
+      if (!item.id.startsWith(SEED_ITEM_PREFIX)) return item;
+      if (!replaced.some((shape) => stillThePrescription(item, shape))) return item;
+      const prescription = today.get(item.id);
+      if (prescription === undefined) return item;
+      changed = true;
+      // Only the numbers change: the id, the day it belongs to, its order and the exercise
+      // name the row was trained under are copied from the store.
+      return { ...item, prescription: { ...prescription } };
+    });
+
+    if (changed) updated.push({ ...storedDay, items });
+  }
+
+  return updated;
+}
+
+/**
  * Read, decide, write. Returns how many days were written, which is what the caller logs.
  *
  * The library is read only when there is a day to write, so a current store costs one read.
  */
 export async function refreshSeededPlanDays(storage: StoragePort): Promise<number> {
   const stored = await storage.plan.all();
-  // Three kinds of work, one writer: a day the store lacks is added, a day it still holds
-  // in an earlier release's shape is rewritten in place under the same id, and a day that
-  // gained a row since it was written gets that row appended. A day is written once, by the
-  // narrowest rule that claims it.
+  // Four kinds of work, one writer: a day the store lacks is added, a day it still holds in
+  // an earlier release's shape is rewritten in place under the same id, a day that gained a
+  // row since it was written gets that row appended, and a row still carrying an earlier
+  // release's prescription gets today's. A day is written once, by the narrowest rule that
+  // claims it.
   const added = missingSeedDays(stored);
   const rewritten = outdatedSeedDays(stored);
-  const extended = extendedSeedDays(stored).filter(
-    (day) => !added.some((row) => row.id === day.id) && !rewritten.some((row) => row.id === day.id),
-  );
-  const days = [...added, ...rewritten, ...extended];
-  if (days.length === 0) return 0;
+  const claimed = (day: { readonly id: string }): boolean =>
+    added.some((row) => row.id === day.id) || rewritten.some((row) => row.id === day.id);
+  const extended = extendedSeedDays(stored).filter((day) => !claimed(day));
+
+  // The prescription pass reads the store, plus the rows the append rule is about to write,
+  // so a day that gains its closing walk in this launch also gets today's numbers in the
+  // same write instead of on the next one.
+  const pending = new Map<string, PlanDay>(stored.map((day) => [day.id, day]));
+  for (const day of extended) pending.set(day.id, day);
+
+  const days = new Map<string, PlanDay>();
+  for (const day of [...added, ...rewritten, ...extended]) days.set(day.id, day);
+  for (const day of represcribedSeedDays([...pending.values()])) {
+    // An added or a rewritten day is already the seed's own row, numbers included.
+    if (!claimed(day)) days.set(day.id, day);
+  }
+
+  const writes = [...days.values()];
+  if (writes.length === 0) return 0;
 
   // Library first: the day's items name these ids, and a session built against a dangling
   // id would have a name and nothing to prescribe.
   const library = await storage.exercises.all();
-  for (const exercise of missingPrescribedExercises(days, library)) {
+  for (const exercise of missingPrescribedExercises(writes, library)) {
     await storage.exercises.save(exercise);
   }
 
-  for (const day of days) await storage.plan.save(day);
-  return days.length;
+  for (const day of writes) await storage.plan.save(day);
+  return writes.length;
 }

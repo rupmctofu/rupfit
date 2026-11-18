@@ -11,7 +11,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { Exercise, PlanDay, PlanItem, StoragePort } from '../../storage';
+import type {
+  Exercise,
+  ExercisePrescription,
+  PlanDay,
+  PlanItem,
+  StoragePort,
+} from '../../storage';
 import { SEED_EXERCISES, seedPlanDays } from '../../core/seed';
 import {
   missingPrescribedExercises,
@@ -634,5 +640,282 @@ describe('the closing walk of the seeded days', () => {
     expect([...store.written.planDays].sort()).toEqual(
       SEED_DAYS.map((day) => day.id).sort(),
     );
+  });
+});
+
+/* ------------------------------ three sets of eight (prescription-3x8 S3) */
+
+const SQUAT_EXERCISE_ID = 'seed-ex-sentadilla-trasera';
+const PRESS_BANCA_EXERCISE_ID = 'seed-ex-press-banca';
+
+/**
+ * The prescription the release before this one wrote on each lifting column, at block 1.
+ *
+ * Read off `git show HEAD:src/core/engine/readaptation.ts` and `HEAD:src/core/seed/plan.ts`:
+ * `strength` and `hypertrophy` carried `3 × 8–10` at RIR 0, `accessory` `2 × 8–10` at RIR 0,
+ * and the squat overrode the RIR to 1 in the seed row. The rest intervals are §7's
+ * (180 / 120 / 90 s), which this release does not change.
+ *
+ * Written out here rather than read from the seed, because the seed no longer has them —
+ * and because a device in the wild does.
+ */
+const PREVIOUS_STRENGTH: ExercisePrescription = {
+  sets: 3,
+  repRange: { lowerBound: 8, upperBound: 10 },
+  targetRIR: { lowerBound: 0, upperBound: 0 },
+  restSeconds: 180,
+  role: 'strength',
+};
+const PREVIOUS_HYPERTROPHY: ExercisePrescription = {
+  sets: 3,
+  repRange: { lowerBound: 8, upperBound: 10 },
+  targetRIR: { lowerBound: 0, upperBound: 0 },
+  restSeconds: 120,
+  role: 'hypertrophy',
+};
+const PREVIOUS_ACCESSORY: ExercisePrescription = {
+  sets: 2,
+  repRange: { lowerBound: 8, upperBound: 10 },
+  targetRIR: { lowerBound: 0, upperBound: 0 },
+  restSeconds: 90,
+  role: 'accessory',
+};
+/** The squat's own override: the strength column plus one repetition in reserve. */
+const PREVIOUS_SQUAT: ExercisePrescription = {
+  ...PREVIOUS_STRENGTH,
+  targetRIR: { lowerBound: 1, upperBound: 1 },
+};
+
+/** What this release prescribes on a strength day: three sets of eight at 1 RIR. */
+const TODAYS_STRENGTH: ExercisePrescription = {
+  sets: 3,
+  repRange: { lowerBound: 8, upperBound: 8 },
+  targetRIR: { lowerBound: 1, upperBound: 1 },
+  restSeconds: 180,
+  role: 'strength',
+};
+
+/**
+ * The store a device seeded by the previous release holds.
+ *
+ * The day ids, names and item ids are the ones that release wrote — the three-lift rename
+ * predates it — so the only thing that changed is the numbers this release rewrites. The
+ * preventive and conditioning rows are copied as the seed has them, because that release
+ * prescribed them exactly like this one still does (S6, S7).
+ */
+function previousReleaseStore(): readonly PlanDay[] {
+  return SEED_DAYS.map((day) => ({
+    ...day,
+    items: day.items.map((item) => {
+      const role = item.prescription.role;
+      if (role === 'strength') {
+        return {
+          ...item,
+          prescription: {
+            ...(item.exerciseId === SQUAT_EXERCISE_ID ? PREVIOUS_SQUAT : PREVIOUS_STRENGTH),
+          },
+        };
+      }
+      if (role === 'hypertrophy') {
+        return { ...item, prescription: { ...PREVIOUS_HYPERTROPHY } };
+      }
+      if (role === 'accessory') {
+        return { ...item, prescription: { ...PREVIOUS_ACCESSORY } };
+      }
+      return item;
+    }),
+  }));
+}
+
+/** Is this row one of the three columns this release rewrites? */
+function isLifting(role: string | undefined): boolean {
+  return role === 'strength' || role === 'hypertrophy' || role === 'accessory';
+}
+
+function dayById(days: readonly PlanDay[], id: string): PlanDay {
+  const day = days.find((row) => row.id === id);
+  if (day === undefined) throw new Error(`the store lost ${id}`);
+  return day;
+}
+
+function itemOf(day: PlanDay | undefined, id: string): PlanItem | undefined {
+  return day?.items.find((row) => row.id === id);
+}
+
+function itemOfExercise(day: PlanDay, exerciseId: string): PlanItem {
+  const item = day.items.find((row) => row.exerciseId === exerciseId);
+  if (item === undefined) throw new Error(`${day.id} lost ${exerciseId}`);
+  return item;
+}
+
+describe('the three sets of eight on the stored lifting rows', () => {
+  it('brings the strength, hypertrophy and accessory rows up to the numbers of this release', async () => {
+    const before = previousReleaseStore();
+    const store = fakeStore({ planDays: before, exercises: [...SEED_EXERCISES] });
+
+    // The three lifting days. The mobility day is preventive and conditioning, and this
+    // release has nothing to say about it.
+    expect(await refreshSeededPlanDays(store.storage)).toBe(3);
+    expect(store.written.planDays).toEqual([
+      'seed-day-leg',
+      'seed-day-torso-a',
+      'seed-day-torso-b',
+    ]);
+
+    let checked = 0;
+    for (const day of SEED_DAYS) {
+      for (const seedItem of day.items) {
+        const role = seedItem.prescription.role;
+        if (!isLifting(role)) continue;
+        checked += 1;
+        // S3 and S4: three sets of eight at 1 RIR, on every lifting row of the three days.
+        expect(itemOf(store.planDays.get(day.id), seedItem.id)?.prescription, seedItem.id).toEqual(
+          {
+            ...TODAYS_STRENGTH,
+            restSeconds: seedItem.prescription.restSeconds,
+            role,
+          },
+        );
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  it('gives the squat the row the press has, with its identity untouched', async () => {
+    const before = previousReleaseStore();
+    const squatBefore = itemOfExercise(dayById(before, 'seed-day-leg'), SQUAT_EXERCISE_ID);
+    const store = fakeStore({ planDays: before, exercises: [...SEED_EXERCISES] });
+
+    await refreshSeededPlanDays(store.storage);
+
+    const squat = itemOf(store.planDays.get('seed-day-leg'), squatBefore.id);
+    const press = itemOf(store.planDays.get('seed-day-torso-a'), 'seed-item-torso-a-1');
+    // S5: the squat stopped being a special case, so it reads the column like the press.
+    expect(squat?.prescription).toEqual(TODAYS_STRENGTH);
+    expect(squat?.prescription).toEqual(press?.prescription);
+    // Only the prescription changes: the row keeps saying what it is and where it lives.
+    expect(squat).toEqual({ ...squatBefore, prescription: TODAYS_STRENGTH });
+  });
+
+  it('leaves a row the owner edited alone, whichever field they changed', async () => {
+    const edits: readonly {
+      readonly name: string;
+      readonly edit: (prescription: ExercisePrescription) => ExercisePrescription;
+    }[] = [
+      { name: 'sets', edit: (p) => ({ ...p, sets: p.sets + 1 }) },
+      { name: 'repRange', edit: (p) => ({ ...p, repRange: { lowerBound: 6, upperBound: 8 } }) },
+      { name: 'targetRIR', edit: (p) => ({ ...p, targetRIR: { lowerBound: 2, upperBound: 3 } }) },
+      { name: 'restSeconds', edit: (p) => ({ ...p, restSeconds: 240 }) },
+      { name: 'role', edit: (p) => ({ ...p, role: 'hypertrophy' }) },
+    ];
+
+    for (const { name, edit } of edits) {
+      const before = previousReleaseStore();
+      const leg = dayById(before, 'seed-day-leg');
+      const squatBefore = itemOfExercise(leg, SQUAT_EXERCISE_ID);
+      const mine = edit(squatBefore.prescription);
+      const touched: PlanDay = {
+        ...leg,
+        items: leg.items.map((item) =>
+          item.id === squatBefore.id ? { ...item, prescription: mine } : item,
+        ),
+      };
+      const store = fakeStore({
+        planDays: before.map((day) => (day.id === leg.id ? touched : day)),
+        exercises: [...SEED_EXERCISES],
+      });
+
+      await refreshSeededPlanDays(store.storage);
+
+      // The day was written — the other rows of it moved — so this is not a test that
+      // passes because nothing happened.
+      expect(store.written.planDays, name).toContain(leg.id);
+      const untouchedPress = itemOf(store.planDays.get(leg.id), 'seed-item-leg-2');
+      expect(untouchedPress?.prescription, name).toEqual({
+        ...TODAYS_STRENGTH,
+        role: 'hypertrophy',
+        restSeconds: PREVIOUS_HYPERTROPHY.restSeconds,
+      });
+
+      // The test is exact on purpose: a row that differs in any field is the owner's.
+      const after = itemOf(store.planDays.get(leg.id), squatBefore.id);
+      expect(after?.prescription, name).toEqual(mine);
+      expect(after, name).toEqual({ ...squatBefore, prescription: mine });
+    }
+  });
+
+  it('leaves a custom day alone, even when its numbers look like the old ones', async () => {
+    const mine: PlanDay = {
+      id: 'day-mine',
+      name: 'MI DÍA',
+      order: 7,
+      items: [
+        {
+          id: 'day-mine-1',
+          planDayId: 'day-mine',
+          order: 0,
+          exerciseId: PRESS_BANCA_EXERCISE_ID,
+          exerciseNameSnapshot: 'Press banca',
+          prescription: { ...PREVIOUS_STRENGTH },
+        },
+        {
+          // The id carries the seed's prefix, but the day it lives on is not the seed's.
+          id: 'seed-item-mine-1',
+          planDayId: 'day-mine',
+          order: 1,
+          exerciseId: SQUAT_EXERCISE_ID,
+          exerciseNameSnapshot: 'Sentadilla trasera',
+          prescription: { ...PREVIOUS_SQUAT },
+        },
+      ],
+    };
+    const store = fakeStore({
+      planDays: [...previousReleaseStore(), mine],
+      exercises: [...SEED_EXERCISES],
+    });
+
+    expect(await refreshSeededPlanDays(store.storage)).toBe(3);
+
+    expect(store.written.planDays).not.toContain(mine.id);
+    expect(store.planDays.get(mine.id)).toEqual(mine);
+  });
+
+  it('leaves the preventive and conditioning rows byte-identical', async () => {
+    const before = previousReleaseStore();
+    const store = fakeStore({ planDays: before, exercises: [...SEED_EXERCISES] });
+
+    // The lifting rows move in the same launch, so a store that keeps its preventive and
+    // conditioning rows is a decision and not a refresh that did nothing.
+    expect(await refreshSeededPlanDays(store.storage)).toBe(3);
+
+    let checked = 0;
+    for (const day of before) {
+      for (const item of day.items) {
+        const role = item.prescription.role;
+        // S6 and S7: untouched by this release, in the numbers and in the profile.
+        if (role !== 'preventive' && role !== 'conditioning') continue;
+        checked += 1;
+        expect(JSON.stringify(itemOf(store.planDays.get(day.id), item.id)), `${day.id}`).toBe(
+          JSON.stringify(item),
+        );
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  it('is idempotent: the launch after it writes nothing', async () => {
+    const store = fakeStore({
+      planDays: previousReleaseStore(),
+      exercises: [...SEED_EXERCISES],
+    });
+
+    expect(await refreshSeededPlanDays(store.storage)).toBe(3);
+
+    const readsAfterFirst = store.reads.length;
+    const writtenAfterFirst = [...store.written.planDays];
+    expect(await refreshSeededPlanDays(store.storage)).toBe(0);
+    // One read and no write: a store already carrying today's numbers costs nothing.
+    expect(store.reads.slice(readsAfterFirst)).toEqual(['plan']);
+    expect(store.written.planDays).toEqual(writtenAfterFirst);
   });
 });
