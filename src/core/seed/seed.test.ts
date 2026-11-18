@@ -124,21 +124,22 @@ describe('the starter plan', () => {
     // and the match is not a session. Rupfit stores no weekday, so the rotation is the
     // four days and the calendar is the week plan's.
     expect(plan.map((day) => day.name)).toEqual([
-      'PIERNA',
-      'TORSO A',
-      'TORSO B',
+      'SENTADILLA / PIERNA',
+      'PRESS BANCA / EMPUJE',
+      'PESO MUERTO / TRACCIÓN',
       'MOVILIDAD Y CORE',
     ]);
     expect(plan.map((day) => day.order)).toEqual([0, 1, 2, 3]);
   });
 
   it('starts every lifting day with its strength lift and keeps a readable number of exercises', () => {
-    // Leg day is the longest on purpose: it carries the calves pair and the two
-    // preventive movements the football adaptation is built around. The mobility day has
-    // no strength lift to open with — its first slot is the hip mobility — and it is the
-    // one day whose work is a prescription the block table cannot express.
+    // odd/tasks/three-lift-plan.md S2: three strength days, one anchor lift each, and the
+    // squat day is still the longest because it carries the two calves movements and the
+    // preventive pair the football adaptation is built around. The mobility day has no
+    // strength lift to open with — its first slot is the hip mobility — and it is the one
+    // day whose work is a prescription the block table cannot express.
     const lengths = plan.map((day) => day.items.length);
-    expect(lengths).toEqual([9, 8, 8, 7]);
+    expect(lengths).toEqual([8, 7, 8, 7]);
     for (const day of plan) {
       expect(day.items.map((item) => item.order)).toEqual(day.items.map((_, index) => index));
     }
@@ -146,7 +147,7 @@ describe('the starter plan', () => {
     expect(plan[3]?.items[0]?.prescription.role).toBe('preventive');
     expect(plan[0]?.items[0]?.exerciseNameSnapshot).toBe('Sentadilla trasera');
     expect(plan[1]?.items[0]?.exerciseNameSnapshot).toBe('Press banca');
-    expect(plan[2]?.items[0]?.exerciseNameSnapshot).toBe('Press banca inclinado');
+    expect(plan[2]?.items[0]?.exerciseNameSnapshot).toBe('Peso muerto');
     expect(plan[3]?.items[0]?.exerciseNameSnapshot).toBe('Movilidad de cadera 90/90');
   });
 
@@ -156,13 +157,12 @@ describe('the starter plan', () => {
     const upperB = plan[2]?.items.map((item) => item.exerciseNameSnapshot) ?? [];
     const mobility = plan[3]?.items.map((item) => item.exerciseNameSnapshot) ?? [];
 
-    // Leg: quads and glutes through the squat and the press, hamstrings through a hinge, a
-    // seated curl and the assisted Nordic, adductors through the adapted Copenhagen, and
-    // both calves — the standing one for the gastrocnemius and the seated one for the
-    // soleus, which is the pair that actually trains the lower leg.
+    // The squat day is lower body only now: quads and glutes through the squat and the
+    // press, hamstrings through a seated curl and the assisted Nordic, adductors through
+    // the adapted Copenhagen, and both calves — the standing one for the gastrocnemius and
+    // the seated one for the soleus. The hinge is day three's business (S2).
     expect(leg).toEqual([
       'Sentadilla trasera',
-      'Peso muerto rumano con barra',
       'Prensa',
       'Curl femoral sentado en máquina',
       'Nordic curl asistido',
@@ -172,26 +172,27 @@ describe('the starter plan', () => {
       'Caminata inclinada',
     ]);
 
-    // Upper A: a horizontal strength lift, then volume for back, lats and shoulders, then
-    // arms. Upper B mirrors it with different angles and different implements.
+    // The push day: the horizontal strength lift, its incline angle, the overhead press,
+    // laterals and two triceps movements.
     expect(upperA).toEqual([
       'Press banca',
-      'Remo con barra',
-      'Jalón al pecho',
+      'Press banca inclinado',
       'Press de hombro',
       'Elevaciones laterales',
-      'Curl de bíceps con barra',
       'Extensiones de tríceps',
+      'Extensión de tríceps sobre la cabeza',
       'Caminata inclinada',
     ]);
+    // The pull day: the conventional deadlift opens it, then back volume at both angles,
+    // the rear delt and the two biceps movements.
     expect(upperB).toEqual([
-      'Press banca inclinado',
-      'Remo en máquina',
+      'Peso muerto',
+      'Remo con barra',
       'Dominadas asistidas',
-      'Press de hombro en máquina',
+      'Jalón al pecho',
       'Face pull',
+      'Curl de bíceps con barra',
       'Curl en polea',
-      'Extensión de tríceps sobre la cabeza',
       'Caminata inclinada',
     ]);
 

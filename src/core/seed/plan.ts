@@ -10,7 +10,10 @@
  *    odd/tasks/five-day-plan.md S1 replaces the fourth, `PREPARACIÓN FÚTBOL`, with
  *    `MOVILIDAD Y CORE`: the match day has no session (L7), so the fourth day keeps the
  *    week's fourth slot and gives it back as mobility and core without load. The day id
- *    stays `seed-day-fisico`, which is what stored plans and history point at.
+ *    stays `seed-day-fisico`, which is what stored plans and history point at. Until
+ *    odd/tasks/three-lift-plan.md S2 the seed carried the bare `PIERNA` / `TORSO A` /
+ *    `TORSO B` names that replaced those three and that the owner could not read as a
+ *    plan.
  *    training-science §2 makes frequency a scheduling choice (UP), not a physiological
  *    optimum: what the owner asked for, and what one barbell and one pair of shoes can do,
  *    is one session per family. A two-day split would leave 18 weekly sets spread over
@@ -203,15 +206,21 @@ function walk(exerciseId: string): SeedSlot {
 
 /**
  * The owner's four training days, in rotation order: three of strength and one of mobility
- * and core (odd/tasks/five-day-plan.md S1). Which weekday each one lands on is the week
- * plan's business (`src/core/engine/week-plan.ts`), not this table's; what lives here is
- * what each day contains.
+ * and core (odd/tasks/five-day-plan.md S1). Each strength day is named after the lift it
+ * opens with, in the `LIFT / FOCUS` shape the app already formats
+ * (odd/tasks/three-lift-plan.md S2, `src/features/home/format.ts`). Which weekday each one
+ * lands on is the week plan's business (`src/core/engine/week-plan.ts`), not this table's;
+ * what lives here is what each day contains.
  *
- * The order inside each day is deliberate: the strength lift while fresh, then compound
- * volume, then the preventive pair, then isolation. On leg day that puts Nordic curl after
- * the heavy work — the quality is better and the soreness arrives where it can still be
- * absorbed before the match — and it never puts a second eccentric hamstring movement next
- * to the Romanian deadlift.
+ * The order inside each day is deliberate: the anchor lift while fresh, then compound
+ * volume, then the preventive pair, then isolation. On the squat day that puts Nordic curl
+ * after the heavy work — the quality is better and the soreness arrives where it can still
+ * be absorbed before the match.
+ *
+ * The three lifts are split across three days instead of stacked, which is the whole point
+ * of S2: the squat and the deadlift are both heavy lower-body hinges, so the Romanian
+ * deadlift left day one when the conventional one took day three. A day carries exactly one
+ * `strength` slot, and it is the one it is named after.
  *
  * The fourth day is the last training day of the week (L7): MD-1 when the match falls on
  * Wednesday or Monday, and never the match day itself. S1 gives it no load at all: hip and
@@ -219,14 +228,17 @@ function walk(exerciseId: string): SeedSlot {
  * and the same twenty-minute inclined walk the strength days end with. Nothing here asks
  * the legs to recover from a barbell while they are needed on the pitch, and nothing is
  * prescribed to failure.
+ *
+ * S12: the layouts were deliberately left alone, so in a league week the deadlift day is
+ * the day after the match. The owner chose that with the cost in front of him; it is
+ * recorded here, not fixed.
  */
 const DAYS: readonly SeedDaySpec[] = [
   {
     key: 'leg',
-    name: 'PIERNA',
+    name: 'SENTADILLA / PIERNA',
     slots: [
       strength('seed-ex-sentadilla-trasera'),
-      strength('seed-ex-peso-muerto-rumano'),
       hypertrophy('seed-ex-prensa'),
       accessory('seed-ex-curl-femoral-sentado'),
       preventive('seed-ex-nordic-asistido'),
@@ -237,30 +249,33 @@ const DAYS: readonly SeedDaySpec[] = [
     ],
   },
   {
+    // The key stays `torso-a`: the day id and every item id stay, so a session that points
+    // at this day keeps pointing at it after the rename.
     key: 'torso-a',
-    name: 'TORSO A',
+    name: 'PRESS BANCA / EMPUJE',
     slots: [
       strength('seed-ex-press-banca'),
-      hypertrophy('seed-ex-remo-barra'),
-      hypertrophy('seed-ex-jalon-pecho'),
+      hypertrophy('seed-ex-press-banca-inclinado'),
       hypertrophy('seed-ex-press-hombro'),
       accessory('seed-ex-elevaciones-laterales'),
-      accessory('seed-ex-curl-barra'),
       accessory('seed-ex-extensiones-triceps'),
+      accessory('seed-ex-extension-triceps-mancuerna'),
       walk('seed-ex-caminata-inclinada'),
     ],
   },
   {
+    // The key stays `torso-b` for the same reason: this day changed what it is about, not
+    // its identity, and a closed session on `seed-day-torso-b` is still this day.
     key: 'torso-b',
-    name: 'TORSO B',
+    name: 'PESO MUERTO / TRACCIÓN',
     slots: [
-      strength('seed-ex-press-banca-inclinado'),
-      hypertrophy('seed-ex-remo-maquina'),
+      strength('seed-ex-peso-muerto'),
+      hypertrophy('seed-ex-remo-barra'),
       hypertrophy('seed-ex-dominadas-asistidas'),
-      hypertrophy('seed-ex-press-hombro-maquina'),
+      hypertrophy('seed-ex-jalon-pecho'),
       accessory('seed-ex-face-pull'),
+      accessory('seed-ex-curl-barra'),
       accessory('seed-ex-curl-polea'),
-      accessory('seed-ex-extension-triceps-mancuerna'),
       walk('seed-ex-caminata-inclinada'),
     ],
   },

@@ -407,6 +407,127 @@ const WALK_PRESCRIPTION = {
   durationSeconds: 1200,
 } as const;
 
+/** A day as an earlier release wrote it: only the name and the exercise order matter here. */
+function dayOf(
+  id: string,
+  name: string,
+  order: number,
+  exerciseIds: readonly string[],
+): PlanDay {
+  return {
+    id,
+    name,
+    order,
+    items: exerciseIds.map((exerciseId, index) => ({
+      id: `${id}-item-${String(index + 1)}`,
+      planDayId: id,
+      order: index,
+      exerciseId,
+      exerciseNameSnapshot: seedNameOf(exerciseId),
+      prescription: {
+        sets: 3,
+        repRange: { lowerBound: 8, upperBound: 10 },
+        targetRIR: { lowerBound: 2, upperBound: 3 },
+        restSeconds: 120,
+      },
+    })),
+  };
+}
+
+/**
+ * The four days as the release before odd/tasks/three-lift-plan.md S2 wrote them: the bare
+ * names, the Romanian deadlift on day one and no conventional deadlift anywhere in the
+ * plan.
+ *
+ * Written out from the previous table rather than read from the seed, because the seed no
+ * longer has them — and because a device in the wild does.
+ */
+function previousReleaseDays(): readonly PlanDay[] {
+  return [
+    dayOf('seed-day-leg', 'PIERNA', 0, [
+      'seed-ex-sentadilla-trasera',
+      'seed-ex-peso-muerto-rumano',
+      'seed-ex-prensa',
+      'seed-ex-curl-femoral-sentado',
+      'seed-ex-nordic-asistido',
+      'seed-ex-copenhagen-adaptado',
+      'seed-ex-gemelos',
+      'seed-ex-soleo-sentado',
+      'seed-ex-caminata-inclinada',
+    ]),
+    dayOf('seed-day-torso-a', 'TORSO A', 1, [
+      'seed-ex-press-banca',
+      'seed-ex-remo-barra',
+      'seed-ex-jalon-pecho',
+      'seed-ex-press-hombro',
+      'seed-ex-elevaciones-laterales',
+      'seed-ex-curl-barra',
+      'seed-ex-extensiones-triceps',
+      'seed-ex-caminata-inclinada',
+    ]),
+    dayOf('seed-day-torso-b', 'TORSO B', 2, [
+      'seed-ex-press-banca-inclinado',
+      'seed-ex-remo-maquina',
+      'seed-ex-dominadas-asistidas',
+      'seed-ex-press-hombro-maquina',
+      'seed-ex-face-pull',
+      'seed-ex-curl-polea',
+      'seed-ex-extension-triceps-mancuerna',
+      'seed-ex-caminata-inclinada',
+    ]),
+    dayOf(FISICO_ID, 'MOVILIDAD Y CORE', 3, [
+      'seed-ex-movilidad-cadera-90-90',
+      'seed-ex-movilidad-toracica-cuadrupedia',
+      'seed-ex-plancha',
+      'seed-ex-plancha-lateral',
+      'seed-ex-bird-dog',
+      'seed-ex-copenhagen-adaptado',
+      'seed-ex-caminata-inclinada',
+    ]),
+  ];
+}
+
+describe('the three-lift rename', () => {
+  it('rewrites the three strength days of the previous release under the same ids', async () => {
+    // odd/tasks/three-lift-plan.md S9: the ids are the identity. A session closed on
+    // `seed-day-leg` keeps pointing at that day, and the day now says what it trains. The
+    // fourth day is not rewritten because S7 left it exactly as it was.
+    const store = fakeStore({
+      planDays: previousReleaseDays(),
+      exercises: [...SEED_EXERCISES],
+    });
+
+    expect(await refreshSeededPlanDays(store.storage)).toBe(3);
+
+    expect(store.written.planDays).toEqual(
+      SEED_DAYS.filter((day) => day.id !== FISICO_ID).map((day) => day.id),
+    );
+    for (const day of SEED_DAYS) {
+      const refreshed = store.planDays.get(day.id);
+      expect(refreshed?.name, day.id).toBe(day.name);
+      expect(
+        refreshed?.items.map((item) => item.exerciseId),
+        day.id,
+      ).toEqual(day.items.map((item) => item.exerciseId));
+    }
+  });
+
+  it('leaves a day the owner edited alone, and rewrites the two it did not', async () => {
+    // S10: the test is exact. A day that differs in name, count or order is the owner's.
+    const before = previousReleaseDays();
+    const [leg, ...rest] = before;
+    if (leg === undefined) throw new Error('the previous release lost its first day');
+    const mine = edited(leg);
+    const store = fakeStore({
+      planDays: [mine, ...rest],
+      exercises: [...SEED_EXERCISES],
+    });
+
+    expect(await refreshSeededPlanDays(store.storage)).toBe(2);
+    expect(store.planDays.get(leg.id)).toEqual(mine);
+  });
+});
+
 describe('the closing walk of the seeded days', () => {
   it('gives a store that already has the four days the walk, once, at the end of each', async () => {
     // S1 and S5: the twenty minutes land on the plan a device already holds, as the last

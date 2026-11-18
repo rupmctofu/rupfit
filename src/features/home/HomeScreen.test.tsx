@@ -484,10 +484,10 @@ describe('the demo can show the week (?demo=inicio)', () => {
 
     expect(week?.monday).toBe('2023-11-06');
     const view = homeViewOf(input({ now, plan: fixture.plan, recent: fixture.sessions, week }));
-    // The demo draws its own week, and today is the day that week places: the preparation,
-    // with the preview the row of today starts (T4, T6).
+    // The demo draws its own week, and today is the day that week places: the mobility and
+    // core day, with the preview the row of today starts (T4, T6).
     expect(view.agenda?.agenda.days.find((day) => day.today)?.planDay?.name).toBe(
-      'PREPARACIÓN FÚTBOL',
+      'MOVILIDAD Y CORE',
     );
     expect(view.today?.state).toBe('preview');
   });

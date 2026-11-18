@@ -37,16 +37,16 @@ const WALK = seedExerciseById(WALK_ITEM.exerciseId);
 if (WALK === undefined) throw new Error('the walk is not in the library');
 
 describe('S1 the plan is four training days', () => {
-  it('ships leg, upper A, upper B and the mobility and core day', () => {
+  it('ships the squat, the bench press, the deadlift, each with its split, and the mobility and core day', () => {
     expect(DAYS.map((day) => day.name)).toEqual([
-      'PIERNA',
-      'TORSO A',
-      'TORSO B',
+      'SENTADILLA / PIERNA',
+      'PRESS BANCA / EMPUJE',
+      'PESO MUERTO / TRACCIÓN',
       'MOVILIDAD Y CORE',
     ]);
   });
 
-  it('comes after TORSO B in the rotation and is never a fifth strength day', () => {
+  it('comes after the deadlift day in the rotation and is never a fifth strength day', () => {
     expect(DAYS.map((day) => day.order)).toEqual([0, 1, 2, 3]);
     const roles = FISICO_ITEMS.map((item) => item.prescription.role);
     expect(roles).not.toContain('strength');
@@ -60,6 +60,68 @@ describe('S1 the plan is four training days', () => {
   // pinned beside the code, in `src/features/home/football.test.ts` and
   // `src/features/home/selectors.test.ts`: this file must stay inside the core and
   // storage projects, which do not carry DOM types.
+});
+
+/**
+ * The three strength days, by the lift each one is named after
+ * (`odd/tasks/three-lift-plan.md` S2-S8). The owner could not tell what the plan was doing,
+ * so the test states the answer in the order he will read it on the screen.
+ */
+describe('S2-S8 each strength day is named after the lift it opens with', () => {
+  const exerciseIdsOf = (name: string): readonly string[] => {
+    const day = DAYS.find((candidate) => candidate.name === name);
+    if (day === undefined) throw new Error(`the plan has no ${name} day`);
+    return day.items.map((item) => item.exerciseId ?? '');
+  };
+
+  it('anchors day one in the squat and leaves the hinge to day three', () => {
+    expect(exerciseIdsOf('SENTADILLA / PIERNA')).toEqual([
+      'seed-ex-sentadilla-trasera',
+      'seed-ex-prensa',
+      'seed-ex-curl-femoral-sentado',
+      'seed-ex-nordic-asistido',
+      'seed-ex-copenhagen-adaptado',
+      'seed-ex-gemelos',
+      'seed-ex-soleo-sentado',
+      'seed-ex-caminata-inclinada',
+    ]);
+  });
+
+  it('anchors day two in the bench press and keeps the pressing family', () => {
+    expect(exerciseIdsOf('PRESS BANCA / EMPUJE')).toEqual([
+      'seed-ex-press-banca',
+      'seed-ex-press-banca-inclinado',
+      'seed-ex-press-hombro',
+      'seed-ex-elevaciones-laterales',
+      'seed-ex-extensiones-triceps',
+      'seed-ex-extension-triceps-mancuerna',
+      'seed-ex-caminata-inclinada',
+    ]);
+  });
+
+  it('anchors day three in the conventional deadlift, not the Romanian one', () => {
+    expect(exerciseIdsOf('PESO MUERTO / TRACCIÓN')).toEqual([
+      'seed-ex-peso-muerto',
+      'seed-ex-remo-barra',
+      'seed-ex-dominadas-asistidas',
+      'seed-ex-jalon-pecho',
+      'seed-ex-face-pull',
+      'seed-ex-curl-barra',
+      'seed-ex-curl-polea',
+      'seed-ex-caminata-inclinada',
+    ]);
+  });
+
+  it('gives the anchor the strength profile, and it is the only one in the day', () => {
+    for (const name of ['SENTADILLA / PIERNA', 'PRESS BANCA / EMPUJE', 'PESO MUERTO / TRACCIÓN']) {
+      const day = DAYS.find((candidate) => candidate.name === name);      if (day === undefined) throw new Error(`the plan has no ${name} day`);
+      expect(day.items[0]?.prescription.role, name).toBe('strength');
+      expect(
+        day.items.filter((item) => item.prescription.role === 'strength'),
+        name,
+      ).toHaveLength(1);
+    }
+  });
 });
 
 describe('S2 the prescription profile', () => {
@@ -371,7 +433,7 @@ describe('L11 the conditioning profile: prescribed by time, never by load', () =
     expect(walk?.prescription.role).toBe('conditioning');
 
     // And a rep-prescribed item encodes with no such key, exactly as before L11.
-    const torso = parsed.document.planDays.find((candidate) => candidate.name === 'TORSO A');
+    const torso = parsed.document.planDays.find((candidate) => candidate.name === 'PRESS BANCA / EMPUJE');
     expect(torso?.items[0]?.prescription).not.toHaveProperty('durationSeconds');
   });
 });

@@ -49,11 +49,16 @@ import { formatDayName, formatWeekdayName } from '../home/format';
  * its previous display name is still read: a store the launch refresh has not rewritten,
  * the demo fixture and a plan the owner edited all keep their fourth day instead of losing
  * it to a string comparison.
+ *
+ * The three strength days were renamed again by odd/tasks/three-lift-plan.md S2, from the
+ * bare `PIERNA` / `TORSO A` / `TORSO B` to the lift each one opens with. Day three changed
+ * what it is about and not which role it plays: `upperB` still holds the third strength day
+ * of the week, which S12 leaves on the day after the match.
  */
 const ROLE_NAMES: Readonly<Record<keyof WeekPlanDays, string>> = {
-  leg: 'PIERNA',
-  upperA: 'TORSO A',
-  upperB: 'TORSO B',
+  leg: 'SENTADILLA / PIERNA',
+  upperA: 'PRESS BANCA / EMPUJE',
+  upperB: 'PESO MUERTO / TRACCIÓN',
   prep: 'MOVILIDAD Y CORE',
 };
 
@@ -61,6 +66,9 @@ const ROLE_NAMES: Readonly<Record<keyof WeekPlanDays, string>> = {
 const PREVIOUS_ROLE_NAMES: Readonly<
   Partial<Record<keyof WeekPlanDays, readonly string[]>>
 > = {
+  leg: ['PIERNA'],
+  upperA: ['TORSO A'],
+  upperB: ['TORSO B'],
   prep: ['PREPARACIÓN FÚTBOL'],
 };
 

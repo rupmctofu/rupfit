@@ -97,6 +97,96 @@ const REPLACED_SEED_DAYS: readonly ReplacedSeedDay[] = [
       { exerciseId: 'seed-ex-plancha' },
     ],
   },
+  {
+    // odd/tasks/three-lift-plan.md S2: the three strength days take the name of the lift each
+    // one opens with, and the weight moves. Day one loses the Romanian deadlift, day two
+    // gains the incline bench, day three becomes the conventional deadlift and the pulling
+    // work. These are the shapes the release before this one wrote for each day.
+    id: 'seed-day-leg',
+    name: 'PIERNA',
+    items: [
+      { exerciseId: 'seed-ex-sentadilla-trasera' },
+      { exerciseId: 'seed-ex-peso-muerto-rumano' },
+      { exerciseId: 'seed-ex-prensa' },
+      { exerciseId: 'seed-ex-curl-femoral-sentado' },
+      { exerciseId: 'seed-ex-nordic-asistido' },
+      { exerciseId: 'seed-ex-copenhagen-adaptado' },
+      { exerciseId: 'seed-ex-gemelos' },
+      { exerciseId: 'seed-ex-soleo-sentado' },
+      { exerciseId: 'seed-ex-caminata-inclinada' },
+    ],
+  },
+  {
+    id: 'seed-day-torso-a',
+    name: 'TORSO A',
+    items: [
+      { exerciseId: 'seed-ex-press-banca' },
+      { exerciseId: 'seed-ex-remo-barra' },
+      { exerciseId: 'seed-ex-jalon-pecho' },
+      { exerciseId: 'seed-ex-press-hombro' },
+      { exerciseId: 'seed-ex-elevaciones-laterales' },
+      { exerciseId: 'seed-ex-curl-barra' },
+      { exerciseId: 'seed-ex-extensiones-triceps' },
+      { exerciseId: 'seed-ex-caminata-inclinada' },
+    ],
+  },
+  {
+    id: 'seed-day-torso-b',
+    name: 'TORSO B',
+    items: [
+      { exerciseId: 'seed-ex-press-banca-inclinado' },
+      { exerciseId: 'seed-ex-remo-maquina' },
+      { exerciseId: 'seed-ex-dominadas-asistidas' },
+      { exerciseId: 'seed-ex-press-hombro-maquina' },
+      { exerciseId: 'seed-ex-face-pull' },
+      { exerciseId: 'seed-ex-curl-polea' },
+      { exerciseId: 'seed-ex-extension-triceps-mancuerna' },
+      { exerciseId: 'seed-ex-caminata-inclinada' },
+    ],
+  },
+  // The same three days one release earlier, before odd/tasks/incline-walk.md appended the
+  // closing walk to every day. A store that skipped that release is rewritten by this one,
+  // instead of keeping the bare names forever.
+  {
+    id: 'seed-day-leg',
+    name: 'PIERNA',
+    items: [
+      { exerciseId: 'seed-ex-sentadilla-trasera' },
+      { exerciseId: 'seed-ex-peso-muerto-rumano' },
+      { exerciseId: 'seed-ex-prensa' },
+      { exerciseId: 'seed-ex-curl-femoral-sentado' },
+      { exerciseId: 'seed-ex-nordic-asistido' },
+      { exerciseId: 'seed-ex-copenhagen-adaptado' },
+      { exerciseId: 'seed-ex-gemelos' },
+      { exerciseId: 'seed-ex-soleo-sentado' },
+    ],
+  },
+  {
+    id: 'seed-day-torso-a',
+    name: 'TORSO A',
+    items: [
+      { exerciseId: 'seed-ex-press-banca' },
+      { exerciseId: 'seed-ex-remo-barra' },
+      { exerciseId: 'seed-ex-jalon-pecho' },
+      { exerciseId: 'seed-ex-press-hombro' },
+      { exerciseId: 'seed-ex-elevaciones-laterales' },
+      { exerciseId: 'seed-ex-curl-barra' },
+      { exerciseId: 'seed-ex-extensiones-triceps' },
+    ],
+  },
+  {
+    id: 'seed-day-torso-b',
+    name: 'TORSO B',
+    items: [
+      { exerciseId: 'seed-ex-press-banca-inclinado' },
+      { exerciseId: 'seed-ex-remo-maquina' },
+      { exerciseId: 'seed-ex-dominadas-asistidas' },
+      { exerciseId: 'seed-ex-press-hombro-maquina' },
+      { exerciseId: 'seed-ex-face-pull' },
+      { exerciseId: 'seed-ex-curl-polea' },
+      { exerciseId: 'seed-ex-extension-triceps-mancuerna' },
+    ],
+  },
 ];
 
 /**
@@ -105,6 +195,12 @@ const REPLACED_SEED_DAYS: readonly ReplacedSeedDay[] = [
  * Like `REPLACED_SEED_DAYS`, this is data and not a rule: on its own the refresh cannot
  * tell a day seeded before the walk from a day the owner built without it, so the release
  * that appends records here which item ids it is adding, and to which day.
+ *
+ * The ids are the positions the appended rows hold in the seed of today, because that is
+ * what `extendedSeedDays` subtracts from: a release that reorders a day re-points them, or
+ * the append silently stops happening for that day. A day that is reshaped wholesale — not
+ * extended — belongs in `REPLACED_SEED_DAYS` instead; that is where the three strength days
+ * went when odd/tasks/three-lift-plan.md S2 rewrote them.
  */
 interface AppendedSeedItem {
   readonly dayId: string;
@@ -118,8 +214,8 @@ interface AppendedSeedItem {
  * the four days, once.
  */
 const APPENDED_SEED_ITEMS: readonly AppendedSeedItem[] = [
-  { dayId: 'seed-day-leg', itemIds: ['seed-item-leg-9'] },
-  { dayId: 'seed-day-torso-a', itemIds: ['seed-item-torso-a-8'] },
+  { dayId: 'seed-day-leg', itemIds: ['seed-item-leg-8'] },
+  { dayId: 'seed-day-torso-a', itemIds: ['seed-item-torso-a-7'] },
   { dayId: 'seed-day-torso-b', itemIds: ['seed-item-torso-b-8'] },
   { dayId: 'seed-day-fisico', itemIds: ['seed-item-fisico-7'] },
 ];

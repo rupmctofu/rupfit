@@ -54,7 +54,7 @@ interface LiftSeed {
 const DAY_SEEDS: readonly { readonly id: string; readonly name: string; readonly offset: number; readonly lifts: readonly LiftSeed[] }[] = [
   {
     id: 'demo-lower',
-    name: 'PIERNA',
+    name: 'SENTADILLA / PIERNA',
     offset: 0,
     lifts: [
       { name: 'Sentadilla trasera', sets: 3, reps: { lowerBound: 8, upperBound: 10 }, restSeconds: 180, weightKg: 100, actualReps: 10, equipment: 'barbell', pattern: 'squat', muscle: 'quadriceps' },
@@ -67,7 +67,7 @@ const DAY_SEEDS: readonly { readonly id: string; readonly name: string; readonly
   },
   {
     id: 'demo-pull',
-    name: 'TORSO A',
+    name: 'PESO MUERTO / TRACCIÓN',
     offset: 2,
     lifts: [
       { name: 'Peso muerto', sets: 3, reps: { lowerBound: 6, upperBound: 8 }, restSeconds: 180, weightKg: 110, actualReps: 6, equipment: 'barbell', pattern: 'hinge', muscle: 'hamstrings' },
@@ -80,7 +80,7 @@ const DAY_SEEDS: readonly { readonly id: string; readonly name: string; readonly
   },
   {
     id: 'demo-push',
-    name: 'TORSO B',
+    name: 'PRESS BANCA / EMPUJE',
     offset: 4,
     lifts: [
       { name: 'Press banca', sets: 3, reps: { lowerBound: 6, upperBound: 8 }, restSeconds: 180, weightKg: 80, actualReps: 8, equipment: 'barbell', pattern: 'horizontalPush', muscle: 'chest' },
@@ -94,15 +94,19 @@ const DAY_SEEDS: readonly { readonly id: string; readonly name: string; readonly
   {
     // The fourth day of the programme (L7): the demo names its four days as the seed does,
     // because the week module finds them by name (`weekDaysOf`) and a demo that cannot
-    // build a week could not show the exchange of today.
+    // build a week could not show the exchange of today. Its content follows the seed too
+    // (odd/tasks/three-lift-plan.md S7): mobility and core, no load.
     id: 'demo-prep',
-    name: 'PREPARACIÓN FÚTBOL',
+    name: 'MOVILIDAD Y CORE',
     offset: 2,
     lifts: [
-      { name: 'Intervalos en pista', sets: 6, reps: { lowerBound: 1, upperBound: 1 }, restSeconds: 60, weightKg: 0, actualReps: 1, equipment: 'bodyweight', pattern: 'conditioning', muscle: 'quadriceps' },
-      { name: 'Nordic curl asistido', sets: 2, reps: { lowerBound: 8, upperBound: 10 }, restSeconds: 90, weightKg: 0, actualReps: 10, equipment: 'bodyweight', pattern: 'isolation', muscle: 'hamstrings' },
-      { name: 'Copenhagen corto', sets: 2, reps: { lowerBound: 1, upperBound: 1 }, restSeconds: 60, weightKg: 0, actualReps: 1, equipment: 'bodyweight', pattern: 'core', muscle: 'core' },
-      { name: 'Elevación de sóleo isométrica', sets: 2, reps: { lowerBound: 1, upperBound: 1 }, restSeconds: 60, weightKg: 0, actualReps: 1, equipment: 'bodyweight', pattern: 'isolation', muscle: 'calves' },
+      { name: 'Movilidad de cadera 90/90', sets: 2, reps: { lowerBound: 8, upperBound: 8 }, restSeconds: 45, weightKg: 0, actualReps: 8, equipment: 'bodyweight', pattern: 'core', muscle: 'glutes' },
+      { name: 'Movilidad torácica', sets: 2, reps: { lowerBound: 8, upperBound: 8 }, restSeconds: 45, weightKg: 0, actualReps: 8, equipment: 'bodyweight', pattern: 'core', muscle: 'upperBack' },
+      { name: 'Plancha', sets: 3, reps: { lowerBound: 1, upperBound: 1 }, restSeconds: 40, weightKg: 0, actualReps: 1, equipment: 'bodyweight', pattern: 'core', muscle: 'core' },
+      { name: 'Plancha lateral', sets: 2, reps: { lowerBound: 1, upperBound: 1 }, restSeconds: 40, weightKg: 0, actualReps: 1, equipment: 'bodyweight', pattern: 'core', muscle: 'core' },
+      { name: 'Bird-dog', sets: 2, reps: { lowerBound: 10, upperBound: 10 }, restSeconds: 45, weightKg: 0, actualReps: 10, equipment: 'bodyweight', pattern: 'core', muscle: 'core' },
+      { name: 'Copenhagen adaptado', sets: 2, reps: { lowerBound: 6, upperBound: 6 }, restSeconds: 45, weightKg: 0, actualReps: 6, equipment: 'bodyweight', pattern: 'core', muscle: 'glutes' },
+      { name: 'Caminata inclinada', sets: 1, reps: { lowerBound: 1, upperBound: 1 }, restSeconds: 0, weightKg: 0, actualReps: 1, equipment: 'machine', pattern: 'conditioning', muscle: 'quadriceps' },
     ],
   },
 ];

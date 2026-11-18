@@ -125,35 +125,38 @@ Consequences the requirements below depend on:
 
   | Weekday | League week (`jueves`) | Cup week (`martes`) | No fixture |
   | --- | --- | --- | --- |
-  | Monday | `PIERNA` | `MOVILIDAD Y CORE` | `PIERNA` |
-  | Tuesday | `TORSO A` | Match | `TORSO A` |
-  | Wednesday | `MOVILIDAD Y CORE` | `TORSO A` | `MOVILIDAD Y CORE` |
-  | Thursday | Match | `PIERNA` | `TORSO B` |
-  | Friday | `TORSO B` | `TORSO B` | rest |
+  | Monday | `SENTADILLA / PIERNA` | `MOVILIDAD Y CORE` | `SENTADILLA / PIERNA` |
+  | Tuesday | `PRESS BANCA / EMPUJE` | Match | `PRESS BANCA / EMPUJE` |
+  | Wednesday | `MOVILIDAD Y CORE` | `PRESS BANCA / EMPUJE` | `MOVILIDAD Y CORE` |
+  | Thursday | Match | `SENTADILLA / PIERNA` | `PESO MUERTO / TRACCIÓN` |
+  | Friday | `PESO MUERTO / TRACCIÓN` | `PESO MUERTO / TRACCIÓN` | rest |
   | Saturday | rest | rest | rest |
   | Sunday | rest | rest | rest |
 
   Exactly one match a week, never two: Thursday in the league, Tuesday in the cup, and a
-  cup week has no league match. Saturday and Sunday are rest. In a league week the legs
-  are as far from the match as the window allows and the fourth day is the last training
-  day before it; in a cup week the legs move to the Thursday, never to the Wednesday
-  after the match. The layouts are a table (`WEEK_TEMPLATES` in
-  `src/core/engine/week-plan.ts`), not the result of rules derived from priorities:
-  changing a day means editing the table. `PlanDay` still stores no weekday — the weekday
-  comes from the template and the Monday of the week — so a layout change moves a session
-  without rewriting a stored day.
+  cup week has no league match. Saturday and Sunday are rest. In a league week the squat day
+  is as far from the match as the window allows and the fourth day is the last training day
+  before it; in a cup week the squat moves to the Thursday, never to the Wednesday after the
+  match. The deadlift day is the day after the match in a league week: the owner kept the
+  layouts as they were when the third day stopped being an upper-body day, with the cost in
+  front of him (`odd/tasks/three-lift-plan.md` S12). The layouts are a table
+  (`WEEK_TEMPLATES` in `src/core/engine/week-plan.ts`), not the result of rules derived from
+  priorities: changing a day means editing the table. `PlanDay` still stores no weekday —
+  the weekday comes from the template and the Monday of the week — so a layout change moves
+  a session without rewriting a stored day.
 - **FR-3.2 MUST** ship these accessories per day, editable and reorderable, each with its
   own prescription profile (`progression-engine.md §8`):
-  *Pierna* — prensa (hypertrophy), curl femoral sentado (accessory), nordic curl asistido
-  (preventive), copenhagen plank adaptado (preventive), elevación de gemelos de pie y
-  elevación de sóleo sentado (accessory); *Torso A* — remo con barra, jalón al pecho,
-  press de hombro (hypertrophy), elevaciones laterales, curl de bíceps con barra,
-  extensiones de tríceps (accessory); *Torso B* — remo en máquina, dominadas asistidas,
-  press de hombro en máquina (hypertrophy), face pull, curl en polea, extensión de tríceps
-  sobre la cabeza (accessory). The full version of the Nordic curl and of the Copenhagen
-  plank ship in the library but never in the starting plan: S3 asks for a prudent
-  introduction, so they enter as a change of exercise the owner makes, not as load the
-  engine adds.
+  *Sentadilla / Pierna* — prensa (hypertrophy), curl femoral sentado (accessory), nordic curl
+  asistido (preventive), copenhagen plank adaptado (preventive), elevación de gemelos de pie
+  y elevación de sóleo sentado (accessory); *Press banca / Empuje* — press banca inclinado,
+  press de hombro (hypertrophy), elevaciones laterales, extensiones de tríceps y extensión de
+  tríceps sobre la cabeza (accessory); *Peso muerto / Tracción* — remo con barra, dominadas
+  asistidas, jalón al pecho (hypertrophy), face pull, curl de bíceps con barra y curl en
+  polea (accessory). Each day opens with the lift it is named after, and that lift is the
+  day's only `strength` slot (`odd/tasks/three-lift-plan.md` S2, S8). The full version of the
+  Nordic curl and of the Copenhagen plank ship in the library but never in the starting plan:
+  S3 asks for a prudent introduction, so they enter as a change of exercise the owner makes,
+  not as load the engine adds.
 - **FR-3.3 MUST** allow: add exercise, remove exercise, reorder, change sets and
   reps, substitute an exercise for an alternative, and set weights and increments.
   **Alternatives shipped 2026-11-09** (`odd/tasks/training-program.md` S5) as library

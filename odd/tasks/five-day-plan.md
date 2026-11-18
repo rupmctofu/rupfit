@@ -14,6 +14,11 @@ PPL (push / pull / legs), que es el split que la app ya tiene como `PIERNA`, `TO
 carga. **El día de partido no tiene entreno**: se deja libre. El número de días no cambia
 (4); cambia el contenido del cuarto.
 
+> Nombres vigentes: `odd/tasks/three-lift-plan.md` S2 renombra los tres días de fuerza a
+> `SENTADILLA / PIERNA`, `PRESS BANCA / EMPUJE` y `PESO MUERTO / TRACCIÓN`, y reparte el
+> peso entre ellos. El split que fija esta especificación (PPL, cuatro días, el partido
+> libre) no cambia.
+
 S2. **20 minutos de cardio después de cada entreno**: caminar a 5–6 km/h en pendiente,
 «caminar con prisa en pendiente». Va al final de la sesión, no como día aparte.
 

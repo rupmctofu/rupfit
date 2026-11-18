@@ -10,6 +10,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PlanDay, WeekRecord } from '../../storage';
+import { seedPlanDays } from '../../core/seed';
 import {
   localDayOf,
   mondayInstantOf,
@@ -61,6 +62,19 @@ const PLAN: readonly PlanDay[] = [
 const LEAGUE: WeekRecord = { monday: MONDAY_OF_WEEK, match: 'league', swaps: [] };
 
 describe('weekDaysOf maps the stored plan days by name', () => {
+  it('T4 finds the four days the seed ships today, which is what the app reads', () => {
+    // The seed's names and the engine's roles are joined by a string, so this is the test
+    // that fails when a release renames a day and forgets the bridge
+    // (odd/tasks/three-lift-plan.md S2, S11). The fixtures below deliberately keep the
+    // retired names: they are the alias path.
+    expect(weekDaysOf(seedPlanDays())).toEqual({
+      leg: 'seed-day-leg',
+      upperA: 'seed-day-torso-a',
+      upperB: 'seed-day-torso-b',
+      prep: 'seed-day-fisico',
+    });
+  });
+
   it('T4 names the four roles from the seed names, whatever the stored order', () => {
     const days = weekDaysOf([...PLAN].reverse());
     expect(days).toEqual({
@@ -76,7 +90,9 @@ describe('weekDaysOf maps the stored plan days by name', () => {
   });
 
   it('T4 finds a day the owner renamed in another case, through the one formatter', () => {
-    const renamed = PLAN.map((day) => (day.name === 'PIERNA' ? { ...day, name: 'Pierna' } : day));
+    const renamed = PLAN.map((day) =>
+      day.name === 'PIERNA' ? { ...day, name: 'Pierna' } : day,
+    );
     expect(weekDaysOf(renamed)?.leg).toBe('seed-day-leg');
   });
 
