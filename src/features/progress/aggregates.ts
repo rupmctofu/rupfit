@@ -629,7 +629,7 @@ export function weightSeries(
     windowStart,
     windowEnd,
     points,
-    weighIns: [...inWindow].reverse(),
+    weighIns: inWindow.toReversed(),
     last: points[points.length - 1] ?? null,
     missingDays,
     contiguous,

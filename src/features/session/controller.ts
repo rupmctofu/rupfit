@@ -179,7 +179,7 @@ export function sessionSourceFrom(session: WorkoutSession): SessionSource {
       loadDeltaKg: exercise.loadDeltaKg,
       status: exercise.status,
       completedAt: exercise.completedAt,
-      sets: [...exercise.sets].sort((left, right) => left.index - right.index),
+      sets: exercise.sets.toSorted((left, right) => left.index - right.index),
     })),
   };
 }
@@ -233,7 +233,7 @@ export function startOfDay(now: EpochMs): EpochMs {
  * both the strip and the «última vez» tile, and today's own session is the `hoy` bar.
  */
 export function historyFrom(sessions: readonly WorkoutSession[], now: EpochMs): SessionHistory {
-  const ordered = [...sessions].sort((left, right) => left.scheduledDate - right.scheduledDate);
+  const ordered = sessions.toSorted((left, right) => left.scheduledDate - right.scheduledDate);
   const collected: Record<string, HistoryPoint[]> = {};
 
   for (const session of ordered) {

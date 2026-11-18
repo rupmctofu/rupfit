@@ -84,8 +84,7 @@ function topSetOf(exercise: ExerciseSession): Pick<ExerciseSessionPoint, 'topSet
 
 function ascending(refs: readonly ExerciseSessionRef[]): readonly ExerciseSessionRef[] {
   return refs
-    .slice()
-    .sort(
+    .toSorted(
       (left, right) =>
         left.session.scheduledDate - right.session.scheduledDate ||
         left.session.id.localeCompare(right.session.id),

@@ -395,8 +395,8 @@ export function snapshotFromSource(source: SessionSource, autoStartRest: boolean
     recommendedWeightKg: exercise.recommendedWeightKg,
     usedWeightKg: exercise.usedWeightKg,
     loadDeltaKg: exercise.loadDeltaKg,
-    sets: [...exercise.sets]
-      .sort((left, right) => left.index - right.index)
+    sets: exercise.sets
+      .toSorted((left, right) => left.index - right.index)
       .map((set): SetEntry => ({ status: 'confirmed', slot: set.index, set })),
     status: exercise.status,
     completedAt: exercise.completedAt,

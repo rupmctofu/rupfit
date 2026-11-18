@@ -140,7 +140,7 @@ export class Outbox {
   async list(): Promise<OpResult<readonly OutboxOp[]>> {
     try {
       const ops = await this.store.allOps();
-      return { ok: true, value: [...ops].sort(compareOps) };
+      return { ok: true, value: ops.toSorted(compareOps) };
     } catch (error) {
       return { ok: false, error: errorMessage(error) };
     }

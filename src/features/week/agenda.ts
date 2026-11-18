@@ -357,7 +357,7 @@ export function weekProposalOf(
   const done = donePlanDayIdsOf(sessions, weekDateTexts);
   // `order` is the rotation and the id only settles a tie: two days cannot share a place
   // in the cycle, and a stored pair that does must still be answered the same way twice.
-  const rotation = [...plan].sort(
+  const rotation = plan.toSorted(
     (left, right) => left.order - right.order || left.id.localeCompare(right.id),
   );
   return rotation.find((planDay) => !done.has(planDay.id)) ?? nextPlanDay(plan, sessions);

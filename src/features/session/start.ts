@@ -88,7 +88,7 @@ export function nextPlanDay(
   plan: readonly PlanDay[],
   sessions: readonly WorkoutSession[],
 ): PlanDay | null {
-  const ordered = [...plan].sort((left, right) => left.order - right.order);
+  const ordered = plan.toSorted((left, right) => left.order - right.order);
   const first = ordered[0];
   if (first === undefined) return null;
 
@@ -180,7 +180,7 @@ export function progressionHistoryOf(
 
   const newestFirst: Record<string, readonly ExerciseOutcome[]> = {};
   for (const [exerciseId, outcomes] of Object.entries(collected)) {
-    newestFirst[exerciseId] = [...outcomes].reverse();
+    newestFirst[exerciseId] = outcomes.toReversed();
   }
   return newestFirst;
 }
@@ -336,8 +336,8 @@ export function buildSession(input: BuildSessionInput): BuiltSession {
   const phaseState = input.phaseState ?? NEUTRAL_PHASE_STATE;
   const computedAt = new Date(input.now);
 
-  const exercises: ExerciseSession[] = [...input.day.items]
-    .sort((left, right) => left.order - right.order)
+  const exercises: ExerciseSession[] = input.day.items
+    .toSorted((left, right) => left.order - right.order)
     .map((item, index) => {
       const row =
         item.exerciseId === null

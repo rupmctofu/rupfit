@@ -342,7 +342,7 @@ interface SessionRowsProps {
 }
 
 function SessionRows({ history }: SessionRowsProps): React.ReactElement {
-  const newestFirst = history.points.slice().reverse();
+  const newestFirst = history.points.toReversed();
 
   return (
     <Card padding="list">

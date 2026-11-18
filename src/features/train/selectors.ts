@@ -151,7 +151,7 @@ function subtitleOf(
 export function trainViewOf(input: TrainInput): TrainView {
   const { now, plan, phaseState } = input;
   const week = sessionsThisWeek(input.sessions, now);
-  const ordered = [...plan].sort((left, right) => left.order - right.order);
+  const ordered = plan.toSorted((left, right) => left.order - right.order);
 
   const days: TrainDayView[] = ordered.map((day) => {
     const session = sessionOfDay(week, day.id);
@@ -162,8 +162,7 @@ export function trainViewOf(input: TrainInput): TrainView {
       status: statusOf(session, now),
       sessionId: session === undefined ? null : session.id,
       items: day.items
-        .slice()
-        .sort((left, right) => left.order - right.order)
+        .toSorted((left, right) => left.order - right.order)
         .map((item) => ({
           name: item.exerciseNameSnapshot,
           prescription: targetLine(item.prescription),

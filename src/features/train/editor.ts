@@ -89,8 +89,8 @@ export function editableDayOf(day: PlanDay): EditableDay {
     id: day.id,
     name: day.name,
     order: day.order,
-    items: [...day.items]
-      .sort((left, right) => left.order - right.order)
+    items: day.items
+      .toSorted((left, right) => left.order - right.order)
       .map((stored) => ({
         id: stored.id,
         exerciseId: stored.exerciseId,
@@ -299,8 +299,7 @@ export function addableExercises(day: EditableDay, library: readonly Exercise[])
   const used = new Set(day.items.flatMap((item) => (item.exerciseId === null ? [] : [item.exerciseId])));
   return library
     .filter((exercise) => !exercise.isArchived && !used.has(exercise.id))
-    .slice()
-    .sort((left, right) => left.name.localeCompare(right.name, 'es'));
+    .toSorted((left, right) => left.name.localeCompare(right.name, 'es'));
 }
 
 export function setSets(day: EditableDay, itemId: string, sets: number): EditorOutcome {

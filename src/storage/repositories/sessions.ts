@@ -606,7 +606,7 @@ function stripSets(exerciseSession: ExerciseSession): ExerciseSessionState {
 }
 
 function sortByDate(rows: readonly SessionRow[]): SessionRow[] {
-  return [...rows].sort((a, b) => a.scheduledDate - b.scheduledDate || a.id.localeCompare(b.id));
+  return rows.toSorted((a, b) => a.scheduledDate - b.scheduledDate || a.id.localeCompare(b.id));
 }
 
 function resolveUsedWeight(input: LoadDecisionInput): number {

@@ -130,8 +130,8 @@ export function createFakeStorage(options: FakeStorageOptions = {}): FakeStorage
     },
     async recent(limit) {
       record('sessions.recent');
-      return [...sessions]
-        .sort((left, right) => right.scheduledDate - left.scheduledDate)
+      return sessions
+        .toSorted((left, right) => right.scheduledDate - left.scheduledDate)
         .slice(0, Math.max(0, limit))
         .map(copySession);
     },

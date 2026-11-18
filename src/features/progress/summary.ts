@@ -56,7 +56,7 @@ export function sessionSource(session: WorkoutSession): SessionSource {
       loadDeltaKg: exercise.loadDeltaKg,
       status: exercise.status,
       completedAt: exercise.completedAt,
-      sets: [...exercise.sets].sort((left, right) => left.index - right.index),
+      sets: exercise.sets.toSorted((left, right) => left.index - right.index),
     })),
   };
 }
@@ -78,6 +78,5 @@ export function isHistorySession(session: WorkoutSession): boolean {
 export function historySessions(sessions: readonly WorkoutSession[]): readonly WorkoutSession[] {
   return sessions
     .filter(isHistorySession)
-    .slice()
-    .sort((left, right) => right.scheduledDate - left.scheduledDate);
+    .toSorted((left, right) => right.scheduledDate - left.scheduledDate);
 }

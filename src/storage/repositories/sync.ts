@@ -45,7 +45,7 @@ function asPendingOp(row: unknown): PendingSyncOp | null {
 }
 
 function sortByQueuedAt(ops: readonly PendingSyncOp[]): PendingSyncOp[] {
-  return [...ops].sort(
+  return ops.toSorted(
     (left, right) =>
       left.queuedAt - right.queuedAt ||
       (left.id < right.id ? -1 : left.id > right.id ? 1 : 0),

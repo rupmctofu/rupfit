@@ -48,7 +48,7 @@ export default defineConfig(({ mode }) => {
     }),
   ],
   build: {
-    target: 'es2022',
+    target: 'es2023',
     sourcemap: true,
   },
   server: {

@@ -97,11 +97,11 @@ export function buildBackupDocument(
     ...(data.weekLayout === null || data.weekLayout === undefined
       ? {}
       : { weekLayout: copyWeekLayout(data.weekLayout) }),
-    exercises: [...data.exercises].sort(byId).map(copyExercise),
-    planDays: [...data.planDays].sort(byId).map(copyPlanDay),
-    sessions: [...data.sessions].sort(byId).map(encodeSession),
-    bodyMeasurements: [...data.bodyMeasurements].sort(byId).map(copyMeasurement),
-    activities: [...data.activities].sort(byId).map(copyActivity),
+    exercises: data.exercises.toSorted(byId).map(copyExercise),
+    planDays: data.planDays.toSorted(byId).map(copyPlanDay),
+    sessions: data.sessions.toSorted(byId).map(encodeSession),
+    bodyMeasurements: data.bodyMeasurements.toSorted(byId).map(copyMeasurement),
+    activities: data.activities.toSorted(byId).map(copyActivity),
   };
 }
 

@@ -680,8 +680,7 @@ function weightViewOf(measurements: readonly BodyMeasurement[], now: EpochMs): W
       (measurement): measurement is BodyMeasurement & { readonly weightKg: number } =>
         measurement.weightKg !== null && measurement.date >= from && measurement.date <= now,
     )
-    .slice()
-    .sort((left, right) => left.date - right.date);
+    .toSorted((left, right) => left.date - right.date);
 
   if (samples.length === 0) return null;
 
