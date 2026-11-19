@@ -31,10 +31,10 @@ Specs are the contract; the Log is the record. Subagents read until `## Log`.
 
 | ID | Spec | Risk | Commit |
 | --- | --- | --- | --- |
-| T1 | S2, S4 | none | `1f1c8cc`: the three templates |
-| T2 | S6 | none | `1f1c8cc`: the swap guard compares against the template |
-| T3 | S2-S4 | none | `1f1c8cc`: every test that pinned the old weekdays |
-| T4 | S7 | none | `1f1c8cc`: FR-3.1 |
+| T1 | S2, S4 | none | `c6ac505`: the three templates |
+| T2 | S6 | none | `c6ac505`: the swap guard compares against the template |
+| T3 | S2-S4 | none | `c6ac505`: every test that pinned the old weekdays |
+| T4 | S7 | none | `c6ac505`: FR-3.1 |
 
 ## Log
 
