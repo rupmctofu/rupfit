@@ -14,7 +14,7 @@ synchronisation needs. It is not a second design.
 
 ## 1. Tables
 
-Eleven tables, one per stored entity. Every id is the app's own
+Ten tables, one per stored entity. Every id is the app's own
 `crypto.randomUUID()` string kept as `text`, so a row pushed from a device lands on
 the same primary key it has locally and a second push of anything is a no-op.
 
@@ -22,7 +22,6 @@ the same primary key it has locally and a second push of anything is a no-op.
 | --- | --- | --- |
 | `profiles` | `meta` → `profile` | `id`, `display_name`, `mass_unit`, `weight_goal`, `weekly_training_days`, `available_equipment`, `auto_start_rest_timer` |
 | `plan_days` | `planDays` | `id`, `name`, `day_order` |
-| `week_layout` | `meta` → `weekLayout` | `id`, `slots` (JSON text) |
 | `plan_items` | `planItems` | `id`, `plan_day_id` → `plan_days`, `item_order`, `exercise_id`, `exercise_name_snapshot`, `prescription` (jsonb) |
 | `phase_state` | `meta` → `phaseState` | `id`, `block`, `passed_blocks`, `role`, `scheduled_sessions_per_week` |
 | `exercises` | `exercises` | `id`, `name`, `primary_muscle`, `pattern`, `equipment`, `load_increment_kg`, `is_custom`, `is_archived`, `secondary_muscles`, `description`, `variant_of`, `alternatives` |
@@ -59,11 +58,13 @@ Types follow the same rule as `docs/data-model.md` §2:
   explicitly for the prescription), so mirroring them as documents keeps them lossless
   instead of inventing a column per member. `available_equipment`, `secondary_muscles`
   and `alternatives` are flat closed sets, so they are `text[]` and can be queried.
-- **One composite the client encodes itself → `text`.** `week_layout.slots` is the seven
-  slots of the owner's fixed assignment as one JSON array, written by `ENCODE` and read by
-  `DECODE` in `src/cloud/remote.ts`. It is `text` rather than `jsonb` because the shape is
-  the client's: the server stores and returns the document untouched, and the record's own
-  validator (`weekLayoutFromStored`) is what refuses a layout that is not seven weekdays.
+- **One composite the client used to encode itself → `text`, and that column is gone.**
+  `week_layout.slots` was the seven slots of the owner's fixed assignment as one JSON
+  array, written by `ENCODE` and read by `DECODE` in `src/cloud/remote.ts`. The table, and
+  that entry in both helpers, left with the record (`odd/tasks/backlog-closeout.md` T4), so
+  no column of the mirror is a client-encoded document any more: `prescription`,
+  `recommendation`, `decision` and `phase` are `jsonb` because the server does not need to
+  read them either.
 - **Closed value sets are `text` + `check`**, not PostgreSQL enums: adding a muscle
   group must not need an enum migration that rewrites a table.
 
@@ -142,7 +143,7 @@ values survive instead of letting the last writer silently win.
 
 ## 3. Row Level Security
 
-RLS is **enabled on all eleven tables** and there is no table left without it. Each table
+RLS is **enabled on all ten tables** and there is no table left without it. Each table
 has exactly four policies — `select`, `insert`, `update`, `delete` — scoped to the
 `authenticated` role and to one predicate:
 
@@ -194,11 +195,23 @@ One concern per file, in this order:
 | `20261109120800_sets.sql` | `sets` + FK to `session_exercises` |
 | `20261109120900_body_measurements.sql` | `body_measurements` |
 | `20261109121000_activities.sql` | `activities` + unique dedupe index |
-| `20261109121100_week_layout.sql` | `week_layout` (the owner's fixed weekly assignment) |
+| `20261109121100_week_layout.sql` | `week_layout` (the owner's fixed weekly assignment, retired below) |
+| `20261110120000_retire_week_layout.sql` | `week_layout` dropped, idempotently |
 
 Each table file is self-contained on purpose: a reviewer reading
 `20261109120800_sets.sql` sees the columns, the indexes, the trigger and the four
 policies of that table in one screen, instead of chasing a second file.
+
+`20261110120000_retire_week_layout.sql` is the one file that takes something away, and it
+is written to be idempotent: `drop table if exists public.week_layout` removes the table
+and, with it, its index, its trigger and its four policies, which the table owns. On a
+project that never had the table — a fresh one — or on a second run of the same file, the
+statement is a no-op instead of an error. Nothing else depends on the table: its `slots`
+were plan day ids held as one JSON text column, so no foreign key points at it and no
+other table has a column to drop. The client stopped pushing `week_layout` in the same
+commit (`odd/tasks/backlog-closeout.md` T4), so the owner can run this file **before or
+after** the deploy: run first, there is no table waiting when the new client arrives; run
+last, the table that outlives the deploy is empty and nothing reads it.
 
 `supabase/types.ts` is a hand-written `Database` type mirroring these tables. A
 generated file (`npx supabase gen types typescript`) needs a live project; when one

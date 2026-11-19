@@ -271,9 +271,10 @@ ADR as long as the row above still holds: no import under `src/core/**` may reac
 file there may touch `fetch`, `Date.now()` or randomness.
 
 **The week planner is the second pure decision.** `src/core/engine/week-plan.ts` owns
-the three accepted layouts (`WEEK_TEMPLATES`), `weekPlan` — seven dated days from a
-Monday and the caller's own days, keyed by role — and `applySwaps`, which applies this
-week's exchanges and refuses the five that would move a day somewhere it may not go. It
+the three accepted layouts (`WEEK_TEMPLATES`) and `weekPlan` — seven dated days from a
+Monday and the caller's own days, keyed by role. It stamps the template as written: there
+is no saved placement to apply and no exchange to refuse since
+`odd/tasks/backlog-closeout.md` T4 retired `WeekLayout` and the per-week swaps. It
 reads no clock, no store and no locale: a day is a local `YYYY-MM-DD` built from local
 getters, never `toISOString`, which would answer in UTC. The two local-date helpers it
 needs also exist in `src/features/progress`, and the app tier sits above `src/core`, so
@@ -424,15 +425,15 @@ export interface IdProvider { next(): Uuid }
 - Statistics never write. They are pure functions over records read through
   indexes, computed on demand.
 - **One single-row record takes the device-local branch.** The week of the match is one
-  `meta` row under the fixed key `'week'` — the Monday, the fixture and that week's
-  exchanges (`data-model.md` §5.1). It is reached through `storage.meta.readWeek` /
-  `saveWeek` (`MetaRepository`, `src/storage/repositories/profile.ts`) and written with a
-  plain `put`: no sync stamp, no queued op, and no entry in the sync table list, so there
-  is nothing to push and no server table to hold it. A `restore` clears `meta`, so the
-  record dies with it and `Inicio` plans the next week on first open. A feature never
-  writes it directly: it asks `src/features/week/week.ts` what today is, and the screen
-  writes the two commands that own the row — the fixture flip (`saveWeekMatch`) and the
-  exchange (`saveTodaySwap`) — both in `src/features/home/HomeScreen.tsx`.
+  `meta` row under the fixed key `'week'`: the Monday and the fixture, and nothing else —
+  a legacy row's exchanges are dropped when it is read (`data-model.md` §5.1). It is
+  reached through `storage.meta.readWeek` / `saveWeek` (`MetaRepository`,
+  `src/storage/repositories/profile.ts`) and written with a plain `put`: no sync stamp, no
+  queued op, and no entry in the sync table list, so there is nothing to push and no server
+  table to hold it. A `restore` clears `meta`, so the record dies with it and `Inicio` plans
+  the next week on first open. A feature never writes it directly: it asks
+  `src/features/week/week.ts` what today is, and the screen writes the one command that owns
+  the row — the fixture flip (`saveWeekMatch`, in `src/features/home/HomeScreen.tsx`).
 
 **The week module is the app tier's read side.** `src/features/week/week.ts` takes the
 stored record, the plan and the injected instant, and answers two questions with no

@@ -251,32 +251,11 @@ export type MatchKind = 'league' | 'cup' | 'none';
 /** Weekday of the week, Monday first: 0 is Monday and 6 is Sunday. */
 export type DayOffset = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
-/** Two weekdays that exchange what they hold (S6, S9). The weekdays never move; what
- *  moves is which of the plan's days fills each one. */
-export interface WeekSwap {
-  readonly from: DayOffset;
-  readonly to: DayOffset;
-}
-
 /** This phone's plan for one week: the single-row record of §5.1. */
 export interface WeekRecord {
   /** Local `YYYY-MM-DD` of the Monday, the form `weekPlan` wants. */
   readonly monday: string;
   readonly match: MatchKind;
-  /** The exchanges the owner made inside this week, and only this week. */
-  readonly swaps: readonly WeekSwap[];
-}
-
-/** One weekday of the owner's fixed assignment (S5, S6). `weekday` 0 is Monday, 6 Sunday. */
-export interface WeekLayoutSlot {
-  readonly weekday: number;   // 0..6, exactly one slot per weekday
-  /** The plan day the owner put on that weekday; `null` leaves the day free. */
-  readonly planDayId: string | null;
-}
-
-/** The owner's fixed weekly assignment (S5, S6): seven slots, no dates. */
-export interface WeekLayout {
-  readonly slots: readonly WeekLayoutSlot[];  // exactly 7, ascending weekday
 }
 ```
 
@@ -287,29 +266,27 @@ export interface WeekLayout {
 §5: with no history and no calibration the app says "elige un peso" instead of
 inventing a number.
 
-**`WeekRecord` is a plan, not evidence.** It is the week's whole memory: the Monday it
-belongs to, which fixture it has, and the exchanges made inside it. Nothing else in
-it is derived — the seven days are stamped from that record by `weekPlan`
-(`src/core/engine/week-plan.ts`), so a stored swap survives a reload and a record of
-another week says nothing about today. It lives on this device only (§5.1, §9).
+**`WeekRecord` is a plan, not evidence, and it has two fields.** It is the week's whole
+memory: the Monday it belongs to and which fixture it has. Everything else is derived —
+the four days and the match are stamped from that fixture's template by `weekPlan`
+(`src/core/engine/week-plan.ts`) on every read — so nothing about the placement is stored
+and a record of another week says nothing about today. It lives on this device only (§5.1,
+§9). A row an older build wrote still carries a `swaps` list; the mapper copies `monday`
+and `match` and drops the exchanges, so a stale list cannot resurface as a placement
+nothing honours.
 
-**`WeekLayout` is still stored and synced, and no longer decides anything.** It holds the
-seven weekdays and, for each one, which of the plan days the owner put there — no dates,
-because it is the same assignment every week (S5). The record keeps its whole
-place in the pipeline: `MetaRepository.saveWeekLayout` still writes it with `writeStamped`,
-still queues its `week_layout` op and is still applied when a synced one arrives, so it
-travels with the backup document and the account exactly like the profile (§9,
-`docs/cloud-sync.md` §1). It is read on the way to `Inicio` and **never consulted**: the
-week is derived from this week's fixture template on every read
-(`src/features/home/selectors.ts`), so a placement saved under another fixture cannot
-displace a day and no plan day can be left without a weekday. Deleting the record from the
-schema, and its `week_layout` table from the cloud, is a separate unit that must announce
-its own migration.
+**The stored weekly assignment is gone.** `WeekLayout` — seven weekdays, and for each one
+which plan day the owner had put there (S5) — left the schema with
+`MetaRepository.saveWeekLayout`, its `week_layout` sync op and its cloud table
+(`odd/tasks/backlog-closeout.md` T4): the week is derived from this week's fixture template
+on every read (`WEEK_TEMPLATES` through `src/features/week/agenda.ts`, called from
+`src/features/home/selectors.ts`), so the record was never consulted. A note
+that still describes it as stored and synced describes a build that is gone.
 
-`MatchKind`, `WeekSwap` and `DayOffset` are core value types — they belong to the week
-planner, which decides the layout — and the entity that stores them is storage-facing
-(`src/storage/entities.ts`, with the rest of §3): the engine never reads a week, only the
-app tier does (`architecture.md` §7).
+`MatchKind` and `DayOffset` are core value types — they belong to the week planner, which
+states the templates — and the one the store depends on, `MatchKind`, is imported by the
+storage-facing `WeekRecord` (`src/storage/entities.ts`, with the rest of §3): the engine
+never reads a week, only the app tier does (`architecture.md` §7).
 
 **`WorkoutSession.phase` is what makes §8's gate measurable.** It was always stored —
 the phase a session was built in — and since the block advance is persisted it is also
@@ -346,11 +323,11 @@ If an audit trail of engine versions is ever needed, the addition is
 
 One database, `rupfit`, version `1`. Every store is keyed by a string UUID except
 the single-row records, which live in `meta` under fixed string keys: `profile`,
-`phaseState`, `weekLayout`, `storage` and this week's plan under `week`.
+`phaseState`, `storage` and this week's plan under `week`.
 
 | Store | Key path | Purpose |
 | --- | --- | --- |
-| `meta` | `key` (`'profile'`, `'phaseState'`, `'weekLayout'`, `'storage'`, `'week'`) | single-row state, the fixed weekly assignment, the storage-persistence answer and this week's plan |
+| `meta` | `key` (`'profile'`, `'phaseState'`, `'storage'`, `'week'`) | single-row state, the storage-persistence answer and this week's plan |
 | `exercises` | `id` | the library, seeded plus custom |
 | `planDays` | `id` | weekday template days |
 | `planItems` | `id` | ordered items of a day |
@@ -395,8 +372,10 @@ free:
   manual activities can share a store with imported ones without colliding. That is
   the mechanism behind I-11, not a database constraint.
 - **One `meta` row takes the device-local branch.** `meta` holds the week of the match
-  under the fixed key `'week'`, one row: the Monday, the match kind and that week's
-  exchanges (`WeekRecord`, §3). It is written with a plain `put` —
+  under the fixed key `'week'`, one row: the Monday and the match kind (`WeekRecord`, §3).
+  A row an older build wrote carries that week's exchanges too, and `weekRecordFromStored`
+  drops them on read: the week has two fields and the stale list is not a placement the app
+  honours. It is written with a plain `put` —
   `MetaRepository.saveWeek` in `src/storage/repositories/profile.ts` — exactly like the
   storage answer: no sync stamp, no queued op, and no entry in the sync table list
   (`src/cloud/types.ts`), so there is no server table for it and nothing to push. Two
@@ -405,18 +384,14 @@ free:
   `Inicio` plans the next one on first open (`currentWeekOf`,
   `src/features/home/HomeScreen.tsx`). A week is a plan for one phone, not history: it
   must never be lifted into the sync path without a server column for it.
-- **One `meta` row takes the profile's pipeline instead.** The owner's fixed weekly
-  assignment lives under the fixed key `'weekLayout'`, one row with seven slots
-  (`WeekLayout`, §3). It is written with `writeStamped` — `MetaRepository.saveWeekLayout`
-  in `src/storage/repositories/profile.ts` — so it carries `rev`/`updatedAt` and queues
-  its `week_layout` op inside the same transaction, exactly like the profile and the phase
-  state, and it is read back through `readWeekLayout`. Two consequences follow and both
-  are intended: the record is still in the backup document (§9) and in the account
-  (`docs/cloud-sync.md` §1). Nothing derives from it, though: the week is this week's
-  fixture template on every read (`src/features/home/selectors.ts`), so `undefined` and a
-  stored placement answer the same week, and no plan day can be left without a weekday.
-  Deleting the row — and the `week_layout` table it syncs to — is a separate unit that must
-  announce its migration.
+- **No `meta` row takes the profile's pipeline any more.** The owner's fixed weekly
+  assignment (`'weekLayout'`, seven slots) was retired with `saveWeekLayout`, its
+  `week_layout` sync op and its cloud table (`odd/tasks/backlog-closeout.md` T4): nothing
+  derived from it, because the week is this week's fixture template on every read
+  (`src/features/home/selectors.ts`), so the pipeline only carried a placement no reader
+  consulted. A store that still holds the row never reads it — `meta` is schemaless — and
+  the server table is what the drop migration removes
+  (`supabase/migrations/20261110120000_retire_week_layout.sql`).
 
 ### 5.2 Records are flat, and the mappers are the boundary
 
@@ -645,12 +620,11 @@ lost storage container.
 ```json
 {
   "documentType": "rupfit.backup",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "appVersion": "1.0.0",
   "exportedAt": "2026-11-08T10:00:00Z",
   "profile": { },
   "phaseState": { },
-  "weekLayout": { "slots": [ ] },
   "exercises": [ ],
   "planDays": [ ],
   "sessions": [ ],
@@ -668,23 +642,25 @@ Rules:
   carry `externalSampleId` so re-import can dedupe (I-11).
 - **The week record is deliberately outside the document.** `meta.week` (§5.1) is a plan
   for one phone, not training evidence, so it is not exported and not restored. A
-  `restore` clears every store, `meta` included, and writes back the profile, the phase
-  state and the week layout; the week that follows a restore is planned again from the
-  template of its own Monday, which is what `currentWeekOf` does for any week it holds no
+  `restore` clears every store, `meta` included, and writes back the profile and the phase
+  state; the week that follows a restore is planned again from the template of its own
+  Monday, which is what `currentWeekOf` does for any week it holds no
   record of. No session, set or frozen recommendation depends on the week record, so
   nothing is lost by leaving it out.
-- **The week layout is inside the document, and absence is a legitimate answer.**
-  `weekLayout` is the owner's fixed assignment (S5, S6), so `restore` writes it back like
-  the profile. It is written as a key that is *absent* — not `null` — when the owner has
-  never moved anything, and `weekLayoutSchema` is `.optional()`: a document exported
-  before the field existed still imports, and it leaves the app on the template default,
-  which is the same state as never having fixed the assignment.
+- **The document is version 2, and a version 1 document still loads.** Version 2 retired
+  the optional `weekLayout` field with the record it described
+  (`odd/tasks/backlog-closeout.md` T4), and the parser accepts `schemaVersion` 1 or 2 on
+  purpose: an owner's old backup imports, and the retired field is an unknown key the
+  schema drops instead of a reason to refuse the file. Nothing is upgraded in place: the
+  older document is read by a schema that no longer knows the field, and the field is
+  dropped, which is harmless only because the record it carried had stopped deciding
+  anything.
 - **Validation before writing.** The document is parsed with the `zod` schema derived
   from the domain types. An invalid document changes nothing and reports the first
   failure with its path (`sessions[3].exercises[0].sets[1].effort`), not a generic
   "import failed".
-- An unknown `schemaVersion` is rejected with both versions named. No best-effort
-  parse, no partial import.
+- A `schemaVersion` this build does not read — below 1 or above 2 — is rejected with the
+  range it does read named. No best-effort parse, no partial import.
 - **Two import modes, both explicit:**
 
   | Mode | Semantics | Allowed for |

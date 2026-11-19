@@ -52,8 +52,9 @@ declarations that file already allows for this screen, each with its role in a c
 
 - `border-color: var(--color-accent)` and `color: var(--color-accent-text)` — today's row
   and today's cell in the strip (the data point the screen exists to answer);
-- `background: var(--color-accent-muted)` — the tinted today cell, the drop target while a
-  row is in the air, and the bar's track;
+- `background: var(--color-accent-muted)` — the tinted today cell, the selected option of
+  the fixture sheet, and the bar's track (the drop target this bullet used to name went with
+  the drag, below);
 - `color: var(--color-accent)` — the bar's fill, painted with `background: currentColor`
   so the accent is spent on one line. **If T12 prefers the direct form**
   (`background: var(--color-accent)`), the allow-list in `tests/accent-budget.test.ts`
@@ -62,9 +63,14 @@ declarations that file already allows for this screen, each with its role in a c
 ## What did not change
 
 - `homeViewOf` and every selector: the screen still renders a view it did not compute.
-- `agenda.tsx`: the tap into the day sheet, the drag between days, the fixture sheet and
-  the match report. The rows lost their `PrimaryAction` (the card carries it) and gained a
+- `agenda.tsx`: the fixture sheet and the match report, the two things a row still
+  opens. The rows lost their `PrimaryAction` (the card carries it) and gained a
   visible `La semana` label; `starting`/`onStart` left `AgendaWeek` with the action.
+  The tap into the day sheet and the drag between days are not part of the screen any more:
+  they were removed on 2026-11-18, when the week stopped being a stored placement and began
+  to be derived from the fixture's template on every read (`odd/tasks/derived-week.md` S2,
+  S4). A row cannot be moved, so nothing offers to move it; `home.css` still carries the
+  `--over` rule the gesture used to paint.
 - No route, no store, no persistence, no sync, no dependency, no design-system file, no
   token. The light theme and the brand SVGs are untouched.
 
@@ -94,8 +100,13 @@ viewport 405×844 so the classic scrollbar leaves exactly 390 CSS px of layout w
   `.shell__main` 390/390. 768: 768/768 in both.
 - The card's bottom edge sits at 398 px at 390×844: today's workout is above the fold.
 - Touch targets: settings 48 × 48, the card's action 316 × 56, an agenda row 56 px tall.
-- `Ajustes` → `#/perfil`; a row tap opens the day sheet, the background goes `inert` and the
-  card's action disappears; dragging `Pierna` from Monday to Wednesday moves the row *and*
-  the card re-reads the same week (`Movilidad y core` becomes today's workout).
-- IndexedDB (`rupfit` → `meta` → `weekLayout`) was written by hand to reach the rest-day card
-  and restored to the template afterwards. No fixture data ships in the app.
+- `Ajustes` → `#/perfil`. The row tap and the drag this check exercised belong to the build
+  of that day: both were removed on 2026-11-18 with the stored placement
+  (`odd/tasks/derived-week.md` S4), so a repeat of the check has nothing to tap open and
+  nothing to drag — the rows open the fixture sheet and the match report, and the seven
+  days come from the template of the week's fixture. What still holds is the `inert`
+  background and the card's action disappearing while a sheet is open.
+- IndexedDB (`rupfit` → `meta` → `week`) was written by hand to reach the rest-day card — a
+  week row with `match: 'none'` frees Thursday — and returned to the league template
+  afterwards. The `weekLayout` row this check wrote is unread since 2026-11-19
+  (`odd/tasks/backlog-closeout.md` T4). No fixture data ships in the app.

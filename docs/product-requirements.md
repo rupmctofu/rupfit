@@ -148,10 +148,10 @@ Consequences the requirements below depend on:
   priorities: changing a day means editing the table, and the app honours it. `PlanDay`
   still stores no weekday — the weekday comes from the template and the Monday of the week —
   and the week is derived from this week's fixture template **on every read**, so no plan day
-  can be left without a weekday: the four days and the match always land Monday to Friday. A
-  `WeekLayout` is still written and synced by the store, but it is never consulted, so a
-  placement saved under another fixture cannot displace a day; deleting it from the schema
-  and from the cloud is a separate unit that must announce its own migration
+  can be left without a weekday: the four days and the match always land Monday to Friday.
+  Nothing stores the week's placement any more: the fixed `WeekLayout` assignment, its meta
+  row and its synced table were retired (`odd/tasks/backlog-closeout.md` T4), because a record
+  nothing read could still disagree with the template the week is drawn from
   (`odd/tasks/derived-week.md` S2, S5, S8).
 - **FR-3.2 MUST** ship these accessories per day, editable and reorderable, each with its
   own prescription profile (`progression-engine.md §8`):
@@ -175,25 +175,25 @@ Consequences the requirements below depend on:
 - **FR-3.4** *Superseded 2026-11-09 (S6, S12):* the weekday is no longer a default laid
   over a date-based schedule — it is the layout itself (FR-3.1). Each day of the week is
   stamped with the date of its own Monday to Sunday, and training outside that template is
-  a change of today (FR-3.7), not a second calendar entry.
+  a change of today (FR-3.7, retired 2026-11-18), not a second calendar entry.
 - **FR-3.5 MUST** track progression history and recommendations for accessory
   exercises exactly as for primary lifts. Primary lifts differ only in emphasis in
   the UI (FR-6.4), never in engine treatment.
 - **FR-3.6 SHOULD** support skipping a day without breaking the weekly pattern, and
   offer to train the skipped day on the next available date.
-- **FR-3.7 MUST** let the owner change today's training without planning anything (S6):
-  he picks another training day of this week and **the two days exchange weekdays** — the
-  day he leaves takes the weekday of the one he chose (S9). The exchange needs no free
-  slot, which is what makes it available on the weeks he actually plays, where Monday to
-  Friday are all taken. The match and the rest days are never offered, and neither is an
-  exchange that would load the legs the day after the match. The exchange is stored in
-  the week record and lasts that week: next week is drawn again from its own layout.
+- **FR-3.7** *Superseded 2026-11-18 (`odd/tasks/derived-week.md` S2-S5):* the owner no longer
+  changes today's training by exchanging two weekdays. The week is derived from the fixture's
+  template on every read, so there is no stored placement for an exchange to rewrite: the drag
+  between rows, the exchange, the day sheet and the section that listed the days the match had
+  left without a date were removed rather than kept as controls that write nothing, and the
+  match row kept its fixture and its report.
 - **FR-3.8 MUST** record the week's fixture in one action on `Inicio` and redraw the week
   from it: `Liga · jueves` or `Copa · martes` (S7, S11), with the league as the default of
   a week nobody has touched. The fixture is per week and not a season calendar — the cup
   weeks are marked one by one, which is what makes the manual change enough while the
-  federation's calendar cannot be read (S10). A change of fixture clears that
-  week's exchanges, because they were made against the layout being replaced.
+  federation's calendar cannot be read (S10). A change of fixture writes one field of this
+  week's record, so the days are redrawn from the new template and there is nothing else to
+  clear: the week stores no placement (FR-3.7).
 
 ### FR-4 Readaptation phase — MVP
 
@@ -512,7 +512,7 @@ the installed Home Screen app:
 | 7 | Native iOS shell vs. zero recurring cost and no re-signing | The PWA wins: installable from Safari, standalone, developed on Windows, nothing expires. Cost accepted: no haptics, no HealthKit, no watch companion, no background execution, storage that can be evicted | `architecture.md`, `design-system.md` §2 |
 | 8 | "Zero third-party runtime dependencies" vs. React, `idb` and `zod` on the stack | **Owner decision:** the requirement is amended, not reinterpreted. NFR-8 now ships a closed runtime list of exactly `react`, `react-dom`, `idb`, `zod`; nothing else may be added without an ADR and an owner gate | This file, NFR-8; `architecture.md` §3.3 |
 | 9 | The match as a fifth training day (S1) vs. a day that has to live somewhere in the week | Four training days inside Monday to Friday; the match is reported as an `ActivityRecord` and never becomes a session, so it cannot move a strength day | This file, FR-3.1, FR-13.5 |
-| 10 | "Se mueve a otro día de la semana" (S9) vs. layouts that fill Monday to Friday | The two days exchange weekdays. There is no free slot to move into, and an exchange that would load the legs the day after the match is refused and never offered | This file, FR-3.7; `src/core/engine/week-plan.ts` |
+| 10 | "Se mueve a otro día de la semana" (S9) vs. layouts that fill Monday to Friday | The two days exchange weekdays, and an exchange that would load the legs the day after the match is never offered. Retired 2026-11-18 with the stored placement: the week is derived on every read, so there is nothing left to move | This file, FR-3.7; `src/core/engine/week-plan.ts` |
 
 ## 8. Open decisions and the default applied
 
