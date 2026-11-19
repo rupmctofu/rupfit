@@ -9,6 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  BACKUP_FIRST_SCHEMA_VERSION,
   BACKUP_SCHEMA_VERSION,
   StorageError,
   type BackupDocument,
@@ -50,18 +51,22 @@ describe('importProblem', () => {
     expect(problem?.detail).toContain('Unexpected token <');
   });
 
-  it('names both versions when the document is from another build', () => {
+  it('names the version the file declares and the range this build reads', () => {
     const problem = importProblem(
       INVALID(
         'schemaVersion',
-        'The document declares schemaVersion 2; this build reads schemaVersion 1. No partial import is attempted.',
+        'The document declares schemaVersion 3; this build reads schemaVersion 1 to 2. No partial import is attempted.',
       ),
     );
 
     expect(problem?.kind).toBe('version');
     expect(problem?.path).toBe('schemaVersion');
-    expect(problem?.title).toContain('2');
-    expect(problem?.title).toContain('1');
+    // The declared number comes from the message; the range comes from the constants. Reading
+    // it out of the sentence quoted the bottom of the range as if it were the only version
+    // (T4 raised the ceiling to 2), so the screen said the app reads 1 while it reads 1 to 2.
+    expect(problem?.title).toContain('3');
+    expect(problem?.title).toContain(String(BACKUP_FIRST_SCHEMA_VERSION));
+    expect(problem?.title).toContain(String(BACKUP_SCHEMA_VERSION));
     expect(problem?.title).toContain('versión');
   });
 

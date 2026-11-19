@@ -13,6 +13,7 @@
  */
 
 import {
+  BACKUP_FIRST_SCHEMA_VERSION,
   BACKUP_SCHEMA_VERSION,
   isStorageError,
   type BackupDocument,
@@ -55,19 +56,24 @@ export function importProblem(validation: BackupValidation): ImportProblem | nul
 }
 
 /**
- * The storage layer names both versions in an English sentence
- * (`… declares schemaVersion 2; this build reads schemaVersion 1 …`). When both numbers
- * are there they are reused; when they are not, this build's own version is named.
+ * The storage layer names the declared version in an English sentence
+ * (`… declares schemaVersion 3; this build reads schemaVersion 1 to 2.`). Only the declared
+ * number is read from it: the range this build reads comes from the constants, because
+ * taking it from the sentence quoted the bottom of the range as if it were the only version
+ * (`odd/tasks/backlog-closeout.md` T4 raised the ceiling to 2).
  */
 function versionSentence(detail: string): string {
-  const found = [...detail.matchAll(/schemaVersion\s+(\d+)/g)].map((match) => match[1]);
-  const declared = found[0];
-  const readable = found[1];
+  const declared = /schemaVersion\s+(\d+)/.exec(detail)?.[1];
+  // Widened on purpose: both constants are literal types (1 and 2), and comparing two
+  // literals is a comparison TypeScript can prove — which it refuses to compile.
+  const first: number = BACKUP_FIRST_SCHEMA_VERSION;
+  const last: number = BACKUP_SCHEMA_VERSION;
+  const range = first === last ? `la ${last}` : `la ${first} a la ${last}`;
 
-  if (declared !== undefined && readable !== undefined) {
-    return `La copia es de otra versión: el archivo declara la ${declared} y esta app lee la ${readable}. No se importa nada.`;
+  if (declared !== undefined) {
+    return `La copia es de otra versión: el archivo declara la ${declared} y esta app lee ${range}. No se importa nada.`;
   }
-  return `La copia es de otra versión. Esta app lee la ${BACKUP_SCHEMA_VERSION} del documento y no importa nada.`;
+  return `La copia es de otra versión. Esta app lee ${range} del documento y no importa nada.`;
 }
 
 export interface MergeScope {

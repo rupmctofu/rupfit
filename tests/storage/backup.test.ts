@@ -701,6 +701,15 @@ describe('§9 the retired week layout (T4, spec S5)', () => {
     expect('weekLayout' in (JSON.parse(after) as Record<string, unknown>)).toBe(false);
     expect(JSON.parse(after)).toMatchObject({ schemaVersion: BACKUP_SCHEMA_VERSION });
     expect((await storage.profile.read())?.displayName).toBe('Robert');
+
+    // Every collection comes back, not only the three the first wording of this test looked
+    // at: a parser that accepted the version but dropped a collection would pass the checks
+    // above and lose a training history. The document that comes out is the one that went in.
+    const restored = JSON.parse(after) as Record<string, unknown>;
+    const original = JSON.parse(current) as Record<string, unknown>;
+    delete restored['schemaVersion'];
+    delete original['schemaVersion'];
+    expect(restored).toEqual(original);
   });
 
   it('still leaves the device-local week record outside the document and takes it with the restore', async () => {
