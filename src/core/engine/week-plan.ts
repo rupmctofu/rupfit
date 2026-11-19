@@ -76,35 +76,41 @@ export type WeekTemplate = readonly [
  * whole specification of the week: `weekPlan` reads it and adds nothing to it.
  */
 export const WEEK_TEMPLATES: Record<MatchKind, WeekTemplate> = {
-  // Match on Thursday. Legs on Monday, as far from the match as the window allows; the
-  // preparation on Wednesday, the last training day before it.
+  // Match on Thursday. The three heavy days are Monday, Wednesday and Friday, so no two
+  // strength sessions sit next to each other (the owner's rule, `odd/tasks/leg-separation.md`
+  // S2). The preparation takes Tuesday, two days before the match, and the last training day
+  // before it is the bench press, which asks nothing of the legs.
   league: [
     { kind: 'training', role: 'leg' }, // Monday
-    { kind: 'training', role: 'upper-a' }, // Tuesday
-    { kind: 'prep' }, // Wednesday
+    { kind: 'prep' }, // Tuesday
+    { kind: 'training', role: 'upper-a' }, // Wednesday
     { kind: 'match' }, // Thursday
     { kind: 'training', role: 'upper-b' }, // Friday
     { kind: 'rest' }, // Saturday
     { kind: 'rest' }, // Sunday
   ],
-  // Match on Tuesday: the preparation on Monday, and legs on Thursday, never on Wednesday —
-  // loading the legs the day after a match is the one thing L7 rules out.
+  // Match on Tuesday: the same three heavy days, so the press goes on Monday — the last day
+  // before the match, and upper body only — and the prep moves to Thursday. The squat lands on
+  // Wednesday, the day after the match: with five weekdays and a match inside them, separating
+  // the three lifts leaves no other slot, and the owner accepted that cost rather than putting
+  // two heavy sessions back to back.
   cup: [
-    { kind: 'prep' }, // Monday
+    { kind: 'training', role: 'upper-a' }, // Monday
     { kind: 'match' }, // Tuesday
-    { kind: 'training', role: 'upper-a' }, // Wednesday
-    { kind: 'training', role: 'leg' }, // Thursday
+    { kind: 'training', role: 'leg' }, // Wednesday
+    { kind: 'prep' }, // Thursday
     { kind: 'training', role: 'upper-b' }, // Friday
     { kind: 'rest' }, // Saturday
     { kind: 'rest' }, // Sunday
   ],
-  // No fixture: the league shape without the match, and Friday free as well.
+  // No fixture: the league shape without the match, which frees Thursday and keeps the three
+  // heavy days on Monday, Wednesday and Friday.
   none: [
     { kind: 'training', role: 'leg' }, // Monday
-    { kind: 'training', role: 'upper-a' }, // Tuesday
-    { kind: 'prep' }, // Wednesday
-    { kind: 'training', role: 'upper-b' }, // Thursday
-    { kind: 'rest' }, // Friday
+    { kind: 'prep' }, // Tuesday
+    { kind: 'training', role: 'upper-a' }, // Wednesday
+    { kind: 'rest' }, // Thursday
+    { kind: 'training', role: 'upper-b' }, // Friday
     { kind: 'rest' }, // Saturday
     { kind: 'rest' }, // Sunday
   ],
@@ -232,8 +238,10 @@ function holdsLeg(template: readonly WeekSlot[], offset: DayOffset): boolean {
  * twice (which includes a swap of a day with itself, and any list that is not a
  * permutation), a swap into the match or into a rest day — the match is reported and
  * never trained (S11) and the weekend is rest in every kind of week (S12) — and an
- * exchange that leaves the legs on the weekday right after the match, which is the rule
- * the whole layout is built around (L7).
+ * exchange that *introduces* the legs on the weekday right after the match where the
+ * template did not already have them. The cup template does place the squat there by
+ * design (`odd/tasks/leg-separation.md` S3), so the guard compares against the template
+ * rather than banning the state outright.
  */
 export function applySwaps(template: WeekTemplate, swaps: readonly WeekSwap[]): WeekTemplate {
   const rows: DayRow = [...template];

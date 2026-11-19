@@ -40,7 +40,9 @@ import { activityViewOf, homeViewOf, startOfDay, type HomeInput } from './select
 import { recordFootball, reportMatch } from './football';
 
 /** Wednesday 8 November 2023, 18:00 local. */
-const NOW = new Date(2023, 10, 8, 18, 0, 0).getTime();
+// Tuesday 7 November 2023: the mobility and core day of a league week since
+// `odd/tasks/leg-separation.md` S2 moved the three heavy days to Monday, Wednesday and Friday.
+const NOW = new Date(2023, 10, 7, 18, 0, 0).getTime();
 const MONDAY = new Date(2023, 10, 6, 18, 0, 0).getTime();
 /** The other two days of the same week: the match (Thursday) and the rest (Saturday). */
 const THURSDAY = new Date(2023, 10, 9, 18, 0, 0).getTime();
@@ -253,9 +255,9 @@ describe('Inicio renders', () => {
     expect(markup).toContain('Continuar entrenamiento');
     // The card names the day the week places, which is the only answer Inicio gives.
     expect(markup).toContain('home-today__title');
-    expect(rowOf(markup, 2)).toContain('Hoy');
+    expect(rowOf(markup, 1)).toContain('Hoy');
     // And the row above it carries no second filled control (one action per screen).
-    expect(rowOf(markup, 2)).not.toContain('ds-primary');
+    expect(rowOf(markup, 1)).not.toContain('ds-primary');
     expect(markup).not.toContain('Vista previa');
   });
 
@@ -267,7 +269,7 @@ describe('Inicio renders', () => {
 
     // The section moved with its copy (`ProgressScreen.test.tsx` pins it there).
     expect(markup).not.toContain('Fútbol registrado');
-    expect(markup).not.toContain('aria-label="Eliminar fútbol del 8 de noviembre"');
+    expect(markup).not.toContain('aria-label="Eliminar fútbol del 7 de noviembre"');
   });
 
   it('keeps the banner that reports a real loss, and only that one', () => {
@@ -309,7 +311,7 @@ describe('Inicio after the purge (S2, S3)', () => {
     // The day, its numbers, and the one action — on the card now, in the day's own words.
     expect(markup).toContain('Movilidad y core');
     expect(markup).toContain('Empezar entrenamiento');
-    expect(rowOf(markup, 2)).toContain('Movilidad y core');
+    expect(rowOf(markup, 1)).toContain('Movilidad y core');
   });
 });
 
@@ -471,10 +473,11 @@ describe('the demo can show the week (?demo=inicio)', () => {
 
     expect(week?.monday).toBe('2023-11-06');
     const view = homeViewOf(input({ now, plan: fixture.plan, recent: fixture.sessions, week }));
-    // The demo draws its own week, and today is the day that week places: the mobility and
-    // core day, with the preview the row of today starts (T4, T6).
+    // The demo draws its own week, and today is the day that week places: the press, since
+    // the three heavy days took Monday, Wednesday and Friday (`odd/tasks/leg-separation.md`
+    // S2), with the preview the row of today starts (T4, T6).
     expect(view.agenda?.agenda.days.find((day) => day.today)?.planDay?.name).toBe(
-      'MOVILIDAD Y CORE',
+      'PRESS BANCA / EMPUJE',
     );
     expect(view.today?.state).toBe('preview');
   });
@@ -512,16 +515,15 @@ describe('the week says which fixture it has (T3, S7, S11)', () => {
     // hold other days, so the list goes with the layout it was made on (T5, L7).
     expect(writes).toEqual([{ monday: '2023-11-06', match: 'cup', swaps: [] }]);
 
-    // The week the re-read draws is the cup week: today is the upper body, not the
-    // mobility day the league layout puts on Wednesday.
+    // The week the re-read draws is the cup week: Monday is the press, Wednesday the legs
+    // and Thursday the mobility day (`odd/tasks/leg-separation.md` S3).
     const markup = render({ plan: WEEK_PLAN, week: writes[0] });
     expect(markup).toContain('Copa · martes');
     expect(markup).toContain('Torso A');
-    // The agenda dates the whole cup week: the match lands on Tuesday and the mobility
-    // day is still Monday's, so neither reading contradicts the other.
-    expect(rowOf(markup, 2)).toContain('Torso A');
+    expect(rowOf(markup, 0)).toContain('Torso A');
     expect(rowOf(markup, 1)).toContain('Partido · Copa');
-    expect(rowOf(markup, 0)).toContain('Movilidad y core');
+    expect(rowOf(markup, 2)).toContain('Pierna');
+    expect(rowOf(markup, 3)).toContain('Movilidad y core');
   });
 
   it('restructures the week: a Thursday after the flip trains instead of hosting the match', async () => {
@@ -532,9 +534,10 @@ describe('the week says which fixture it has (T3, S7, S11)', () => {
     expect(rowOf(before, 3)).toContain('Partido · Liga');
     expect(rowOf(before, 3)).toContain('Hoy');
 
-    // L7: the cup match is Tuesday, so Thursday is the leg day of that layout.
+    // The cup match is Tuesday, so Thursday carries the mobility day of that layout and
+    // the legs are on Wednesday.
     const after = render({ now: THURSDAY, plan: WEEK_PLAN, week: writes[0] });
-    expect(rowOf(after, 3)).toContain('Pierna');
+    expect(rowOf(after, 3)).toContain('Movilidad y core');
     expect(after).not.toContain('Partido · Liga');
     expect(rowOf(after, 1)).toContain('Copa · martes');
   });
@@ -572,7 +575,7 @@ describe('the week says which fixture it has (T3, S7, S11)', () => {
     // drawn from — the league day for today, not the cup's day with the league's numbers.
     const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
     expect(rowOf(markup, 3)).toContain('Liga · jueves');
-    expect(rowOf(markup, 2)).toContain('Movilidad y core');
+    expect(rowOf(markup, 1)).toContain('Movilidad y core');
     expect(markup).not.toContain('Copa · martes');
   });
 });
@@ -597,8 +600,8 @@ describe('the football row writes through the port', () => {
       {
         id: 'football-1',
         label: 'Fútbol registrado',
-        detail: '8 nov · 50 min',
-        removeLabel: 'Eliminar fútbol del 8 de noviembre',
+        detail: '7 nov · 50 min',
+        removeLabel: 'Eliminar fútbol del 7 de noviembre',
       },
     ]);
 
@@ -655,8 +658,8 @@ describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10, S11)', () => {
     expect(rowOf(markup, 0)).toContain('Pierna');
     expect(rowOf(markup, 0)).toContain('1 ejercicio · 3 series');
     expect(rowOf(markup, 0)).toContain('Pendiente');
-    expect(rowOf(markup, 2)).toContain('Movilidad y core');
-    expect(rowOf(markup, 2)).toContain('Hoy');
+    expect(rowOf(markup, 1)).toContain('Movilidad y core');
+    expect(rowOf(markup, 1)).toContain('Hoy');
     expect(rowOf(markup, 3)).toContain('Partido · Liga');
     expect(rowOf(markup, 3)).toContain('Fijo');
     // S12: neither the count the meter drew nor the hint paragraph is on Inicio any more.
@@ -736,11 +739,12 @@ describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10, S11)', () => {
     const markup = render({ plan: WEEK_PLAN, week: CUP_WEEK, weekLayout: LEAGUE_LAYOUT });
 
     expect(rowOf(markup, 1)).toContain('Partido · Copa');
-    // The league layout put TORSO A on Tuesday, under the cup match. Derived, it is on
-    // Wednesday and Thursday carries the legs: the four days are all beside the match.
-    expect(rowOf(markup, 0)).toContain('Movilidad y core');
-    expect(rowOf(markup, 2)).toContain('Torso A');
-    expect(rowOf(markup, 3)).toContain('Pierna');
+    // The league layout put the legs on Monday, under nothing. Derived, the press takes
+    // Monday, the legs Wednesday and Thursday the mobility day
+    // (`odd/tasks/leg-separation.md` S3): the four days all sit beside the match.
+    expect(rowOf(markup, 0)).toContain('Torso A');
+    expect(rowOf(markup, 2)).toContain('Pierna');
+    expect(rowOf(markup, 3)).toContain('Movilidad y core');
     expect(rowOf(markup, 3)).not.toContain('Descanso');
 
     const { week } = agendaWeekOf({ plan: WEEK_PLAN, week: CUP_WEEK, weekLayout: LEAGUE_LAYOUT });
@@ -752,10 +756,10 @@ describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10, S11)', () => {
     const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK, weekLayout: moved });
 
     // The stored placement put the preparation on Saturday and left Wednesday empty. The
-    // week no longer reads it: Wednesday is the prep day, and today is placed.
-    expect(rowOf(markup, 2)).toContain('Movilidad y core');
-    expect(rowOf(markup, 2)).toContain('Hoy');
-    expect(rowOf(markup, 2)).not.toContain('Descanso');
+    // week no longer reads it: Tuesday is the prep day, and today is placed.
+    expect(rowOf(markup, 1)).toContain('Movilidad y core');
+    expect(rowOf(markup, 1)).toContain('Hoy');
+    expect(rowOf(markup, 1)).not.toContain('Descanso');
     expect(markup).not.toContain('data-weekday="5"');
     expect(markup).toContain('Empezar entrenamiento');
   });
@@ -776,7 +780,7 @@ describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10, S11)', () => {
     // the card is gated on; the words are the view's (`Empezar entrenamiento`).
     expect(week.action).toEqual({ kind: 'start', label: 'Empezar' });
     const today = week.agenda.days.find((day) => day.today) ?? null;
-    expect(today?.weekday).toBe(2);
+    expect(today?.weekday).toBe(1);
     expect(startRequestOf(today)).toBe('seed-day-fisico');
 
     const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
@@ -784,7 +788,7 @@ describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10, S11)', () => {
     expect(markup).toContain('home-today');
     // One filled action per screen (§7.1): the rows carry none, the card carries the one.
     expect(markup.split('ds-action ds-primary').length - 1).toBe(1);
-    expect(rowOf(markup, 2)).not.toContain('ds-primary');
+    expect(rowOf(markup, 1)).not.toContain('ds-primary');
     expect(view.today?.dayName).toBe('MOVILIDAD Y CORE');
   });
 
@@ -948,8 +952,8 @@ describe('Inicio is the week and very little else (T9, S12)', () => {
     expect(markup).not.toContain('entrenos hechos');
     expect(markup).not.toContain('Arrastra un renglón');
     // The day is still named, by the row that is now the only thing holding it.
-    expect(rowOf(markup, 2)).toContain('Movilidad y core');
-    expect(rowOf(markup, 2)).toContain('Hoy');
+    expect(rowOf(markup, 1)).toContain('Movilidad y core');
+    expect(rowOf(markup, 1)).toContain('Hoy');
   });
 
   it('carries the fixture on the match row, and the sheet writes the week record', async () => {
@@ -1038,7 +1042,7 @@ describe('Inicio is the week and very little else (T9, S12)', () => {
     // S12: the section moved to Progreso, it was not deleted.
     expect(markup).not.toContain('Fútbol registrado');
     expect(markup).not.toContain('Registrar');
-    expect(markup).not.toContain('aria-label="Eliminar fútbol del 8 de noviembre"');
+    expect(markup).not.toContain('aria-label="Eliminar fútbol del 7 de noviembre"');
     // The imported notice is Perfil's bookkeeping now, not Inicio's.
     expect(markup).not.toContain('actividades importadas');
   });
@@ -1048,7 +1052,7 @@ describe('Inicio is the week and very little else (T9, S12)', () => {
 
     expect(markup).toContain('Empezar entrenamiento');
     expect(markup.split('ds-action ds-primary').length - 1).toBe(1);
-    expect(rowOf(markup, 2)).not.toContain('ds-primary');
+    expect(rowOf(markup, 1)).not.toContain('ds-primary');
   });
 });
 
@@ -1068,7 +1072,7 @@ describe('the redesign composition (T5)', () => {
     expect(markup).toContain('logo-lockup.svg');
     // The greeting the app names itself, and the date under it.
     expect(markup).toContain('Hola, Rup');
-    expect(markup).toContain('Miércoles, 8 de noviembre');
+    expect(markup).toContain('Martes, 7 de noviembre');
     // One control into Perfil, where every setting lives, with its accessible name.
     expect(markup).toContain('aria-label="Ajustes"');
     // The old screen title left with the redesign: the hero is the loudest line now.
@@ -1079,7 +1083,7 @@ describe('the redesign composition (T5)', () => {
     const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK });
 
     expect(markup).toContain('home-today');
-    expect(markup).toContain('HOY · MIÉRCOLES');
+    expect(markup).toContain('HOY · MARTES');
     expect(markup).toContain('Movilidad y core');
     // The plan day's own prescription: 1 exercise of 3 sets in this fixture.
     expect(markup).toContain('Ejercicios');
@@ -1136,7 +1140,7 @@ describe('the redesign composition (T5)', () => {
     // The seven days, each with its state said out loud for the reader.
     expect(markup).toContain('Días de la semana');
     expect(markup).toContain('Lunes, hecho');
-    expect(markup).toContain('Miércoles, hoy');
+    expect(markup).toContain('Martes, hoy');
     expect(markup).toContain('Jueves, fijo');
   });
 

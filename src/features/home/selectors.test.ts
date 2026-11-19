@@ -39,8 +39,11 @@ import { defaultLayoutOf } from '../week/agenda';
 
 /* ------------------------------------------------------------------ fixtures */
 
-/** Wednesday 8 November 2023, 18:00 local. */
-const NOW = new Date(2023, 10, 8, 18, 0, 0).getTime();
+/**
+ * Tuesday 7 November 2023, 18:00 local: the mobility and core day of a league week since
+ * `odd/tasks/leg-separation.md` S2 put the three heavy days on Monday, Wednesday and Friday.
+ */
+const NOW = new Date(2023, 10, 7, 18, 0, 0).getTime();
 const MONDAY = new Date(2023, 10, 6, 18, 0, 0).getTime();
 const MONDAY_END = new Date(2023, 10, 6, 18, 52, 0).getTime();
 const FRIDAY = new Date(2023, 10, 10, 18, 0, 0).getTime();
@@ -332,7 +335,7 @@ describe('homeViewOf', () => {
   it('says the greeting and the date', () => {
     const view = homeViewOf(input());
     expect(view.greeting).toBe('Hola, Rup');
-    expect(view.dateLine).toBe('Miércoles, 8 de noviembre');
+    expect(view.dateLine).toBe('Martes, 7 de noviembre');
   });
 
   it('offers to start the session of the day the week places today, which re-reads the store', () => {
@@ -422,7 +425,8 @@ describe('homeViewOf', () => {
     expect(view.nothingToday).toBe('emptyDay');
     expect(view.action).toBeNull();
     // The week still names the day it carries: the card is the empty one, not the row.
-    expect(view.agenda?.agenda.days[2]?.planDay?.name).toBe('PREPARACIÓN FÚTBOL');
+    // The mobility day is Tuesday in a league week since `odd/tasks/leg-separation.md` S2.
+    expect(view.agenda?.agenda.days[1]?.planDay?.name).toBe('PREPARACIÓN FÚTBOL');
   });
 
   describe('the week the rows read (T3, T4, T6)', () => {
@@ -486,10 +490,10 @@ describe('homeViewOf', () => {
 
       expect(view.agenda?.agenda.days[1]?.kind).toBe('match');
       expect(placedOf(view)).toEqual([
-        'PIERNA@3',
-        'TORSO A@2',
+        'PIERNA@2',
+        'TORSO A@0',
         'TORSO B@4',
-        'PREPARACIÓN FÚTBOL@0',
+        'PREPARACIÓN FÚTBOL@3',
       ]);
       expect(view.agenda?.agenda.planDays.filter((entry) => entry.weekday === null)).toEqual([]);
     });
@@ -500,12 +504,12 @@ describe('homeViewOf', () => {
       );
 
       // The owner chose a week that is always derived: the template answers, and today is
-      // the day it places on Wednesday whatever the record says.
+      // the day it places on Tuesday whatever the record says.
       expect(placedOf(view)).toEqual([
         'PIERNA@0',
-        'TORSO A@1',
+        'TORSO A@2',
         'TORSO B@4',
-        'PREPARACIÓN FÚTBOL@2',
+        'PREPARACIÓN FÚTBOL@1',
       ]);
       expect(view.today?.dayName).toBe('PREPARACIÓN FÚTBOL');
       expect(view.today?.state).toBe('preview');
@@ -514,9 +518,9 @@ describe('homeViewOf', () => {
 
     it('places the four days Monday to Friday in all three fixtures (S3)', () => {
       const expected = [
-        ['league', ['PIERNA@0', 'TORSO A@1', 'TORSO B@4', 'PREPARACIÓN FÚTBOL@2']],
-        ['cup', ['PIERNA@3', 'TORSO A@2', 'TORSO B@4', 'PREPARACIÓN FÚTBOL@0']],
-        ['none', ['PIERNA@0', 'TORSO A@1', 'TORSO B@3', 'PREPARACIÓN FÚTBOL@2']],
+        ['league', ['PIERNA@0', 'TORSO A@2', 'TORSO B@4', 'PREPARACIÓN FÚTBOL@1']],
+        ['cup', ['PIERNA@2', 'TORSO A@0', 'TORSO B@4', 'PREPARACIÓN FÚTBOL@3']],
+        ['none', ['PIERNA@0', 'TORSO A@2', 'TORSO B@4', 'PREPARACIÓN FÚTBOL@1']],
       ] as const;
 
       for (const [match, placed] of expected) {
@@ -686,9 +690,9 @@ describe('homeViewOf', () => {
       {
         id: 'football-1',
         label: 'Fútbol registrado',
-        detail: '8 nov · 50 min',
+        detail: '7 nov · 50 min',
         // The bin carries no visible text, so its name says which row it deletes (§9).
-        removeLabel: 'Eliminar fútbol del 8 de noviembre',
+        removeLabel: 'Eliminar fútbol del 7 de noviembre',
       },
     ]);
     // Nothing was imported, so the old wording must not appear at all.

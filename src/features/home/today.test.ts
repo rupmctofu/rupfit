@@ -18,6 +18,8 @@ import { EMPTY_DAY_NOTE, NO_PLAN_TITLE, NO_PLAN_NOTE, todayHeroOf, weekProgressO
 /** Wednesday 8 November 2023, 18:00 local. */
 const NOW = new Date(2023, 10, 8, 18, 0, 0).getTime();
 const MONDAY = new Date(2023, 10, 6, 18, 0, 0).getTime();
+/** The mobility day of a league week since `odd/tasks/leg-separation.md` S2. */
+const TUESDAY = new Date(2023, 10, 7, 18, 0, 0).getTime();
 const THURSDAY = new Date(2023, 10, 9, 18, 0, 0).getTime();
 const FRIDAY = new Date(2023, 10, 10, 18, 0, 0).getTime();
 const SATURDAY = new Date(2023, 10, 11, 12, 0, 0).getTime();
@@ -72,9 +74,9 @@ const CLOSED_TODAY: WorkoutSession = {
   id: 'closed-today',
   planDayId: 'seed-day-fisico',
   dayNameSnapshot: 'MOVILIDAD Y CORE',
-  scheduledDate: NOW,
-  startedAt: NOW,
-  endedAt: NOW + 30 * 60 * 1000,
+  scheduledDate: TUESDAY,
+  startedAt: TUESDAY,
+  endedAt: TUESDAY + 30 * 60 * 1000,
 };
 
 function input(overrides: Partial<HomeInput> = {}): HomeInput {
@@ -98,10 +100,12 @@ function input(overrides: Partial<HomeInput> = {}): HomeInput {
 
 describe('todayHeroOf', () => {
   it('names the workout the week places today, with its own counts', () => {
-    const hero = todayHeroOf(homeViewOf(input()));
+    // Tuesday is the mobility and core day of a league week: the prep moved there when the
+    // three heavy days took Monday, Wednesday and Friday.
+    const hero = todayHeroOf(homeViewOf(input({ now: TUESDAY })));
 
     expect(hero.kind).toBe('workout');
-    expect(hero.eyebrow).toBe('HOY · MIÉRCOLES');
+    expect(hero.eyebrow).toBe('HOY · MARTES');
     expect(hero.title).toBe('Movilidad y core');
     // The prescription, straight from the agenda's row — not a measurement of anything.
     expect(hero.exercises).toBe(4);
@@ -130,7 +134,7 @@ describe('todayHeroOf', () => {
 
   it('says the day is done, with the closed line the view already wrote', () => {
     const hero = todayHeroOf(
-      homeViewOf(input({ recent: [CLOSED_TODAY], phaseState: undefined })),
+      homeViewOf(input({ now: TUESDAY, recent: [CLOSED_TODAY], phaseState: undefined })),
     );
 
     expect(hero.kind).toBe('workout');

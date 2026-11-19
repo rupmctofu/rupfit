@@ -40,11 +40,13 @@ function rows(days: readonly WeekDay[]): readonly string[] {
 }
 
 describe('T1 weekPlan league week (match on Thursday) — L7', () => {
-  it('T1 stamps Monday to Sunday with strength, prep and the Thursday match', () => {
+  it('T1 stamps the three heavy days on Monday, Wednesday and Friday around the match', () => {
+    // odd/tasks/leg-separation.md S2: no two strength sessions back to back, so the press is
+    // the last training day before the match and the prep takes the day in between.
     expect(rows(week('league'))).toEqual([
       '2026-03-02 Lunes training pierna',
-      '2026-03-03 Martes training torso-a',
-      '2026-03-04 Miércoles prep prep',
+      '2026-03-03 Martes prep prep',
+      '2026-03-04 Miércoles training torso-a',
       '2026-03-05 Jueves match -',
       '2026-03-06 Viernes training torso-b',
       '2026-03-07 Sábado rest -',
@@ -54,12 +56,15 @@ describe('T1 weekPlan league week (match on Thursday) — L7', () => {
 });
 
 describe('T1 weekPlan cup week (match on Tuesday) — L7', () => {
-  it('T1 stamps prep on Monday and the leg day on Thursday, not the day after the match', () => {
+  it('T1 stamps the press on Monday and the leg day on Wednesday, the accepted cost', () => {
+    // S3: the press on Monday is the day before the match and asks nothing of the legs. The
+    // squat on Wednesday is the day after it, which separating the three lifts forces in a
+    // five-day window with a Tuesday match — the owner took that over back-to-back sessions.
     expect(rows(week('cup'))).toEqual([
-      '2026-03-02 Lunes prep prep',
+      '2026-03-02 Lunes training torso-a',
       '2026-03-03 Martes match -',
-      '2026-03-04 Miércoles training torso-a',
-      '2026-03-05 Jueves training pierna',
+      '2026-03-04 Miércoles training pierna',
+      '2026-03-05 Jueves prep prep',
       '2026-03-06 Viernes training torso-b',
       '2026-03-07 Sábado rest -',
       '2026-03-08 Domingo rest -',
@@ -68,13 +73,13 @@ describe('T1 weekPlan cup week (match on Tuesday) — L7', () => {
 });
 
 describe('T1 weekPlan week without a match — L7', () => {
-  it('T1 stamps Monday to Thursday of work and leaves Friday to Sunday at rest', () => {
+  it('T1 stamps the three heavy days on Monday, Wednesday and Friday and rests Thursday', () => {
     expect(rows(week('none'))).toEqual([
       '2026-03-02 Lunes training pierna',
-      '2026-03-03 Martes training torso-a',
-      '2026-03-04 Miércoles prep prep',
-      '2026-03-05 Jueves training torso-b',
-      '2026-03-06 Viernes rest -',
+      '2026-03-03 Martes prep prep',
+      '2026-03-04 Miércoles training torso-a',
+      '2026-03-05 Jueves rest -',
+      '2026-03-06 Viernes training torso-b',
       '2026-03-07 Sábado rest -',
       '2026-03-08 Domingo rest -',
     ]);
@@ -128,11 +133,11 @@ describe('T1 weekPlan every week', () => {
   });
 
   it('T1 moves the leg day with the match, from one list of plan days (L7)', () => {
-    // The same `leg` id, Monday in a league week and Thursday in a cup week: the caller is
-    // never asked to reorder its days, so a cup week cannot load the legs on Wednesday.
+    // The same `leg` id, Monday in a league week and Wednesday in a cup week: the caller is
+    // never asked to reorder its days, so a cup week cannot load the legs on the wrong slot.
     expect(week('league')[0]?.planDayId).toBe(DAYS.leg);
-    expect(week('cup')[3]?.planDayId).toBe(DAYS.leg);
-    expect(week('cup')[2]?.planDayId).toBe(DAYS.upperA);
+    expect(week('cup')[2]?.planDayId).toBe(DAYS.leg);
+    expect(week('cup')[0]?.planDayId).toBe(DAYS.upperA);
     expect(week('none')[0]?.planDayId).toBe(DAYS.leg);
   });
 
@@ -168,14 +173,14 @@ function slots(template: readonly WeekSlot[]): readonly string[] {
 
 describe('T5 applySwaps exchanges two weekdays and leaves the other five alone (S6, S9)', () => {
   it('T5 exchanges the training days of two weekdays, kinds and roles together', () => {
-    // Monday carries the leg day and Tuesday the upper body A day: after the swap the
-    // owner does upper body on Monday and the legs land on Tuesday. S9: the day that is
-    // left moves to another day of the week instead of disappearing.
-    const swapped = applySwaps(WEEK_TEMPLATES.league, [{ from: 0, to: 1 }]);
+    // Monday carries the leg day and Wednesday the press: after the swap the owner does the
+    // press on Monday and the legs land on Wednesday. S9: the day that is left moves to
+    // another day of the week instead of disappearing.
+    const swapped = applySwaps(WEEK_TEMPLATES.league, [{ from: 0, to: 2 }]);
     expect(slots(swapped)).toEqual([
       'training upper-a',
-      'training leg',
       'prep',
+      'training leg',
       'match',
       'training upper-b',
       'rest',
@@ -184,11 +189,11 @@ describe('T5 applySwaps exchanges two weekdays and leaves the other five alone (
   });
 
   it('T5 swaps a training day with the preparation day, both ways', () => {
-    const swapped = applySwaps(WEEK_TEMPLATES.league, [{ from: 0, to: 2 }]);
+    const swapped = applySwaps(WEEK_TEMPLATES.league, [{ from: 0, to: 1 }]);
     expect(slots(swapped)).toEqual([
       'prep',
-      'training upper-a',
       'training leg',
+      'training upper-a',
       'match',
       'training upper-b',
       'rest',
@@ -212,9 +217,9 @@ describe('T5 applySwaps exchanges two weekdays and leaves the other five alone (
 
   it('T5 stamps the swapped week with the caller days, never reordered by the caller', () => {
     const week = weekPlan({ monday: MONDAY, match: 'league', days: DAYS, swaps: [{ from: 0, to: 1 }] });
-    expect(week[0]?.planDayId).toBe(DAYS.upperA);
+    expect(week[0]?.planDayId).toBe(DAYS.prep);
     expect(week[1]?.planDayId).toBe(DAYS.leg);
-    expect(week[2]?.planDayId).toBe(DAYS.prep);
+    expect(week[2]?.planDayId).toBe(DAYS.upperA);
   });
 
   it('T5 applies several swaps of different weekdays in one week', () => {
@@ -223,11 +228,11 @@ describe('T5 applySwaps exchanges two weekdays and leaves the other five alone (
       { from: 2, to: 4 },
     ]);
     expect(slots(swapped)).toEqual([
-      'training upper-a',
+      'prep',
       'training leg',
       'training upper-b',
       'match',
-      'prep',
+      'training upper-a',
       'rest',
       'rest',
     ]);
@@ -237,8 +242,8 @@ describe('T5 applySwaps exchanges two weekdays and leaves the other five alone (
     applySwaps(WEEK_TEMPLATES.league, [{ from: 0, to: 1 }]);
     expect(slots(WEEK_TEMPLATES.league)).toEqual([
       'training leg',
-      'training upper-a',
       'prep',
+      'training upper-a',
       'match',
       'training upper-b',
       'rest',
@@ -284,18 +289,18 @@ describe('T5 applySwaps exchanges two weekdays and leaves the other five alone (
   });
 
   it('T5 refuses a swap that would put the leg day the day after the match (L7)', () => {
-    // Cup week: the match is Tuesday, so Wednesday is the weekday L7 protects. Sending the
-    // legs there is refused, whichever end of the exchange carries them.
-    expect(() => applySwaps(WEEK_TEMPLATES.cup, [{ from: 3, to: 2 }])).toThrow(RangeError);
-    // League week: Thursday is the match, so Friday is protected.
+    // League week: Thursday is the match, so Friday is the protected weekday. The template
+    // does not put the legs there, and an exchange that would is refused. (The cup template
+    // does place the squat on Wednesday by design, which is why the guard compares against
+    // the template instead of banning the state outright.)
     expect(() => applySwaps(WEEK_TEMPLATES.league, [{ from: 0, to: 4 }])).toThrow(RangeError);
-    // One day further out the same exchange is accepted: Thursday in the cup week.
-    expect(slots(applySwaps(WEEK_TEMPLATES.cup, [{ from: 3, to: 4 }]))).toEqual([
-      'prep',
-      'match',
+    // One weekday further out from the match the same exchange is accepted: Wednesday.
+    expect(slots(applySwaps(WEEK_TEMPLATES.league, [{ from: 0, to: 2 }]))).toEqual([
       'training upper-a',
-      'training upper-b',
+      'prep',
       'training leg',
+      'match',
+      'training upper-b',
       'rest',
       'rest',
     ]);
@@ -334,8 +339,8 @@ describe('T1 WEEK_TEMPLATES is the accepted table of L7, not a derivation', () =
   it('T1 writes the table with roles, and no numbered strength position', () => {
     const roles = (kind: MatchKind): readonly string[] =>
       WEEK_TEMPLATES[kind].map((slot) => (slot.kind === 'training' ? slot.role : slot.kind));
-    expect(roles('league')).toEqual(['leg', 'upper-a', 'prep', 'match', 'upper-b', 'rest', 'rest']);
-    expect(roles('cup')).toEqual(['prep', 'match', 'upper-a', 'leg', 'upper-b', 'rest', 'rest']);
-    expect(roles('none')).toEqual(['leg', 'upper-a', 'prep', 'upper-b', 'rest', 'rest', 'rest']);
+    expect(roles('league')).toEqual(['leg', 'prep', 'upper-a', 'match', 'upper-b', 'rest', 'rest']);
+    expect(roles('cup')).toEqual(['upper-a', 'match', 'leg', 'prep', 'upper-b', 'rest', 'rest']);
+    expect(roles('none')).toEqual(['leg', 'prep', 'upper-a', 'rest', 'upper-b', 'rest', 'rest']);
   });
 });

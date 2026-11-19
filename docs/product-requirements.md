@@ -126,21 +126,24 @@ Consequences the requirements below depend on:
 
   | Weekday | League week (`jueves`) | Cup week (`martes`) | No fixture |
   | --- | --- | --- | --- |
-  | Monday | `SENTADILLA / PIERNA` | `MOVILIDAD Y CORE` | `SENTADILLA / PIERNA` |
-  | Tuesday | `PRESS BANCA / EMPUJE` | Match | `PRESS BANCA / EMPUJE` |
-  | Wednesday | `MOVILIDAD Y CORE` | `PRESS BANCA / EMPUJE` | `MOVILIDAD Y CORE` |
-  | Thursday | Match | `SENTADILLA / PIERNA` | `PESO MUERTO / TRACCIÓN` |
-  | Friday | `PESO MUERTO / TRACCIÓN` | `PESO MUERTO / TRACCIÓN` | rest |
+  | Monday | `SENTADILLA / PIERNA` | `PRESS BANCA / EMPUJE` | `SENTADILLA / PIERNA` |
+  | Tuesday | `MOVILIDAD Y CORE` | Match | `MOVILIDAD Y CORE` |
+  | Wednesday | `PRESS BANCA / EMPUJE` | `SENTADILLA / PIERNA` | `PRESS BANCA / EMPUJE` |
+  | Thursday | Match | `MOVILIDAD Y CORE` | rest |
+  | Friday | `PESO MUERTO / TRACCIÓN` | `PESO MUERTO / TRACCIÓN` | `PESO MUERTO / TRACCIÓN` |
   | Saturday | rest | rest | rest |
   | Sunday | rest | rest | rest |
 
   Exactly one match a week, never two: Thursday in the league, Tuesday in the cup, and a
-  cup week has no league match. Saturday and Sunday are rest. In a league week the squat day
-  is as far from the match as the window allows and the fourth day is the last training day
-  before it; in a cup week the squat moves to the Thursday, never to the Wednesday after the
-  match. The deadlift day is the day after the match in a league week: the owner kept the
-  layouts as they were when the third day stopped being an upper-body day, with the cost in
-  front of him (`odd/tasks/three-lift-plan.md` S12). The layouts are a table
+  cup week has no league match. Saturday and Sunday are rest. The three strength days always
+  fall on **Monday, Wednesday and Friday**, so no two of them sit on consecutive days
+  (`odd/tasks/leg-separation.md` S2) — that is the owner's rule and it outranks the rest.
+  Two consequences follow, and both were his: the mobility day takes Tuesday in a league
+  week and Thursday in a cup week, so the last day before the match is never a leg day; and
+  with a Tuesday match inside five weekdays, separating the three lifts forces one heavy leg
+  session next to the match — the squat lands on Wednesday, the day after it (S3). The
+  deadlift day is the day after the match in a league week (`odd/tasks/three-lift-plan.md`
+  S12). The layouts are a table
   (`WEEK_TEMPLATES` in `src/core/engine/week-plan.ts`), not the result of rules derived from
   priorities: changing a day means editing the table, and the app honours it. `PlanDay`
   still stores no weekday — the weekday comes from the template and the Monday of the week —

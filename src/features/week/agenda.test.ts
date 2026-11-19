@@ -217,8 +217,8 @@ describe("weekAgendaOf fills the days from the owner's layout, or from the templ
     });
     expect(agenda.days.map((day) => `${day.weekdayName} ${day.planDay?.name ?? '-'}`)).toEqual([
       'Lunes PIERNA',
-      'Martes TORSO A',
-      'Miércoles MOVILIDAD Y CORE',
+      'Martes MOVILIDAD Y CORE',
+      'Miércoles TORSO A',
       'Jueves -',
       'Viernes TORSO B',
       'Sábado -',
@@ -599,26 +599,26 @@ describe('placePlanDay is the one placement the drag and the day sheet use (S2, 
 describe('defaultLayoutOf materialises the templates through the name bridge (S4, S10)', () => {
   it('T3 writes the league week as seven slots of plan day ids', () => {
     expect(defaultLayoutOf({ matchKind: 'league', plan: PLAN })).toEqual(
-      layout([LEG.id, UPPER_A.id, PREP.id, null, UPPER_B.id, null, null]),
+      layout([LEG.id, PREP.id, UPPER_A.id, null, UPPER_B.id, null, null]),
     );
   });
 
   it('T3 writes the cup week and the fixture-less week the same way', () => {
     expect(defaultLayoutOf({ matchKind: 'cup', plan: PLAN }).slots.map((slot) => slot.planDayId)).toEqual([
-      PREP.id,
-      null,
       UPPER_A.id,
+      null,
       LEG.id,
+      PREP.id,
       UPPER_B.id,
       null,
       null,
     ]);
     expect(defaultLayoutOf({ matchKind: 'none', plan: PLAN }).slots.map((slot) => slot.planDayId)).toEqual([
       LEG.id,
-      UPPER_A.id,
       PREP.id,
-      UPPER_B.id,
+      UPPER_A.id,
       null,
+      UPPER_B.id,
       null,
       null,
     ]);
@@ -629,8 +629,8 @@ describe('defaultLayoutOf materialises the templates through the name bridge (S4
     const materialised = defaultLayoutOf({ matchKind: 'league', plan: withoutPrep });
     expect(materialised.slots.map((slot) => slot.planDayId)).toEqual([
       LEG.id,
-      UPPER_A.id,
       null,
+      UPPER_A.id,
       null,
       UPPER_B.id,
       null,

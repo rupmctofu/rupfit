@@ -281,6 +281,13 @@ function targetsOf(
   const matchAt = week.findIndex((day) => day.kind === 'match');
   const legAfterMatch = matchAt === -1 || matchAt >= 6 ? null : ((matchAt + 1) as DayOffset);
   const legAt = week.findIndex((day) => day.planDayId === days.leg);
+  /**
+   * The cup layout puts the squat on the weekday after the match by decision
+   * (`odd/tasks/leg-separation.md` S3), so that state is not what this guard refuses.
+   * What it refuses is an exchange that *puts* the legs there, exactly as `applySwaps`
+   * does — otherwise a week that already holds it could exchange nothing but the legs.
+   */
+  const alreadyAfterTheMatch = legAfterMatch !== null && legAt === legAfterMatch;
 
   const targets: WeekSwapTarget[] = [];
   for (let index = 0; index < week.length; index += 1) {
@@ -292,7 +299,7 @@ function targetsOf(
     if (planDay === undefined) continue;
     // The legs travel with whichever end of the exchange holds them.
     const legsAfter = legAt === today ? offset : legAt === offset ? today : legAt;
-    if (legAfterMatch !== null && legsAfter === legAfterMatch) continue;
+    if (!alreadyAfterTheMatch && legAfterMatch !== null && legsAfter === legAfterMatch) continue;
     targets.push({ weekday: day.weekday, planDay, swap: { from: today, to: offset } });
   }
   return targets;
