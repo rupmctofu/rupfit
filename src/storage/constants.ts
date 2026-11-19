@@ -12,9 +12,18 @@ export const DB_NAME = 'rupfit';
 /** §5.3. Bumping this requires an explicit copy step inside the upgrade transaction. */
 export const DB_VERSION = 1;
 
-/** §9 the document's own identity, checked before anything is written. */
+/**
+ * §9 the document's own identity, checked before anything is written.
+ *
+ * Version 2 retired the optional `weekLayout` field (`odd/tasks/backlog-closeout.md` T4,
+ * spec S5): a document that still carries it is read and the field is ignored, which is
+ * why `parseBackupDocument` accepts an older version instead of refusing it.
+ */
 export const BACKUP_DOCUMENT_TYPE = 'rupfit.backup';
-export const BACKUP_SCHEMA_VERSION = 1;
+export const BACKUP_SCHEMA_VERSION = 2;
+
+/** The oldest document this build still reads. Older backups load; they just lose fields. */
+export const BACKUP_FIRST_SCHEMA_VERSION = 1;
 
 /** §10 deleting every row is the only destructive operation and needs this word. */
 export const DELETE_ALL_CONFIRMATION = 'BORRAR TODO';
@@ -40,16 +49,10 @@ export const META_KEYS = {
   phaseState: 'phaseState',
   storage: 'storage',
   /**
-   * T3 — the week of the match: its Monday, its fixture and its swaps. A plain key in the
-   * same schemaless store, so the record needs no object store and no `DB_VERSION` bump.
+   * T3 — the week of the match: its Monday and its fixture. A plain key in the same
+   * schemaless store, so the record needs no object store and no `DB_VERSION` bump.
    */
   week: 'week',
-  /**
-   * T2 — the owner's fixed weekly assignment (S5, S6). Meta-keyed like the profile, and
-   * synced and backed up like it too: this one is not device-local, so it needs no store
-   * of its own only because `meta` is schemaless, not because it stays on this phone.
-   */
-  weekLayout: 'weekLayout',
   /** The per-table "last pushed" marks (odd/tasks/cloud-sync.md T3/T4). */
   syncWatermarks: 'syncWatermarks',
 } as const;

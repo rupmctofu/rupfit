@@ -775,3 +775,20 @@ create policy "week_layout update own" on public.week_layout
 create policy "week_layout delete own" on public.week_layout
   for delete to authenticated
   using ((select auth.uid()) = user_id);
+-- ==== 20261110120000_retire_week_layout.sql ====
+-- week_layout — the account stops carrying the owner's fixed weekly assignment.
+--
+-- The week is derived from the fixture's template every time it is read
+-- (odd/tasks/derived-week.md S2), and the build that followed stopped storing, syncing and
+-- backing it up (odd/tasks/backlog-closeout.md T4, spec S5). Nothing reads this table any
+-- more, so it goes.
+--
+-- Safe on both sides of a half-finished delivery, which is the point of `if exists`: a
+-- project where the table exists drops it and with it its index, its trigger and its four
+-- policies (all of them are owned by the table), and a project where it does not exist —
+-- a fresh project, or this file run twice — is left exactly as it was.
+--
+-- No other object depends on the table: the slots it carried are plan day ids held as one
+-- JSON text column, so no foreign key points at it and nothing else has a column to drop.
+
+drop table if exists public.week_layout;

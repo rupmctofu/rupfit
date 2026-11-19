@@ -29,7 +29,7 @@ import {
   type StoredSyncRow,
   type SyncQueueSink,
 } from '../../src/storage';
-import { days, exercise, exerciseSession, freshIndexedDb, openRaw, setRecord, T0, weekLayout, workoutSession, type RawDatabase } from './harness';
+import { days, exercise, exerciseSession, freshIndexedDb, openRaw, setRecord, T0, workoutSession, type RawDatabase } from './harness';
 
 /** What the synced column of a stored row looks like, as a test asserts it. */
 interface StoredSync {
@@ -279,21 +279,6 @@ describe('T4 the sync surface writes what the app-facing API refuses', () => {
     expect((await storage.sync.listSyncRows('profiles', -1)).map((row) => row.id)).toEqual([
       META_KEYS.profile,
     ]);
-  });
-
-  it('applies a pulled week layout under its fixed meta key, and reads it back (T2)', async () => {
-    const layout = weekLayout(['day-a', 'day-b', null, null, null, null, null]);
-    await storage.sync.applySyncRow('week_layout', {
-      table: 'week_layout',
-      id: META_KEYS.weekLayout,
-      sync: { rev: 2, updatedAt: days(1), deletedAt: null },
-      record: { key: META_KEYS.weekLayout, value: layout },
-    });
-
-    expect(await storage.meta.readWeekLayout()).toEqual(layout);
-    expect(syncOfRow(await storedRow('meta', META_KEYS.weekLayout))?.rev).toBe(2);
-    // A pulled row is not a local change: pushing it back would echo.
-    expect(await storage.sync.queue().allOps()).toEqual([]);
   });
 });
 

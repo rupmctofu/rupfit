@@ -53,7 +53,7 @@ const WEEK_PLAN: readonly PlanDay[] = [
   planDay('seed-day-fisico', 'MOVILIDAD Y CORE', 3, 4),
 ];
 
-const LEAGUE_WEEK: WeekRecord = { monday: '2023-11-06', match: 'league', swaps: [] };
+const LEAGUE_WEEK: WeekRecord = { monday: '2023-11-06', match: 'league' };
 
 /** One closed Monday: the week's `doneCount` is 1, and the strip has its check. */
 const CLOSED_MONDAY: WorkoutSession = {

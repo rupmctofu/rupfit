@@ -3,8 +3,10 @@
  *
  * Rules this file implements, each with its own failing test:
  *
- * - the document type is literal (`rupfit.backup`) and the schema version is known,
- *   with both versions named when it is not;
+ * - the document type is literal (`rupfit.backup`) and the schema version is one this
+ *   build reads: an older document still imports, because the migration policy is
+ *   additive (ADR-011) and a field a newer build stopped writing is simply ignored
+ *   (`odd/tasks/backlog-closeout.md` T4); a newer one is refused, naming both versions;
  * - every collection key is present, and absence is `null`, never a dropped key (§1.6);
  * - numbers are numbers (a nulled-out mass is rejected), ids are non-empty, a set index
  *   is 1-based, an effort is one of the four answered values;
@@ -24,7 +26,11 @@ import {
   MOVEMENT_PATTERNS,
   REASON_CODES,
 } from '../../core/domain';
-import { BACKUP_DOCUMENT_TYPE, BACKUP_SCHEMA_VERSION } from '../constants';
+import {
+  BACKUP_DOCUMENT_TYPE,
+  BACKUP_FIRST_SCHEMA_VERSION,
+  BACKUP_SCHEMA_VERSION,
+} from '../constants';
 import type { BackupDocument } from './document';
 
 const idSchema = z.string().min(1);
@@ -265,43 +271,20 @@ const phaseStateSchema = z.object({
   scheduledSessionsPerWeek: z.number().int().min(0).optional(),
 });
 
-/**
- * T2 (S5, S6): the owner's fixed weekly assignment, as the document carries it.
- *
- * Seven slots is the rule, and so is one slot per weekday in ascending order — a layout
- * the week derivation could not apply is refused at the boundary instead of being stored
- * and discovered on `Inicio`. The message matches the mapper's (`weekLayoutFromStored`),
- * so the same mistake reads the same way whichever boundary catches it.
- */
-export const weekLayoutSchema = z
-  .object({
-    slots: z
-      .array(
-        z.object({
-          weekday: z.number().int().min(0).max(6),
-          planDayId: idSchema.nullable(),
-        }),
-      )
-      .length(7),
-  })
-  .refine((layout) => layout.slots.every((slot, weekday) => slot.weekday === weekday), {
-    message: 'A week layout is exactly seven slots, one per weekday, in ascending order.',
-  });
-
 /** The whole document, as `buildBackupDocument` writes it. */
 const documentSchema = z
   .object({
     documentType: z.literal(BACKUP_DOCUMENT_TYPE),
-    schemaVersion: z.literal(BACKUP_SCHEMA_VERSION),
+    /**
+     * Any version this build reads, not only the one it writes: an older document is
+     * upgraded by being read (ADR-011), and `parseBackupDocument` is what refuses a
+     * version from the future, before the shape is looked at.
+     */
+    schemaVersion: z.number().int().min(BACKUP_FIRST_SCHEMA_VERSION).max(BACKUP_SCHEMA_VERSION),
     appVersion: z.string().min(1),
     exportedAt: z.string().min(1),
     profile: profileSchema.nullable(),
     phaseState: phaseStateSchema.nullable(),
-    /**
-     * T2 (S5): optional, so a document written before the layout existed still imports and
-     * leaves the app on the template default. Never `null`: absence is the whole answer.
-     */
-    weekLayout: weekLayoutSchema.optional(),
     exercises: z.array(exerciseSchema),
     planDays: z.array(planDaySchema),
     sessions: z.array(sessionSchema),
@@ -364,11 +347,17 @@ export function parseBackupDocument(json: string): ValidationResult {
       ? (parsed as { schemaVersion?: unknown }).schemaVersion
       : undefined;
 
-  if (typeof declaredVersion === 'number' && declaredVersion !== BACKUP_SCHEMA_VERSION) {
+  // Older documents load: the policy is additive, and a retired field is ignored by the
+  // schema instead of refusing the whole file. A document from the future is refused,
+  // because this build cannot know what it would be dropping.
+  if (
+    typeof declaredVersion === 'number' &&
+    (declaredVersion < BACKUP_FIRST_SCHEMA_VERSION || declaredVersion > BACKUP_SCHEMA_VERSION)
+  ) {
     return {
       ok: false,
       path: 'schemaVersion',
-      message: `The document declares schemaVersion ${declaredVersion}; this build reads schemaVersion ${BACKUP_SCHEMA_VERSION}. No partial import is attempted.`,
+      message: `The document declares schemaVersion ${declaredVersion}; this build reads schemaVersion ${BACKUP_FIRST_SCHEMA_VERSION} to ${BACKUP_SCHEMA_VERSION}. No partial import is attempted.`,
     };
   }
 

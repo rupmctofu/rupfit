@@ -22,12 +22,10 @@
  * changing today's training is a separate decision: this module is given the caller's plan
  * days and never invents one (S6, S7).
  *
- * **A week can be swapped, but not redrawn.** T5 lets the owner change today's training
- * and move the day it displaces to another weekday (S6, S9). `applySwaps` exchanges two
- * weekdays of a template — kinds and roles together — and refuses anything that would
- * touch the match, the rest days, the caller's list of days or the weekday right after
- * the match: the dates and the weekdays never move, so a swap cannot invent a fixture, a
- * training day in the weekend (S11, S12) or legs on the day after the match (L7).
+ * **The table is the whole answer.** A week used to hold an exchange of two weekdays
+ * (T5); that is gone (`odd/tasks/backlog-closeout.md` T4, `odd/tasks/derived-week.md`
+ * S2). The week is derived from the template every time it is read, so there is no stored
+ * placement for a swap to disagree with, and `weekPlan` stamps the table as written.
  *
  * Pure: no React, no storage, no clock, no I/O. A day is a local `YYYY-MM-DD` from local
  * getters and never `toISOString`, which would answer in UTC — the convention `isoDayOf`
@@ -141,27 +139,13 @@ export interface WeekPlanDays {
 /** A weekday of the week, Monday first: 0 is Monday and 6 is Sunday (R11). */
 export type DayOffset = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
-/**
- * Two weekdays that exchange what they hold (S6, S9). The days stay where they are, with
- * their dates and their names: what moves is which of the caller's days fills each one.
- */
-export interface WeekSwap {
-  readonly from: DayOffset;
-  readonly to: DayOffset;
-}
-
 export interface WeekPlanInput {
   /** The Monday the week starts on, local `YYYY-MM-DD` (R11: the week starts on Monday). */
   readonly monday: string;
   readonly match: MatchKind;
   /** The caller's four plan days, by role: three strength days and the football preparation. */
   readonly days: WeekPlanDays;
-  /** T5 — this week's own exchanges, from the stored week record. None by default. */
-  readonly swaps?: readonly WeekSwap[];
 }
-
-/** Monday first, as the table is written. */
-type DayRow = [WeekSlot, WeekSlot, WeekSlot, WeekSlot, WeekSlot, WeekSlot, WeekSlot];
 
 function pad(value: number): string {
   return String(value).padStart(2, '0');
@@ -214,80 +198,6 @@ function weekDayOf(slot: WeekSlot, date: string, weekday: string, days: WeekPlan
   }
 }
 
-function isDayOffset(value: number): value is DayOffset {
-  return Number.isInteger(value) && value >= 0 && value <= 6;
-}
-
-/** The weekday right after the match, or `null` when the table has no match at all. */
-function dayAfterMatch(template: readonly WeekSlot[]): DayOffset | null {
-  const matchAt = template.findIndex((slot) => slot.kind === 'match');
-  return matchAt === -1 || matchAt >= 6 ? null : ((matchAt + 1) as DayOffset);
-}
-
-function holdsLeg(template: readonly WeekSlot[], offset: DayOffset): boolean {
-  const slot = template[offset];
-  return slot !== undefined && slot.kind === 'training' && slot.role === 'leg';
-}
-
-/**
- * The template with this week's swaps applied: a new table, never a mutation of the one
- * the caller passed in (`WEEK_TEMPLATES` is shared by every week).
- *
- * Five things are refused with a `RangeError`, and each one would silently load a wrong
- * day onto a wrong weekday: an offset outside Monday to Sunday, a weekday the list moves
- * twice (which includes a swap of a day with itself, and any list that is not a
- * permutation), a swap into the match or into a rest day — the match is reported and
- * never trained (S11) and the weekend is rest in every kind of week (S12) — and an
- * exchange that *introduces* the legs on the weekday right after the match where the
- * template did not already have them. The cup template does place the squat there by
- * design (`odd/tasks/leg-separation.md` S3), so the guard compares against the template
- * rather than banning the state outright.
- */
-export function applySwaps(template: WeekTemplate, swaps: readonly WeekSwap[]): WeekTemplate {
-  const rows: DayRow = [...template];
-  const moved = new Set<DayOffset>();
-
-  for (const swap of swaps) {
-    for (const offset of [swap.from, swap.to]) {
-      if (!isDayOffset(offset)) {
-        throw new RangeError(
-          `applySwaps wants weekday offsets from 0 (Monday) to 6 (Sunday), not "${String(offset)}".`,
-        );
-      }
-      if (moved.has(offset)) {
-        throw new RangeError(
-          `applySwaps wants each weekday in one swap at most, not "${String(offset)}" twice.`,
-        );
-      }
-      const kind = template[offset].kind;
-      if (kind === 'match' || kind === 'rest') {
-        throw new RangeError(
-          `applySwaps swaps training days only: weekday ${String(offset)} is ${kind}.`,
-        );
-      }
-      moved.add(offset);
-    }
-  }
-
-  // Validation first, then the exchanges: a refused list leaves nothing half-applied, and
-  // the endpoints are read from the template because no weekday is moved twice.
-  for (const swap of swaps) {
-    rows[swap.from] = template[swap.to];
-    rows[swap.to] = template[swap.from];
-  }
-
-  // L7, checked on the result: the legs may land anywhere in the window except the
-  // weekday right after the match, and an exchange is exactly how they would get there.
-  const afterMatch = dayAfterMatch(template);
-  if (afterMatch !== null && holdsLeg(rows, afterMatch) && !holdsLeg(template, afterMatch)) {
-    throw new RangeError(
-      `applySwaps refuses to load the legs the day after the match (weekday ${String(afterMatch)}).`,
-    );
-  }
-
-  return rows;
-}
-
 /**
  * The week starting on `input.monday`, stamped from the accepted template of its kind.
  *
@@ -297,7 +207,9 @@ export function applySwaps(template: WeekTemplate, swaps: readonly WeekSwap[]): 
  */
 export function weekPlan(input: WeekPlanInput): WeekPlan {
   const monday = mondayOf(input.monday);
-  const template = applySwaps(WEEK_TEMPLATES[input.match], input.swaps ?? []);
+  // S2, S3 of `odd/tasks/derived-week.md`: the table of the week's kind is the whole
+  // answer. Nothing stored can move a day, so nothing is applied on top of it.
+  const template = WEEK_TEMPLATES[input.match];
 
   // Calendar arithmetic on the local date, never a sum of milliseconds: a clock change
   // inside the week would otherwise move a day by an hour and could name a wrong weekday.

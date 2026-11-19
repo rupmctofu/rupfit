@@ -1,28 +1,25 @@
 /**
- * T3 (S1, S4, S6, S10) — the week as seven dated rows, the owner's layout, and the one
- * placement that both the drag and the day sheet use.
+ * T3 (S1, S4, S6) — the week as seven dated rows, derived from the fixture's template.
  *
- * The week is still deduced from the fixture, exactly as `core/engine/week-plan.ts` and
- * `features/week/week.ts` already deduce it: the match keeps its weekday (Thursday in the
- * league, Tuesday in the cup, none at all in a week without a fixture) and it takes that
- * weekday whatever the owner decided (S4, S10). What changes here is who fills the rest of
- * the days: the owner's stored `WeekLayout` wins where it can, and the template bridge of
- * `week.ts` answers only while there is no layout yet, so a fresh install shows the same
- * week it shows today.
+ * The week is deduced from the fixture, exactly as `core/engine/week-plan.ts` and
+ * `features/week/week.ts` deduce it: the match keeps its weekday (Thursday in the league,
+ * Tuesday in the cup, none at all in a week without a fixture) and it takes that weekday
+ * whatever the owner decided (S4). Every other day is filled by the template bridge of
+ * `week.ts`, so the four days always land Monday to Friday and no plan day is left without
+ * a weekday (`odd/tasks/derived-week.md` S2, S3). The stored placement the rows used to
+ * honour is gone with its drag and its day sheet (`odd/tasks/backlog-closeout.md` T4).
  *
- * Three rules decide the shapes below.
+ * Two rules decide the shapes below.
  *
  * 1. **Done is keyed by the plan day, not by the clock** (S1). A day reads done because a
- *    closed session of that plan day was scheduled inside this week, wherever the owner
- *    moved the day to; a past day without a session stays movable (S6).
- * 2. **A displaced day is shown, not moved** (S10). When the match lands on a weekday the
- *    layout gave to a plan day, the plan day is reported with no weekday at all and the
- *    agenda never invents one for it.
- * 3. **The legs-after-the-match rule warns, never blocks** (S4). The warning is a sentence
- *    for the owner, and the placement it advises against still succeeds.
+ *    closed session of that plan day was scheduled inside this week; a past day without a
+ *    session stays open (S6).
+ * 2. **The legs-after-the-match rule warns, never blocks** (S4). The warning is a sentence
+ *    for the owner, and it names a placement the derived cup week does hold by design
+ *    (`odd/tasks/leg-separation.md` S3).
  *
  * Pure: no React, no port, no storage and no clock of its own. `now`, the fixture, the
- * plan, the layout and the sessions all arrive as parameters.
+ * plan and the sessions all arrive as parameters.
  */
 
 import {
@@ -31,7 +28,7 @@ import {
   type StrengthRole,
   type WeekSlot,
 } from '../../core/engine/week-plan';
-import type { EpochMs, PlanDay, WeekLayout, WeekLayoutSlot, WorkoutSession } from '../../storage';
+import type { EpochMs, PlanDay, WorkoutSession } from '../../storage';
 import { formatDayName, formatWeekdayName } from '../home/format';
 import { nextPlanDay } from '../session/start';
 import { localDayOf, mondayInstantOf, planDayIdOfRole } from './week';
@@ -82,7 +79,7 @@ export interface AgendaDay {
 /** One of the owner's plan days, with the weekday it holds this week. */
 export interface AgendaPlanDay {
   readonly planDay: PlanDay;
-  /** `null` when the owner's week has no room for it (S10). */
+  /** `null` when the template cannot place it — the plan lost the name it is found by. */
   readonly weekday: number | null;
   readonly exerciseCount: number;
   readonly setCount: number;
@@ -162,42 +159,27 @@ function templatePlanDayIdOf(slot: WeekSlot, plan: readonly PlanDay[]): string |
 }
 
 /**
- * Seven weekdays of the owner's layout, in weekday order.
+ * What each weekday holds, from the template of this week's fixture (S2, S3).
  *
- * Looked up by `WeekLayoutSlot.weekday` and not by position: the stored shape is ascending
- * today, and reading the weekday it declares costs nothing and survives a hand-cut list.
- */
-function sevenPlanDayIdsOf(layout: WeekLayout): readonly (string | null)[] {
-  return Array.from(
-    { length: 7 },
-    (_, weekday) =>
-      layout.slots.find((slot) => slot.weekday === weekday)?.planDayId ?? null,
-  );
-}
-
-/**
- * What each weekday holds before the fixture takes its own (S4, S5).
- *
- * The owner's layout wins wherever it speaks; with no layout at all the week is the one the
- * templates draw, which is what a fresh install already shows. Falling back is not a
- * second opinion about the week: it is the same four days, from the same bridge.
+ * `WEEK_TEMPLATES` is the whole answer: the four days are found by the name bridge of
+ * `week.ts` and a slot that asks for no day stays free, so a plan that lost a seeded day
+ * leaves its weekday empty instead of borrowing a stranger's session.
  */
 function placedPlanDayIdsOf(input: {
   readonly matchKind: MatchKind;
   readonly plan: readonly PlanDay[];
-  readonly layout: WeekLayout | undefined;
 }): readonly (string | null)[] {
-  if (input.layout !== undefined) return sevenPlanDayIdsOf(input.layout);
   return WEEK_TEMPLATES[input.matchKind].map((slot) => templatePlanDayIdOf(slot, input.plan));
 }
 
 /**
- * S4 — the one rule of the layouts the owner can break, said out loud instead of enforced.
+ * S4 — the one rule of the layouts, said out loud instead of silently broken.
  *
- * The app prefers the legs far from the match (L7), and S4 keeps that as advice: the
- * sentence names the day and the plan day, so the owner knows what he is choosing, and
- * `placePlanDay` still accepts the move. A week without a match has no "day after" to
- * protect, and a plan that lost its leg day has nothing to warn about.
+ * The app prefers the legs far from the match (L7), and the cup template places the squat
+ * on the weekday after it by decision (`odd/tasks/leg-separation.md` S3), so that week says
+ * so: the sentence names the day and the plan day. Nothing is refused — there is no
+ * placement to refuse any more — and a week without a match has no "day after" to protect,
+ * just as a plan that lost its leg day has nothing to warn about.
  */
 function legWarningOf(days: readonly AgendaDay[], plan: readonly PlanDay[]): string | null {
   const legs = planDayIdOfRole(plan, 'leg');
@@ -259,7 +241,6 @@ export function weekAgendaOf(input: {
   readonly now: EpochMs;
   readonly matchKind: MatchKind;
   readonly plan: readonly PlanDay[];
-  readonly layout: WeekLayout | undefined;
   readonly sessions: readonly WorkoutSession[];
 }): WeekAgenda {
   const monday = mondayInstantOf(input.now);
@@ -310,12 +291,13 @@ export function weekAgendaOf(input: {
   });
 
   return {
-    monday: localDayOf(monday.getTime()),    matchKind: input.matchKind,
+    monday: localDayOf(monday.getTime()),
+    matchKind: input.matchKind,
     days,
     planDays,
     warning: legWarningOf(days, input.plan),
-    // "3 de 4 entrenos hechos": the count is of plan days, so a day the match displaced
-    // still counts as done instead of vanishing from the tally.
+    // "3 de 4 entrenos hechos": the count is of plan days, so a day whose row is not on
+    // screen still counts as done instead of vanishing from the tally.
     doneCount: input.plan.filter((planDay) => donePlanDayIds.has(planDay.id)).length,
   };
 }
@@ -361,93 +343,4 @@ export function weekProposalOf(
     (left, right) => left.order - right.order || left.id.localeCompare(right.id),
   );
   return rotation.find((planDay) => !done.has(planDay.id)) ?? nextPlanDay(plan, sessions);
-}
-
-export type PlacementRefusal =
-  | 'matchDay'
-  | 'doneDay'
-  | 'sameDay'
-  | 'unknownDay'
-  | 'unknownPlanDay';
-
-export type PlacementResult =
-  | {
-      readonly ok: true;
-      readonly layout: WeekLayout;
-      readonly placed: string;
-      readonly displaced: string | null;
-    }
-  | { readonly ok: false; readonly reason: PlacementRefusal };
-
-/**
- * S4, S10 — the week the owner already sees, written down as a layout.
- *
- * The templates are the app's own answer to "which day trains", so the first drag of a
- * fresh install starts from them instead of from nothing: `WEEK_TEMPLATES` is stamped into
- * seven slots through the same name bridge the agenda reads, and a day the plan no longer
- * holds leaves its weekday free rather than being invented.
- */
-export function defaultLayoutOf(input: {
-  readonly matchKind: MatchKind;
-  readonly plan: readonly PlanDay[];
-}): WeekLayout {
-  return {
-    slots: WEEK_TEMPLATES[input.matchKind].map(
-      (slot, weekday): WeekLayoutSlot => ({
-        weekday,
-        planDayId: templatePlanDayIdOf(slot, input.plan),
-      }),
-    ),
-  };
-}
-
-/** Both the drag and the day sheet go through this one operation (S2, S3). */
-export function placePlanDay(input: {
-  readonly agenda: WeekAgenda;
-  readonly layout: WeekLayout;
-  readonly planDayId: string;
-  readonly toWeekday: number;
-}): PlacementResult {
-  const { agenda, layout, planDayId, toWeekday } = input;
-
-  // The four are the only days the owner can place: a layout is a week of this plan, and a
-  // drag cannot introduce an id the plan does not hold.
-  if (!agenda.planDays.some((entry) => entry.planDay.id === planDayId)) {
-    return { ok: false, reason: 'unknownPlanDay' };
-  }
-  const target = Number.isInteger(toWeekday) ? agenda.days[toWeekday] : undefined;
-  if (target === undefined) return { ok: false, reason: 'unknownDay' };
-  if (target.kind === 'match') return { ok: false, reason: 'matchDay' };
-  // S6 — only the closed days are blocked, in both ends of the move: the day that trains
-  // cannot leave because its session is that day's, and nothing lands on a closed one.
-  if (target.done) return { ok: false, reason: 'doneDay' };
-
-  const slots = [...sevenPlanDayIdsOf(layout)];
-  const from = slots.indexOf(planDayId);
-  if (from === toWeekday) return { ok: false, reason: 'sameDay' };
-  // The training that closed is the plan day's, wherever it sits: the agenda is asked
-  // about the day the owner sees, not about the weekday the layout happens to hold.
-  const sourceWeekday = agenda.planDays.find((entry) => entry.planDay.id === planDayId)?.weekday;
-  if (sourceWeekday !== null && sourceWeekday !== undefined) {
-    if (agenda.days[sourceWeekday]?.done === true) return { ok: false, reason: 'doneDay' };
-  }
-
-  const displaced = slots[toWeekday] ?? null;
-  slots[toWeekday] = planDayId;
-  // The two days trade weekdays. A day that had no weekday at all — the one the match
-  // displaced (S10) — has nothing to trade back, so the day it lands on goes without a
-  // weekday instead of the app hunting for a hole for it.
-  if (from !== -1) slots[from] = displaced;
-
-  return {
-    ok: true,
-    layout: {
-      slots: slots.map((slotPlanDayId, weekday): WeekLayoutSlot => ({
-        weekday,
-        planDayId: slotPlanDayId,
-      })),
-    },
-    placed: planDayId,
-    displaced,
-  };
 }

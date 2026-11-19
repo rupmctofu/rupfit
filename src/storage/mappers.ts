@@ -28,11 +28,9 @@ import type {
   SetRecord,
   StorageAnswer,
   UserProfile,
-  WeekLayout,
   WeekRecord,
   WorkoutSession,
 } from './entities';
-import { StorageError } from './errors';
 import type {
   ActivityRow,
   BodyMeasurementRow,
@@ -406,27 +404,21 @@ export function storageAnswerToMetaRow(answer: StorageAnswer): MetaRow {
 }
 
 /**
- * T3 — the week record. Its swaps are copied out, so what is written is a value of its
- * own and not an array the app tier still holds a reference to.
+ * T3 — the week record: its Monday and its fixture, nothing else.
+ *
+ * The exchanges left the record with the placement they were made on
+ * (`odd/tasks/backlog-closeout.md` T4, spec S5): the week is derived from the fixture's
+ * template every time it is read, so there is nothing to keep. A row an older build wrote
+ * still carries `swaps`, and both directions copy only the two fields the week has, so the
+ * stale list is dropped instead of resurfacing as a placement nothing honours.
  */
 export function weekRecordToMetaRow(week: WeekRecord): MetaRow {
-  return {
-    key: 'week',
-    value: {
-      monday: week.monday,
-      match: week.match,
-      swaps: week.swaps.map((swap) => ({ from: swap.from, to: swap.to })),
-    },
-  };
+  return { key: 'week', value: { monday: week.monday, match: week.match } };
 }
 
 /** The week record back, copied for the same reason (§5.2: a stored row stays a row). */
 export function weekRecordFromStored(week: WeekRecord): WeekRecord {
-  return {
-    monday: week.monday,
-    match: week.match,
-    swaps: week.swaps.map((swap) => ({ from: swap.from, to: swap.to })),
-  };
+  return { monday: week.monday, match: week.match };
 }
 
 export function phaseStateFromStored(stored: StoredPhaseState): PhaseState {
@@ -435,58 +427,6 @@ export function phaseStateFromStored(stored: StoredPhaseState): PhaseState {
   return stored.scheduledSessionsPerWeek === undefined
     ? withRole
     : { ...withRole, scheduledSessionsPerWeek: stored.scheduledSessionsPerWeek };
-}
-
-/** Seven weekdays, Monday first, each one exactly once (T2, S5/S6). */
-const WEEK_DAYS = 7;
-
-const invalidLayout = (stored: unknown): StorageError =>
-  new StorageError(
-    'invalid',
-    'A week layout is exactly seven slots, one per weekday, in ascending order.',
-    { value: stored },
-  );
-
-/**
- * T2 — the owner's fixed weekly assignment, written as a value of its own.
- *
- * The layout is validated on the way **in** as well as on the way out: a screen that
- * hands over six slots would otherwise store a layout the week derivation cannot honour,
- * and the failure would surface a week later in `Inicio` instead of at the write.
- */
-export function weekLayoutToMetaRow(layout: WeekLayout): MetaRow {
-  return { key: 'weekLayout', value: weekLayoutFromStored(layout) };
-}
-
-/**
- * The layout back, copied and validated.
- *
- * The parameter is `unknown` on purpose: the value comes out of `meta`, and the browser
- * enforces none of the types `RupfitDb` declares (§5.1, §11). Six slots, a weekday that
- * appears twice or a `planDayId` that is neither a string nor `null` is refused here, at
- * the boundary, instead of reaching the week derivation as a layout it cannot apply.
- */
-export function weekLayoutFromStored(stored: unknown): WeekLayout {
-  const slots =
-    typeof stored === 'object' && stored !== null
-      ? (stored as { slots?: unknown }).slots
-      : undefined;
-  if (!Array.isArray(slots) || slots.length !== WEEK_DAYS) throw invalidLayout(stored);
-
-  const copy: WeekLayout['slots'] = slots.map((slot: unknown, weekday: number) => {
-    if (typeof slot !== 'object' || slot === null) throw invalidLayout(stored);
-    const candidate = slot as { weekday?: unknown; planDayId?: unknown };
-    // Ascending order over 0..6 and a length of seven already say "one slot per weekday":
-    // a repeated or skipped day cannot hide behind indexing.
-    if (candidate.weekday !== weekday) throw invalidLayout(stored);
-    const planDayId = candidate.planDayId;
-    if (planDayId !== null && (typeof planDayId !== 'string' || planDayId === '')) {
-      throw invalidLayout(stored);
-    }
-    return { weekday, planDayId };
-  });
-
-  return { slots: copy };
 }
 
 /* ---------------------------------------------------------- recommendations */

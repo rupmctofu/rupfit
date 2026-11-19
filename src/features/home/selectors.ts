@@ -26,17 +26,11 @@ import type {
   EpochMs,
   PlanDay,
   UserProfile,
-  WeekLayout,
   WeekRecord,
   WorkoutSession,
 } from '../../storage';
 import { formatVolume, formatWeight } from '../session/format';
-import {
-  defaultLayoutOf,
-  weekAgendaOf,
-  type AgendaDay,
-  type WeekAgenda,
-} from '../week/agenda';
+import { weekAgendaOf, type AgendaDay, type WeekAgenda } from '../week/agenda';
 import { localDayOf, mondayInstantOf } from '../week/week';
 import {
   formatDayAndMonth,
@@ -121,13 +115,6 @@ export interface HomeInput {
    * rotation's answer unchanged.
    */
   readonly week?: WeekRecord | undefined;
-  /**
-   * T4 — the week layout the store holds, when this device has one. Optional for the same
-   * reason as `week`, and **never consulted** (S2): `layoutOf` derives the template of the
-   * fixture. It stays in the input so the read path keeps carrying what the store holds
-   * (S5 deletes nothing) while the week stops honouring it.
-   */
-  readonly weekLayout?: WeekLayout | undefined;
 }
 
 export interface TodayView {
@@ -176,15 +163,13 @@ export interface LastSessionView {
 }
 
 /**
- * T4 — the week Inicio draws: the layout it came from and the seven rows dated over it.
+ * T4 — the week Inicio draws: the seven rows dated over the fixture's template.
  *
  * One object, derived once: the agenda's rows and the day card below them both read it,
  * so there is no state in which the row says `Descanso` and the card names a training
  * (T6). `null` on a screen with no plan, which draws no week at all.
  */
 export interface HomeWeek {
-  /** The layout the week was derived from: the template of this week's fixture (S2, S3). */
-  readonly layout: WeekLayout;
   readonly agenda: WeekAgenda;
 }
 
@@ -250,7 +235,7 @@ export interface HomeView {
   readonly nothingToday: NothingToday | null;
   readonly action: HomeActionView | null;
   readonly last: LastSessionView | null;
-  /** T4: the week, derived once from the layout — the one answer today comes from. */
+  /** T4: the week, derived once from the template — the one answer today comes from. */
   readonly agenda: HomeWeek | null;
   readonly weight: WeightView | null;
   /** Always present (§8 Inicio): the manual rows and the imported count, apart. */
@@ -300,42 +285,25 @@ export function sessionsOf(input: HomeInput): readonly WorkoutSession[] {
 }
 
 /**
- * The layout of this week: the fixture's template, derived every time (S2, S3).
- *
- * The stored `WeekLayout` is never consulted. A placement saved under another fixture
- * displaced days — a league layout read in a cup week put the match on top of a training
- * day and left that day without a weekday, which is the section the owner asked about —
- * and he chose a week that is always derived: «que se calcule sola». So the template of
- * this week's fixture is the only answer, whatever `input.weekLayout` still holds. The
- * record itself is not deleted (S5); it simply stops deciding anything here.
- */
-export function layoutOf(input: HomeInput): WeekLayout {
-  return defaultLayoutOf({ matchKind: matchKindOf(input), plan: input.plan });
-}
-
-/** The seven dated rows of a week, over a given layout — the one derivation of `now`. */
-export function agendaOver(input: HomeInput, layout: WeekLayout): WeekAgenda {
-  return weekAgendaOf({
-    now: input.now,
-    matchKind: matchKindOf(input),
-    plan: input.plan,
-    layout,
-    sessions: sessionsOf(input),
-  });
-}
-
-/**
  * T4, T6 — the week of this screen, derived exactly once.
  *
  * The rows and the day card both read this object: the template of this week's fixture
- * decides what each weekday carries (S2), and the card no longer asks the template or the
- * rotation what today is. With no plan there is no week to date, and the screen keeps its
- * honest empty state.
+ * decides what each weekday carries (`odd/tasks/derived-week.md` S2), and the card no
+ * longer asks the template or the rotation what today is. There is no stored placement to
+ * consult and no second layout to derive: «que se calcule sola» is the only answer left
+ * (`odd/tasks/backlog-closeout.md` T4). With no plan there is no week to date, and the
+ * screen keeps its honest empty state.
  */
 export function homeAgendaOf(input: HomeInput): HomeWeek | null {
   if (input.plan.length === 0) return null;
-  const layout = layoutOf(input);
-  return { layout, agenda: agendaOver(input, layout) };
+  return {
+    agenda: weekAgendaOf({
+      now: input.now,
+      matchKind: matchKindOf(input),
+      plan: input.plan,
+      sessions: sessionsOf(input),
+    }),
+  };
 }
 
 /** The row the week calls today, or `null` when there is no week to date. */
@@ -603,7 +571,7 @@ function closingSessionOf(
 /**
  * T6 — the card of today, read from the agenda's today row.
  *
- * This is the repair of the verifier's blocker: the card used to ask the template and the
+ * The card and the rows read the same derivation: the card used to ask the template and the
  * stored `WeekRecord` what today was, while the row above it asked a stored layout, so a
  * day that layout did not place still appeared below as the day to train. Now the row is
  * the only source of "what today carries":

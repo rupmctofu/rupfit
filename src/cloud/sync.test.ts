@@ -147,8 +147,9 @@ describe('a sync pass with nothing to do', () => {
     expect(applied.changes).toEqual([]);
     // One pull per mirrored table, and the number is written out so a table that
     // disappears from the list cannot pass quietly: deleting one would leave a hole in
-    // the sync without any test noticing.
-    expect(remote.pulls).toHaveLength(11);
+    // the sync without any test noticing. Ten since `week_layout` left the set
+    // (odd/tasks/backlog-closeout.md T4).
+    expect(remote.pulls).toHaveLength(10);
     expect(remote.pulls.every((pull) => pull.since === 0)).toBe(true);
   });
 });
@@ -312,8 +313,9 @@ describe('pulling and the watermark', () => {
     expect(result.status).toBe('completed');
     expect(result.pulled).toBe(0);
     // The literal count, for the same reason the empty pass has one: the list of tables is
-    // the contract with the remote, and it cannot shrink unnoticed.
-    expect(result.failures).toHaveLength(11);
+    // the contract with the remote, and it cannot shrink unnoticed. Ten since `week_layout`
+    // left the set (odd/tasks/backlog-closeout.md T4).
+    expect(result.failures).toHaveLength(10);
     expect(result.failures[0]).toEqual({ stage: 'pull', table: 'profiles', message: 'offline' });
   });
 });

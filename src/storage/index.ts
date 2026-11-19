@@ -5,6 +5,7 @@
 
 export {
   BACKUP_DOCUMENT_TYPE,
+  BACKUP_FIRST_SCHEMA_VERSION,
   BACKUP_SCHEMA_VERSION,
   DB_NAME,
   DB_VERSION,
@@ -44,8 +45,6 @@ export type {
   TrainingPhase,
   UserProfile,
   Uuid,
-  WeekLayout,
-  WeekLayoutSlot,
   WeekRecord,
   WeightGoal,
   WorkoutSession,

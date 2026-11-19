@@ -20,7 +20,6 @@ import type {
   PlanDay,
   StoragePort,
   UserProfile,
-  WeekLayout,
   WeekRecord,
   WorkoutSession,
 } from '../../storage';
@@ -33,8 +32,8 @@ import {
   agendaWeekViewOf,
   startRequestOf,
 } from './agenda';
-import { defaultLayoutOf } from '../week/agenda';
 import { weekFixtureOf } from '../week/week';
+
 import { demoWeek, demoPort, demoRestNow } from './demo';
 import { activityViewOf, homeViewOf, startOfDay, type HomeInput } from './selectors';
 import { recordFootball, reportMatch } from './football';
@@ -134,8 +133,8 @@ const WEEK_PLAN: readonly PlanDay[] = [
   seededDay('seed-day-fisico', 'MOVILIDAD Y CORE', 3),
 ];
 
-/** T3: the league week of the fixture, Thursday's match, no exchange yet. */
-const LEAGUE_WEEK: WeekRecord = { monday: '2023-11-06', match: 'league', swaps: [] };
+/** T3: the league week of the fixture, Thursday's match. */
+const LEAGUE_WEEK: WeekRecord = { monday: '2023-11-06', match: 'league' };
 
 function session(
   overrides: Partial<WorkoutSession> & Pick<WorkoutSession, 'id' | 'status'>,
@@ -417,7 +416,7 @@ describe('the match is reported, never trained (T8, S1)', () => {
 describe('the current week gets its record on its own (S11, L5)', () => {
   it('writes exactly one record for this week when the store has none, and the control shows', async () => {
     const { port, writes } = weekPort(undefined);
-    const expected: WeekRecord = { monday: '2023-11-06', match: 'league', swaps: [] };
+    const expected: WeekRecord = { monday: '2023-11-06', match: 'league' };
 
     // The league is every Thursday and the cup is the exception (L5), so a week nobody
     // has touched starts as a league week with no exchange (S11).
@@ -431,16 +430,16 @@ describe('the current week gets its record on its own (S11, L5)', () => {
     expect(render({ plan: WEEK_PLAN, week: expected })).toContain('Liga · jueves');
   });
 
-  it('leaves a record of this week alone, the swaps included', async () => {
-    const swapped: WeekRecord = { ...LEAGUE_WEEK, swaps: [{ from: 2, to: 0 }] };
-    const { port, writes } = weekPort(swapped);
+  it('leaves a record of this week alone', async () => {
+    const cup: WeekRecord = { ...LEAGUE_WEEK, match: 'cup' };
+    const { port, writes } = weekPort(cup);
 
-    expect(await currentWeekOf(port, NOW)).toBe(swapped);
+    expect(await currentWeekOf(port, NOW)).toBe(cup);
     expect(writes).toEqual([]);
   });
 
-  it('replaces a record from last week, because a new week starts from its template', async () => {
-    const lastWeek: WeekRecord = { ...LEAGUE_WEEK, monday: '2023-10-30', swaps: [{ from: 0, to: 1 }] };
+  it('replaces a record from last week, because a new week starts from its own Monday', async () => {
+    const lastWeek: WeekRecord = { ...LEAGUE_WEEK, monday: '2023-10-30' };
     const { port, writes } = weekPort(lastWeek);
 
     expect(await currentWeekOf(port, NOW)).toEqual(LEAGUE_WEEK);
@@ -507,13 +506,13 @@ describe('the week says which fixture it has (T3, S7, S11)', () => {
     expect(markup).toContain('Esta semana jugamos copa');
   });
 
-  it('flipping to the cup writes the fixture and clears the exchanges of the other layout', async () => {
-    const { port, writes } = weekPort({ ...LEAGUE_WEEK, swaps: [{ from: 2, to: 0 }] });
+  it('flipping to the cup writes the fixture and redraws the week', async () => {
+    const { port, writes } = weekPort(LEAGUE_WEEK);
 
     expect(await saveWeekMatch(port, NOW, 'cup')).toBe(true);
-    // The swap traded Monday and Wednesday of a league week; in a cup week those weekdays
-    // hold other days, so the list goes with the layout it was made on (T5, L7).
-    expect(writes).toEqual([{ monday: '2023-11-06', match: 'cup', swaps: [] }]);
+    // The record carries the Monday and the kind, and nothing else: the four days follow
+    // from the cup template, so there is no second field to keep in step (S2).
+    expect(writes).toEqual([{ monday: '2023-11-06', match: 'cup' }]);
 
     // The week the re-read draws is the cup week: Monday is the press, Wednesday the legs
     // and Thursday the mobility day (`odd/tasks/leg-separation.md` S3).
@@ -622,16 +621,8 @@ describe('the football row writes through the port', () => {
  * a day, swaps two of them or writes a layout.
  * ------------------------------------------------------------------------- */
 
-/** The league template materialised: Monday legs … Friday TORSO B (L7). */
-const LEAGUE_LAYOUT: WeekLayout = defaultLayoutOf({ matchKind: 'league', plan: WEEK_PLAN });
-
-/** A cup week: the match takes Tuesday, and the league layout has nothing to say about it. */
+/** A cup week: the match takes Tuesday, and the template moves the four days with it. */
 const CUP_WEEK: WeekRecord = { ...LEAGUE_WEEK, match: 'cup' };
-
-/** A layout written as the seven weekdays read, so an expectation says what it means. */
-function layoutWith(days: readonly (string | null)[]): WeekLayout {
-  return { slots: days.map((planDayId, weekday) => ({ weekday, planDayId })) };
-}
 
 /** The agenda of a fixture, with the action its today row carries. */
 function agendaWeekOf(overrides: Partial<HomeInput>) {
@@ -715,9 +706,8 @@ describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10, S11)', () => {
   });
 
   it('draws no placement control and no displaced-days section (S4)', () => {
-    // A cup week carrying the league layout: the placement the old read honoured, and the
-    // exact case that produced the section the owner asked about.
-    const markup = render({ plan: WEEK_PLAN, week: CUP_WEEK, weekLayout: LEAGUE_LAYOUT });
+    // A cup week is the case that used to produce the section the owner asked about.
+    const markup = render({ plan: WEEK_PLAN, week: CUP_WEEK });
 
     // Nothing on the week writes a layout any more: no handle, no grip, no hint, no sheet.
     expect(markup).not.toContain('home-agenda__handle');
@@ -735,33 +725,19 @@ describe('the week agenda of Inicio (T4, S1, S2, S3, S9, S10, S11)', () => {
     expect(markup).not.toContain('home-agenda__unplaced');
   });
 
-  it('places the four days by the template, whatever layout the store holds (S2, S3)', () => {
-    const markup = render({ plan: WEEK_PLAN, week: CUP_WEEK, weekLayout: LEAGUE_LAYOUT });
+  it('places the four days by the template (S2, S3)', () => {
+    const markup = render({ plan: WEEK_PLAN, week: CUP_WEEK });
 
     expect(rowOf(markup, 1)).toContain('Partido · Copa');
-    // The league layout put the legs on Monday, under nothing. Derived, the press takes
-    // Monday, the legs Wednesday and Thursday the mobility day
-    // (`odd/tasks/leg-separation.md` S3): the four days all sit beside the match.
+    // The cup template puts the press on Monday, the legs Wednesday and the mobility day
+    // Thursday (`odd/tasks/leg-separation.md` S3): the four days all sit beside the match.
     expect(rowOf(markup, 0)).toContain('Torso A');
     expect(rowOf(markup, 2)).toContain('Pierna');
     expect(rowOf(markup, 3)).toContain('Movilidad y core');
     expect(rowOf(markup, 3)).not.toContain('Descanso');
 
-    const { week } = agendaWeekOf({ plan: WEEK_PLAN, week: CUP_WEEK, weekLayout: LEAGUE_LAYOUT });
+    const { week } = agendaWeekOf({ plan: WEEK_PLAN, week: CUP_WEEK });
     expect(week.agenda.planDays.every((entry) => entry.weekday !== null)).toBe(true);
-  });
-
-  it('names the day the template places when the store holds a layout that moved it (S2)', () => {
-    const moved = layoutWith(['seed-day-leg', 'seed-day-torso-a', null, null, 'seed-day-torso-b', 'seed-day-fisico', null]);
-    const markup = render({ plan: WEEK_PLAN, week: LEAGUE_WEEK, weekLayout: moved });
-
-    // The stored placement put the preparation on Saturday and left Wednesday empty. The
-    // week no longer reads it: Tuesday is the prep day, and today is placed.
-    expect(rowOf(markup, 1)).toContain('Movilidad y core');
-    expect(rowOf(markup, 1)).toContain('Hoy');
-    expect(rowOf(markup, 1)).not.toContain('Descanso');
-    expect(markup).not.toContain('data-weekday="5"');
-    expect(markup).toContain('Empezar entrenamiento');
   });
 
   it('starts exactly the day the template puts on today (T5, T6)', () => {
@@ -982,8 +958,8 @@ describe('Inicio is the week and very little else (T9, S12)', () => {
     expect(await saveWeekMatch(port, NOW, 'cup')).toBe(true);
     expect(await saveWeekMatch(port, NOW, 'none')).toBe(true);
     expect(writes).toEqual([
-      { monday: '2023-11-06', match: 'cup', swaps: [] },
-      { monday: '2023-11-06', match: 'none', swaps: [] },
+      { monday: '2023-11-06', match: 'cup' },
+      { monday: '2023-11-06', match: 'none' },
     ]);
   });
 
@@ -1362,7 +1338,7 @@ describe('the match row offers to train (T2, T4)', () => {
       after.week.agenda.planDays.map((entry) => `${entry.planDay.id}@${String(entry.weekday)}`),
     ).toEqual(weekdaysBefore);
     // The week is still the template of its fixture: nothing about a start redraws it, and
-    // no `WeekLayout` is written by any of it — the week holds no write path at all (S4).
-    expect(after.view.agenda?.layout).toEqual(LEAGUE_LAYOUT);
+    // nothing writes a placement — the week holds no write path at all (S4).
+    expect(after.view.agenda?.agenda.days.filter((day) => day.today)).toHaveLength(1);
   });
 });

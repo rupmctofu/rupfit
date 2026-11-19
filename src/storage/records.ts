@@ -26,7 +26,6 @@ import type {
   SessionStatus,
   StorageAnswer,
   UserProfile,
-  WeekLayout,
   WeekRecord,
 } from './entities';
 
@@ -335,15 +334,13 @@ export interface StoredPhaseState {
 /**
  * Everything `meta` may hold. The nine-store schema is unchanged: the queue ops and the
  * push watermarks are rows in this already-existing store, keyed by a string, which is
- * why neither needs an upgrade step. The week record (T3) is the same case, and so is the
- * owner's week layout (T2) — meta-keyed, but synced and backed up rather than local.
+ * why neither needs an upgrade step. The week record (T3) is the same case.
  */
 export type MetaRow =
   | { key: 'profile'; value: UserProfile; sync?: SyncMeta }
   | { key: 'phaseState'; value: StoredPhaseState; sync?: SyncMeta }
   | { key: 'storage'; value: StorageAnswer }
   | { key: 'week'; value: WeekRecord }
-  | { key: 'weekLayout'; value: WeekLayout; sync?: SyncMeta }
   | { key: 'syncWatermarks'; value: SyncWatermarks }
   | { key: `outbox:${string}`; value: PendingSyncOp };
 

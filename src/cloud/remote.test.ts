@@ -125,17 +125,6 @@ const EXERCISE: SyncRowValues = {
   alternatives: [],
 };
 
-/** T2 (S5): the owner's fixed weekly assignment, as the record carries it. */
-const SLOTS = [
-  { weekday: 0, planDayId: 'day-lower' },
-  { weekday: 1, planDayId: null },
-  { weekday: 2, planDayId: 'day-push' },
-  { weekday: 3, planDayId: null },
-  { weekday: 4, planDayId: 'day-pull' },
-  { weekday: 5, planDayId: null },
-  { weekday: 6, planDayId: null },
-] as const;
-
 /**
  * A client that answers one `select … gt … order … limit` with fixed rows. The chain is
  * thenable because `pullSince` awaits it; nothing here reaches a socket.
@@ -328,42 +317,5 @@ describe('pushRows, the request it actually sends', () => {
     expect(outcome).toEqual({ acknowledged: [], error: null });
     expect(client.upserts).toEqual([]);
     expect(client.sessionReads()).toBe(0);
-  });
-});
-
-describe('the week layout column of T2 (S5, S6)', () => {
-  it('pushes the seven slots as one JSON text column, not as a shape PostgREST has to guess', async () => {
-    const client = new FakeClient();
-
-    await remote(client).pushRows([row('week_layout', 'weekLayout', { slots: SLOTS })]);
-
-    const payload = client.upserts[0]?.rows[0] ?? {};
-    // One column holding the whole assignment: the slots are never queried by weekday, and
-    // a column per day would be seven places to keep in step with the record.
-    expect(payload['slots']).toBe(JSON.stringify(SLOTS));
-    expect(typeof payload['slots']).toBe('string');
-    expect(payload['id']).toBe(`${USER_ID}:weekLayout`);
-  });
-
-  it('pulls the same column back as the slots the app reads', async () => {
-    const client = pullingClient([
-      {
-        id: `${USER_ID}:weekLayout`,
-        rev: 3,
-        updated_at: new Date(NOW).toISOString(),
-        deleted_at: null,
-        slots: JSON.stringify(SLOTS),
-      },
-    ]);
-
-    const outcome = await new SupabaseSyncRemote(
-      client as unknown as SupabaseClient<Database>,
-    ).pullSince('week_layout', 0);
-
-    // The round trip is the contract: a pull of the row this device pushed is not a
-    // conflict (see `src/cloud/apply.test.ts`).
-    expect(outcome.rows).toHaveLength(1);
-    expect(outcome.rows[0]?.rowId).toBe('weekLayout');
-    expect(outcome.rows[0]?.values).toEqual({ slots: [...SLOTS] });
   });
 });

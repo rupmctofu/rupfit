@@ -13,7 +13,6 @@ import {
   META_KEYS,
   OUTBOX_OP_PREFIX,
   type StoragePort,
-  type WeekLayout,
 } from '../../src/storage';
 import {
   activity,
@@ -32,7 +31,6 @@ import {
   setRecord,
   T0,
   userProfile,
-  weekLayout,
   workoutSession,
   type RawDatabase,
 } from './harness';
@@ -683,20 +681,28 @@ describe('the queries the indexes exist for', () => {
   it('round trips the week record of T3 and answers nothing before it is written', async () => {
     expect(await storage.meta.readWeek()).toBeUndefined();
 
-    // The Monday of the week, its fixture and the swaps the owner made in it. The Monday
-    // of 2026-11-02 is the week the storage fixtures are anchored on (T0).
-    const week = {
-      monday: '2026-11-02',
-      match: 'league',
-      swaps: [{ from: 0, to: 1 }],
-    } as const;
+    // The Monday of the week and its fixture. The Monday of 2026-11-02 is the week the
+    // storage fixtures are anchored on (T0).
+    const week = { monday: '2026-11-02', match: 'league' } as const;
     await storage.meta.saveWeek(week);
 
     expect(await storage.meta.readWeek()).toEqual(week);
   });
 
+  it('reads a week row an older build wrote, and drops the exchanges it carried', async () => {
+    // `WeekRecord.swaps` left the record (T4, spec S5) and the row it was written into is
+    // still on this device. Reading it answers the two fields the week has, so a stored
+    // exchange cannot come back as a placement nothing honours.
+    await raw.put('meta', {
+      key: META_KEYS.week,
+      value: { monday: '2026-11-02', match: 'league', swaps: [{ from: 0, to: 1 }] },
+    });
+
+    expect(await storage.meta.readWeek()).toEqual({ monday: '2026-11-02', match: 'league' });
+  });
+
   it('writes the week record alone: no sync stamp and no queued op for it', async () => {
-    await storage.meta.saveWeek({ monday: '2026-11-02', match: 'cup', swaps: [] });
+    await storage.meta.saveWeek({ monday: '2026-11-02', match: 'cup' });
 
     const rows = await raw.all<Record<string, unknown>>('meta');
     const stored = rows.find((row) => row['key'] === META_KEYS.week);
@@ -706,60 +712,6 @@ describe('the queries the indexes exist for', () => {
     // to send a column the account does not have.
     expect(stored ?? {}).not.toHaveProperty('sync');
     expect(rows.some((row) => String(row['key']).startsWith(OUTBOX_OP_PREFIX))).toBe(false);
-  });
-
-  it('round trips the week layout and answers nothing before the owner fixes one (T2)', async () => {
-    expect(await storage.meta.readWeekLayout()).toBeUndefined();
-
-    const layout = weekLayout(['day-lower', 'day-push', null, 'day-pull', null, null, null]);
-    await storage.meta.saveWeekLayout(layout);
-
-    expect(await storage.meta.readWeekLayout()).toEqual(layout);
-  });
-
-  it('stamps and queues the layout write, unlike the device-local week record (T2)', async () => {
-    // S5 sends the layout to the account, so it follows the `profiles` pipeline: every
-    // write carries a new `rev` and leaves exactly one op for the row.
-    await storage.meta.saveWeekLayout(weekLayout());
-    await storage.meta.saveWeekLayout(weekLayout(['day-a', null, null, null, null, null, null]));
-
-    const rows = await raw.all<Record<string, unknown>>('meta');
-    const stored = rows.find((row) => row['key'] === META_KEYS.weekLayout);
-    expect(stored?.['sync']).toMatchObject({ rev: 2, deletedAt: null });
-    expect(typeof (stored?.['sync'] as { updatedAt?: unknown } | undefined)?.updatedAt).toBe(
-      'number',
-    );
-
-    const ops = rows
-      .filter((row) => String(row['key']).startsWith(OUTBOX_OP_PREFIX))
-      .map((row) => row['key']);
-    // The second write supersedes the first op: replaying the old layout would publish
-    // the past.
-    expect(ops).toEqual([`${OUTBOX_OP_PREFIX}week_layout:weekLayout:2`]);
-  });
-
-  it('refuses a stored layout that is not seven weekdays, instead of reading it as one', async () => {
-    // The bytes come from `meta`, which the browser does not validate (§5.1, §11): six
-    // slots, or a weekday out of order, is refused where it is read.
-    await raw.put('meta', {
-      key: META_KEYS.weekLayout,
-      value: { slots: [{ weekday: 0, planDayId: 'day-a' }] },
-    });
-
-    await expect(storage.meta.readWeekLayout()).rejects.toSatisfy(
-      (error: unknown) => isStorageError(error) && error.code === 'invalid',
-    );
-  });
-
-  it('refuses to store a layout that is not seven weekdays, before anything is written', async () => {
-    // The same rule on the way in: a screen that hands over six slots learns at the write,
-    // not a week later when the calendar tries to place the trainings.
-    await expect(
-      storage.meta.saveWeekLayout({ slots: [] } as unknown as WeekLayout),
-    ).rejects.toSatisfy((error: unknown) => isStorageError(error) && error.code === 'invalid');
-
-    const rows = await raw.all<Record<string, unknown>>('meta');
-    expect(rows.some((row) => row['key'] === META_KEYS.weekLayout)).toBe(false);
   });
 
   it('keeps the optional phase values absent rather than undefined', async () => {

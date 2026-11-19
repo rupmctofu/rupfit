@@ -444,16 +444,6 @@ export function createFakeStorage(options: FakeStorageOptions = {}): FakeStorage
       record('meta.saveWeek');
       unsupported('meta.saveWeek');
     },
-    // T2 of the week calendar: the owner's fixed layout is a second meta record, and the
-    // fake answers it the same way it answers the week — absent until a test says otherwise.
-    async readWeekLayout() {
-      record('meta.readWeekLayout');
-      return undefined;
-    },
-    async saveWeekLayout() {
-      record('meta.saveWeekLayout');
-      unsupported('meta.saveWeekLayout');
-    },
   };
 
   return {

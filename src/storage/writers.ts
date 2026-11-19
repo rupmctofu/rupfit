@@ -14,7 +14,6 @@ import type {
   Exercise,
   PlanDay,
   UserProfile,
-  WeekLayout,
   WorkoutSession,
 } from './entities';
 import {
@@ -27,7 +26,6 @@ import {
   profileToMetaRow,
   sessionToRow,
   setToRow,
-  weekLayoutToMetaRow,
 } from './mappers';
 import type { Transaction } from './readers';
 
@@ -74,18 +72,6 @@ export async function writeProfile(
   profile: UserProfile,
 ): Promise<void> {
   await tx.objectStore('meta').put(profileToMetaRow(profile));
-}
-
-/**
- * T2 (S5): the fixed weekly assignment, written by `restore` only. A restore is not a
- * local change — nothing is queued — exactly like the profile and the phase state, which
- * this file writes the same way.
- */
-export async function writeWeekLayout(
-  tx: Transaction<'readwrite'>,
-  layout: WeekLayout,
-): Promise<void> {
-  await tx.objectStore('meta').put(weekLayoutToMetaRow(layout));
 }
 
 export async function writeMeasurements(

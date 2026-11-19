@@ -28,7 +28,7 @@ import type {
   RepRange,
   TrainingPhase,
 } from '../core/domain';
-import type { MatchKind, WeekSwap } from '../core/engine/week-plan';
+import type { MatchKind } from '../core/engine/week-plan';
 
 /** Milliseconds since the epoch, orderable as an IndexedDB key (§2). */
 export type EpochMs = number;
@@ -195,37 +195,22 @@ export interface StorageAnswer {
 }
 
 /**
- * T3 — the week of the match, as one single-row record: the Monday it belongs to, which
- * fixture it has, and the days the owner swapped inside it (T5, S9).
+ * T3 — the week of the match, as one single-row record: the Monday it belongs to and the
+ * fixture it has.
  *
  * It is the week's whole memory, and it lives on this device only: a restore clears
  * `meta`, so the record dies with the restore and no push has to carry it.
+ *
+ * The placement is gone (`odd/tasks/backlog-closeout.md` T4): the four days and the match
+ * come from the fixture's template every time the week is read, so there is nothing left
+ * to store beside the Monday and the kind of week. A row written by an older build still
+ * carries its `swaps`; `mappers.ts` reads the two fields it knows and drops them.
  */
 export interface WeekRecord {
   /** Local `YYYY-MM-DD` of the Monday, exactly as `weekPlan` wants it. */
   readonly monday: string;
   /** S11: Thursday in the league, Tuesday in the cup, and the league is the default. */
   readonly match: MatchKind;
-  readonly swaps: readonly WeekSwap[];
-}
-
-/** One weekday of the owner's layout. `weekday` 0 is Monday, 6 is Sunday. */
-export interface WeekLayoutSlot {
-  readonly weekday: number; // 0..6, exactly one slot per weekday
-  /** The plan day the owner put on that weekday; `null` leaves the day free. */
-  readonly planDayId: string | null;
-}
-/**
- * The owner's fixed weekly assignment (S5, S6): seven slots, no dates.
- *
- * It is the opposite of `WeekRecord` in every way that matters to persistence: one record
- * for every week rather than one per week, the owner's decision rather than this phone's
- * draft, and therefore part of the backup document (§9) and of the account
- * (`src/cloud/types.ts`). It never overrides the fixture — the match day still comes from
- * the league calendar (S4, S10) — and `null` on a weekday is a legitimate answer.
- */
-export interface WeekLayout {
-  readonly slots: readonly WeekLayoutSlot[]; // exactly 7, ascending weekday
 }
 
 /** Re-exported so features import one module for the shapes they read. */

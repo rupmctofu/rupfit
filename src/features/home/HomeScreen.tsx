@@ -43,7 +43,7 @@ import {
   PrimaryAction,
   type IconName,
 } from '../../design-system';
-import type { StoragePort, WeekLayout, WeekRecord } from '../../storage';
+import type { StoragePort, WeekRecord } from '../../storage';
 import type { MatchKind } from '../../core/engine/week-plan';
 import { useAppServices } from '../../app/providers';
 import type { Clock } from '../session/controller';
@@ -114,12 +114,6 @@ async function readHome(
   // reload — the exact hole this fixes. A failed write answers `undefined` and the
   // rotation keeps naming the day (S5).
   const week = await currentWeekOf(storage, now);
-  // T4 — a stored placement, read next to the other reads and **never consulted** (S2).
-  // The week is derived from the fixture's template every time, so what this record holds
-  // cannot displace a day. It is still read so the store keeps what it holds and the read
-  // path can be pinned against a stale placement (S5 deletes nothing); the week stops
-  // honouring it, and nothing here writes one.
-  const weekLayout = await readWeekLayoutOf(storage);
   const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
   const measurements = await storage.measurements.between(weekAgo, now);
   const activities = await storage.activities.all();
@@ -130,7 +124,6 @@ async function readHome(
     phaseState,
     plan,
     week,
-    weekLayout,
     recent,
     inProgress,
     measurements,
@@ -179,8 +172,8 @@ export function mondayIsoOf(at: number): string {
  * S11/L5 — this week's record, written once when the store has none.
  *
  * The league is every Thursday and the cup is the exception, so a week nobody has touched
- * starts as `match: 'league'` with no exchange. It is a get-or-create, not a seed: a
- * record of this week comes back untouched — a swap survives a reload — and a record from
+ * starts as `match: 'league'`. It is a get-or-create, not a seed: a record of this week
+ * comes back untouched — the fixture the owner chose survives a reload — and a record from
  * another week is replaced, because a new week starts from its own template.
  *
  * A store that cannot be read or written answers `undefined` and the rotation keeps naming
@@ -194,26 +187,9 @@ export async function currentWeekOf(
   try {
     const stored = await storage.meta.readWeek();
     if (stored !== undefined && stored.monday === monday) return stored;
-    const week: WeekRecord = { monday, match: 'league', swaps: [] };
+    const week: WeekRecord = { monday, match: 'league' };
     await storage.meta.saveWeek(week);
     return week;
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * T4 (S2, S5) — the stored week layout, read and never consulted.
- *
- * The week no longer remembers a placement: `layoutOf` derives the fixture's template, so
- * this value decides nothing. The read stays because the unit that stops reading the meta
- * row is the one that announces removing it, with its migration — not this behaviour
- * change, which deletes nothing from the store. A read that fails answers `undefined` and
- * is just as uninteresting as one that succeeds.
- */
-async function readWeekLayoutOf(storage: StoragePort): Promise<WeekLayout | undefined> {
-  try {
-    return await storage.meta.readWeekLayout();
   } catch {
     return undefined;
   }
@@ -227,14 +203,12 @@ async function readWeekLayoutOf(storage: StoragePort): Promise<WeekLayout | unde
  * already writes `league` (L5: the league is every Thursday, the cup is the exception), so
  * this is the loose change for the current week, never a season calendar.
  *
- * **The exchange list goes with the layout.** A swap exchanges two days of *this* layout —
- * Monday and Wednesday trade in a league week for reasons a cup week does not share (L7) —
- * so it is cleared at the same time: kept across the flip it would put a day on a weekday
- * the new template never asked for. No stored session is rewritten: a row that exists is
- * history, not a plan.
+ * The four days follow from the fixture alone (`odd/tasks/derived-week.md` S2): the record
+ * carries nothing else to keep in step, so the redraw is the whole of it. No stored session
+ * is rewritten: a row that exists is history, not a plan.
  *
  * Returns `false` when the write fails, and the caller then re-reads nothing: the card
- * keeps the layout it was drawn from (S7) instead of showing half a cup week.
+ * keeps the week it was drawn from (S7) instead of showing half a cup week.
  */
 export async function saveWeekMatch(
   storage: StoragePort,
@@ -242,7 +216,7 @@ export async function saveWeekMatch(
   match: MatchKind,
 ): Promise<boolean> {
   try {
-    await storage.meta.saveWeek({ monday: mondayIsoOf(now), match, swaps: [] });
+    await storage.meta.saveWeek({ monday: mondayIsoOf(now), match });
     return true;
   } catch {
     return false;

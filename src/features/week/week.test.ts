@@ -1,11 +1,11 @@
 /**
- * T4/T5 — the week of the match, in the app tier.
+ * T4 → T4 of `odd/tasks/backlog-closeout.md` — the week of the match, in the app tier.
  *
- * Two questions are answered here and nowhere else: which day of the week today is
- * (S5, "hoy toca esto"), and which days today can exchange places with (S6, S9 — "se
- * mueve a otro día de la semana" is the trade, not a hole to find). The stored plan days
- * arrive as they are stored, so the tests also pin the two ways the week has to fail soft:
- * a record of another week, and a plan that lost one of the four seeded days.
+ * One question is answered here and nowhere else: which day of the week today is (S5,
+ * "hoy toca esto"), read from the fixture's template. The stored plan days arrive as they
+ * are stored, so the tests also pin the ways the week has to fail soft: a record of
+ * another week, a plan that lost one of the four seeded days, and a stored kind of week
+ * the template table does not have.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -58,8 +58,8 @@ const PLAN: readonly PlanDay[] = [
   planDay('seed-day-fisico', 'MOVILIDAD Y CORE', 3),
 ];
 
-/** T3: the league is the default, Thursday, and the record is the whole week's memory. */
-const LEAGUE: WeekRecord = { monday: MONDAY_OF_WEEK, match: 'league', swaps: [] };
+/** T3: the league is the default, Thursday, and the record keeps the Monday and the kind. */
+const LEAGUE: WeekRecord = { monday: MONDAY_OF_WEEK, match: 'league' };
 
 describe('weekDaysOf maps the stored plan days by name', () => {
   it('T4 finds the four days the seed ships today, which is what the app reads', () => {
@@ -157,23 +157,6 @@ describe('weekTodayOf reads today from the week plan (S5, T4)', () => {
     expect(today?.day.date).toBe('2026-03-05');
     expect(today?.day.kind).toBe('match');
     expect(today?.planDay).toBeNull();
-    // Nothing to exchange on the day of the match, and nothing offered either.
-    expect(today?.targets).toEqual([]);
-  });
-
-  it('T5 moves today when the stored week holds a swap', () => {
-    const swapped: WeekRecord = { ...LEAGUE, swaps: [{ from: 0, to: 1 }] };
-    const today = weekTodayOf({ now: MONDAY, plan: PLAN, week: swapped });
-    // The owner trained the mobility day on Monday, so the legs moved to Tuesday: the
-    // weekday is still Monday, what changed is which day fills it (S9).
-    expect(today?.day.weekday).toBe('Lunes');
-    expect(today?.planDay?.id).toBe('seed-day-fisico');
-    // The targets read back from the exchanged week.
-    expect(today?.targets.map((target) => `${target.weekday} ${target.planDay.name}`)).toEqual([
-      'Martes PIERNA',
-      'Miércoles TORSO A',
-      'Viernes TORSO B',
-    ]);
   });
 
   it('T3 ignores a record from another week and leaves the rotation to answer', () => {
@@ -186,15 +169,11 @@ describe('weekTodayOf reads today from the week plan (S5, T4)', () => {
     expect(weekTodayOf({ now: MONDAY, plan: PLAN.slice(0, 3), week: LEAGUE })).toBeNull();
   });
 
-  it('T5 fails soft when the stored swap is one the engine refuses', () => {
-    // A hand-edited record could name Saturday, or send the legs onto the weekday right
-    // after the match. The screen falls back to the rotation instead of throwing at the
-    // owner. The league template keeps the legs on Monday, so moving them to Friday — the
-    // day after the Thursday match — is the refusal this test needs.
-    const saturday: WeekRecord = { ...LEAGUE, swaps: [{ from: 0, to: 5 }] };
-    expect(weekTodayOf({ now: MONDAY, plan: PLAN, week: saturday })).toBeNull();
-    const legsAfterTheMatch: WeekRecord = { ...LEAGUE, swaps: [{ from: 0, to: 4 }] };
-    expect(weekTodayOf({ now: MONDAY, plan: PLAN, week: legsAfterTheMatch })).toBeNull();
+  it('fails soft when the stored record names a kind of week the table does not have', () => {
+    // A hand-edited record can say anything. The screen falls back to the rotation instead
+    // of throwing at the owner: there is no template to stamp, so there is no week.
+    const unknownKind = { ...LEAGUE, match: 'friendly' } as unknown as WeekRecord;
+    expect(weekTodayOf({ now: MONDAY, plan: PLAN, week: unknownKind })).toBeNull();
   });
 });
 
@@ -229,56 +208,5 @@ describe('weekFixtureOf says which fixture the week has (T3, S11)', () => {
 
   it('has nothing to say when the store holds no week at all', () => {
     expect(weekFixtureOf(undefined)).toBeNull();
-  });
-});
-
-describe('weekTodayOf offers the training days today can exchange with (S6, S9)', () => {
-  it('offers the other training days of a league week, never the match (S11)', () => {
-    const today = weekTodayOf({ now: MONDAY, plan: PLAN, week: LEAGUE });
-    // Monday holds the legs. Tuesday (the preparation) and Wednesday are exchangeable;
-    // Thursday is the match and never moves; Friday is filtered by L7, because legs on
-    // Friday are legs the day after the match.
-    expect(today?.targets.map((target) => `${target.weekday} ${target.planDay.name}`)).toEqual([
-      'Martes MOVILIDAD Y CORE',
-      'Miércoles TORSO A',
-    ]);
-    expect(today?.targets.map((target) => target.swap)).toEqual([
-      { from: 0, to: 1 },
-      { from: 0, to: 2 },
-    ]);
-  });
-
-  it('offers three targets in a cup week, so the change is never unavailable (S6)', () => {
-    const cup: WeekRecord = { ...LEAGUE, match: 'cup' };
-    const today = weekTodayOf({ now: MONDAY, plan: PLAN, week: cup });
-    // Cup week: the match is Tuesday, and Monday holds the press. Wednesday, Thursday and
-    // Friday all stay available.
-    expect(today?.targets.map((target) => `${target.weekday} ${target.planDay.name}`)).toEqual([
-      'Miércoles PIERNA',
-      'Jueves MOVILIDAD Y CORE',
-      'Viernes TORSO B',
-    ]);
-  });
-
-  it('does not filter the squat a cup week already puts after the match (S3)', () => {
-    const cup: WeekRecord = { ...LEAGUE, match: 'cup' };
-    // The cup template places the squat on Wednesday by design
-    // (odd/tasks/leg-separation.md S3), so the L7 guard — which refuses an exchange that
-    // *introduces* the legs on the day after the match — has nothing to refuse here.
-    const today = weekTodayOf({ now: THURSDAY, plan: PLAN, week: cup });
-    expect(today?.planDay?.id).toBe('seed-day-fisico');
-    expect(today?.targets.map((target) => target.weekday)).toEqual(['Lunes', 'Miércoles', 'Viernes']);
-  });
-
-  it('offers every other training day of a week without a fixture', () => {
-    const noMatch: WeekRecord = { ...LEAGUE, match: 'none' };
-    // Wednesday holds the upper body A day; with no match there is no weekday to protect,
-    // and Thursday is rest, so Friday is the third exchangeable day.
-    const today = weekTodayOf({ now: WEDNESDAY, plan: PLAN, week: noMatch });
-    expect(today?.targets.map((target) => target.weekday)).toEqual([
-      'Lunes',
-      'Martes',
-      'Viernes',
-    ]);
   });
 });

@@ -25,7 +25,6 @@ import type {
   SubstitutedFrom,
   UserProfile,
   Uuid,
-  WeekLayout,
   WeekRecord,
   WorkoutSession,
 } from './entities';
@@ -198,12 +197,6 @@ export interface MetaRepositoryPort {
   /** T3: the week of the match, or `undefined` when this device has not planned one. */
   readWeek(): Promise<WeekRecord | undefined>;
   saveWeek(week: WeekRecord): Promise<void>;
-  /**
-   * T2 (S5, S6): the owner's fixed weekly assignment, or `undefined` while it is still the
-   * fixture's template. Absence is a legitimate answer, not a missing row.
-   */
-  readWeekLayout(): Promise<WeekLayout | undefined>;
-  saveWeekLayout(layout: WeekLayout): Promise<void>;
 }
 
 /* ---------------------------------------------------------------------- sync */
@@ -255,8 +248,6 @@ export interface SyncStoragePort {
 export const BACKUP_COLLECTIONS = [
   'profile',
   'phaseState',
-  /** T2 (S5): the fixed weekly assignment is backed up with the profile, not with `week`. */
-  'weekLayout',
   'exercises',
   'planDays',
   'sessions',

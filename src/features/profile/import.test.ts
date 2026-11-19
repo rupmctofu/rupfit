@@ -8,7 +8,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { StorageError, type BackupDocument, type BackupValidation } from '../../storage';
+import {
+  BACKUP_SCHEMA_VERSION,
+  StorageError,
+  type BackupDocument,
+  type BackupValidation,
+} from '../../storage';
 import { importFailureText, importProblem, mergeOffer, mergeScope } from './import';
 
 const INVALID = (path: string, message: string): BackupValidation => ({ ok: false, path, message });
@@ -64,7 +69,9 @@ describe('importProblem', () => {
     const problem = importProblem(INVALID('schemaVersion', 'Unsupported document version.'));
 
     expect(problem?.kind).toBe('version');
-    expect(problem?.title).toContain('1');
+    // The subject is "this build's version is named", not the number it happens to be: the
+    // version moves when a field is retired (T4 raised it to 2, spec S5).
+    expect(problem?.title).toContain(String(BACKUP_SCHEMA_VERSION));
   });
 
   it('reports the exact failure path, not a generic "import failed"', () => {

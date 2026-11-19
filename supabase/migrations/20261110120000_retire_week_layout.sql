@@ -1,0 +1,21 @@
+-- retire week_layout — the account stops carrying the owner's fixed weekly assignment.
+--
+-- The week is derived from the fixture's template every time it is read
+-- (odd/tasks/derived-week.md S2), and the build that followed stopped storing, syncing and
+-- backing it up (odd/tasks/backlog-closeout.md T4, spec S5). Nothing reads this table any
+-- more, so it goes.
+--
+-- Safe on both sides of a half-finished delivery, which is the point of `if exists`:
+--
+-- - a project where the table exists (any project that ran 20261109121100_week_layout.sql)
+--   drops it and with it its index, its trigger and its four policies — all of them are
+--   owned by the table;
+-- - a project where it does not exist (a fresh project, or this file run twice) is left
+--   exactly as it was, and the statement is a no-op instead of an error.
+--
+-- No other object depends on the table: the slots it carried are plan day ids held as one
+-- JSON text column, so no foreign key points at it and nothing else has a column to drop.
+-- The owner performs this step in Supabase; the client has already stopped pushing to it,
+-- so a table that outlives the deploy is empty and harmless until then.
+
+drop table if exists public.week_layout;

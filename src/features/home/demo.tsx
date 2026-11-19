@@ -378,10 +378,10 @@ export function demoPort(week: DemoWeek): StoragePort {
   const base = createFakeStorage({ sessions: week.sessions, exercises: [...week.exercises], profile: week.profile });
   const measurements = [...week.measurements];
   const activities = [...week.activities];
-  // S11/L5: the demo has this week's record from the start, so the exchange of today can
-  // be looked at without a real store. It is a cell, not a disk: choosing a row moves the
-  // days in the demo and nothing else.
-  let currentWeek: WeekRecord = { monday: mondayIsoOf(week.now), match: 'league', swaps: [] };
+  // S11/L5: the demo has this week's record from the start, so the fixture sheet can be
+  // looked at without a real store. It is a cell, not a disk: choosing a fixture redraws
+  // the week in the demo and nothing else.
+  let currentWeek: WeekRecord = { monday: mondayIsoOf(week.now), match: 'league' };
 
   return {
     ...base,

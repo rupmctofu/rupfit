@@ -52,15 +52,6 @@ const COLUMNS: Readonly<Record<SyncTable, Readonly<Record<string, string>>>> = {
     name: 'name',
     order: 'day_order',
   },
-  /**
-   * T2 (S5, S6): the seven slots of the owner's assignment as one JSON document. The
-   * column is `text`, so `ENCODE`/`DECODE` below are what turn the value into JSON and
-   * back — the same seam `is_archived` uses for its `0 | 1` shape, for the same reason: the
-   * local shape is not the SQL shape.
-   */
-  week_layout: {
-    slots: 'slots',
-  },
   plan_items: {
     planDayId: 'plan_day_id',
     order: 'item_order',
@@ -154,18 +145,10 @@ const COLUMNS: Readonly<Record<SyncTable, Readonly<Record<string, string>>>> = {
  */
 const ENCODE: Readonly<Record<string, (value: unknown) => unknown>> = {
   'exercises.isArchived': (value) => value === 1,
-  // The slots are stored as one JSON text column: the record's shape is the document's.
-  'week_layout.slots': (value) => JSON.stringify(value),
 };
 
 const DECODE: Readonly<Record<string, (value: unknown) => unknown>> = {
   'exercises.is_archived': (value) => (value === true ? 1 : 0),
-  /**
-   * Back to the slots the app reads. Only a string is parsed: anything else is left as it
-   * arrived, and the record's own validator (`weekLayoutFromStored`) is what refuses a
-   * layout that is not seven weekdays.
-   */
-  'week_layout.slots': (value) => (typeof value === 'string' ? (JSON.parse(value) as unknown) : value),
 };
 
 /**

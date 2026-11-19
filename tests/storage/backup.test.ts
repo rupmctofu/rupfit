@@ -28,7 +28,6 @@ import {
   setRecord,
   T0,
   userProfile,
-  weekLayout,
   workoutSession,
   type RawDatabase,
 } from './harness';
@@ -65,7 +64,6 @@ async function openReader(): Promise<RawDatabase> {
 async function seedEverything(): Promise<void> {
   await storage.profile.save(userProfile());
   await storage.meta.savePhaseState(phaseState({ block: 2, passedBlocks: 1 }));
-  await storage.meta.saveWeekLayout(weekLayout());
 
   const library = exercise({ name: 'Sentadilla trasera', loadIncrementKg: 2.5 });
   await storage.exercises.save(library);
@@ -153,9 +151,11 @@ describe('§9 the backup document shape', () => {
   it('declares its document type and schema version', async () => {
     const { document } = await storage.backup.export(OPTIONS);
     expect(BACKUP_DOCUMENT_TYPE).toBe('rupfit.backup');
-    expect(BACKUP_SCHEMA_VERSION).toBe(1);
+    // Raised by the unit that retired `weekLayout` (T4, spec S5): the version says the
+    // document no longer carries the field, and an older one still loads.
+    expect(BACKUP_SCHEMA_VERSION).toBe(2);
     expect(document.documentType).toBe('rupfit.backup');
-    expect(document.schemaVersion).toBe(1);
+    expect(document.schemaVersion).toBe(2);
   });
 
   it('carries the version, the injected instant and exactly the documented collections', async () => {
@@ -174,7 +174,6 @@ describe('§9 the backup document shape', () => {
       'profile',
       'schemaVersion',
       'sessions',
-      'weekLayout',
     ]);
     expect(document.appVersion).toBe(APP_VERSION);
     expect(document.exportedAt).toBe('2026-11-08T10:00:00.000Z');
@@ -408,13 +407,6 @@ describe('§9 validation before writing: one invalid document per rule', () => {
         document['sessions'] = {};
       },
       path: 'sessions',
-    },
-    {
-      rule: 'R13 a week layout is seven weekdays, Monday first',
-      breakDocument: (document) => {
-        document['weekLayout']['slots'] = document['weekLayout']['slots'].slice(0, 6);
-      },
-      path: 'weekLayout.slots',
     },
   ];
 
@@ -674,52 +666,49 @@ describe('§9 the additive library detail of T3', () => {
   });
 });
 
-describe('§9 the week layout of T2 (S5, S6)', () => {
-  it('exports the fixed weekly assignment and restores it after a wipe', async () => {
+describe('§9 the retired week layout (T4, spec S5)', () => {
+  it('loads a document written before the field was retired, and ignores it', async () => {
+    // The only thing this removal can break for the owner: a backup taken by the build that
+    // still wrote `weekLayout`. It is a schemaVersion 1 document with the seven slots, and
+    // it has to LOAD — the field is ignored, never a reason to refuse the file.
     await seedEverything();
-    const before = await snapshot();
-    const parsed = JSON.parse(before) as { weekLayout?: unknown };
-    expect(parsed.weekLayout).toEqual(weekLayout());
+    const current = await snapshot();
+    const older = mutate(current, (document) => {
+      document['schemaVersion'] = 1;
+      document['weekLayout'] = {
+        slots: ['seed-day-leg', null, 'seed-day-torso-a', null, 'seed-day-fisio', null, null].map(
+          (planDayId, weekday) => ({ weekday, planDayId }),
+        ),
+      };
+    });
+    expect(older).toContain('weekLayout');
+
+    expect(storage.backup.validate(older).ok).toBe(true);
 
     await storage.deleteAll({ confirmation: DELETE_ALL_CONFIRMATION });
-    expect(await storage.meta.readWeekLayout()).toBeUndefined();
-
     const report = await storage.backup.import({
-      json: before,
-      mode: 'restore',
-      confirmation: RESTORE_CONFIRMATION,
-    });
-    expect(report.written.weekLayout).toBe(1);
-    expect(await storage.meta.readWeekLayout()).toEqual(weekLayout());
-    expect(await snapshot()).toBe(before);
-  });
-
-  it('imports a document written before the layout existed and leaves the template default', async () => {
-    // An older backup carries no `weekLayout` key at all, and absence is legitimate: until
-    // the owner moves something the week is the fixture's (S4, S10).
-    const before = await snapshot();
-    expect('weekLayout' in (JSON.parse(before) as Record<string, unknown>)).toBe(false);
-    expect(storage.backup.validate(before).ok).toBe(true);
-
-    await storage.meta.saveWeekLayout(weekLayout());
-    await storage.backup.import({
-      json: before,
+      json: older,
       mode: 'restore',
       confirmation: RESTORE_CONFIRMATION,
     });
 
-    expect(await storage.meta.readWeekLayout()).toBeUndefined();
+    // Everything the document carries is restored, and the retired field is not even
+    // carried into the store: what this build exports afterwards has no key for it.
+    expect(report.mode).toBe('restore');
+    expect(report.written.sessions).toBe(1);
+    expect(report.written.planDays).toBe(1);
+    const after = await snapshot();
+    expect('weekLayout' in (JSON.parse(after) as Record<string, unknown>)).toBe(false);
+    expect(JSON.parse(after)).toMatchObject({ schemaVersion: BACKUP_SCHEMA_VERSION });
+    expect((await storage.profile.read())?.displayName).toBe('Robert');
   });
 
   it('still leaves the device-local week record outside the document and takes it with the restore', async () => {
-    await storage.meta.saveWeek({ monday: '2026-11-02', match: 'league', swaps: [] });
-    await storage.meta.saveWeekLayout(weekLayout());
+    await storage.meta.saveWeek({ monday: '2026-11-02', match: 'league' });
 
     const before = await snapshot();
-    // T3 is a plan for this phone: it is neither exported nor restored, while the fixed
-    // assignment of the same store is both.
+    // T3 is a plan for this phone: it is neither exported nor restored.
     expect(before).not.toContain('2026-11-02');
-    expect(before).toContain('weekLayout');
 
     await storage.backup.import({
       json: before,
@@ -728,6 +717,5 @@ describe('§9 the week layout of T2 (S5, S6)', () => {
     });
 
     expect(await storage.meta.readWeek()).toBeUndefined();
-    expect(await storage.meta.readWeekLayout()).toEqual(weekLayout());
   });
 });
