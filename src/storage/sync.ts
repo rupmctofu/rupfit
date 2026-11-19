@@ -25,7 +25,7 @@ import type { IDBPTransaction } from 'idb';
 import type { SyncTable } from '../cloud/types';
 import { META_KEYS, OUTBOX_OP_PREFIX } from './constants';
 import type { EpochMs } from './entities';
-import { nextSync, syncOf } from './mappers';
+import { isTombstone, nextSync, syncOf } from './mappers';
 import type {
   MetaRow,
   PendingSyncOp,
@@ -212,6 +212,12 @@ export interface StampedDeleteInput extends RowSyncDeps {
  * the updates it already has. The row itself is gone locally — a user deleting a session
  * expects it to disappear — and the *remote* keeps it as a soft delete
  * (`docs/cloud-sync.md` §2); the sync path is what never removes bytes.
+ *
+ * One case queues nothing: a row that is already a tombstone. A pull writes the remote's
+ * deletion into the store, and every app-facing read hides it, but a day saved afterwards
+ * prunes it like any other absent row — and that used to push a second deletion for a row
+ * the server had already deleted (`odd/tasks/backlog-closeout.md` T3). The local removal
+ * still happens; only the redundant op is skipped.
  */
 export async function deleteStamped(input: StampedDeleteInput): Promise<void> {
   const target = tableTarget(input.table);
@@ -219,6 +225,7 @@ export async function deleteStamped(input: StampedDeleteInput): Promise<void> {
   const previous = await store.get(input.key);
   const sync = nextSync(syncOf(previous as { sync?: SyncMeta } | undefined), input.now());
   await store.delete(input.key);
+  if (previous !== undefined && isTombstone(previous as never)) return;
   await input.queue.enqueue(
     input.tx,
     pendingOp({

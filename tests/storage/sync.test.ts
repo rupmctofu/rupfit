@@ -380,6 +380,48 @@ describe('T3 the queue op commits with the row', () => {
     expect(await raw.count('exercises')).toBe(0);
   });
 
+  it('queues no deletion for a row a pull already turned into a tombstone', async () => {
+    // A pulled deletion is written into the store as a tombstone, hidden from every read.
+    // A day saved afterwards prunes it like any other absent row, and that used to push a
+    // deletion for a row the server had already deleted (odd/tasks/backlog-closeout.md T3).
+    const day = {
+      id: 'seed-day-leg',
+      name: 'PIERNA',
+      order: 0,
+      items: [
+        {
+          id: 'seed-item-leg-1',
+          planDayId: 'seed-day-leg',
+          order: 0,
+          exerciseId: 'seed-ex-sentadilla-trasera',
+          exerciseNameSnapshot: 'Sentadilla trasera',
+          prescription: {
+            sets: 3,
+            repRange: { lowerBound: 8, upperBound: 8 },
+            targetRIR: { lowerBound: 1, upperBound: 1 },
+            restSeconds: 180,
+          },
+        },
+      ],
+    };
+    await storage.plan.save(day);
+    // What the sync layer writes when a pulled row arrives deleted: the row, with a stamp.
+    await raw.put('planItems', {
+      ...day.items[0],
+      sync: { rev: 4, updatedAt: days(1), deletedAt: days(1) },
+    });
+    const before = (await storage.sync.queue().allOps()).length;
+
+    await storage.plan.save({ ...day, items: [] });
+
+    expect(await raw.count('planItems')).toBe(0);
+    const after = await storage.sync.queue().allOps();
+    expect(after.filter((op) => op.op === 'delete' && op.rowId === 'seed-item-leg-1')).toEqual([]);
+    // The day itself was written, so the queue did move: this test is not passing by doing nothing.
+    expect(after.length).toBeGreaterThan(0);
+    expect(before).toBeGreaterThan(0);
+  });
+
   it('leaves neither row nor op behind when the queue write fails', async () => {
     // A sink that fails stands in for a crash between the two writes: because the op is
     // written with the row's own transaction, the abort takes the row with it.
