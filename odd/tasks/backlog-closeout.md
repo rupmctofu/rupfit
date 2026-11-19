@@ -27,7 +27,7 @@ Specs are the contract; the Log is the record. Subagents read until `## Log`.
 
 | ID | Spec | Risk | Commit |
 | --- | --- | --- | --- |
-| T1 | S2 | none | `7d1a4f7`: the real-store regression test, seven cases |
+| T1 | S2 | none | `6ada7ba`: the real-store regression test, seven cases |
 | T2 | S3 | 1 | dropped — see L4: the state cannot be produced from the app |
 | T3 | S4 | 1 | blocked — see L5: not reproduced, no fix invented |
 | T4 | S5 | 1, 5 | blocked — see L6: needs an independent verifier and a Supabase step |
