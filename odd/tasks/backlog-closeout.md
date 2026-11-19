@@ -29,8 +29,8 @@ Specs are the contract; the Log is the record. Subagents read until `## Log`.
 | --- | --- | --- | --- |
 | T1 | S2 | none | `6ada7ba`: the real-store regression test, seven cases |
 | T2 | S3 | 1 | dropped — see L4: the state cannot be produced from the app |
-| T3 | S4 | 1 | blocked — see L5: not reproduced, no fix invented |
-| T4 | S5 | 1, 5 | blocked — see L6: needs an independent verifier and a Supabase step |
+| T3 | S4 | 1 | `96ed60b`: traced (L7) and the reachable half fixed |
+| T4 | S5 | 1, 5 | `4a0c85c`: the retirement, verified at L8; the table dropped by the owner at L10 |
 
 ## Log
 
@@ -60,3 +60,23 @@ Specs are the contract; the Log is the record. Subagents read until `## Log`.
   retirement is `Risk: item 1` and `item 5` (stored rows and a synced table leaving the schema,
   plus a Supabase step only the owner can run), and unavailable proof blocks delivery. It waits
   for a session where the verifier can run.
+
+- **L7.** T3 traced before touching anything (L5 said not to invent a fix). The literal claim
+  is half true: a pulled tombstone that a later save prunes does enqueue a delete op, but two
+  delete ops never coexist — the newer revision supersedes the older. Two coexisting ops need
+  `plan.remove` twice, which no screen calls. Fixed the reachable half in `96ed60b`: a row
+  that is already a tombstone is removed locally and queues nothing.
+- **L8.** T4 verified independently on `4a0c85c`: seven of seven MET — nothing consults the
+  layout, an owner's version 1 backup loads with every collection restored, training rows are
+  untouched, a legacy week row reads as `{monday, match}`, the migration is idempotent, and the
+  drawn week is byte-identical to before. Three advisories followed.
+- **L9.** Advisories closed by the parent: A1, the import refusal said the app reads version 1
+  while it reads 1 to 2 (`ed9a206`, the range now comes from the constants); the verifier's
+  gap, the old-backup test asserted three collections and now compares the whole document; A2,
+  two unrelated screenshots that had slipped into `4a0c85c` are out of the tree (they left in
+  `96ed60b`, which swept the staged deletion — untidy, not harmful).
+- **L10.** Deployed `ed9a206` and the site verified by content: `week_layout` no longer appears
+  in the served bundle and the match-day action is still there. The owner ran
+  `drop table if exists public.week_layout;` in the Supabase SQL editor and got
+  "Success. No rows returned", so the table is gone and the retirement is complete on both
+  sides.
