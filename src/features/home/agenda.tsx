@@ -44,7 +44,7 @@ import type { EpochMs } from '../../storage';
 import type { MatchKind } from '../../core/engine/week-plan';
 import type { AgendaDay, WeekAgenda } from '../week/agenda';
 import type { WeekFixture } from '../week/week';
-import { formatDayName, formatExerciseCount, formatWeekdayInitial } from './format';
+import { dayFocus, formatDayName, formatExerciseCount, formatWeekdayInitial } from './format';
 import type { HomeActionView, HomeInput, HomeView } from './selectors';
 import './agenda.css';
 
@@ -495,6 +495,158 @@ export function MatchSheet({ matchKind, onChoose, onClose }: MatchSheetProps): R
           );
         })}
       </ul>
+    </div>
+  );
+}
+
+/* ------------------------------------------------- the workout the owner chose */
+
+/** The quiet control the card of today draws: the offer, not the filling one (§7.1). */
+export const CHOOSE_TRIGGER_LABEL = 'Elegir otro entreno';
+
+/** The sheet's name, and the name a screen reader hears when it opens. */
+export const CHOOSE_SHEET_TITLE = 'Elige el entreno de hoy';
+
+/** A plan with nothing to start in any of its days offers no list to read. */
+export const CHOOSE_EMPTY_NOTE = 'No hay ningún entreno con ejercicios todavía.';
+
+/** One plan day, as the sheet offers it. */
+export interface ChooseDayOption {
+  readonly planDayId: string;
+  /** `Press banca / Empuje` — the name in full, as the card and the row write it. */
+  readonly title: string;
+  /** The muscle group the compound name compacts, when it has one. */
+  readonly chips: readonly string[];
+  /** `3 ejercicios · 9 series` — the day's own counts, as its row states them. */
+  readonly meta: string;
+}
+
+/**
+ * The days the sheet offers, derived from the week the card was read from (S6).
+ *
+ * The agenda already holds every plan day with its counts (`planDays`), so the list is a
+ * projection of it and not a second question to the store. A day with no exercises is left
+ * out: `planStart` refuses it, so offering it would be a control that cannot do its job.
+ */
+export function chooseOptionsOf(agenda: WeekAgenda): readonly ChooseDayOption[] {
+  return agenda.planDays
+    .filter((entry) => entry.exerciseCount > 0)
+    .toSorted(
+      (left, right) =>
+        left.planDay.order - right.planDay.order || left.planDay.id.localeCompare(right.planDay.id),
+    )
+    .map((entry) => ({
+      planDayId: entry.planDay.id,
+      title: formatDayName(entry.planDay.name),
+      chips: [dayFocus(entry.planDay.name)].filter((part): part is string => part !== null),
+      meta: countsTextOf(entry.exerciseCount, entry.setCount),
+    }));
+}
+
+export interface ChooseDaySheetProps {
+  readonly days: readonly ChooseDayOption[];
+  /** Starts the day that was tapped. The sheet closes before it, so nothing covers it. */
+  readonly onChoose: (planDayId: string) => void;
+  readonly onClose: () => void;
+}
+
+/**
+ * S1 — the plan's days, to pick the one the owner is going to train.
+ *
+ * The week proposes a day per weekday, and it is only a proposal: this is where the owner
+ * walks past it (`odd/tasks/choose-today-workout.md`). Choosing starts that day's session
+ * through `planStart` and writes nothing else — no placement, no preference, no layout —
+ * so tomorrow's week proposes exactly what it proposed before (S2).
+ *
+ * A dialog for the same reason the fixture's sheet is one: the card behind it has to leave
+ * the accessibility tree, and the caller marks it (`HomeScreen.tsx`, `MODAL_BACKGROUND`).
+ */
+export function ChooseDaySheet({
+  days,
+  onChoose,
+  onClose,
+}: ChooseDaySheetProps): React.ReactElement {
+  const sheet = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    sheet.current?.focus();
+  }, []);
+
+  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
+    if (event.key === 'Escape') {
+      onClose();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = Array.from(
+      event.currentTarget.querySelectorAll<HTMLElement>('button, [href], [tabindex="0"]'),
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (first === undefined || last === undefined) return;
+    if (event.shiftKey && (document.activeElement === first || document.activeElement === event.currentTarget)) {
+      event.preventDefault();
+      last.focus();
+      return;
+    }
+    if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  return (
+    <div
+      className="home-agenda-sheet"
+      role="dialog"
+      aria-modal="true"
+      aria-label={CHOOSE_SHEET_TITLE}
+      tabIndex={-1}
+      ref={sheet}
+      onKeyDown={onKeyDown}
+    >
+      <span className="home-agenda-sheet__grab" aria-hidden="true" />
+      <div className="home-agenda-sheet__head">
+        <div>
+          <h2 className="ds-card-title">{CHOOSE_SHEET_TITLE}</h2>
+          <p className="ds-meta">La semana propone un día. Tú escoges el que entrenas.</p>
+        </div>
+        <TextButton onClick={onClose}>Cerrar</TextButton>
+      </div>
+
+      {days.length === 0 ? (
+        <p className="ds-meta">{CHOOSE_EMPTY_NOTE}</p>
+      ) : (
+        <ul className="home-agenda-sheet__options">
+          {days.map((day) => (
+            <li key={day.planDayId}>
+              <button
+                type="button"
+                className="ds-action home-agenda-sheet__option"
+                data-plan-day-id={day.planDayId}
+                onClick={() => {
+                  onChoose(day.planDayId);
+                  onClose();
+                }}
+              >
+                <span className="home-agenda-sheet__option-body">
+                  <span className="home-agenda-sheet__option-name">{day.title}</span>
+                  <span className="ds-meta">{day.meta}</span>
+                </span>
+                {day.chips.length === 0 ? null : (
+                  <span className="home-agenda-sheet__chips">
+                    {day.chips.map((chip) => (
+                      <span key={chip} className="ds-meta">
+                        {chip}
+                      </span>
+                    ))}
+                  </span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

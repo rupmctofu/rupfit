@@ -191,6 +191,13 @@
   margin: 0;
 }
 
+/* The quiet offer under the filled action: it is not the day's control, only the way past
+   the proposal (`odd/tasks/choose-today-workout.md` S1). */
+.home-today__choose {
+  display: flex;
+  justify-content: flex-start;
+}
+
 /* A closed day is a fact worth its own ink, and green is the system's word for done. */
 .home-today__done {
   color: var(--color-success);

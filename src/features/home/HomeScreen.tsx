@@ -41,6 +41,7 @@ import {
   Icon,
   Numeral,
   PrimaryAction,
+  TextButton,
   type IconName,
 } from '../../design-system';
 import type { StoragePort, WeekRecord } from '../../storage';
@@ -52,8 +53,12 @@ import { summaryHash } from '../summary/route';
 import { reportedMatchOf, weekFixtureOf, type WeekFixture } from '../week/week';
 import {
   AgendaWeek,
+  CHOOSE_TRIGGER_LABEL,
+  ChooseDaySheet,
   agendaWeekViewOf,
+  chooseOptionsOf,
   type AgendaWeekView,
+  type ChooseDayOption,
 } from './agenda';
 import { DemoHome } from './DemoHome';
 import { useFootballCapture } from './football';
@@ -409,6 +414,7 @@ function HomeToday({
   action,
   onStart,
   onNavigate,
+  onChoose,
   starting,
 }: {
   readonly hero: TodayHero;
@@ -416,6 +422,8 @@ function HomeToday({
   readonly action: HomeActionView | null;
   readonly onStart: (planDayId?: string | null) => void;
   readonly onNavigate: (href: string) => void;
+  /** Opens the list of the plan's days. Only drawn while the card can offer it. */
+  readonly onChoose: () => void;
   readonly starting: boolean;
 }): React.ReactElement {
   return (
@@ -469,6 +477,14 @@ function HomeToday({
         onNavigate={onNavigate}
         starting={starting}
       />
+
+      {/* S1: the week proposes a day and the owner decides. The offer is quiet — the card
+          keeps its one filled control for the day it names (§7.1). */}
+      {hero.canChoose ? (
+        <div className="home-today__choose">
+          <TextButton onClick={onChoose}>{CHOOSE_TRIGGER_LABEL}</TextButton>
+        </div>
+      ) : null}
     </Card>
   );
 }
@@ -564,7 +580,13 @@ export function HomeBody({
   // and outside this task's edit surface; it stays reachable, which is a known gap, not a
   // silent one.
   const [sheetOpen, setSheetOpen] = useState(false);
-  const background = sheetOpen ? MODAL_BACKGROUND : {};
+  // S1 of `odd/tasks/choose-today-workout.md`: the list of the plan's days, open or not.
+  const [chooseOpen, setChooseOpen] = useState(false);
+  const background = sheetOpen || chooseOpen ? MODAL_BACKGROUND : {};
+  // The offer is read from the same week the card is read from, so the list cannot name a
+  // day the card would not.
+  const chooseDays: readonly ChooseDayOption[] =
+    agendaWeek === null ? [] : chooseOptionsOf(agendaWeek.agenda);
   const artwork = dayArtworkOf(
     view.agenda?.agenda.days.find((day) => day.today)?.planDay ?? null,
   );
@@ -579,7 +601,7 @@ export function HomeBody({
   // one of them rebuilt from the other.
   const canStart = rowAction !== null;
   const heroAction: HomeActionView | null =
-    agendaWeek === null || sheetOpen || view.action === null
+    agendaWeek === null || sheetOpen || chooseOpen || view.action === null
       ? null
       : view.action.kind === 'start' && !canStart
         ? null
@@ -653,9 +675,26 @@ export function HomeBody({
           action={heroAction}
           onStart={onStart}
           onNavigate={navigate}
+          onChoose={() => setChooseOpen(true)}
           starting={starting}
         />
       </div>
+
+      {/* The list the card opens, in the same place and shape as the card's own column, so
+          the sheet reads as its own surface and not as a floating layer. It starts the day
+          that was tapped through the same `start` the filled action uses. */}
+      {chooseOpen ? (
+        <div className="home__today-wrap">
+          <ChooseDaySheet
+            days={chooseDays}
+            onChoose={(planDayId) => {
+              setChooseOpen(false);
+              onStart(planDayId);
+            }}
+            onClose={() => setChooseOpen(false)}
+          />
+        </div>
+      ) : null}
 
       {progress === null ? null : (
         <div className="home__week-wrap" {...background}>

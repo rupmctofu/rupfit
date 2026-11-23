@@ -28,6 +28,8 @@ import { HomeBody, currentWeekOf, matchReportedOf, saveWeekMatch } from './HomeS
 import {
   AgendaRow,
   AgendaWeek,
+  CHOOSE_SHEET_TITLE,
+  CHOOSE_TRIGGER_LABEL,
   MatchSheet,
   agendaWeekViewOf,
   startRequestOf,
@@ -237,6 +239,34 @@ describe('Inicio renders', () => {
     expect(markup).not.toContain('Registrar');
     // No closed session, no kilos: the line does not exist instead of reading `0 kg`.
     expect(markup).not.toContain('Última:');
+  });
+
+  it('offers to choose the workout of the day while today has no session (S1, S5)', () => {
+    // Saturday is a rest day: the card says so, and the owner may still train. The offer is
+    // the quiet control, so the card keeps its one filled action for the day itself.
+    const rest = render({ now: SATURDAY, week: LEAGUE_WEEK });
+    expect(rest).toContain(CHOOSE_TRIGGER_LABEL);
+    expect(rest).toContain('Descanso');
+
+    // A workout day without a session offers it too.
+    const workoutDay = render({ now: NOW });
+    expect(workoutDay).toContain(CHOOSE_TRIGGER_LABEL);
+  });
+
+  it('stops offering it once today has a session, and draws no sheet until asked (S5)', () => {
+    const closed = session({
+      id: 'closed-today',
+      status: 'completed',
+      startedAt: NOW,
+      endedAt: NOW + 30 * 60 * 1000,
+      planDayId: 'seed-day-fisico',
+      dayNameSnapshot: 'MOVILIDAD Y CORE',
+    });
+    const markup = render({ now: NOW, recent: [closed], plan: WEEK_PLAN, week: LEAGUE_WEEK });
+
+    expect(markup).not.toContain(CHOOSE_TRIGGER_LABEL);
+    // The list is behind the control: nothing is open on a screen nobody touched.
+    expect(markup).not.toContain(CHOOSE_SHEET_TITLE);
   });
 
   it('draws the session in progress with the action that returns to its sets', () => {
