@@ -11,7 +11,7 @@ An account is optional and only mirrors the store to the owner's own Supabase pr
 ## Status
 
 **App tier, gate by gate.** The documents, the engine and the app exist. The app
-builds, typechecks and passes 1131 tests in 74 files at `bce8129`. The install contract
+builds, typechecks and passes 1217 tests in 81 files at `a5018ac`. The install contract
 is not verified on the owner's phone yet: that check needs a published HTTPS URL and a
 device, and neither has happened.
 
@@ -35,6 +35,7 @@ Each row names the commit that holds the work, so the claim can be checked with
 | Starting a session from the plan | Inicio offers the day the plan has today (or the next one in the rotation) and opens Sesión with that day's prescriptions; the summary hands the result back. | `04f3b09` |
 | The week in the hand | Inicio draws the week as a list — Monday to Friday, with a weekend row returning only when it carries a workout of the owner's. Each row says its day, its workout, its numbers and its state in words; the match carries the ball and cannot be moved; a day already trained is locked at both ends of a gesture. A workout moves to another day by dragging its row or through the day sheet, and that layout is one fixed assignment that survives a backup and syncs to the other devices. | `80bc8da`, `6edaa31`, `bce8129` |
 | Service worker and handoff | Registration at launch, the prompt-based update banner, and the session-to-summary handoff. | `ad607f7` |
+| Choosing the workout of the day | The card of today offers the plan's days, each with its name, muscle group and counts, and starts the one the owner picks through `planStart`; choosing writes no preference, so the week keeps proposing what the fixture's template says, and the card names the day actually being trained — and offers the way in — even when the template puts it on another weekday. | `a5018ac` |
 | Editing the routine | Not built: `Entrenar` reads the plan and writes nothing back to it. | — |
 | Recording a body measurement | Not built: `#/progreso/peso` reads stored measurements; nothing in the app creates one. | — |
 | Device verification | Not recorded: no dated line in `docs/environment.md` (that file does not exist), no install, no offline cold start and no export/import round trip on the phone. The captures in `odd/evidence/` carry no record of where they ran, so they are not evidence of an installed app. | — |
