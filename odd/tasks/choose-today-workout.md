@@ -53,7 +53,7 @@ tarjeta responde *qué se está entrenando hoy*.
 | T7 | S4 | Rojo + verde: la fila del weekday no cambia y no se cierra antes de su fecha | `917d742` |
 | T8 | S7 | README y `docs/architecture.md` | `006c62c` |
 | T9 | — | Verificación completa (tipos + 1215 tests), veredicto por spec | `006c62c` |
-| T10 | — | Despliegue en producción, según pide el dueño | pendiente |
+| T10 | — | Despliegue en producción, según pide el dueño | run `45172079852` |
 | T11 | S3, S5 | Huecos de la verificación: la oferta en un día con la fila cerrada antes, y la acción de la tarjeta en descanso y partido | `a5018ac` |
 
 **Cortes de revisión.** El trabajo va en cuatro commits revisables: el modelo de la tarjeta
@@ -90,3 +90,10 @@ por el tipo de la fila).
 verdad —hay sesión **de hoy**, no «la tarjeta está hecha»— y la acción de la tarjeta se filtra
 por la tarjeta (`hero.kind === 'workout'`), no por la fila. Las dos pruebas del verificador
 quedan en la suite (1217 tests en 81 ficheros).
+
+**L7 (re-verificación, `a5018ac`):** los dos defectos cerrados, los 18 sondeos del verificador
+en verde, los veredictos S1-S4 y S6 sin cambios. Desplegado con L3: `push` a
+`feature/pwa-platform` (`b8437a4..97815e2`) → workflow `pages`, run `45172079852`, test →
+typecheck → build → deploy en verde. El bundle servido en https://rupmctofu.github.io/rupfit/
+(`index-CRjnKgXv.js`, el mismo que precachea su `sw.js`) contiene `Elegir otro entreno`,
+`Elige el entreno de hoy` y `La semana propone un día`, así que lo publicado es este cambio.
