@@ -303,6 +303,24 @@ describe('the card follows the workout of the day (odd/tasks/choose-today-workou
     ).toBe(false);
   });
 
+  it('offers choosing on a day with no session whose row was closed earlier this week (S5)', () => {
+    // Thursday closed the plan day the template places on Friday, so Friday's row reads
+    // `Hecho` without any session of Friday existing. The day is still there to train.
+    const closedOnThursday: WorkoutSession = {
+      ...CLOSED_TODAY,
+      id: 'closed-on-thursday',
+      planDayId: 'seed-day-torso-b',
+      dayNameSnapshot: 'TORSO B',
+      scheduledDate: THURSDAY,
+      startedAt: THURSDAY,
+      endedAt: THURSDAY + 30 * 60 * 1000,
+    };
+    const view = homeViewOf(input({ now: FRIDAY, recent: [closedOnThursday] }));
+
+    expect(view.today?.sessionToday).toBe(false);
+    expect(todayHeroOf(view).canChoose).toBe(true);
+  });
+
   it('offers nothing on a store with no plan: there is no list to show (S5)', () => {
     expect(todayHeroOf(homeViewOf(input({ plan: [], recent: [] }))).canChoose).toBe(false);
   });

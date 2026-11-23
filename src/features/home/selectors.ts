@@ -135,6 +135,12 @@ export interface TodayView {
   /** The stored session behind the card; `null` while the day is only a preview. */
   readonly sessionId: string | null;
   /**
+   * Whether a session **dated today** exists. It is not the same question as `state`:
+   * `done` also comes from a day closed earlier in the week, and the card then speaks for a
+   * training that is not today's (`odd/tasks/choose-today-workout.md` S5).
+   */
+  readonly sessionToday: boolean;
+  /**
    * The plan day the card is about, whatever weekday the week places it on.
    *
    * It is the session's own day once one exists — the owner may start a day out of its
@@ -481,6 +487,7 @@ function todayViewOf(
       state === 'done' ? doneLineOf(session, 'hoy') : null,
     sessionId: session.id,
     planDayId: session.planDayId,
+    sessionToday: true,
   };
 }
 
@@ -553,6 +560,7 @@ function previewDayOf(day: PlanDay, phaseState: PhaseState | undefined): TodayVi
     done: null,
     sessionId: null,
     planDayId: day.id,
+    sessionToday: false,
   };
 }
 
@@ -613,6 +621,9 @@ function todayCardOf(
           : doneLineOf(closing, `el ${formatWeekdayName(closing.scheduledDate).toLowerCase()}`),
       sessionId: closing === null ? null : closing.id,
       planDayId: row.planDay.id,
+      // The row is closed because the training happened earlier in the week: today itself
+      // still has no session, and the card can offer another day.
+      sessionToday: false,
     };
   }
   return previewDayOf(row.planDay, phaseState);

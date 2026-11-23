@@ -599,7 +599,12 @@ export function HomeBody({
   // carries the words — `Empezar entrenamiento`, `Continuar entrenamiento`, `Ver el
   // resumen` — and the session the summary needs, which is why both are read here and not
   // one of them rebuilt from the other.
-  const canStart = rowAction !== null;
+  //
+  // Since `odd/tasks/choose-today-workout.md` S3 the gate is the card, not the row: the card
+  // may name a session started on a rest day or on the match day, and that session has to be
+  // startable from here. The row's kind still decides nothing on its own (`agendaWeek.action`
+  // keeps its meaning for the rows, which have no session of their own to offer).
+  const canStart = hero.kind === 'workout';
   const heroAction: HomeActionView | null =
     agendaWeek === null || sheetOpen || chooseOpen || view.action === null
       ? null

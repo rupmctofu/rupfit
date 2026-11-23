@@ -269,6 +269,24 @@ describe('Inicio renders', () => {
     expect(markup).not.toContain(CHOOSE_SHEET_TITLE);
   });
 
+  it('draws the filled action of a session started on a day with no workout of its own (S3)', () => {
+    // Saturday is a rest day, and a session of it exists because the owner chose the day.
+    // The card names it, so the card — not the row's kind — is what offers to start it.
+    const chosen = session({
+      id: 'chosen-saturday',
+      status: 'scheduled',
+      startedAt: null,
+      endedAt: null,
+      scheduledDate: SATURDAY,
+      planDayId: 'seed-day-leg',
+      dayNameSnapshot: 'PIERNA',
+    });
+    const markup = render({ now: SATURDAY, recent: [chosen], plan: WEEK_PLAN, week: LEAGUE_WEEK });
+
+    expect(markup).toContain('Empezar entrenamiento');
+    expect(markup).toContain('home-today__title');
+  });
+
   it('draws the session in progress with the action that returns to its sets', () => {
     const open = session({
       id: 'open',

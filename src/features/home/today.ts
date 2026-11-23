@@ -113,9 +113,10 @@ export function todayHeroOf(view: HomeView): TodayHero {
     };
   }
 
-  // S5: an offer only when there is no session of today and something to choose from.
+  // S5: an offer only when today itself has no session — a day closed earlier in the week
+  // is `done` on the row and still has no session of today — and something to choose from.
   const canChoose =
-    (view.today === null || view.today.state === 'preview') &&
+    view.today?.sessionToday !== true &&
     week.planDays.some((planDay) => planDay.exerciseCount > 0);
 
   const eyebrow = eyebrowOf(row.weekdayName);
