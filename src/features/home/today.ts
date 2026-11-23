@@ -22,7 +22,7 @@
  */
 
 import type { AgendaKind } from '../week/agenda';
-import { dayFocus } from './format';
+import { dayFocus, formatDayName } from './format';
 import {
   rowMetaOf,
   rowTitleOf,
@@ -60,6 +60,15 @@ export interface TodayHero {
   readonly done: string | null;
   /** The plan day the card starts; `null` on a match, a rest day and an empty store. */
   readonly planDayId: string | null;
+  /**
+   * Whether the card offers the plan's days to choose from
+   * (`odd/tasks/choose-today-workout.md` S5).
+   *
+   * It is offered while today has no session at all — closed or not — on a workout day, a
+   * rest day, the match day and a day with no exercises, and never on a store with no plan
+   * or with nothing to choose: a list of nothing is not an offer.
+   */
+  readonly canChoose: boolean;
 }
 
 /** The empty store's sentence, kept word for word from the note it used to be (T9). */
@@ -100,11 +109,40 @@ export function todayHeroOf(view: HomeView): TodayHero {
       note: NO_PLAN_NOTE,
       done: null,
       planDayId: null,
+      canChoose: false,
+    };
+  }
+
+  // S5: an offer only when there is no session of today and something to choose from.
+  const canChoose =
+    (view.today === null || view.today.state === 'preview') &&
+    week.planDays.some((planDay) => planDay.exerciseCount > 0);
+
+  const eyebrow = eyebrowOf(row.weekdayName);
+
+  // S3 (`odd/tasks/choose-today-workout.md`): a session of today — of the row's day or of
+  // another one the owner chose — is what the card names. The title is the session's own
+  // snapshot, and the counts are the agenda's numbers for that plan day, so the card never
+  // speaks for a day it is not about.
+  const seen = view.today;
+  if (seen !== null && seen.state !== 'preview') {
+    const counts =
+      week.planDays.find((planDay) => planDay.planDay.id === seen.planDayId) ?? null;
+    return {
+      kind: 'workout',
+      eyebrow,
+      title: formatDayName(seen.dayName),
+      chips: [dayFocus(seen.dayName), seen.phase].filter((part): part is string => part !== null),
+      exercises: counts === null ? null : counts.exerciseCount,
+      sets: counts === null ? null : counts.setCount,
+      note: null,
+      done: seen.done,
+      planDayId: seen.planDayId,
+      canChoose,
     };
   }
 
   const title = rowTitleOf(row, week.matchKind);
-  const eyebrow = eyebrowOf(row.weekdayName);
 
   if (row.kind !== 'workout') {
     return {
@@ -119,6 +157,7 @@ export function todayHeroOf(view: HomeView): TodayHero {
       note: rowMetaOf(row),
       done: null,
       planDayId: null,
+      canChoose,
     };
   }
 
@@ -133,6 +172,7 @@ export function todayHeroOf(view: HomeView): TodayHero {
       note: EMPTY_DAY_NOTE,
       done: null,
       planDayId: startRequestOf(row),
+      canChoose,
     };
   }
 
@@ -152,7 +192,9 @@ export function todayHeroOf(view: HomeView): TodayHero {
     sets: row.setCount,
     note: null,
     done: view.today?.done ?? null,
-    planDayId: startRequestOf(row),
+    // S3: the day the card names, so the filled action starts it and not the row's.
+    planDayId: view.today?.planDayId ?? startRequestOf(row),
+    canChoose,
   };
 }
 

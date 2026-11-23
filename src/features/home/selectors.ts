@@ -134,6 +134,14 @@ export interface TodayView {
   readonly done: string | null;
   /** The stored session behind the card; `null` while the day is only a preview. */
   readonly sessionId: string | null;
+  /**
+   * The plan day the card is about, whatever weekday the week places it on.
+   *
+   * It is the session's own day once one exists — the owner may start a day out of its
+   * place (`odd/tasks/choose-today-workout.md` S3) — and the row's day while the card is
+   * only a preview. The filled action starts this day, never another.
+   */
+  readonly planDayId: string | null;
 }
 
 export type HomeActionKind = 'start' | 'resume' | 'summary';
@@ -472,6 +480,7 @@ function todayViewOf(
     done:
       state === 'done' ? doneLineOf(session, 'hoy') : null,
     sessionId: session.id,
+    planDayId: session.planDayId,
   };
 }
 
@@ -543,6 +552,7 @@ function previewDayOf(day: PlanDay, phaseState: PhaseState | undefined): TodayVi
     state: 'preview',
     done: null,
     sessionId: null,
+    planDayId: day.id,
   };
 }
 
@@ -569,21 +579,17 @@ function closingSessionOf(
 }
 
 /**
- * T6 — the card of today, read from the agenda's today row.
+ * The card of today, read from the agenda's today row and from today's sessions.
  *
  * The card and the rows read the same derivation: the card used to ask the template and the
  * stored `WeekRecord` what today was, while the row above it asked a stored layout, so a
- * day that layout did not place still appeared below as the day to train. Now the row is
- * the only source of "what today carries":
+ * day that layout did not place still appeared below as the day to train.
  *
- * - a rest day or the match asks the agenda, and the card says so with nothing to start;
- * - a workout day shows *its* plan day — a stored session of that same plan day if there is
- *   one, the closed session that made it done if it is done, and the preview otherwise.
- *
- * A session scheduled for today whose plan day the template puts on another weekday is not
- * the card: the store's row is still there, but the day it belongs to is another. An open
- * session stays reachable through `actionOf`'s `resume`, which is the one action that does
- * not claim a day.
+ * Since `odd/tasks/choose-today-workout.md` S3 the row answers a different question than it
+ * did: the row is what the plan *proposes* for that weekday, and the card is what the owner
+ * is *training* today. So a session started today of any plan day is the card — he walked
+ * past the proposal, and the card has to name the day he chose. A rest day and the match are
+ * days with nothing to start, and they only say so while no session of today exists.
  */
 function todayCardOf(
   row: AgendaDay | null,
@@ -591,12 +597,10 @@ function todayCardOf(
   phaseState: PhaseState | undefined,
   now: EpochMs,
 ): TodayView | null {
-  if (row === null || row.kind !== 'workout' || row.planDay === null) return null;
-  const stored = todaySessionOf(
-    sessions.filter((session) => session.planDayId === row.planDay?.id),
-    now,
-  );
+  if (row === null) return null;
+  const stored = todaySessionOf(sessions, now);
   if (stored !== undefined) return todayViewOf(stored, phaseState);
+  if (row.kind !== 'workout' || row.planDay === null) return null;
   if (row.done) {
     const closing = closingSessionOf(sessions, row.planDay.id);
     return {
@@ -608,6 +612,7 @@ function todayCardOf(
           ? 'Ya está hecho esta semana.'
           : doneLineOf(closing, `el ${formatWeekdayName(closing.scheduledDate).toLowerCase()}`),
       sessionId: closing === null ? null : closing.id,
+      planDayId: row.planDay.id,
     };
   }
   return previewDayOf(row.planDay, phaseState);

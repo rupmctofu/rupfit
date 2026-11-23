@@ -478,21 +478,45 @@ describe('homeViewOf', () => {
       }
     });
 
-    it('does not hand today’s card to a stored row of another plan day (S2)', () => {
-      const stale = session({
-        id: 'stale',
+    it('hands today’s card to the day the owner started, out of its place (S3)', () => {
+      const chosen = session({
+        id: 'chosen',
         status: 'scheduled',
         scheduledDate: NOW,
         startedAt: null,
         endedAt: null,
         planDayId: 'seed-day-leg',
+        dayNameSnapshot: 'SENTADILLA / PIERNA',
       });
-      const view = homeViewOf(input({ recent: [stale], plan: SEED_PLAN, week: LEAGUE_WEEK }));
+      const view = homeViewOf(input({ recent: [chosen], plan: SEED_PLAN, week: LEAGUE_WEEK }));
 
-      // Wednesday carries the preparation day, so the legs stored for today are not the
-      // card: the week answers what the day is, and the row still holds its own session.
-      expect(view.today?.dayName).toBe('PREPARACIÓN FÚTBOL');
-      expect(view.today?.state).toBe('preview');
+      // Wednesday carries the template's day, and the owner chose the legs instead
+      // (`odd/tasks/choose-today-workout.md` S3). The card names what he is training; the
+      // row above it keeps proposing the template's day, which is the plan's own answer.
+      expect(view.today?.dayName).toBe('SENTADILLA / PIERNA');
+      expect(view.today?.state).toBe('pending');
+      expect(view.today?.planDayId).toBe('seed-day-leg');
+      expect(view.agenda?.agenda.days[2]?.kind).toBe('workout');
+      expect(view.agenda?.agenda.days[2]?.planDay?.id).toBe('seed-day-torso-a');
+    });
+
+    it('does not close the row of a day trained out of its place, before its date (S4)', () => {
+      // The owner trains Wednesday's day on Monday. The week keeps proposing it on
+      // Wednesday, and that row cannot close before its own date arrives.
+      const early = session({
+        id: 'early',
+        status: 'completed',
+        scheduledDate: MONDAY,
+        endedAt: MONDAY_END,
+        planDayId: 'seed-day-torso-a',
+        dayNameSnapshot: 'PRESS BANCA / EMPUJE',
+      });
+      const view = homeViewOf(input({ now: MONDAY, recent: [early], plan: SEED_PLAN }));
+
+      expect(view.agenda?.agenda.days[2]?.planDay?.id).toBe('seed-day-torso-a');
+      expect(view.agenda?.agenda.days[2]?.done).toBe(false);
+      // The training happened, and the week counts it: the plan day is done, its row is not.
+      expect(view.agenda?.agenda.doneCount).toBe(1);
     });
 
     it('says when a day was trained when it was closed on another weekday (S6)', () => {

@@ -96,6 +96,20 @@ function input(overrides: Partial<HomeInput> = {}): HomeInput {
   };
 }
 
+/** The leg day, started today whatever day the template puts it on. */
+function chosenToday(at: number, status: WorkoutSession['status']): WorkoutSession {
+  return {
+    ...CLOSED_MONDAY,
+    id: `chosen-${String(at)}`,
+    planDayId: 'seed-day-leg',
+    dayNameSnapshot: 'PIERNA',
+    scheduledDate: at,
+    startedAt: status === 'scheduled' ? null : at,
+    endedAt: status === 'completed' ? at + 40 * 60 * 1000 : null,
+    status,
+  };
+}
+
 /* --------------------------------------------------------------------- the hero */
 
 describe('todayHeroOf', () => {
@@ -219,5 +233,77 @@ describe('weekProgressOf', () => {
 
   it('has nothing to count on a store with no plan', () => {
     expect(weekProgressOf(homeViewOf(input({ plan: [] })))).toBeNull();
+  });
+});
+
+/* ------------------------------------------------ the workout the owner chose */
+
+describe('the card follows the workout of the day (odd/tasks/choose-today-workout.md)', () => {
+  it('names the day trained today even when the template places it on another weekday (S3)', () => {
+    // Tuesday's row is the mobility day; the owner chose the leg day from the card, and the
+    // card has to name what he is doing — not the row's proposal.
+    const hero = todayHeroOf(
+      homeViewOf(input({ now: TUESDAY, recent: [chosenToday(TUESDAY, 'scheduled')] })),
+    );
+
+    expect(hero.kind).toBe('workout');
+    expect(hero.title).toBe('Pierna');
+    // The card's own plan day, so the filled action starts the chosen day and not the row's.
+    expect(hero.planDayId).toBe('seed-day-leg');
+    expect(hero.canChoose).toBe(false);
+  });
+
+  it('names it on a rest day, instead of reading Descanso (S3)', () => {
+    const hero = todayHeroOf(
+      homeViewOf(input({ now: SATURDAY, recent: [chosenToday(SATURDAY, 'completed')] })),
+    );
+
+    expect(hero.kind).toBe('workout');
+    expect(hero.title).toBe('Pierna');
+    expect(hero.done).toBe('Sesión completada hoy · 0 de 0 series.');
+  });
+
+  it('names it on the match day without taking the match away from the week (S3)', () => {
+    const view = homeViewOf(input({ now: THURSDAY, recent: [chosenToday(THURSDAY, 'scheduled')] }));
+    const hero = todayHeroOf(view);
+
+    expect(hero.kind).toBe('workout');
+    expect(hero.title).toBe('Pierna');
+    // The match row is still the match: only the card reads what today trains.
+    expect(view.agenda?.agenda.days[3]?.kind).toBe('match');
+  });
+
+  it('offers choosing whenever today has no session (S5)', () => {
+    expect(todayHeroOf(homeViewOf(input({ now: TUESDAY }))).canChoose).toBe(true);
+    // A rest day and the match day have nothing to start, and the owner may still train.
+    expect(todayHeroOf(homeViewOf(input({ now: SATURDAY }))).canChoose).toBe(true);
+    expect(todayHeroOf(homeViewOf(input({ now: THURSDAY }))).canChoose).toBe(true);
+    // A workout day with no exercises is an honest empty day, and it can choose another.
+    const emptyLeg = planDay('day-empty-leg', 'SENTADILLA / PIERNA', 0, 0);
+    const emptyDay = todayHeroOf(
+      homeViewOf(
+        input({
+          now: MONDAY,
+          plan: [emptyLeg, planDay('seed-day-torso-a', 'PRESS BANCA / EMPUJE', 1, 3)],
+        }),
+      ),
+    );
+    expect(emptyDay.kind).toBe('emptyDay');
+    expect(emptyDay.canChoose).toBe(true);
+  });
+
+  it('stops offering it once today has a session, closed or not (S5)', () => {
+    expect(
+      todayHeroOf(homeViewOf(input({ now: TUESDAY, recent: [CLOSED_TODAY] }))).canChoose,
+    ).toBe(false);
+    expect(
+      todayHeroOf(
+        homeViewOf(input({ now: TUESDAY, recent: [chosenToday(TUESDAY, 'scheduled')] })),
+      ).canChoose,
+    ).toBe(false);
+  });
+
+  it('offers nothing on a store with no plan: there is no list to show (S5)', () => {
+    expect(todayHeroOf(homeViewOf(input({ plan: [], recent: [] }))).canChoose).toBe(false);
   });
 });
