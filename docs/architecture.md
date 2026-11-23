@@ -445,6 +445,19 @@ speak for today, and `homeViewOf` falls back to the rotation (`nextPlanDay`), so
 record is a convenience and never a condition for the screen to open. The pure planner
 never sees the store, and the store never sees a date.
 
+**The week proposes; the card names what is being trained.** Since
+`odd/tasks/choose-today-workout.md` the two are different questions and they may answer
+differently, on purpose. The derived week (`features/week/agenda.ts`) says what the
+fixture's template places on each weekday, and that is what the rows draw. The card of
+today (`features/home/selectors.ts` `todayCardOf`, `features/home/today.ts`) says what
+the owner is training today: a session of today of **any** plan day is the card, with its
+own `dayNameSnapshot`, so choosing the leg day on a Wednesday shows the legs while the
+Wednesday row still proposes the prep. Nothing per date is stored for that — the session
+is the record of the choice (`storage` `WorkoutSession.planDayId`), there is no placement
+and no preference to sync, restore or migrate, and the next read derives the same week it
+derived before. The action that starts a day is `start.start(planDayId)` → `planStart`,
+which already accepted any plan day (`features/session/start.ts`).
+
 Details of the schema, keys, indexes, migration steps and the backup document are in
 `docs/data-model.md` §5 and §9.
 

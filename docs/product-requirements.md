@@ -194,6 +194,17 @@ Consequences the requirements below depend on:
   federation's calendar cannot be read (S10). A change of fixture writes one field of this
   week's record, so the days are redrawn from the new template and there is nothing else to
   clear: the week stores no placement (FR-3.7).
+- **FR-3.9 MUST** let the owner choose which of the plan's days he trains today, from the
+  card of today on `Inicio` (`odd/tasks/choose-today-workout.md`): the card offers the plan's
+  days, each with its name, its muscle group and its counts, and tapping one starts that
+  day's session through the same path the routine's `Empezar este día` uses. The list is
+  offered whenever today has no session — a workout day, a rest day, the match day or a day
+  with no exercises — and never on a store with no plan, and it writes **no** preference: no
+  placement, no per-date assignment, no new field. The card then names the day that is being
+  trained, even when the template places it on another weekday, while the week's rows keep
+  proposing what the template says; a day trained out of its place does not close its own
+  weekday's row before that date arrives. Choosing is a decision of the day, not a change of
+  the plan: tomorrow proposes what it proposed before.
 
 ### FR-4 Readaptation phase — MVP
 
